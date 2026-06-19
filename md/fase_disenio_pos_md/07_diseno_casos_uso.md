@@ -145,6 +145,117 @@ Definir las acciones principales que realizarán los usuarios del sistema POS, i
 6. El usuario exporta si lo necesita.
 ```
 
+---
+
+# Caso de uso 8 — Crear cotización
+
+| Elemento | Descripción |
+|---|---|
+| Actor | Vendedor / Cajero |
+| Objetivo | Generar una propuesta comercial para un cliente sin afectar el inventario ni registrar una venta. |
+| Precondición | El catálogo de productos está disponible y el usuario ha iniciado sesión. |
+| Resultado | La cotización queda guardada con número consecutivo COT-YYYY-NNNN y no descuenta stock. |
+
+```text
+1. El vendedor entra al módulo Cotizaciones.
+2. Presiona Nueva cotización.
+3. Busca y agrega productos desde el catálogo.
+4. Define la cantidad y el descuento de cada ítem.
+5. Ingresa los datos del cliente: nombre, teléfono, correo y observaciones.
+6. Define la vigencia de la oferta en días.
+7. Confirma la cotización.
+8. El sistema genera el número consecutivo COT-YYYY-NNNN.
+9. El sistema guarda la cotización sin descontar stock.
+10. El sistema ofrece opciones de impresión o envío en PDF.
+```
+
+---
+
+# Caso de uso 9 — Convertir cotización a venta
+
+| Elemento | Descripción |
+|---|---|
+| Actor | Vendedor |
+| Objetivo | Transformar una cotización aceptada por el cliente en una venta registrada. |
+| Precondición | La cotización existe y su estado es Active o Draft. No puede estar en estado Expired ni Converted. |
+| Resultado | Se crea un registro de venta, se descuenta el inventario y la cotización pasa a estado Converted. |
+
+```text
+1. El vendedor busca y selecciona la cotización desde el historial.
+2. El sistema verifica que el estado no sea Expired ni Converted.
+3. El sistema verifica la disponibilidad de stock de cada ítem.
+4. Si hay stock insuficiente, el sistema informa qué productos no tienen existencia suficiente.
+5. El vendedor selecciona el método de pago.
+6. El vendedor confirma la conversión.
+7. El sistema crea el registro de venta con los datos de la cotización.
+8. El sistema descuenta el inventario.
+9. El sistema actualiza el estado de la cotización a Converted.
+10. El sistema asigna el ID de la venta creada en el campo converted_sale_id.
+```
+
+---
+
+# Caso de uso 10 — Consultar historial de cotizaciones
+
+| Elemento | Descripción |
+|---|---|
+| Actor | Vendedor / Administrador |
+| Objetivo | Buscar y revisar cotizaciones emitidas con filtros flexibles. |
+| Precondición | Existen cotizaciones registradas en el sistema. |
+| Resultado | El sistema muestra la lista paginada de cotizaciones que coinciden con los filtros aplicados. |
+
+```text
+1. El usuario entra al módulo Cotizaciones.
+2. Selecciona la opción Historial.
+3. Aplica filtros opcionales: rango de fechas, nombre del cliente, estado (Draft, Active, Expired, Converted).
+4. El sistema muestra la lista paginada de resultados.
+5. El usuario selecciona una cotización para ver su detalle completo.
+6. El usuario puede imprimir o reenviar la cotización desde el detalle.
+```
+
+---
+
+# Caso de uso 11 — Enviar documento por correo electrónico
+
+| Elemento | Descripción |
+|---|---|
+| Actor | Sistema / Vendedor |
+| Objetivo | Enviar una factura o cotización al correo electrónico del cliente en formato PDF. |
+| Precondición | El documento existe, el cliente tiene correo registrado y la configuración SMTP está activa. |
+| Resultado | El documento se envía al correo del cliente y el envío queda registrado en DocumentSendLog. |
+
+```text
+1. El usuario selecciona una factura o cotización.
+2. El usuario elige la opción Enviar por correo.
+3. El sistema verifica que el correo de destino sea válido.
+4. El sistema genera el documento en formato PDF mediante PdfService.
+5. El sistema envía el PDF adjunto mediante SMTP usando la configuración del negocio.
+6. El sistema registra el resultado del envío en DocumentSendLog (canal: Email, éxito o error).
+7. El sistema muestra confirmación del envío al usuario.
+```
+
+---
+
+# Caso de uso 12 — Enviar documento por WhatsApp
+
+| Elemento | Descripción |
+|---|---|
+| Actor | Sistema / Vendedor |
+| Objetivo | Enviar una factura o cotización al número de WhatsApp del cliente. |
+| Precondición | El documento existe, el cliente tiene teléfono registrado, el script externo está configurado y accesible. |
+| Resultado | El documento se entrega al script externo para su envío y el intento queda registrado en DocumentSendLog. |
+
+```text
+1. El usuario selecciona una factura o cotización.
+2. El usuario elige la opción Enviar por WhatsApp.
+3. El sistema verifica que el número de teléfono de destino sea válido.
+4. El sistema genera el documento en formato PDF mediante PdfService.
+5. El sistema guarda el PDF en una ruta temporal.
+6. El sistema ejecuta el script externo configurado (Process.Start), pasándole el número de teléfono y la ruta del PDF.
+7. El sistema registra el resultado del intento en DocumentSendLog (canal: WhatsApp, éxito o error).
+8. El sistema muestra el resultado al usuario.
+```
+
 ## Resultado esperado
 
 Estos casos de uso sirven como guía para programar los módulos y para validar que el sistema sea fácil de operar desde la perspectiva del usuario final.

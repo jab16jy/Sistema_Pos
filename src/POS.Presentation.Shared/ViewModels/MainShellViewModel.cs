@@ -25,6 +25,7 @@ public sealed class MainShellViewModel : ViewModelBase
             new("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", false),
             new("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", false),
             new("customers", "Clientes", "Busca clientes, historial y puntos.", "F5", false),
+            new("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes", "Alt+Q", IsImplemented: true),
             new("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", false),
             new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F7", false),
             new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F8", false),

@@ -14,7 +14,7 @@ El sistema está concebido para operar de manera local, sin dependencia de inter
 
 # **Resumen de módulos**
 
-El sistema se compone de 11 módulos funcionales, cada uno responsable de una área específica de la operación del negocio:
+El sistema se compone de 13 módulos funcionales, cada uno responsable de una área específica de la operación del negocio:
 
 | **#** | **Módulo** | **Propósito principal** |
 | --- | --- | --- |
@@ -29,6 +29,8 @@ El sistema se compone de 11 módulos funcionales, cada uno responsable de una á
 | **09** | **Módulo de Facturas** | Historial de facturas con opción de reimpresión y gestión de devoluciones. |
 | **10** | **Módulo de Utilidades** | Cálculo de utilidad bruta por producto y por período de tiempo. |
 | **11** | **Módulo de Código de Barras** | Generación e impresión de etiquetas con código de barras para productos. |
+| **12** | **Módulo de Cotizaciones** | Elaboración de propuestas comerciales para clientes sin afectar el inventario. |
+| **13** | **Módulo de Comunicación Digital** | Envío de facturas y cotizaciones por correo electrónico y WhatsApp. |
 
 # **Descripción detallada de módulos**
 
@@ -219,3 +221,38 @@ Herramienta de configuración y generación de códigos de barras para los produ
 | **●** Configuración del diseño de la etiqueta: tamaño, incluir precio, incluir nombre. | |
 | **●** Impresión masiva de etiquetas para múltiples productos seleccionados. | |
 | **Nota:** Este módulo es especialmente útil para productos a granel o de producción propia que no tienen código de barras de fábrica. El código generado es compatible con el escáner del Módulo de Caja. | |
+
+## **12. Módulo de Cotizaciones**
+
+Herramienta para generar propuestas comerciales a clientes sin afectar el inventario ni registrar una venta. Permite elaborar cotizaciones detalladas, definir su vigencia y convertirlas en venta con un solo clic cuando el cliente confirme.
+
+|  |  |
+| --- | --- |
+| **12** | **Módulo de Cotizaciones** |
+| *Herramienta para generar propuestas comerciales a clientes sin afectar el inventario ni registrar una venta. Permite elaborar cotizaciones detalladas, definir su vigencia y convertirlas en venta con un solo clic cuando el cliente confirme.* | |
+| **Funcionalidades del módulo** | |
+| **●** Creación de cotizaciones para clientes sin afectar el inventario ni generar una venta. | |
+| **●** Selección de productos desde el catálogo existente con cantidades y precios. | |
+| **●** Generación automática de número consecutivo en formato COT-YYYY-NNNN. | |
+| **●** Registro de datos del cliente: nombre, teléfono, correo electrónico y observaciones. | |
+| **●** Definición de la vigencia de la oferta comercial en días. | |
+| **●** Conversión de cotización a venta con un solo clic cuando el cliente confirme. | |
+| **●** Historial y consulta de cotizaciones emitidas con filtros por fecha, cliente y estado. | |
+| **●** Impresión y exportación de la cotización en formato PDF. | |
+
+## **13. Módulo de Comunicación Digital**
+
+Herramienta para enviar facturas y cotizaciones a los clientes por correo electrónico o por WhatsApp, directamente desde el sistema. Opera sin conexión a la API de Meta: el puente de WhatsApp se gestiona mediante un script externo configurable por el operador.
+
+|  |  |
+| --- | --- |
+| **13** | **Módulo de Comunicación Digital** |
+| *Herramienta para enviar facturas y cotizaciones a los clientes por correo electrónico o por WhatsApp, directamente desde el sistema. Opera sin conexión a la API de Meta: el puente de WhatsApp se gestiona mediante un script externo configurable por el operador.* | |
+| **Funcionalidades del módulo** | |
+| **●** Envío de facturas y cotizaciones por correo electrónico en formato PDF mediante protocolo SMTP. | |
+| **●** Envío de facturas y cotizaciones por WhatsApp mediante script externo configurable. | |
+| **●** Plantillas de mensaje reutilizables para cada canal y tipo de documento. | |
+| **●** Registro de fecha, hora y canal de cada envío realizado. | |
+| **●** Reenvío de documentos directamente desde el historial de facturas o cotizaciones. | |
+| **●** Validación de datos de contacto (correo o teléfono) antes de intentar el envío. | |
+| **Nota:** El módulo no se integra directamente con la API de Meta. El puente de WhatsApp es un script externo intercambiable; el operador configura la ruta del script desde los parámetros del sistema. | |

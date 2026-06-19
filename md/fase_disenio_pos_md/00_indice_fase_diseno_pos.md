@@ -20,6 +20,8 @@ Este paquete contiene los documentos Markdown de la **Fase 2 — Diseño** del S
 | `08_diseno_integracion_modulos.md` | Explica cómo se conectan los 11 módulos funcionales del POS. |
 | `09_diseno_protocolo_pruebas.md` | Define pruebas unitarias, integración, funcionales, usabilidad y rendimiento. |
 | `10_diseno_entregable_final.md` | Resume el documento de diseño final que se debe entregar en la fase. |
+| `11_diseno_cotizaciones.md` | Diseño del módulo de cotizaciones: dominio, reglas de negocio, flujo funcional e integración. |
+| `12_diseno_comunicacion_digital.md` | Diseño del módulo de comunicación digital: envío por correo y WhatsApp, arquitectura de puertos. |
 
 ## Principios didácticos transversales
 

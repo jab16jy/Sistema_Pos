@@ -1,0 +1,41 @@
+using POS.Domain.ValueObjects;
+
+namespace POS.Domain.Entities;
+
+public sealed class QuoteItem
+{
+    private QuoteItem()
+    {
+        ProductName = string.Empty;
+    }
+
+    public QuoteItem(Guid productId, string productName, Money unitPrice, Quantity quantity, decimal discount)
+    {
+        if (string.IsNullOrWhiteSpace(productName))
+        {
+            throw new ArgumentException("Product name is required.", nameof(productName));
+        }
+
+        if (discount < 0m || discount > 100m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(discount), "Discount must be between 0 and 100.");
+        }
+
+        Id = Guid.NewGuid();
+        ProductId = productId;
+        ProductName = productName.Trim();
+        UnitPrice = unitPrice;
+        Quantity = quantity;
+        Discount = discount;
+    }
+
+    public Guid Id { get; private set; }
+    public Guid QuoteId { get; private set; }
+    public Guid ProductId { get; private set; }
+    public string ProductName { get; private set; }
+    public Money UnitPrice { get; private set; }
+    public Quantity Quantity { get; private set; }
+    public decimal Discount { get; private set; }
+
+    public Money Subtotal() => new(UnitPrice.Amount * Quantity.Value * (1m - Discount / 100m));
+}

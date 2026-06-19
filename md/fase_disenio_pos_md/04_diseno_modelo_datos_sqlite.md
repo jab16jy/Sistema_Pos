@@ -96,6 +96,48 @@ Diseñar una base de datos local en SQLite que permita almacenar usuarios, produ
 | UserId | FK | Usuario responsable. |
 | CreatedAt | DATETIME | Fecha del movimiento. |
 
+### QUOTES
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | TEXT (UUID) | Clave primaria. |
+| quote_number | TEXT | Número consecutivo COT-YYYY-NNNN, único. |
+| customer_id | TEXT | FK → CUSTOMERS, nullable. |
+| customer_name | TEXT | Nombre del cliente al momento de la emisión. |
+| customer_phone | TEXT | Teléfono del cliente, nullable. |
+| customer_email | TEXT | Correo del cliente, nullable. |
+| observations | TEXT | Observaciones adicionales, nullable. |
+| validity_days | INTEGER | Días de vigencia de la cotización. |
+| status | INTEGER | 1 = Draft, 2 = Active, 3 = Expired, 4 = Converted. |
+| created_at | TEXT (ISO 8601) | Fecha y hora de creación. |
+| expires_at | TEXT (ISO 8601) | Fecha de vencimiento de la oferta. |
+| converted_sale_id | TEXT | FK → SALES, nullable. Se asigna cuando la cotización es convertida a venta. |
+
+### QUOTE_ITEMS
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | TEXT (UUID) | Clave primaria. |
+| quote_id | TEXT | FK → QUOTES. |
+| product_id | TEXT | FK → PRODUCTS. |
+| product_name | TEXT | Nombre del producto al momento de la cotización (instantánea). |
+| unit_price | REAL | Precio unitario al momento de la cotización (instantánea). |
+| quantity | REAL | Cantidad cotizada. |
+| discount | REAL | Porcentaje de descuento aplicado (0–100). |
+
+### DOCUMENT_SEND_LOGS
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| id | TEXT (UUID) | Clave primaria. |
+| document_type | INTEGER | 1 = Factura, 2 = Cotización. |
+| document_id | TEXT | ID de la factura o cotización enviada. |
+| channel | INTEGER | 1 = Correo electrónico, 2 = WhatsApp. |
+| recipient_contact | TEXT | Correo electrónico o número de teléfono del destinatario. |
+| sent_at | TEXT (ISO 8601) | Fecha y hora del envío. |
+| success | INTEGER | 1 = envío exitoso, 0 = fallo. |
+| error_message | TEXT | Mensaje de error, nullable. Se popula únicamente en caso de fallo. |
+
 ## Relaciones principales
 
 ```text
@@ -110,6 +152,10 @@ Supplier 1 ─── * Purchase
 Purchase 1 ─── * PurchaseItem
 Product 1 ─── * PurchaseItem
 Category 1 ─── * Product
+Customer 0..1 ─── * Quote
+Quote 1 ─── * QuoteItem
+Product 1 ─── * QuoteItem
+Quote 0..1 ─── 0..1 Sale      (converted_sale_id)
 ```
 
 ## Diseño didáctico desde la base de datos

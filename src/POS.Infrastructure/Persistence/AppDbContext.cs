@@ -19,6 +19,9 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public DbSet<Purchase> Purchases => Set<Purchase>();
     public DbSet<CashClosing> CashClosings => Set<CashClosing>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
+    public DbSet<DocumentSendLog> DocumentSendLogs => Set<DocumentSendLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

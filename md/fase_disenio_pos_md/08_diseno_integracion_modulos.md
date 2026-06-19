@@ -20,6 +20,8 @@ Explicar cómo se conectan los módulos funcionales del sistema POS para trabaja
 09. Facturas
 10. Utilidades
 11. Código de Barras
+12. Cotizaciones
+13. Comunicación Digital
 ```
 
 ## Mapa general de integración
@@ -32,6 +34,14 @@ Código de Barras → Caja → Ventas → Facturas → Reportes
 Clientes → Puntos         Inventario           Utilidades
                  ↑        ↑
 Proveedores → Compras ────┘
+
+Productos ──────┐
+                ↓
+Clientes ──────→ Cotizaciones ──→ Ventas (conversión)
+                ↓
+        Comunicación Digital ←── Facturas
+                ↓
+        DocumentSendLog (auditoría de envíos)
 ```
 
 ## Integración por módulo
@@ -49,6 +59,8 @@ Proveedores → Compras ────┘
 | Facturas | Ventas, Clientes, Devoluciones, Impresión | Permite consultar y reimprimir. |
 | Utilidades | Productos, Ventas | Calcula ganancia bruta. |
 | Código de Barras | Productos, Caja | Genera etiquetas para facilitar venta rápida. |
+| Cotizaciones | Productos, Clientes, Ventas | Lee el catálogo y los datos del cliente; convierte a venta cuando se confirma. |
+| Comunicación Digital | Facturas, Cotizaciones | Genera PDFs y los entrega por correo (SMTP) o WhatsApp (script externo). Registra cada envío en DocumentSendLog. |
 
 ## Flujo integrado de una venta
 
@@ -75,6 +87,21 @@ Proveedores → Compras ────┘
 5. El inventario aumenta automáticamente.
 6. El gasto queda disponible para reportes.
 ```
+
+## Integración de los módulos 12 y 13
+
+### Módulo 12 — Cotizaciones
+
+- **Lee de Productos:** el catálogo proporciona los productos disponibles para cotizar. Los precios y nombres se almacenan como instantáneas en `QuoteItem` en el momento de la emisión, de modo que un cambio posterior de precio no altere la cotización ya emitida.
+- **Lee de Clientes:** los datos de contacto (nombre, teléfono, correo) se pueden obtener del directorio de clientes para precompletar el formulario, aunque la cotización también puede emitirse sin un cliente registrado.
+- **Escribe en Ventas:** cuando el vendedor convierte una cotización, el módulo crea un registro completo en la tabla `SALES` y actualiza el estado de la cotización a `Converted`, enlazando ambos registros mediante `converted_sale_id`.
+
+### Módulo 13 — Comunicación Digital
+
+- **Lee de Facturas:** obtiene los datos de la venta (ítems, totales, cliente) para generar el PDF correspondiente antes de enviarlo.
+- **Lee de Cotizaciones:** obtiene los datos de la propuesta comercial para generar el PDF de cotización antes de enviarlo.
+- **Escribe en DocumentSendLog:** registra cada intento de envío (canal, destinatario, fecha, hora y resultado) para trazabilidad y auditoría. Este registro es inmutable: no se edita ni elimina.
+- **Sin integración con Meta API:** el envío por WhatsApp se delega a un script externo configurable. El sistema ejecuta el script (ruta definida en `SystemConfiguration`) y registra el resultado reportado por el proceso.
 
 ## Enfoque didáctico de integración
 
