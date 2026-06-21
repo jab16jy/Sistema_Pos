@@ -1,0 +1,75 @@
+schema: spec-driven
+project: sistema_pos
+persistence: hybrid
+strict_tdd: true
+
+context: |
+  Stack: C#/.NET 9 POS desktop application with Clean Architecture.
+  UI: WPF for Windows target and Avalonia prototype for Linux; shared ViewModels in POS.Presentation.Shared.
+  Data/Infrastructure: EF Core 9, SQLite, QuestPDF, dependency injection.
+  Architecture: Presentation -> Application -> Domain; Infrastructure depends on Application/Domain contracts; Domain has no outer dependency.
+  Testing: xUnit v3 projects under tests/, coverlet collector available; Linux SDK cannot build WPF WindowsDesktop project.
+
+testing:
+  detected: 2026-06-21
+  strict_tdd: true
+  test_runner:
+    framework: xUnit v3
+    command: dotnet test POS.sln --no-restore
+    focused_commands:
+      - dotnet test tests/POS.Domain.Tests/POS.Domain.Tests.csproj --no-restore
+      - dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj --no-restore
+      - dotnet test tests/POS.Presentation.Shared.Tests/POS.Presentation.Shared.Tests.csproj --no-restore
+  layers:
+    unit:
+      available: true
+      tool: xUnit v3
+    integration:
+      available: partial
+      tool: EF Core/SQLite-capable infrastructure present; no dedicated integration test project detected
+    e2e:
+      available: false
+      tool: null
+  coverage:
+    available: true
+    command: dotnet test POS.sln --collect:"XPlat Code Coverage"
+  quality:
+    linter:
+      available: true
+      command: dotnet build POS.sln --no-restore
+    type_checker:
+      available: true
+      command: dotnet build POS.sln --no-restore
+    formatter:
+      available: true
+      command: dotnet format POS.sln --verify-no-changes
+
+rules:
+  proposal:
+    - Keep SDD artifacts in English.
+    - Include rollback plan for risky changes.
+    - Respect existing Clean Architecture boundaries and project-specific skills in .skills/README.md before implementation.
+  specs:
+    - Use Given/When/Then scenarios.
+    - Use RFC 2119 keywords for requirements.
+  design:
+    - Document architecture decisions with rationale.
+    - Do not leak business logic into UI projects; prefer Application/Domain for behavior.
+    - Account for WPF-on-Windows and Avalonia-on-Linux constraints when touching UI.
+  tasks:
+    - Group by phase with hierarchical numbering.
+    - Keep tasks reviewable and favor slices under the 400 changed-line review budget.
+  apply:
+    tdd: true
+    test_command: dotnet test POS.sln --no-restore
+    notes:
+      - Follow RED-GREEN-REFACTOR when test coverage exists for the touched layer.
+      - Avoid touching user-created untracked docs folders unless explicitly required.
+  verify:
+    test_command: dotnet test POS.sln --no-restore
+    build_command: dotnet build POS.sln --no-restore
+    coverage_threshold: 0
+    notes:
+      - On Linux/Arch, WPF POS.Presentation may require WindowsDesktop SDK on Windows; verify non-WPF projects or Avalonia/shared UI where appropriate.
+  archive:
+    - Preserve archive directories as audit trail; never delete archived changes.
