@@ -26,9 +26,9 @@ Chain strategy: pending
 
 ## Phase 1: Shell Verification Slice
 
-- [ ] 1.1 RED: Update `tests/POS.Presentation.Shared.Tests/MainShellViewModelTests.cs` to expect 9 modules and `quotes`. [Req: Nine-module shell contract]
-- [ ] 1.2 GREEN: Adjust only shell/navigation test setup if needed; do not remove `quotes`. [Req: Shell exposes required modules]
-- [ ] 1.3 REFACTOR: Keep shell assertions named around the active module contract. [Req: Verification rejects stale expectations]
+- [x] 1.1 RED: Update `tests/POS.Presentation.Shared.Tests/MainShellViewModelTests.cs` to expect 9 modules and `quotes`. [Req: Nine-module shell contract]
+- [x] 1.2 GREEN: Adjust only shell/navigation test setup if needed; do not remove `quotes`. [Req: Shell exposes required modules]
+- [x] 1.3 REFACTOR: Keep shell assertions named around the active module contract. [Req: Verification rejects stale expectations]
 
 ## Phase 2: Cashier Sales and Dashboard Slice
 

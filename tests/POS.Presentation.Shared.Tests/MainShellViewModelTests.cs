@@ -6,13 +6,18 @@ namespace POS.Presentation.Shared.Tests;
 
 public sealed class MainShellViewModelTests
 {
+    private const int ActiveShellModuleCount = 9;
+    private const string CashierModuleKey = "cashier";
+    private const string QuotesModuleKey = "quotes";
+
     [Fact]
-    public void Constructor_LoadsDocumentedModulesAndSelectsCashier()
+    public void Constructor_LoadsActiveModuleContractAndSelectsCashier()
     {
         var viewModel = new MainShellViewModel();
 
-        Assert.Equal(8, viewModel.Modules.Count);
-        Assert.Equal("cashier", viewModel.SelectedModule.Key);
+        Assert.Equal(ActiveShellModuleCount, viewModel.Modules.Count);
+        Assert.Contains(viewModel.Modules, module => module.Key == QuotesModuleKey);
+        Assert.Equal(CashierModuleKey, viewModel.SelectedModule.Key);
         Assert.True(viewModel.IsCashierSelected);
         Assert.Equal("Cobrar", viewModel.MainActionText);
     }
