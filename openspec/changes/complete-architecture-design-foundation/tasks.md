@@ -9,11 +9,11 @@
 | Chained PRs recommended | Yes |
 | Suggested split | PR 1 shell test → PR 2 cashier persistence/metrics → PR 3 quotation UI/workflow |
 | Delivery strategy | ask-on-risk |
-| Chain strategy | pending |
+| Chain strategy | feature-branch-chain |
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: feature-branch-chain
 400-line budget risk: High
 
 ### Suggested Work Units
@@ -32,12 +32,12 @@ Chain strategy: pending
 
 ## Phase 2: Cashier Sales and Dashboard Slice
 
-- [ ] 2.1 RED: Add shared ViewModel tests for valid/invalid sale confirmation in `CashierViewModel`. [Req: Persisted cashier sale confirmation]
-- [ ] 2.2 GREEN: Inject/use `CreateSaleUseCase` in `src/POS.Presentation.Shared/ViewModels/CashierViewModel.cs`, map cart/payment/customer to `CreateSaleRequest`, and reset only after persistence. [Req: Confirm valid sale]
-- [ ] 2.3 RED: Add Application/Infrastructure tests for persisted sale totals, payments, invoice number, and stock effect. [Req: Confirm valid sale]
-- [ ] 2.4 GREEN: Complete sale repository/DI wiring in `src/POS.Infrastructure/...` and `src/POS.Infrastructure/DependencyInjection.cs`. [Req: Confirm valid sale]
-- [ ] 2.5 RED: Add dashboard summary tests for sales-present and zero-sales periods. [Req: Real dashboard sales metrics]
-- [ ] 2.6 GREEN: Add `DashboardSummary` query/use case and bind `MainShellViewModel` metrics to persisted sales. [Req: Metrics reflect persisted sales]
+- [x] 2.1 RED: Add shared ViewModel tests for valid/invalid sale confirmation in `CashierViewModel`. [Req: Persisted cashier sale confirmation]
+- [x] 2.2 GREEN: Inject/use `CreateSaleUseCase` in `src/POS.Presentation.Shared/ViewModels/CashierViewModel.cs`, map cart/payment/customer to `CreateSaleRequest`, and reset only after persistence. [Req: Confirm valid sale]
+- [x] 2.3 RED: Add Application/Infrastructure tests for persisted sale totals, payments, invoice number, and stock effect. [Req: Confirm valid sale]
+- [x] 2.4 GREEN: Complete sale repository/DI wiring in `src/POS.Infrastructure/...` and `src/POS.Infrastructure/DependencyInjection.cs`. [Req: Confirm valid sale]
+- [x] 2.5 RED: Add dashboard summary tests for sales-present and zero-sales periods. [Req: Real dashboard sales metrics]
+- [x] 2.6 GREEN: Add `DashboardSummary` query/use case and bind `MainShellViewModel` metrics to persisted sales. [Req: Metrics reflect persisted sales]
 
 ## Phase 3: Quotation UI and Workflow Slice
 
