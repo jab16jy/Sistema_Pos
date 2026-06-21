@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Quotes;
+using POS.Application.UseCases.Sales;
 using POS.Domain.Interfaces;
 using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Repositories;
@@ -34,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<CreateQuoteUseCase>();
         services.AddScoped<ConvertQuoteToSaleUseCase>();
         services.AddScoped<GetQuoteHistoryUseCase>();
+        services.AddScoped<CreateSaleUseCase>();
+        services.AddScoped<PreviewPaymentUseCase>();
+        services.AddScoped<GetDashboardSummaryUseCase>();
         services.AddScoped<SendDocumentUseCase>();
         services.AddScoped<ResendDocumentUseCase>();
 
