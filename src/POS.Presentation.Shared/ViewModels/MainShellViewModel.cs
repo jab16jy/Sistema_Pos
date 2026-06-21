@@ -62,6 +62,10 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public CashierViewModel Cashier { get; }
 
+    /// <summary>Quote history ViewModel for the Avalonia quotes module content area.
+    /// Null in the prototype default constructor; injected by DI in App.axaml.cs.</summary>
+    public QuoteHistoryViewModel? QuoteHistory { get; init; }
+
     public ICommand SelectModuleCommand { get; }
 
     public ModuleNavigationItem SelectedModule
@@ -79,6 +83,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 UpdateOperatorMessage(value);
                 OnPropertyChanged(nameof(MainActionText));
                 OnPropertyChanged(nameof(IsCashierSelected));
+                OnPropertyChanged(nameof(IsQuotesSelected));
             }
         }
     }
@@ -92,6 +97,8 @@ public sealed class MainShellViewModel : ViewModelBase
     public string MainActionText => IsCashierSelected ? "Cobrar" : "Abrir módulo";
 
     public bool IsCashierSelected => SelectedModule.Key == "cashier";
+
+    public bool IsQuotesSelected => SelectedModule.Key == "quotes";
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
