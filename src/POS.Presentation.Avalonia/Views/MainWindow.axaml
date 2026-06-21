@@ -4,6 +4,7 @@
         xmlns:shell="using:POS.Presentation.Shared.Shell"
         xmlns:cashier="using:POS.Presentation.Shared.Cashier"
         xmlns:products="using:POS.Application.DTOs.Products"
+        xmlns:local="using:POS.Presentation.Avalonia.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
@@ -23,6 +24,7 @@
   </Design.DataContext>
 
   <Grid ColumnDefinitions="300,*" RowDefinitions="*">
+    <!-- Navigation sidebar -->
     <Border Grid.Column="0" Background="#0F172A" Padding="22">
       <Grid RowDefinitions="Auto,*,Auto">
         <StackPanel Spacing="6">
@@ -56,141 +58,181 @@
       </Grid>
     </Border>
 
-    <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto" Margin="28">
-      <Grid ColumnDefinitions="*,Auto">
-        <StackPanel>
+    <!-- Main content area — switches by selected module -->
+    <Grid Grid.Column="1" Margin="28">
+
+      <!-- ===== CASHIER MODULE ===== -->
+      <Grid RowDefinitions="Auto,Auto,*,Auto" IsVisible="{Binding IsCashierSelected}">
+        <Grid ColumnDefinitions="*,Auto">
+          <StackPanel>
+            <TextBlock Text="{Binding SelectedModule.Title}" FontSize="34" FontWeight="Bold" Foreground="#0F172A" />
+            <TextBlock Text="{Binding OperatorMessage}" FontSize="15" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,0" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Top">
+            <Button Classes="secondary" Content="Limpiar carrito" Command="{Binding Cashier.ClearCartCommand}" />
+            <Button Classes="primary" Content="{Binding MainActionText}" Command="{Binding Cashier.ConfirmPrototypeSaleCommand}" />
+          </StackPanel>
+        </Grid>
+
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Metrics}" Margin="0,24,0,20">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="shell:DashboardMetric">
+              <Border Classes="card" Margin="0,0,14,0">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="{Binding Label}" Foreground="#64748B" FontSize="12" />
+                  <TextBlock Text="{Binding Value}" Foreground="#0F172A" FontSize="28" FontWeight="Bold" />
+                  <TextBlock Text="{Binding Hint}" Foreground="#64748B" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <Grid Grid.Row="2" ColumnDefinitions="2*,*" ColumnSpacing="20">
+          <Border Classes="card">
+            <Grid RowDefinitions="Auto,Auto,150,*">
+              <StackPanel Spacing="4">
+                <TextBlock Text="Caja rápida" FontSize="22" FontWeight="Bold" Foreground="#0F172A" />
+                <TextBlock Text="Busca por nombre o código. Luego agrega al carrito." Foreground="#64748B" />
+              </StackPanel>
+
+              <Grid Grid.Row="1" ColumnDefinitions="*,120,120" ColumnSpacing="12" Margin="0,18,0,12">
+                <TextBox Text="{Binding Cashier.SearchText, Mode=TwoWay}" PlaceholderText="Buscar producto o código de barras" FontSize="16" />
+                <NumericUpDown Grid.Column="1" Minimum="1" Value="{Binding Cashier.Quantity, Mode=TwoWay}" />
+                <Button Grid.Column="2" Classes="secondary" Content="Buscar" Command="{Binding Cashier.SearchCommand}" />
+              </Grid>
+
+              <ListBox Grid.Row="2"
+                       ItemsSource="{Binding Cashier.SearchResults}"
+                       SelectedItem="{Binding Cashier.SelectedProduct, Mode=TwoWay}"
+                       MinHeight="120">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="products:ProductLookupResult">
+                    <Grid ColumnDefinitions="*,130,100" Margin="4">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Name}" Foreground="#0F172A" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding Barcode}" Foreground="#64748B" FontSize="12" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding UnitPrice}" Foreground="#334155" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="2" Text="{Binding AvailableStock}" Foreground="#334155" VerticalAlignment="Center" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <StackPanel Grid.Row="3" Spacing="10" Margin="0,14,0,0">
+                <Button Classes="primary" Content="Agregar producto" Command="{Binding Cashier.AddSelectedProductCommand}" HorizontalAlignment="Left" />
+
+                <Border Background="#EEF2FF" CornerRadius="10" Padding="10">
+                  <Grid ColumnDefinitions="*,90,110,110">
+                    <TextBlock Text="Producto" FontWeight="SemiBold" Foreground="#334155" />
+                    <TextBlock Grid.Column="1" Text="Cant." FontWeight="SemiBold" Foreground="#334155" />
+                    <TextBlock Grid.Column="2" Text="Precio" FontWeight="SemiBold" Foreground="#334155" />
+                    <TextBlock Grid.Column="3" Text="Subtotal" FontWeight="SemiBold" Foreground="#334155" />
+                  </Grid>
+                </Border>
+
+                <ScrollViewer MaxHeight="230">
+                  <ItemsControl ItemsSource="{Binding Cashier.CartItems}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="cashier:CashierCartItemViewModel">
+                        <Border Background="#F8FAFC" CornerRadius="10" Padding="10" Margin="0,0,0,8">
+                          <Grid ColumnDefinitions="*,90,110,110">
+                            <TextBlock Text="{Binding ProductName}" Foreground="#0F172A" />
+                            <TextBlock Grid.Column="1" Text="{Binding Quantity}" Foreground="#334155" />
+                            <TextBlock Grid.Column="2" Text="{Binding UnitPriceText}" Foreground="#334155" />
+                            <TextBlock Grid.Column="3" Text="{Binding SubtotalText}" Foreground="#0F172A" FontWeight="SemiBold" />
+                          </Grid>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </StackPanel>
+            </Grid>
+          </Border>
+
+          <Border Grid.Column="1" Classes="card">
+            <StackPanel Spacing="16">
+              <TextBlock Text="Cobro" FontSize="22" FontWeight="Bold" Foreground="#0F172A" />
+
+              <Border Background="#EFF6FF" CornerRadius="12" Padding="14">
+                <StackPanel>
+                  <TextBlock Text="Total" Foreground="#1D4ED8" />
+                  <TextBlock Text="{Binding Cashier.TotalText}" Foreground="#1E3A8A" FontSize="34" FontWeight="Bold" />
+                </StackPanel>
+              </Border>
+
+              <TextBlock Text="Método de pago" Foreground="#64748B" />
+              <ComboBox ItemsSource="{Binding Cashier.PaymentMethods}"
+                        SelectedItem="{Binding Cashier.SelectedPaymentMethod, Mode=TwoWay}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="cashier:PaymentMethodOption">
+                    <TextBlock Text="{Binding Label}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+
+              <NumericUpDown Minimum="0" Value="{Binding Cashier.ReceivedAmount, Mode=TwoWay}" />
+
+              <Border Background="#DCFCE7" CornerRadius="12" Padding="14">
+                <StackPanel>
+                  <TextBlock Text="Cambio estimado" Foreground="#166534" />
+                  <TextBlock Text="{Binding Cashier.ChangeText}" Foreground="#14532D" FontSize="30" FontWeight="Bold" />
+                </StackPanel>
+              </Border>
+
+              <Button Classes="primary" Content="Confirmar venta prototipo" Command="{Binding Cashier.ConfirmPrototypeSaleCommand}" HorizontalAlignment="Stretch" />
+              <TextBlock Text="{Binding Cashier.Message}" Foreground="#64748B" TextWrapping="Wrap" FontSize="12" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <Border Grid.Row="3" Background="#FEF3C7" CornerRadius="12" Padding="12" Margin="0,18,0,0">
+          <TextBlock Text="Prototipo funcional: valida búsqueda, carrito, pago y cambio." Foreground="#92400E" />
+        </Border>
+      </Grid>
+
+      <!-- ===== QUOTES MODULE ===== -->
+      <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsQuotesSelected}" Margin="0,0,0,0">
+        <StackPanel Margin="0,0,0,20">
           <TextBlock Text="{Binding SelectedModule.Title}" FontSize="34" FontWeight="Bold" Foreground="#0F172A" />
           <TextBlock Text="{Binding OperatorMessage}" FontSize="15" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,0" />
         </StackPanel>
 
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Top">
-          <Button Classes="secondary" Content="Limpiar carrito" Command="{Binding Cashier.ClearCartCommand}" />
-          <Button Classes="primary" Content="{Binding MainActionText}" Command="{Binding Cashier.ConfirmPrototypeSaleCommand}" />
-        </StackPanel>
-      </Grid>
+        <!-- Show QuoteHistoryView when QuoteHistory ViewModel is available via DI.
+             IsVisible uses $parent[Window] to keep the binding on MainShellViewModel
+             rather than the child DataContext that is set to QuoteHistoryViewModel. -->
+        <local:QuoteHistoryView Grid.Row="1"
+                                DataContext="{Binding QuoteHistory}"
+                                IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).QuoteHistory, Converter={x:Static ObjectConverters.IsNotNull}}" />
 
-      <ItemsControl Grid.Row="1" ItemsSource="{Binding Metrics}" Margin="0,24,0,20">
-        <ItemsControl.ItemsPanel>
-          <ItemsPanelTemplate>
-            <UniformGrid Columns="4" />
-          </ItemsPanelTemplate>
-        </ItemsControl.ItemsPanel>
-        <ItemsControl.ItemTemplate>
-          <DataTemplate x:DataType="shell:DashboardMetric">
-            <Border Classes="card" Margin="0,0,14,0">
-              <StackPanel Spacing="4">
-                <TextBlock Text="{Binding Label}" Foreground="#64748B" FontSize="12" />
-                <TextBlock Text="{Binding Value}" Foreground="#0F172A" FontSize="28" FontWeight="Bold" />
-                <TextBlock Text="{Binding Hint}" Foreground="#64748B" FontSize="11" TextWrapping="Wrap" />
-              </StackPanel>
-            </Border>
-          </DataTemplate>
-        </ItemsControl.ItemTemplate>
-      </ItemsControl>
-
-      <Grid Grid.Row="2" ColumnDefinitions="2*,*" ColumnSpacing="20">
-        <Border Classes="card">
-          <Grid RowDefinitions="Auto,Auto,150,*">
-            <StackPanel Spacing="4">
-              <TextBlock Text="Caja rápida" FontSize="22" FontWeight="Bold" Foreground="#0F172A" />
-              <TextBlock Text="Busca por nombre o código. Luego agrega al carrito." Foreground="#64748B" />
-            </StackPanel>
-
-            <Grid Grid.Row="1" ColumnDefinitions="*,120,120" ColumnSpacing="12" Margin="0,18,0,12">
-              <TextBox Text="{Binding Cashier.SearchText, Mode=TwoWay}" PlaceholderText="Buscar producto o código de barras" FontSize="16" />
-              <NumericUpDown Grid.Column="1" Minimum="1" Value="{Binding Cashier.Quantity, Mode=TwoWay}" />
-              <Button Grid.Column="2" Classes="secondary" Content="Buscar" Command="{Binding Cashier.SearchCommand}" />
-            </Grid>
-
-            <ListBox Grid.Row="2"
-                     ItemsSource="{Binding Cashier.SearchResults}"
-                     SelectedItem="{Binding Cashier.SelectedProduct, Mode=TwoWay}"
-                     MinHeight="120">
-              <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="products:ProductLookupResult">
-                  <Grid ColumnDefinitions="*,130,100" Margin="4">
-                    <StackPanel>
-                      <TextBlock Text="{Binding Name}" Foreground="#0F172A" FontWeight="SemiBold" />
-                      <TextBlock Text="{Binding Barcode}" Foreground="#64748B" FontSize="12" />
-                    </StackPanel>
-                    <TextBlock Grid.Column="1" Text="{Binding UnitPrice}" Foreground="#334155" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="2" Text="{Binding AvailableStock}" Foreground="#334155" VerticalAlignment="Center" />
-                  </Grid>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-
-            <StackPanel Grid.Row="3" Spacing="10" Margin="0,14,0,0">
-              <Button Classes="primary" Content="Agregar producto" Command="{Binding Cashier.AddSelectedProductCommand}" HorizontalAlignment="Left" />
-
-              <Border Background="#EEF2FF" CornerRadius="10" Padding="10">
-                <Grid ColumnDefinitions="*,90,110,110">
-                  <TextBlock Text="Producto" FontWeight="SemiBold" Foreground="#334155" />
-                  <TextBlock Grid.Column="1" Text="Cant." FontWeight="SemiBold" Foreground="#334155" />
-                  <TextBlock Grid.Column="2" Text="Precio" FontWeight="SemiBold" Foreground="#334155" />
-                  <TextBlock Grid.Column="3" Text="Subtotal" FontWeight="SemiBold" Foreground="#334155" />
-                </Grid>
-              </Border>
-
-              <ScrollViewer MaxHeight="230">
-                <ItemsControl ItemsSource="{Binding Cashier.CartItems}">
-                  <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="cashier:CashierCartItemViewModel">
-                      <Border Background="#F8FAFC" CornerRadius="10" Padding="10" Margin="0,0,0,8">
-                        <Grid ColumnDefinitions="*,90,110,110">
-                          <TextBlock Text="{Binding ProductName}" Foreground="#0F172A" />
-                          <TextBlock Grid.Column="1" Text="{Binding Quantity}" Foreground="#334155" />
-                          <TextBlock Grid.Column="2" Text="{Binding UnitPriceText}" Foreground="#334155" />
-                          <TextBlock Grid.Column="3" Text="{Binding SubtotalText}" Foreground="#0F172A" FontWeight="SemiBold" />
-                        </Grid>
-                      </Border>
-                    </DataTemplate>
-                  </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </ScrollViewer>
-            </StackPanel>
-          </Grid>
-        </Border>
-
-        <Border Grid.Column="1" Classes="card">
-          <StackPanel Spacing="16">
-            <TextBlock Text="Cobro" FontSize="22" FontWeight="Bold" Foreground="#0F172A" />
-
-            <Border Background="#EFF6FF" CornerRadius="12" Padding="14">
-              <StackPanel>
-                <TextBlock Text="Total" Foreground="#1D4ED8" />
-                <TextBlock Text="{Binding Cashier.TotalText}" Foreground="#1E3A8A" FontSize="34" FontWeight="Bold" />
-              </StackPanel>
-            </Border>
-
-            <TextBlock Text="Método de pago" Foreground="#64748B" />
-            <ComboBox ItemsSource="{Binding Cashier.PaymentMethods}"
-                      SelectedItem="{Binding Cashier.SelectedPaymentMethod, Mode=TwoWay}">
-              <ComboBox.ItemTemplate>
-                <DataTemplate x:DataType="cashier:PaymentMethodOption">
-                  <TextBlock Text="{Binding Label}" />
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-
-            <NumericUpDown Minimum="0" Value="{Binding Cashier.ReceivedAmount, Mode=TwoWay}" />
-
-            <Border Background="#DCFCE7" CornerRadius="12" Padding="14">
-              <StackPanel>
-                <TextBlock Text="Cambio estimado" Foreground="#166534" />
-                <TextBlock Text="{Binding Cashier.ChangeText}" Foreground="#14532D" FontSize="30" FontWeight="Bold" />
-              </StackPanel>
-            </Border>
-
-            <Button Classes="primary" Content="Confirmar venta prototipo" Command="{Binding Cashier.ConfirmPrototypeSaleCommand}" HorizontalAlignment="Stretch" />
-            <TextBlock Text="{Binding Cashier.Message}" Foreground="#64748B" TextWrapping="Wrap" FontSize="12" />
+        <!-- Fallback when QuoteHistory is not yet injected -->
+        <Border Grid.Row="1" Background="#F0FDF4" CornerRadius="16" Padding="32"
+                IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).QuoteHistory, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <TextBlock Text="Cotizaciones" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
+            <TextBlock Text="Crea y gestiona cotizaciones para tus clientes." Foreground="#64748B" HorizontalAlignment="Center" />
+            <TextBlock Text="Registra QuoteHistoryViewModel vía DI en App.axaml.cs para activar el historial." Foreground="#94A3B8" TextWrapping="Wrap" HorizontalAlignment="Center" MaxWidth="400" />
           </StackPanel>
         </Border>
       </Grid>
 
-      <Border Grid.Row="3" Background="#FEF3C7" CornerRadius="12" Padding="12" Margin="0,18,0,0">
-        <TextBlock Text="Prototipo funcional: valida búsqueda, carrito, pago y cambio. Todavía no persiste ventas ni inventario." Foreground="#92400E" />
+      <!-- ===== OTHER PLANNED MODULES ===== -->
+      <Border Background="#F8FAFC" CornerRadius="16" Padding="32"
+              IsVisible="{Binding !IsCashierSelected}">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
+          <TextBlock Text="Este módulo está planificado en la arquitectura." Foreground="#64748B" HorizontalAlignment="Center" />
+          <TextBlock Text="{Binding SelectedModule.Description}" Foreground="#94A3B8" TextWrapping="Wrap" HorizontalAlignment="Center" MaxWidth="400" />
+        </StackPanel>
       </Border>
+
     </Grid>
   </Grid>
 </Window>

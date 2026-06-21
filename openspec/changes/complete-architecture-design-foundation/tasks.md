@@ -41,8 +41,8 @@ Chain strategy: feature-branch-chain
 
 ## Phase 3: Quotation UI and Workflow Slice
 
-- [ ] 3.1 RED: Add tests for quote history contact fields, blocked send without contact, and eligible conversion. [Req: Quote contact, send, and convert workflow]
-- [ ] 3.2 GREEN: Extend `QuoteSummary`, `QuoteSummaryRow`, and `QuoteHistoryViewModel` with real email/phone send and convert state. [Req: Send quote to customer contact]
-- [ ] 3.3 GREEN: Create `QuoteView.axaml`, `QuoteHistoryView.axaml`, and `SendDocumentView.axaml` bound to shared ViewModels. [Req: Quotations navigation and history]
-- [ ] 3.4 GREEN: Update `MainWindow.axaml` and `App.axaml.cs` to resolve `quotes` content through DI. [Req: Navigate to quotations]
-- [ ] 3.5 VERIFY: Run focused shared/application tests plus Avalonia/shared build; note WPF verification is Windows-only. [Req: all scenarios]
+- [x] 3.1 RED: Add tests for quote history contact fields, blocked send without contact, and eligible conversion. [Req: Quote contact, send, and convert workflow]
+- [x] 3.2 GREEN: Extend `QuoteSummary`, `QuoteSummaryRow`, and `QuoteHistoryViewModel` with real email/phone send and convert state. [Req: Send quote to customer contact]
+- [x] 3.3 GREEN: Create `QuoteView.axaml`, `QuoteHistoryView.axaml`, and `SendDocumentView.axaml` bound to shared ViewModels. [Req: Quotations navigation and history]
+- [x] 3.4 GREEN: Update `MainWindow.axaml` and `App.axaml.cs` to resolve `quotes` content through DI. [Req: Navigate to quotations]
+- [x] 3.5 VERIFY: Run focused shared/application tests plus Avalonia/shared build; note WPF verification is Windows-only. [Req: all scenarios]
