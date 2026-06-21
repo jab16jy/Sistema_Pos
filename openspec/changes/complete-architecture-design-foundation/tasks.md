@@ -9,11 +9,11 @@
 | Chained PRs recommended | Yes |
 | Suggested split | PR 1 shell test → PR 2 cashier persistence/metrics → PR 3 quotation UI/workflow |
 | Delivery strategy | ask-on-risk |
-| Chain strategy | pending |
+| Chain strategy | feature-branch-chain |
 
 Decision needed before apply: Yes
 Chained PRs recommended: Yes
-Chain strategy: pending
+Chain strategy: feature-branch-chain
 400-line budget risk: High
 
 ### Suggested Work Units
@@ -32,17 +32,17 @@ Chain strategy: pending
 
 ## Phase 2: Cashier Sales and Dashboard Slice
 
-- [ ] 2.1 RED: Add shared ViewModel tests for valid/invalid sale confirmation in `CashierViewModel`. [Req: Persisted cashier sale confirmation]
-- [ ] 2.2 GREEN: Inject/use `CreateSaleUseCase` in `src/POS.Presentation.Shared/ViewModels/CashierViewModel.cs`, map cart/payment/customer to `CreateSaleRequest`, and reset only after persistence. [Req: Confirm valid sale]
-- [ ] 2.3 RED: Add Application/Infrastructure tests for persisted sale totals, payments, invoice number, and stock effect. [Req: Confirm valid sale]
-- [ ] 2.4 GREEN: Complete sale repository/DI wiring in `src/POS.Infrastructure/...` and `src/POS.Infrastructure/DependencyInjection.cs`. [Req: Confirm valid sale]
-- [ ] 2.5 RED: Add dashboard summary tests for sales-present and zero-sales periods. [Req: Real dashboard sales metrics]
-- [ ] 2.6 GREEN: Add `DashboardSummary` query/use case and bind `MainShellViewModel` metrics to persisted sales. [Req: Metrics reflect persisted sales]
+- [x] 2.1 RED: Add shared ViewModel tests for valid/invalid sale confirmation in `CashierViewModel`. [Req: Persisted cashier sale confirmation]
+- [x] 2.2 GREEN: Inject/use `CreateSaleUseCase` in `src/POS.Presentation.Shared/ViewModels/CashierViewModel.cs`, map cart/payment/customer to `CreateSaleRequest`, and reset only after persistence. [Req: Confirm valid sale]
+- [x] 2.3 RED: Add Application/Infrastructure tests for persisted sale totals, payments, invoice number, and stock effect. [Req: Confirm valid sale]
+- [x] 2.4 GREEN: Complete sale repository/DI wiring in `src/POS.Infrastructure/...` and `src/POS.Infrastructure/DependencyInjection.cs`. [Req: Confirm valid sale]
+- [x] 2.5 RED: Add dashboard summary tests for sales-present and zero-sales periods. [Req: Real dashboard sales metrics]
+- [x] 2.6 GREEN: Add `DashboardSummary` query/use case and bind `MainShellViewModel` metrics to persisted sales. [Req: Metrics reflect persisted sales]
 
 ## Phase 3: Quotation UI and Workflow Slice
 
-- [ ] 3.1 RED: Add tests for quote history contact fields, blocked send without contact, and eligible conversion. [Req: Quote contact, send, and convert workflow]
-- [ ] 3.2 GREEN: Extend `QuoteSummary`, `QuoteSummaryRow`, and `QuoteHistoryViewModel` with real email/phone send and convert state. [Req: Send quote to customer contact]
-- [ ] 3.3 GREEN: Create `QuoteView.axaml`, `QuoteHistoryView.axaml`, and `SendDocumentView.axaml` bound to shared ViewModels. [Req: Quotations navigation and history]
-- [ ] 3.4 GREEN: Update `MainWindow.axaml` and `App.axaml.cs` to resolve `quotes` content through DI. [Req: Navigate to quotations]
-- [ ] 3.5 VERIFY: Run focused shared/application tests plus Avalonia/shared build; note WPF verification is Windows-only. [Req: all scenarios]
+- [x] 3.1 RED: Add tests for quote history contact fields, blocked send without contact, and eligible conversion. [Req: Quote contact, send, and convert workflow]
+- [x] 3.2 GREEN: Extend `QuoteSummary`, `QuoteSummaryRow`, and `QuoteHistoryViewModel` with real email/phone send and convert state. [Req: Send quote to customer contact]
+- [x] 3.3 GREEN: Create `QuoteView.axaml`, `QuoteHistoryView.axaml`, and `SendDocumentView.axaml` bound to shared ViewModels. [Req: Quotations navigation and history]
+- [x] 3.4 GREEN: Update `MainWindow.axaml` and `App.axaml.cs` to resolve `quotes` content through DI. [Req: Navigate to quotations]
+- [x] 3.5 VERIFY: Run focused shared/application tests plus Avalonia/shared build; note WPF verification is Windows-only. [Req: all scenarios]

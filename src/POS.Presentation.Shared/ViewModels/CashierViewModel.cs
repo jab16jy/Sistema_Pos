@@ -16,6 +16,7 @@ public sealed class CashierViewModel : ViewModelBase
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private readonly IProductLookupService _productLookupService;
     private readonly PreviewPaymentUseCase _previewPaymentUseCase;
+    private readonly CreateSaleUseCase? _createSaleUseCase;
     private readonly RelayCommand _addSelectedProductCommand;
     private readonly RelayCommand _clearCartCommand;
     private readonly RelayCommand _confirmPrototypeSaleCommand;
@@ -34,9 +35,23 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     public CashierViewModel(IProductLookupService productLookupService, PreviewPaymentUseCase previewPaymentUseCase)
+        : this(productLookupService, previewPaymentUseCase, null)
+    {
+    }
+
+    public CashierViewModel(IProductLookupService productLookupService, CreateSaleUseCase createSaleUseCase)
+        : this(productLookupService, new PreviewPaymentUseCase(), createSaleUseCase)
+    {
+    }
+
+    public CashierViewModel(
+        IProductLookupService productLookupService,
+        PreviewPaymentUseCase previewPaymentUseCase,
+        CreateSaleUseCase? createSaleUseCase)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _previewPaymentUseCase = previewPaymentUseCase ?? throw new ArgumentNullException(nameof(previewPaymentUseCase));
+        _createSaleUseCase = createSaleUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -72,6 +87,10 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand ClearCartCommand { get; }
 
     public ICommand ConfirmPrototypeSaleCommand { get; }
+
+    public Guid CashierUserId { get; set; }
+
+    public Guid? CustomerId { get; set; }
 
     public string SearchText
     {
@@ -232,7 +251,7 @@ public sealed class CashierViewModel : ViewModelBase
         Message = "Carrito limpio. Puedes iniciar una nueva venta.";
     }
 
-    private void ConfirmPrototypeSale()
+    public async Task ConfirmSaleAsync(CancellationToken cancellationToken = default)
     {
         if (!CanConfirm)
         {
@@ -240,7 +259,47 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
-        Message = "Venta validada en prototipo. Falta guardar por Application/SQLite en una parte posterior.";
+        if (_createSaleUseCase is null)
+        {
+            Message = "Venta validada en prototipo. Falta guardar por Application/SQLite en una parte posterior.";
+            return;
+        }
+
+        try
+        {
+            CreateSaleResult result = await _createSaleUseCase.ExecuteAsync(BuildCreateSaleRequest(), cancellationToken).ConfigureAwait(true);
+            CartItems.Clear();
+            ReceivedAmount = 0m;
+            RefreshTotals(updateMessage: false);
+            Message = $"Venta guardada con factura {result.InvoiceNumber}.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+    }
+
+    private void ConfirmPrototypeSale()
+    {
+        _ = ConfirmSaleAsync();
+    }
+
+    private CreateSaleRequest BuildCreateSaleRequest()
+    {
+        IReadOnlyCollection<CreateSaleItemRequest> items = CartItems
+            .Select(item => new CreateSaleItemRequest(item.ProductId, item.Quantity, 0m))
+            .ToArray();
+
+        IReadOnlyCollection<CreateSalePaymentRequest> payments =
+        [
+            new(
+                SelectedPaymentMethod.Method,
+                TotalAmount,
+                SelectedPaymentMethod.Method == PaymentMethod.Cash ? ReceivedAmount : null,
+                null)
+        ];
+
+        return new CreateSaleRequest(CashierUserId, CustomerId, items, payments);
     }
 
     private void RefreshTotals(bool updateMessage = true)

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using POS.Application.DTOs.Communication;
 using POS.Application.DTOs.Quotes;
+using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Quotes;
 using POS.Domain.Enums;
@@ -40,9 +41,9 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         LoadCommand = new RelayCommand(async _ => await LoadAsync().ConfigureAwait(true));
         NextPageCommand = new RelayCommand(async _ => await NextPageAsync().ConfigureAwait(true));
         PreviousPageCommand = new RelayCommand(async _ => await PreviousPageAsync().ConfigureAwait(true));
-        ConvertToSaleCommand = new RelayCommand(p => ConvertToSale(p as QuoteSummaryRow));
-        SendByEmailCommand = new RelayCommand(async p => await SendAsync(p as QuoteSummaryRow, SendChannel.Email).ConfigureAwait(true));
-        SendByWhatsAppCommand = new RelayCommand(async p => await SendAsync(p as QuoteSummaryRow, SendChannel.WhatsApp).ConfigureAwait(true));
+        ConvertToSaleCommand = new RelayCommand(async p => await ConvertToSaleAsync(p as QuoteSummaryRow, Guid.Empty).ConfigureAwait(true));
+        SendByEmailCommand = new RelayCommand(async p => await SendByEmailAsync(p as QuoteSummaryRow).ConfigureAwait(true));
+        SendByWhatsAppCommand = new RelayCommand(async p => await SendByWhatsAppAsync(p as QuoteSummaryRow).ConfigureAwait(true));
     }
 
     public ObservableCollection<QuoteSummaryRow> Quotes { get; }
@@ -114,7 +115,8 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         private set => SetProperty(ref _statusMessage, value ?? string.Empty);
     }
 
-    private async Task LoadAsync(CancellationToken cancellationToken = default)
+    /// <summary>Loads the current page of quote history applying active filters.</summary>
+    public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         IsLoading = true;
         StatusMessage = string.Empty;
@@ -150,6 +152,113 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Sends the quote by email using the customer's email address.
+    /// Blocked when the row has no email — sets a recoverable validation message.
+    /// </summary>
+    public async Task SendByEmailAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(row.CustomerEmail))
+        {
+            StatusMessage = "No hay correo electrónico registrado para este cliente.";
+            return;
+        }
+
+        SelectedQuote = row;
+
+        try
+        {
+            SendDocumentRequest request = new(DocumentType.Quote, row.QuoteId, SendChannel.Email, row.CustomerEmail);
+            SendDocumentResult result = await _sendUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+
+            StatusMessage = result.Success
+                ? "Documento enviado correctamente vía email."
+                : $"Error al enviar: {result.ErrorMessage}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error al enviar el documento: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Sends the quote by WhatsApp using the customer's phone number.
+    /// Blocked when the row has no phone — sets a recoverable validation message.
+    /// </summary>
+    public async Task SendByWhatsAppAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(row.CustomerPhone))
+        {
+            StatusMessage = "No hay número de teléfono registrado para este cliente.";
+            return;
+        }
+
+        SelectedQuote = row;
+
+        try
+        {
+            SendDocumentRequest request = new(DocumentType.Quote, row.QuoteId, SendChannel.WhatsApp, row.CustomerPhone);
+            SendDocumentResult result = await _sendUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+
+            StatusMessage = result.Success
+                ? "Documento enviado correctamente vía WhatsApp."
+                : $"Error al enviar: {result.ErrorMessage}";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error al enviar el documento: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Converts an eligible (non-converted) quote to a sale.
+    /// Blocked when the quote status is already Converted.
+    /// </summary>
+    public async Task ConvertToSaleAsync(QuoteSummaryRow? row, Guid cashierUserId, CancellationToken cancellationToken = default)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (row.Status == QuoteStatus.Converted)
+        {
+            StatusMessage = "Esta cotización ya fue convertida a venta.";
+            return;
+        }
+
+        SelectedQuote = row;
+        StatusMessage = "Convirtiendo cotización a venta...";
+
+        try
+        {
+            // Use the quote total as cash payment so the sale balances on conversion.
+            // The caller may override payment details via the payment step UI.
+            var request = new Application.DTOs.Quotes.ConvertQuoteToSaleRequest(
+                row.QuoteId,
+                cashierUserId,
+                [new CreateSalePaymentRequest(PaymentMethod.Cash, row.Total, null, null)]);
+
+            CreateSaleResult result = await _convertUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+
+            StatusMessage = $"Cotización convertida. Factura: {result.InvoiceNumber}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error al convertir la cotización: {ex.Message}";
+        }
+    }
+
     private async Task NextPageAsync()
     {
         CurrentPage += 1;
@@ -166,47 +275,4 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         CurrentPage -= 1;
         await LoadAsync().ConfigureAwait(true);
     }
-
-    private void ConvertToSale(QuoteSummaryRow? row)
-    {
-        if (row is null)
-        {
-            return;
-        }
-
-        SelectedQuote = row;
-        StatusMessage = "Seleccione método de pago para convertir.";
-    }
-
-    private async Task SendAsync(QuoteSummaryRow? row, SendChannel channel, CancellationToken cancellationToken = default)
-    {
-        if (row is null)
-        {
-            return;
-        }
-
-        SelectedQuote = row;
-
-        string recipientContact = channel == SendChannel.Email
-            ? (string.IsNullOrWhiteSpace(row.CustomerName) ? "sin-contacto" : ResolveEmailContact(row))
-            : ResolvePhoneContact(row);
-
-        try
-        {
-            SendDocumentRequest request = new(DocumentType.Quote, row.QuoteId, channel, recipientContact);
-            SendDocumentResult result = await _sendUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-
-            StatusMessage = result.Success
-                ? $"Documento enviado correctamente vía {(channel == SendChannel.Email ? "email" : "WhatsApp")}."
-                : $"Error al enviar: {result.ErrorMessage}";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Error al enviar el documento: {ex.Message}";
-        }
-    }
-
-    private static string ResolveEmailContact(QuoteSummaryRow row) => "sin-contacto";
-
-    private static string ResolvePhoneContact(QuoteSummaryRow row) => "sin-contacto";
 }

@@ -6,6 +6,8 @@ public sealed record QuoteSummary(
     Guid QuoteId,
     string QuoteNumber,
     string CustomerName,
+    string? CustomerEmail,
+    string? CustomerPhone,
     decimal Total,
     QuoteStatus Status,
     string ExpiresAt);

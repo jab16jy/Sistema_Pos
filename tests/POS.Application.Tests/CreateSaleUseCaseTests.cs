@@ -56,6 +56,9 @@ public sealed class CreateSaleUseCaseTests
             Sales.Add(sale);
             return Task.CompletedTask;
         }
+
+        public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+            => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));
     }
 
     private sealed class InMemoryUnitOfWork : IUnitOfWork
