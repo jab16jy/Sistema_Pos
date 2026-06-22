@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Sales;
 using POS.Infrastructure;
@@ -24,6 +25,7 @@ public partial class App : global::Avalonia.Application
     public override void OnFrameworkInitializationCompleted()
     {
         _services = BuildServiceProvider();
+        DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
         _scope = _services.CreateScope();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -75,6 +77,19 @@ public partial class App : global::Avalonia.Application
             cashier = new CashierViewModel(new PrototypeProductLookupService());
         }
 
+        CustomersViewModel? customers = null;
+        try
+        {
+            var saveCustomer = sp.GetRequiredService<SaveCustomerUseCase>();
+            var getCustomerHistory = sp.GetRequiredService<GetCustomerHistoryUseCase>();
+            var searchCustomers = sp.GetRequiredService<SearchCustomersUseCase>();
+            customers = new CustomersViewModel(saveCustomer, getCustomerHistory, searchCustomers);
+        }
+        catch
+        {
+            // Customers stays null; MainWindow shows a safe empty-state fallback.
+        }
+
         // Quote history resolves from DI — real repositories, real use cases
         QuoteHistoryViewModel? quoteHistory = null;
         try
@@ -102,7 +117,8 @@ public partial class App : global::Avalonia.Application
 
         return new MainShellViewModel(cashier, dashboardUseCase)
         {
-            QuoteHistory = quoteHistory
+            QuoteHistory = quoteHistory,
+            Customers = customers
         };
     }
 }

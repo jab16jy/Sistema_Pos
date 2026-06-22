@@ -11,8 +11,8 @@ public sealed class Customer
     public Customer(string fullName, string identification)
     {
         Id = Guid.NewGuid();
-        FullName = string.IsNullOrWhiteSpace(fullName) ? throw new ArgumentException("Customer name is required.", nameof(fullName)) : fullName.Trim();
-        Identification = string.IsNullOrWhiteSpace(identification) ? throw new ArgumentException("Customer identification is required.", nameof(identification)) : identification.Trim();
+        FullName = NormalizeRequired(fullName, "Customer name is required.", nameof(fullName));
+        Identification = NormalizeRequired(identification, "Customer identification is required.", nameof(identification));
         IsActive = true;
     }
 
@@ -23,4 +23,29 @@ public sealed class Customer
     public string? Email { get; private set; }
     public string? Address { get; private set; }
     public bool IsActive { get; private set; }
+
+    public void UpdateContactInfo(string fullName, string identification, string? phone, string? email, string? address)
+    {
+        FullName = NormalizeRequired(fullName, "Customer name is required.", nameof(fullName));
+        Identification = NormalizeRequired(identification, "Customer identification is required.", nameof(identification));
+        Phone = NormalizeOptional(phone);
+        Email = NormalizeOptional(email);
+        Address = NormalizeOptional(address);
+    }
+
+    public void Reactivate()
+    {
+        IsActive = true;
+    }
+
+    public void Deactivate()
+    {
+        IsActive = false;
+    }
+
+    private static string NormalizeRequired(string value, string message, string parameterName)
+        => string.IsNullOrWhiteSpace(value) ? throw new ArgumentException(message, parameterName) : value.Trim();
+
+    private static string? NormalizeOptional(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

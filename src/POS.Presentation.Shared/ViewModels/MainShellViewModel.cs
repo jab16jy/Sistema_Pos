@@ -35,7 +35,7 @@ public sealed class MainShellViewModel : ViewModelBase
             new("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F2", true),
             new("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", false),
             new("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", false),
-            new("customers", "Clientes", "Busca clientes, historial y puntos.", "F5", false),
+            new("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
             new("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes", "Alt+Q", IsImplemented: true),
             new("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", false),
             new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F7", false),
@@ -66,6 +66,8 @@ public sealed class MainShellViewModel : ViewModelBase
     /// Null in the prototype default constructor; injected by DI in App.axaml.cs.</summary>
     public QuoteHistoryViewModel? QuoteHistory { get; init; }
 
+    public CustomersViewModel? Customers { get; init; }
+
     public ICommand SelectModuleCommand { get; }
 
     public ModuleNavigationItem SelectedModule
@@ -84,6 +86,8 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(MainActionText));
                 OnPropertyChanged(nameof(IsCashierSelected));
                 OnPropertyChanged(nameof(IsQuotesSelected));
+                OnPropertyChanged(nameof(IsCustomersSelected));
+                OnPropertyChanged(nameof(IsPlannedModuleSelected));
             }
         }
     }
@@ -99,6 +103,10 @@ public sealed class MainShellViewModel : ViewModelBase
     public bool IsCashierSelected => SelectedModule.Key == "cashier";
 
     public bool IsQuotesSelected => SelectedModule.Key == "quotes";
+
+    public bool IsCustomersSelected => SelectedModule.Key == "customers";
+
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsQuotesSelected && !IsCustomersSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -138,9 +146,13 @@ public sealed class MainShellViewModel : ViewModelBase
 
     private void UpdateOperatorMessage(ModuleNavigationItem module)
     {
-        OperatorMessage = module.IsImplemented
-            ? "Módulo Caja activo como prototipo funcional. Valida carrito y pago sin guardar ventas todavía."
-            : $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura.";
+        OperatorMessage = module switch
+        {
+            { Key: "cashier", IsImplemented: true } => "Módulo Caja activo como prototipo funcional. Valida carrito y pago sin guardar ventas todavía.",
+            { Key: "customers", IsImplemented: true } => "Módulo Clientes activo. Gestiona datos operativos e historial sin lógica de negocio en la UI.",
+            { Key: "quotes", IsImplemented: true } => "Módulo Cotizaciones activo para crear, consultar y convertir cotizaciones.",
+            _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
+        };
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";

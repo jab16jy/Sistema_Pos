@@ -33,7 +33,7 @@ Chain strategy: feature-branch-chain
 
 ## Phase 2: Customer and supplier slices (Parallel after 1.3)
 
-- [ ] 2.1 [CM1][CM2][Par] Add `src/POS.Application/DTOs/Customers/*`, `UseCases/Customers/{SaveCustomerUseCase.cs,GetCustomerHistoryUseCase.cs}`, `src/POS.Domain/Interfaces/ICustomerRepository.cs`, `src/POS.Infrastructure/Persistence/Repositories/CustomerRepository.cs`, and `Persistence/Queries/CustomerHistoryQueryService.cs`; update `Customer.cs` for update/deactivate rules.
+- [x] 2.1 [CM1][CM2][Par] Add `src/POS.Application/DTOs/Customers/*`, `UseCases/Customers/{SaveCustomerUseCase.cs,GetCustomerHistoryUseCase.cs}`, `src/POS.Domain/Interfaces/ICustomerRepository.cs`, `src/POS.Infrastructure/Persistence/Repositories/CustomerRepository.cs`, and `Persistence/Queries/CustomerHistoryQueryService.cs`; update `Customer.cs` for update/deactivate rules.
 - [ ] 2.2 [SP1][SP2][Par] RED/GREEN: add `DTOs/Purchases/*`, `UseCases/Purchases/RegisterPurchaseUseCase.cs`, `src/POS.Domain/Interfaces/{ISupplierRepository.cs,IPurchaseRepository.cs}`, `Persistence/Repositories/{SupplierRepository.cs,PurchaseRepository.cs}`, and update `Supplier.cs`, `Purchase.cs`, `InventoryMovement.cs` for atomic stock traceability.
 
 ## Phase 3: Persistence and shared UI wiring (Sequential after 2.1/2.2)
