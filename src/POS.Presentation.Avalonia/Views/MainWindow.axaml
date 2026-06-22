@@ -245,6 +245,27 @@
         </Border>
       </Grid>
 
+      <!-- ===== SUPPLIER PURCHASES MODULE ===== -->
+      <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsPurchasesSelected}">
+        <StackPanel Margin="0,0,0,20">
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="34" FontWeight="Bold" Foreground="#0F172A" />
+          <TextBlock Text="{Binding OperatorMessage}" FontSize="15" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <local:PurchasesView Grid.Row="1"
+                             DataContext="{Binding Purchases}"
+                             IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Purchases, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <Border Grid.Row="1" Background="#F0FDF4" CornerRadius="16" Padding="32"
+                IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Purchases, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <TextBlock Text="Proveedores y compras" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
+            <TextBlock Text="El módulo de compras está listo para enlazarse por DI." Foreground="#64748B" HorizontalAlignment="Center" />
+            <TextBlock Text="La pantalla usa PurchasesViewModel compartido; la compra se registra en Application." Foreground="#94A3B8" TextWrapping="Wrap" HorizontalAlignment="Center" MaxWidth="460" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
       <!-- ===== OTHER PLANNED MODULES ===== -->
       <Border Background="#F8FAFC" CornerRadius="16" Padding="32"
               IsVisible="{Binding IsPlannedModuleSelected}">

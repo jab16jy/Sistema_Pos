@@ -37,7 +37,7 @@ public sealed class MainShellViewModel : ViewModelBase
             new("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", false),
             new("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
             new("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes", "Alt+Q", IsImplemented: true),
-            new("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", false),
+            new("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", true),
             new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F7", false),
             new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F8", false),
             new("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F9", false)
@@ -68,6 +68,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public CustomersViewModel? Customers { get; init; }
 
+    public PurchasesViewModel? Purchases { get; init; }
+
     public ICommand SelectModuleCommand { get; }
 
     public ModuleNavigationItem SelectedModule
@@ -87,6 +89,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsCashierSelected));
                 OnPropertyChanged(nameof(IsQuotesSelected));
                 OnPropertyChanged(nameof(IsCustomersSelected));
+                OnPropertyChanged(nameof(IsPurchasesSelected));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
             }
         }
@@ -106,7 +109,9 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsCustomersSelected => SelectedModule.Key == "customers";
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsQuotesSelected && !IsCustomersSelected;
+    public bool IsPurchasesSelected => SelectedModule.Key == "suppliers";
+
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -151,6 +156,7 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "cashier", IsImplemented: true } => "Módulo Caja activo como prototipo funcional. Valida carrito y pago sin guardar ventas todavía.",
             { Key: "customers", IsImplemented: true } => "Módulo Clientes activo. Gestiona datos operativos e historial sin lógica de negocio en la UI.",
             { Key: "quotes", IsImplemented: true } => "Módulo Cotizaciones activo para crear, consultar y convertir cotizaciones.",
+            { Key: "suppliers", IsImplemented: true } => "Módulo Proveedores activo. Registra proveedores y compras sin lógica de negocio en la UI.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
         };
     }

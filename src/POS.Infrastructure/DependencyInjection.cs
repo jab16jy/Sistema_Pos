@@ -4,6 +4,7 @@ using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Quotes;
+using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Interfaces;
 using POS.Infrastructure.Persistence;
@@ -19,6 +20,7 @@ public static class DependencyInjection
     {
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());
+        services.AddSingleton<ICurrentOperatorSession, LocalFileOperatorSession>();
 
         // Repositories
         services.AddScoped<IProductRepository, ProductRepository>();
@@ -26,6 +28,8 @@ public static class DependencyInjection
         services.AddScoped<IQuoteRepository, QuoteRepository>();
         services.AddScoped<IDocumentSendLogRepository, DocumentSendLogRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<ISupplierRepository, SupplierRepository>();
+        services.AddScoped<IPurchaseRepository, PurchaseRepository>();
 
         // Infrastructure services
         services.AddScoped<IPrintService, PrintService>();
@@ -35,11 +39,15 @@ public static class DependencyInjection
         services.AddScoped<IWhatsAppService, WhatsAppScriptService>();
         services.AddScoped<ICustomerHistoryQueryService, CustomerHistoryQueryService>();
         services.AddScoped<ICustomerLookupQueryService, CustomerLookupQueryService>();
+        services.AddScoped<ISupplierLookupQueryService, SupplierLookupQueryService>();
 
         // Application use cases
         services.AddScoped<SaveCustomerUseCase>();
         services.AddScoped<GetCustomerHistoryUseCase>();
         services.AddScoped<SearchCustomersUseCase>();
+        services.AddScoped<SaveSupplierUseCase>();
+        services.AddScoped<SearchSuppliersUseCase>();
+        services.AddScoped<RegisterPurchaseUseCase>();
         services.AddScoped<CreateQuoteUseCase>();
         services.AddScoped<ConvertQuoteToSaleUseCase>();
         services.AddScoped<GetQuoteHistoryUseCase>();
