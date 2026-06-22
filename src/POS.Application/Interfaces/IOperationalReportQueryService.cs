@@ -1,10 +1,16 @@
+using POS.Application.DTOs.Reporting;
+
 namespace POS.Application.Interfaces;
 
 /// <summary>
-/// Stub interface for operational reporting (cash closing, receivables totals, etc.).
-/// Implementation is WU4 scope — this stub allows ViewModel wiring in WU3 without coupling.
+/// Read-only port for fetching operational totals from persisted records.
+/// Implemented in Infrastructure using real AppDbContext with AsNoTracking queries.
 /// </summary>
 public interface IOperationalReportQueryService
 {
-    // WU4 will add: GetCashClosingReportAsync, GetReceivablesTotalAsync, etc.
+    /// <summary>
+    /// Returns operational totals — billed sales, cash, digital, and receivable settlements —
+    /// for all activity that falls within the requested date range.
+    /// </summary>
+    Task<OperationalReportDto> GetTotalsAsync(ReportRangeRequest request, CancellationToken cancellationToken = default);
 }

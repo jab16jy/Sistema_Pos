@@ -109,7 +109,8 @@ public sealed class PurchasesViewModelTests
 
         Assert.True(suppliers.IsImplemented);
         Assert.True(shell.IsPurchasesSelected);
-        Assert.False(reports.IsImplemented);
+        // WU4: reports module is now implemented (IsImplemented: true); IsPlannedModuleSelected remains false
+        Assert.True(reports.IsImplemented);
         Assert.False(shell.IsPlannedModuleSelected);
     }
 

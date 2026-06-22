@@ -40,7 +40,7 @@ public sealed class MainShellViewModel : ViewModelBase
             new("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", true),
             new("receivables", "Cuentas por Cobrar", "Consulta saldos pendientes y registra abonos.", "F7", true),
             new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", false),
-            new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F9", false),
+            new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F9", true),
             new("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", false)
         };
 
@@ -73,6 +73,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public ReceivablesViewModel? Receivables { get; init; }
 
+    public ReportsViewModel? Reports { get; init; }
+
     public ICommand SelectModuleCommand { get; }
 
     public ModuleNavigationItem SelectedModule
@@ -94,6 +96,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsCustomersSelected));
                 OnPropertyChanged(nameof(IsPurchasesSelected));
                 OnPropertyChanged(nameof(IsReceivablesSelected));
+                OnPropertyChanged(nameof(IsReportsSelected));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
             }
         }
@@ -117,7 +120,9 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsReceivablesSelected => SelectedModule.Key == "receivables";
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected;
+    public bool IsReportsSelected => SelectedModule.Key == "reports";
+
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsReportsSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -164,6 +169,7 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "quotes", IsImplemented: true } => "Módulo Cotizaciones activo para crear, consultar y convertir cotizaciones.",
             { Key: "suppliers", IsImplemented: true } => "Módulo Proveedores activo. Registra proveedores y compras sin lógica de negocio en la UI.",
             { Key: "receivables", IsImplemented: true } => "Módulo Cuentas por Cobrar activo. Consulta saldos pendientes y registra abonos.",
+            { Key: "reports", IsImplemented: true } => "Módulo Reportes activo. Consulta totales operativos separados por efectivo, digital y abonos.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
         };
     }

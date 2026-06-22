@@ -12,8 +12,6 @@ using POS.Presentation.Avalonia.Views;
 using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.ViewModels;
 
-// WU3: receivables module imports
-
 namespace POS.Presentation.Avalonia;
 
 public partial class App : global::Avalonia.Application
@@ -147,12 +145,25 @@ public partial class App : global::Avalonia.Application
             // Receivables stays null; MainWindow shows a safe empty-state fallback.
         }
 
+        // Reports ViewModel: resolves IGetOperationalReportUseCase from DI
+        ReportsViewModel? reports = null;
+        try
+        {
+            var getReport = sp.GetRequiredService<IGetOperationalReportUseCase>();
+            reports = new ReportsViewModel(getReport);
+        }
+        catch
+        {
+            // Reports stays null; MainWindow shows a safe empty-state fallback.
+        }
+
         return new MainShellViewModel(cashier, dashboardUseCase)
         {
             QuoteHistory = quoteHistory,
             Customers = customers,
             Purchases = purchases,
-            Receivables = receivables
+            Receivables = receivables,
+            Reports = reports
         };
     }
 }

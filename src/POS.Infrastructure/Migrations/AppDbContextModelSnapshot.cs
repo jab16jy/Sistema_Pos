@@ -23,12 +23,30 @@ namespace POS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal>("BilledTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("billed_total");
+
+                    b.Property<decimal>("CashCollected")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("cash_collected");
+
                     b.Property<DateTimeOffset>("ClosedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("CountedCash")
                         .HasColumnType("TEXT")
                         .HasColumnName("counted_cash");
+
+                    b.Property<decimal>("DigitalCollected")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("digital_collected");
 
                     b.Property<decimal>("DigitalPayments")
                         .HasColumnType("TEXT")
@@ -37,6 +55,12 @@ namespace POS.Infrastructure.Migrations
                     b.Property<decimal>("ExpectedCash")
                         .HasColumnType("TEXT")
                         .HasColumnName("expected_cash");
+
+                    b.Property<decimal>("ReceivableSettlementTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("receivable_settlement_total");
 
                     b.Property<string>("UserId")
                         .IsRequired()
