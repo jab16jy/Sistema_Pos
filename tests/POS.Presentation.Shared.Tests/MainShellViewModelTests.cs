@@ -9,7 +9,7 @@ namespace POS.Presentation.Shared.Tests;
 
 public sealed class MainShellViewModelTests
 {
-    private const int ActiveShellModuleCount = 9;
+    private const int ActiveShellModuleCount = 10; // WU3: added receivables module
     private const string CashierModuleKey = "cashier";
     private const string QuotesModuleKey = "quotes";
 

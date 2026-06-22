@@ -266,6 +266,27 @@
         </Border>
       </Grid>
 
+      <!-- ===== RECEIVABLES MODULE ===== -->
+      <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsReceivablesSelected}">
+        <StackPanel Margin="0,0,0,20">
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="34" FontWeight="Bold" Foreground="#0F172A" />
+          <TextBlock Text="{Binding OperatorMessage}" FontSize="15" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <local:ReceivablesView Grid.Row="1"
+                               DataContext="{Binding Receivables}"
+                               IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Receivables, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <Border Grid.Row="1" Background="#FFF7ED" CornerRadius="16" Padding="32"
+                IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Receivables, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <TextBlock Text="Cuentas por Cobrar" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
+            <TextBlock Text="El módulo de cuentas por cobrar está listo para enlazarse por DI." Foreground="#64748B" HorizontalAlignment="Center" />
+            <TextBlock Text="Registra ReceivablesViewModel vía DI en App.axaml.cs para activar el listado." Foreground="#94A3B8" TextWrapping="Wrap" HorizontalAlignment="Center" MaxWidth="460" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
       <!-- ===== OTHER PLANNED MODULES ===== -->
       <Border Background="#F8FAFC" CornerRadius="16" Padding="32"
               IsVisible="{Binding IsPlannedModuleSelected}">

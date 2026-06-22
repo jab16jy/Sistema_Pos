@@ -5,6 +5,7 @@ using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Purchases;
+using POS.Application.UseCases.Receivables;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Interfaces;
 using POS.Infrastructure.Persistence;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IPurchaseRepository, PurchaseRepository>();
+        services.AddScoped<IReceivableRepository, ReceivableRepository>();
 
         // Infrastructure services
         services.AddScoped<IPrintService, PrintService>();
@@ -40,6 +42,7 @@ public static class DependencyInjection
         services.AddScoped<ICustomerHistoryQueryService, CustomerHistoryQueryService>();
         services.AddScoped<ICustomerLookupQueryService, CustomerLookupQueryService>();
         services.AddScoped<ISupplierLookupQueryService, SupplierLookupQueryService>();
+        services.AddScoped<IReceivableQueryService, ReceivableLookupQueryService>();
 
         // Application use cases
         services.AddScoped<SaveCustomerUseCase>();
@@ -56,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<GetDashboardSummaryUseCase>();
         services.AddScoped<SendDocumentUseCase>();
         services.AddScoped<ResendDocumentUseCase>();
+        services.AddScoped<IApplyReceivablePaymentUseCase, ApplyReceivablePaymentUseCase>();
 
         return services;
     }

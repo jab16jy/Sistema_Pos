@@ -15,6 +15,24 @@ public sealed class PreviewPaymentUseCase
             return new PaymentPreviewResult(false, 0m, "Agrega productos antes de confirmar la venta.");
         }
 
+        var deferred = request.DeferredAmount > 0m ? new Money(request.DeferredAmount) : Money.Zero;
+
+        // Settlement plan path: collected + deferred must cover total
+        if (deferred.Amount > 0m)
+        {
+            var collected = request.ReceivedAmount;
+            if (collected + deferred.Amount < total.Amount)
+            {
+                return new PaymentPreviewResult(false, 0m,
+                    "El monto cobrado más el crédito no cubre el total de la venta.");
+            }
+
+            return new PaymentPreviewResult(true, 0m,
+                $"Venta con crédito: ${collected:N0} cobrado, ${deferred.Amount:N0} queda como saldo pendiente.",
+                DeferredBalance: deferred.Amount);
+        }
+
+        // Full-payment path (no deferred)
         if (request.PaymentMethod != PaymentMethod.Cash)
         {
             return new PaymentPreviewResult(true, 0m, "Pago digital seleccionado. Verifica el comprobante antes de confirmar.");

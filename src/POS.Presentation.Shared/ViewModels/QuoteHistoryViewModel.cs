@@ -5,6 +5,7 @@ using POS.Application.DTOs.Quotes;
 using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Quotes;
+using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
 using POS.Presentation.Shared.Quotes;
@@ -221,10 +222,18 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Converts an eligible (non-converted) quote to a sale.
+    /// Converts an eligible (non-converted) quote to a sale using full cash payment.
     /// Blocked when the quote status is already Converted.
     /// </summary>
-    public async Task ConvertToSaleAsync(QuoteSummaryRow? row, Guid cashierUserId, CancellationToken cancellationToken = default)
+    public Task ConvertToSaleAsync(QuoteSummaryRow? row, Guid cashierUserId, CancellationToken cancellationToken = default)
+        => ConvertToSaleAsync(row, cashierUserId, null, cancellationToken);
+
+    /// <summary>
+    /// Converts an eligible (non-converted) quote to a sale with an explicit settlement plan.
+    /// Pass null for settlementPlan to use the legacy full-cash-payment path.
+    /// Blocked when the quote status is already Converted.
+    /// </summary>
+    public async Task ConvertToSaleAsync(QuoteSummaryRow? row, Guid cashierUserId, SaleSettlementPlan? settlementPlan, CancellationToken cancellationToken = default)
     {
         if (row is null)
         {
@@ -242,14 +251,24 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
 
         try
         {
-            // Use the quote total as cash payment so the sale balances on conversion.
-            // The caller may override payment details via the payment step UI.
-            var request = new Application.DTOs.Quotes.ConvertQuoteToSaleRequest(
-                row.QuoteId,
-                cashierUserId,
-                [new CreateSalePaymentRequest(PaymentMethod.Cash, row.Total, null, null)]);
-
-            CreateSaleResult result = await _convertUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+            CreateSaleResult result;
+            if (settlementPlan is not null)
+            {
+                var request = new Application.DTOs.Quotes.ConvertQuoteToSaleRequest(
+                    row.QuoteId,
+                    cashierUserId,
+                    [new CreateSalePaymentRequest(PaymentMethod.Cash, row.Total, null, null)]);
+                result = await _convertUseCase.ExecuteAsync(request, settlementPlan, cancellationToken).ConfigureAwait(true);
+            }
+            else
+            {
+                // Legacy path: full cash payment for the quote total
+                var request = new Application.DTOs.Quotes.ConvertQuoteToSaleRequest(
+                    row.QuoteId,
+                    cashierUserId,
+                    [new CreateSalePaymentRequest(PaymentMethod.Cash, row.Total, null, null)]);
+                result = await _convertUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+            }
 
             StatusMessage = $"Cotización convertida. Factura: {result.InvoiceNumber}.";
         }

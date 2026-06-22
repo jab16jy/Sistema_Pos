@@ -93,7 +93,7 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Customers");
+                    b.ToTable("Customers", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.DocumentSendLog", b =>
@@ -162,7 +162,7 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("InventoryMovements");
+                    b.ToTable("InventoryMovements", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Payment", b =>
@@ -385,6 +385,60 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("QUOTE_ITEMS", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.Receivable", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("OriginalBalance")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("original_balance");
+
+                    b.Property<decimal>("OutstandingBalance")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("outstanding_balance");
+
+                    b.Property<string>("SaleId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("RECEIVABLES", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ReceivableSettlement", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("AppliedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceivableId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceivableId");
+
+                    b.ToTable("RECEIVABLE_SETTLEMENTS", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Sale", b =>
                 {
                     b.Property<string>("Id")
@@ -476,7 +530,7 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Suppliers");
+                    b.ToTable("Suppliers", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.User", b =>
@@ -534,6 +588,15 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.ReceivableSettlement", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Receivable", null)
+                        .WithMany("Settlements")
+                        .HasForeignKey("ReceivableId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.SaleItem", b =>
                 {
                     b.HasOne("POS.Domain.Entities.Sale", null)
@@ -551,6 +614,11 @@ namespace POS.Infrastructure.Migrations
             modelBuilder.Entity("POS.Domain.Entities.Quote", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.Receivable", b =>
+                {
+                    b.Navigation("Settlements");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Sale", b =>

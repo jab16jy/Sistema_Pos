@@ -129,6 +129,44 @@ public sealed class SalePersistenceTests
         Assert.Equal(0, summary.LowStockCount);
     }
 
+    // --- RED: deferred balance / receivable persistence ---
+
+    [Fact]
+    public async Task ExecuteAsync_WithDeferredBalance_PersistsReceivableLinkedToSaleAndCustomer()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var product = new Product("Monitor", Guid.NewGuid(), new Money(200_000m), new Money(350_000m), new StockQuantity(5m), new StockQuantity(1m));
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var customerId = Guid.NewGuid();
+
+        var useCase = new CreateSaleUseCase(
+            new ProductRepository(dbContext),
+            new SaleRepository(dbContext),
+            dbContext,
+            new ReceivableRepository(dbContext));
+
+        var request = new CreateSaleRequest(
+            Guid.NewGuid(),
+            customerId,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            new SaleSettlementPlan(200_000m, PaymentMethod.Cash, 150_000m));
+
+        var result = await useCase.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(150_000m, result.DeferredBalance);
+
+        var receivable = await dbContext.Receivables
+            .SingleAsync(r => r.SaleId == result.SaleId, TestContext.Current.CancellationToken);
+        Assert.Equal(customerId, receivable.CustomerId);
+        Assert.Equal(150_000m, receivable.OutstandingBalance.Amount);
+    }
+
     private static AppDbContext CreateDbContext(SqliteConnection connection)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

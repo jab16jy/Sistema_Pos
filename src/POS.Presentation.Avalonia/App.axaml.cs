@@ -12,6 +12,8 @@ using POS.Presentation.Avalonia.Views;
 using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.ViewModels;
 
+// WU3: receivables module imports
+
 namespace POS.Presentation.Avalonia;
 
 public partial class App : global::Avalonia.Application
@@ -132,11 +134,25 @@ public partial class App : global::Avalonia.Application
             // Dashboard stays at prototype zero values
         }
 
+        // Receivables ViewModel: resolves IReceivableQueryService and IApplyReceivablePaymentUseCase from DI
+        ReceivablesViewModel? receivables = null;
+        try
+        {
+            var receivableQueryService = sp.GetRequiredService<IReceivableQueryService>();
+            var applyPaymentUseCase = sp.GetRequiredService<IApplyReceivablePaymentUseCase>();
+            receivables = new ReceivablesViewModel(receivableQueryService, applyPaymentUseCase);
+        }
+        catch
+        {
+            // Receivables stays null; MainWindow shows a safe empty-state fallback.
+        }
+
         return new MainShellViewModel(cashier, dashboardUseCase)
         {
             QuoteHistory = quoteHistory,
             Customers = customers,
-            Purchases = purchases
+            Purchases = purchases,
+            Receivables = receivables
         };
     }
 }

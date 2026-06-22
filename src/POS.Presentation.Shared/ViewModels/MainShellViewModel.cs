@@ -38,9 +38,10 @@ public sealed class MainShellViewModel : ViewModelBase
             new("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
             new("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes", "Alt+Q", IsImplemented: true),
             new("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", true),
-            new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F7", false),
-            new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F8", false),
-            new("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F9", false)
+            new("receivables", "Cuentas por Cobrar", "Consulta saldos pendientes y registra abonos.", "F7", true),
+            new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", false),
+            new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F9", false),
+            new("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", false)
         };
 
         Metrics = new ObservableCollection<DashboardMetric>
@@ -70,6 +71,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public PurchasesViewModel? Purchases { get; init; }
 
+    public ReceivablesViewModel? Receivables { get; init; }
+
     public ICommand SelectModuleCommand { get; }
 
     public ModuleNavigationItem SelectedModule
@@ -90,6 +93,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsQuotesSelected));
                 OnPropertyChanged(nameof(IsCustomersSelected));
                 OnPropertyChanged(nameof(IsPurchasesSelected));
+                OnPropertyChanged(nameof(IsReceivablesSelected));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
             }
         }
@@ -111,7 +115,9 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsPurchasesSelected => SelectedModule.Key == "suppliers";
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected;
+    public bool IsReceivablesSelected => SelectedModule.Key == "receivables";
+
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -157,6 +163,7 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "customers", IsImplemented: true } => "Módulo Clientes activo. Gestiona datos operativos e historial sin lógica de negocio en la UI.",
             { Key: "quotes", IsImplemented: true } => "Módulo Cotizaciones activo para crear, consultar y convertir cotizaciones.",
             { Key: "suppliers", IsImplemented: true } => "Módulo Proveedores activo. Registra proveedores y compras sin lógica de negocio en la UI.",
+            { Key: "receivables", IsImplemented: true } => "Módulo Cuentas por Cobrar activo. Consulta saldos pendientes y registra abonos.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
         };
     }

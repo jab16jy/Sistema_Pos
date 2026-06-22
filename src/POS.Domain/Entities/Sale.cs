@@ -7,6 +7,7 @@ public sealed class Sale
 {
     private readonly List<SaleItem> _items = [];
     private readonly List<Payment> _payments = [];
+    private SaleSettlementPlan? _settlementPlan;
 
     private Sale()
     {
@@ -31,6 +32,26 @@ public sealed class Sale
     public DateTimeOffset CreatedAt { get; private set; }
     public IReadOnlyCollection<SaleItem> Items => _items.AsReadOnly();
     public IReadOnlyCollection<Payment> Payments => _payments.AsReadOnly();
+
+    /// <summary>
+    /// Attaches a settlement plan to the sale, describing how much is collected
+    /// immediately versus deferred as a receivable. Must be set before calling Complete.
+    /// </summary>
+    public void SetSettlementPlan(SaleSettlementPlan plan)
+    {
+        if (Status != SaleStatus.Draft)
+        {
+            throw new InvalidOperationException("Settlement plan can only be set on draft sales.");
+        }
+
+        _settlementPlan = plan ?? throw new ArgumentNullException(nameof(plan));
+    }
+
+    /// <summary>Returns the deferred balance from the settlement plan, or zero if no plan.</summary>
+    public Money DeferredBalance() =>
+        _settlementPlan is { DeferredBalanceAmount: > 0m } plan
+            ? new Money(plan.DeferredBalanceAmount)
+            : Money.Zero;
 
     public void AddItem(Product product, Quantity quantity, Money discount)
     {
@@ -66,9 +87,19 @@ public sealed class Sale
             throw new InvalidOperationException("Add at least one product before completing the sale.");
         }
 
-        if (TotalPaid().Amount < Total().Amount)
+        var total = Total().Amount;
+        var deferred = DeferredBalance().Amount;
+        var covered = TotalPaid().Amount + deferred;
+
+        if (covered < total)
         {
             throw new InvalidOperationException("The received payment does not cover the sale total.");
+        }
+
+        // Spec: deferred balance without identified customer is rejected (orphan credit guard)
+        if (deferred > 0m && CustomerId is null)
+        {
+            throw new InvalidOperationException("A customer must be identified to create a deferred balance.");
         }
 
         Status = SaleStatus.Completed;
