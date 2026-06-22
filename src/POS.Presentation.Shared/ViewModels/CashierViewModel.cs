@@ -25,6 +25,7 @@ public sealed class CashierViewModel : ViewModelBase
     private decimal _quantity = 1m;
     private PaymentMethodOption _selectedPaymentMethod;
     private decimal _receivedAmount;
+    private decimal _deferredAmount;
     private string _message = "Busca o escanea un producto para iniciar la venta.";
     private bool _canConfirm;
     private decimal _changeAmount;
@@ -153,6 +154,24 @@ public sealed class CashierViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Amount to defer as a receivable balance.
+    /// When DeferredAmount > 0, a CustomerId is required and
+    /// CollectedAmount + DeferredAmount must equal TotalAmount for CanConfirm to be true.
+    /// </summary>
+    public decimal DeferredAmount
+    {
+        get => _deferredAmount;
+        set
+        {
+            decimal normalized = value < 0m ? 0m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+            if (SetProperty(ref _deferredAmount, normalized))
+            {
+                RefreshPaymentPreview();
+            }
+        }
+    }
+
     public string Message
     {
         get => _message;
@@ -247,6 +266,7 @@ public sealed class CashierViewModel : ViewModelBase
     {
         CartItems.Clear();
         ReceivedAmount = 0m;
+        DeferredAmount = 0m;
         RefreshTotals(updateMessage: false);
         Message = "Carrito limpio. Puedes iniciar una nueva venta.";
     }
@@ -270,6 +290,7 @@ public sealed class CashierViewModel : ViewModelBase
             CreateSaleResult result = await _createSaleUseCase.ExecuteAsync(BuildCreateSaleRequest(), cancellationToken).ConfigureAwait(true);
             CartItems.Clear();
             ReceivedAmount = 0m;
+            DeferredAmount = 0m;
             RefreshTotals(updateMessage: false);
             Message = $"Venta guardada con factura {result.InvoiceNumber}.";
         }
@@ -289,6 +310,16 @@ public sealed class CashierViewModel : ViewModelBase
         IReadOnlyCollection<CreateSaleItemRequest> items = CartItems
             .Select(item => new CreateSaleItemRequest(item.ProductId, item.Quantity, 0m))
             .ToArray();
+
+        // Use settlement plan when a deferred amount is set; otherwise use legacy full-payment path
+        if (DeferredAmount > 0m)
+        {
+            var plan = new Domain.Entities.SaleSettlementPlan(
+                ReceivedAmount,
+                SelectedPaymentMethod.Method,
+                DeferredAmount);
+            return new CreateSaleRequest(CashierUserId, CustomerId, items, plan);
+        }
 
         IReadOnlyCollection<CreateSalePaymentRequest> payments =
         [
@@ -312,10 +343,24 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void RefreshPaymentPreview(bool updateMessage = true)
     {
+        // Deferred balance requires an identified customer — block confirmation without one
+        if (DeferredAmount > 0m && CustomerId is null)
+        {
+            ChangeAmount = 0m;
+            CanConfirm = false;
+            if (updateMessage)
+            {
+                Message = "Se requiere identificar al cliente para registrar un saldo a crédito.";
+            }
+
+            return;
+        }
+
         PaymentPreviewResult preview = _previewPaymentUseCase.Execute(new PaymentPreviewRequest(
             TotalAmount,
             SelectedPaymentMethod.Method,
-            ReceivedAmount));
+            ReceivedAmount,
+            DeferredAmount));
 
         ChangeAmount = preview.ChangeAmount;
         CanConfirm = preview.CanConfirm;

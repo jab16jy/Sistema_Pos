@@ -22,6 +22,8 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
     public DbSet<DocumentSendLog> DocumentSendLogs => Set<DocumentSendLog>();
+    public DbSet<Receivable> Receivables => Set<Receivable>();
+    public DbSet<ReceivableSettlement> ReceivableSettlements => Set<ReceivableSettlement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

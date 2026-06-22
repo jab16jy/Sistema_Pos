@@ -1,6 +1,7 @@
 using POS.Application.DTOs.Quotes;
 using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Sales;
+using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
@@ -19,7 +20,18 @@ public sealed class ConvertQuoteToSaleUseCase
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<CreateSaleResult> ExecuteAsync(ConvertQuoteToSaleRequest request, CancellationToken ct = default)
+    /// <summary>Legacy overload — uses explicit payment lines from request.</summary>
+    public Task<CreateSaleResult> ExecuteAsync(ConvertQuoteToSaleRequest request, CancellationToken ct = default)
+        => ExecuteInternalAsync(request, settlementPlan: null, ct);
+
+    /// <summary>Settlement-plan overload — deferred balance supported.</summary>
+    public Task<CreateSaleResult> ExecuteAsync(ConvertQuoteToSaleRequest request, SaleSettlementPlan settlementPlan, CancellationToken ct = default)
+        => ExecuteInternalAsync(request, settlementPlan, ct);
+
+    private async Task<CreateSaleResult> ExecuteInternalAsync(
+        ConvertQuoteToSaleRequest request,
+        SaleSettlementPlan? settlementPlan,
+        CancellationToken ct)
     {
         var quote = await _quotes.GetByIdAsync(request.QuoteId, ct)
             ?? throw new InvalidOperationException($"Cotización {request.QuoteId} no encontrada.");
@@ -44,11 +56,9 @@ public sealed class ConvertQuoteToSaleUseCase
             i.Quantity.Value,
             i.Discount)).ToList();
 
-        var saleRequest = new CreateSaleRequest(
-            request.CashierUserId,
-            quote.CustomerId,
-            saleItems,
-            request.Payments);
+        CreateSaleRequest saleRequest = settlementPlan is not null
+            ? new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, settlementPlan)
+            : new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, request.Payments);
 
         var saleResult = await _createSale.ExecuteAsync(saleRequest, ct);
 

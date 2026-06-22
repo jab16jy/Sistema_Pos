@@ -187,6 +187,70 @@ public sealed class CashierViewModelTests
             => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));
     }
 
+    // --- RED: settlement plan / deferred balance in CashierViewModel ---
+
+    [Fact]
+    public async Task DeferredAmount_WhenSetAndProductInCart_PreviewShowsDeferredCreditMessage()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid()
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        // Set deferred amount so that CollectedAmount + DeferredAmount == Total
+        viewModel.DeferredAmount = viewModel.TotalAmount;
+        viewModel.ReceivedAmount = 0m;
+
+        Assert.True(viewModel.CanConfirm);
+        Assert.Equal(viewModel.TotalAmount, viewModel.DeferredAmount);
+        Assert.Contains("crédito", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WithDeferredBalance_WhenNoCustomerSet_CannotConfirm()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m
+            // CustomerId not set
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        // Attempt deferred sale without a customer
+        viewModel.DeferredAmount = viewModel.TotalAmount;
+        viewModel.ReceivedAmount = 0m;
+
+        // Without a customer, deferred should block confirmation
+        Assert.False(viewModel.CanConfirm);
+    }
+
+    [Fact]
+    public async Task SettlementPlan_WhenCollectedAmountPlusDeferredEqualsTotal_CanConfirm()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 2m,
+            CustomerId = Guid.NewGuid()
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        decimal total = viewModel.TotalAmount;
+        // Pay half in cash, defer half
+        viewModel.ReceivedAmount = total / 2m;
+        viewModel.DeferredAmount = total / 2m;
+
+        Assert.True(viewModel.CanConfirm);
+        Assert.Contains("crédito", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class InMemoryUnitOfWork : IUnitOfWork
     {
         public int SaveCount { get; private set; }

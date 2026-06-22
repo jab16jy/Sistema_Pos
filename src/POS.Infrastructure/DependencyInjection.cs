@@ -2,10 +2,15 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
+using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Quotes;
+using POS.Application.UseCases.Purchases;
+using POS.Application.UseCases.Receivables;
+using POS.Application.UseCases.Reporting;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Interfaces;
 using POS.Infrastructure.Persistence;
+using POS.Infrastructure.Persistence.Queries;
 using POS.Infrastructure.Persistence.Repositories;
 using POS.Infrastructure.Services;
 
@@ -17,12 +22,18 @@ public static class DependencyInjection
     {
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());
+        services.AddSingleton<ICurrentOperatorSession, LocalFileOperatorSession>();
 
         // Repositories
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<ISaleRepository, SaleRepository>();
         services.AddScoped<IQuoteRepository, QuoteRepository>();
         services.AddScoped<IDocumentSendLogRepository, DocumentSendLogRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<ISupplierRepository, SupplierRepository>();
+        services.AddScoped<IPurchaseRepository, PurchaseRepository>();
+        services.AddScoped<IReceivableRepository, ReceivableRepository>();
+        services.AddScoped<ICashClosingRepository, CashClosingRepository>();
 
         // Infrastructure services
         services.AddScoped<IPrintService, PrintService>();
@@ -30,8 +41,19 @@ public static class DependencyInjection
         services.AddScoped<IPdfService, PdfService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IWhatsAppService, WhatsAppScriptService>();
+        services.AddScoped<ICustomerHistoryQueryService, CustomerHistoryQueryService>();
+        services.AddScoped<ICustomerLookupQueryService, CustomerLookupQueryService>();
+        services.AddScoped<ISupplierLookupQueryService, SupplierLookupQueryService>();
+        services.AddScoped<IReceivableQueryService, ReceivableLookupQueryService>();
+        services.AddScoped<IOperationalReportQueryService, OperationalReportQueryService>();
 
         // Application use cases
+        services.AddScoped<SaveCustomerUseCase>();
+        services.AddScoped<GetCustomerHistoryUseCase>();
+        services.AddScoped<SearchCustomersUseCase>();
+        services.AddScoped<SaveSupplierUseCase>();
+        services.AddScoped<SearchSuppliersUseCase>();
+        services.AddScoped<RegisterPurchaseUseCase>();
         services.AddScoped<CreateQuoteUseCase>();
         services.AddScoped<ConvertQuoteToSaleUseCase>();
         services.AddScoped<GetQuoteHistoryUseCase>();
@@ -40,6 +62,9 @@ public static class DependencyInjection
         services.AddScoped<GetDashboardSummaryUseCase>();
         services.AddScoped<SendDocumentUseCase>();
         services.AddScoped<ResendDocumentUseCase>();
+        services.AddScoped<IApplyReceivablePaymentUseCase, ApplyReceivablePaymentUseCase>();
+        services.AddScoped<IGetOperationalReportUseCase, GetOperationalReportUseCase>();
+        services.AddScoped<CloseCashRegisterUseCase>();
 
         return services;
     }

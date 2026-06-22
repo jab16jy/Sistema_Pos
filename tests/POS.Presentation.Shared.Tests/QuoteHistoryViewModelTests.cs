@@ -422,4 +422,72 @@ public sealed class QuoteHistoryViewModelTests
         public Task<bool> SendAsync(string phoneNumber, string message, string? attachmentPath, CancellationToken ct = default)
             => Task.FromResult(true);
     }
+
+    // --- RED: settlement plan forwarded on quote conversion ---
+
+    [Fact]
+    public async Task ConvertToSale_WithSettlementPlan_FullPayment_ProducesInvoiceAndNoReceivable()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Item", Guid.NewGuid(), new Money(10_000m), new Money(20_000m), new StockQuantity(10m), new StockQuantity(1m));
+        var quote = CreateActiveQuoteWithItem("COT-010", product.Id);
+        quoteRepo.Store(quote);
+
+        var receivables = new InMemoryReceivableRepository();
+        var summaries = new List<QuoteSummary>
+        {
+            new QuoteSummary(quote.Id, "COT-010", "Test Client", null, null, 20_000m, QuoteStatus.Active, "2026-12-31")
+        };
+
+        var vm = BuildHistoryVmWithProductAndReceivables(summaries, quoteRepo, product, receivables);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        // Full cash payment — no deferred amount
+        await vm.ConvertToSaleAsync(row, Guid.NewGuid(), new SaleSettlementPlan(20_000m, PaymentMethod.Cash, 0m), TestContext.Current.CancellationToken);
+
+        Assert.Contains("POS-", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(receivables.Stored);
+    }
+
+    private static QuoteHistoryViewModel BuildHistoryVmWithProductAndReceivables(
+        IReadOnlyList<QuoteSummary> summaries,
+        InMemoryQuoteRepository quoteRepo,
+        Product product,
+        InMemoryReceivableRepository receivables)
+    {
+        var log = new InMemoryDocumentSendLogRepository();
+        var quoteEntities = BuildQuoteEntitiesFromSummaries(summaries, quoteRepo);
+        var historyRepo = new StaticQuoteHistoryRepository(quoteEntities);
+
+        var getHistoryUseCase = new GetQuoteHistoryUseCase(historyRepo);
+        var convertUseCase = new ConvertQuoteToSaleUseCase(
+            quoteRepo,
+            new CreateSaleUseCase(new StaticProductRepository(product), new InMemorySaleRepository(), new InMemoryUnitOfWork(), receivables),
+            new InMemoryUnitOfWork());
+        var sendUseCase = new SendDocumentUseCase(
+            new FakePdfService(),
+            new FakeEmailService(),
+            new FakeWhatsAppService(),
+            log,
+            new InMemoryUnitOfWork());
+
+        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase);
+    }
+
+    private sealed class InMemoryReceivableRepository : IReceivableRepository
+    {
+        public List<Receivable> Stored { get; } = [];
+
+        public Task AddAsync(Receivable receivable, CancellationToken ct = default)
+        {
+            Stored.Add(receivable);
+            return Task.CompletedTask;
+        }
+
+        public Task<Receivable?> GetByIdAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult<Receivable?>(Stored.FirstOrDefault(r => r.Id == id));
+
+        public Task UpdateAsync(Receivable receivable, CancellationToken ct = default) => Task.CompletedTask;
+    }
 }

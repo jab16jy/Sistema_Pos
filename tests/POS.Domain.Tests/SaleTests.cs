@@ -29,4 +29,55 @@ public sealed class SaleTests
         Assert.Equal(6_000m, sale.CashInDrawer().Amount);
         Assert.Equal(8m, product.CurrentStock);
     }
+
+    // --- Settlement plan tests (RED) ---
+
+    [Fact]
+    public void Complete_WithSettlementPlan_WhenCollectedPlusDeferredEqualsTotal_CompletesSuccessfully()
+    {
+        var product = MakeProduct(10_000m, stock: 5m);
+        var customerId = Guid.NewGuid();
+        var sale = new Sale(Guid.NewGuid(), customerId);
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+
+        // Collected 6000, deferred 4000 = total 10000
+        sale.SetSettlementPlan(new SaleSettlementPlan(6_000m, PaymentMethod.Cash, 4_000m));
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(6_000m), new Money(6_000m)));
+
+        sale.Complete();
+
+        Assert.Equal(SaleStatus.Completed, sale.Status);
+        Assert.Equal(4_000m, sale.DeferredBalance().Amount);
+        Assert.Equal(6_000m, sale.CashInDrawer().Amount);
+    }
+
+    [Fact]
+    public void Complete_WithDeferredBalance_WhenNoCustomer_Throws()
+    {
+        var product = MakeProduct(10_000m, stock: 5m);
+        var sale = new Sale(Guid.NewGuid()); // no customer
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+
+        // Deferred balance without a customer is forbidden (spec: reject orphan receivable)
+        sale.SetSettlementPlan(new SaleSettlementPlan(6_000m, PaymentMethod.Cash, 4_000m));
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(6_000m), new Money(6_000m)));
+
+        Assert.Throws<InvalidOperationException>(() => sale.Complete());
+    }
+
+    [Fact]
+    public void DeferredBalance_WhenNoSettlementPlan_ReturnsZero()
+    {
+        var product = MakeProduct(5_000m, stock: 5m);
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(5_000m), new Money(5_000m)));
+        sale.Complete();
+
+        Assert.Equal(Money.Zero, sale.DeferredBalance());
+    }
+
+    private static Product MakeProduct(decimal salePrice, decimal stock = 10m) =>
+        new Product("Item", Guid.NewGuid(), new Money(salePrice / 2), new Money(salePrice),
+            new StockQuantity(stock), new StockQuantity(1m));
 }

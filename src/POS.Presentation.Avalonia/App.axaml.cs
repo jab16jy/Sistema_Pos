@@ -2,7 +2,10 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
+using POS.Application.Interfaces;
+using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Quotes;
+using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Sales;
 using POS.Infrastructure;
 using POS.Presentation.Avalonia.Views;
@@ -24,6 +27,7 @@ public partial class App : global::Avalonia.Application
     public override void OnFrameworkInitializationCompleted()
     {
         _services = BuildServiceProvider();
+        DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
         _scope = _services.CreateScope();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -75,6 +79,34 @@ public partial class App : global::Avalonia.Application
             cashier = new CashierViewModel(new PrototypeProductLookupService());
         }
 
+        cashier.CashierUserId = sp.GetRequiredService<ICurrentOperatorSession>().OperatorId;
+
+        CustomersViewModel? customers = null;
+        try
+        {
+            var saveCustomer = sp.GetRequiredService<SaveCustomerUseCase>();
+            var getCustomerHistory = sp.GetRequiredService<GetCustomerHistoryUseCase>();
+            var searchCustomers = sp.GetRequiredService<SearchCustomersUseCase>();
+            customers = new CustomersViewModel(saveCustomer, getCustomerHistory, searchCustomers);
+        }
+        catch
+        {
+            // Customers stays null; MainWindow shows a safe empty-state fallback.
+        }
+
+        PurchasesViewModel? purchases = null;
+        try
+        {
+            var saveSupplier = sp.GetRequiredService<SaveSupplierUseCase>();
+            var searchSuppliers = sp.GetRequiredService<SearchSuppliersUseCase>();
+            var registerPurchase = sp.GetRequiredService<RegisterPurchaseUseCase>();
+            purchases = new PurchasesViewModel(saveSupplier, searchSuppliers, registerPurchase, () => cashier.CashierUserId);
+        }
+        catch
+        {
+            // Purchases stays null; MainWindow shows a safe empty-state fallback.
+        }
+
         // Quote history resolves from DI — real repositories, real use cases
         QuoteHistoryViewModel? quoteHistory = null;
         try
@@ -100,9 +132,38 @@ public partial class App : global::Avalonia.Application
             // Dashboard stays at prototype zero values
         }
 
+        // Receivables ViewModel: resolves IReceivableQueryService and IApplyReceivablePaymentUseCase from DI
+        ReceivablesViewModel? receivables = null;
+        try
+        {
+            var receivableQueryService = sp.GetRequiredService<IReceivableQueryService>();
+            var applyPaymentUseCase = sp.GetRequiredService<IApplyReceivablePaymentUseCase>();
+            receivables = new ReceivablesViewModel(receivableQueryService, applyPaymentUseCase);
+        }
+        catch
+        {
+            // Receivables stays null; MainWindow shows a safe empty-state fallback.
+        }
+
+        // Reports ViewModel: resolves IGetOperationalReportUseCase from DI
+        ReportsViewModel? reports = null;
+        try
+        {
+            var getReport = sp.GetRequiredService<IGetOperationalReportUseCase>();
+            reports = new ReportsViewModel(getReport);
+        }
+        catch
+        {
+            // Reports stays null; MainWindow shows a safe empty-state fallback.
+        }
+
         return new MainShellViewModel(cashier, dashboardUseCase)
         {
-            QuoteHistory = quoteHistory
+            QuoteHistory = quoteHistory,
+            Customers = customers,
+            Purchases = purchases,
+            Receivables = receivables,
+            Reports = reports
         };
     }
 }

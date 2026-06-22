@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:POS.Presentation.Shared.ViewModels"
+             x:Class="POS.Presentation.Avalonia.Views.ReportsView"
+             x:DataType="vm:ReportsViewModel">
+  <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="16">
+
+    <!-- Header -->
+    <Border Classes="card" Grid.Row="0">
+      <StackPanel Spacing="8">
+        <TextBlock Text="Reporte Operacional" FontSize="22" FontWeight="Bold" Foreground="#0F172A" />
+        <TextBlock Text="Totales separados de ventas, efectivo, pagos digitales y abonos a cuentas por cobrar." Foreground="#64748B" TextWrapping="Wrap" />
+        <Button Classes="secondary" Content="Cargar reporte del día" Command="{Binding LoadReportCommand}" HorizontalAlignment="Left" />
+      </StackPanel>
+    </Border>
+
+    <!-- Error banner -->
+    <Border Classes="card" Grid.Row="1" Background="#FEF2F2" CornerRadius="12" Padding="14"
+            IsVisible="{Binding HasError}">
+      <TextBlock Text="{Binding ErrorMessage}" Foreground="#DC2626" TextWrapping="Wrap" />
+    </Border>
+
+    <!-- Report totals -->
+    <Border Classes="card" Grid.Row="2">
+      <StackPanel Spacing="16">
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+          <!-- Billed total -->
+          <Border Background="#EFF6FF" CornerRadius="12" Padding="16" Grid.Column="0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Total Facturado" Foreground="#1D4ED8" FontSize="13" />
+              <TextBlock Text="{Binding BilledTotalText}" Foreground="#1E3A8A" FontSize="26" FontWeight="Bold" />
+              <TextBlock Text="Suma de todas las ventas del periodo" Foreground="#93C5FD" FontSize="11" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <!-- Expected drawer cash -->
+          <Border Background="#F0FDF4" CornerRadius="12" Padding="16" Grid.Column="1">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Efectivo Esperado en Caja" Foreground="#166534" FontSize="13" />
+              <TextBlock Text="{Binding ExpectedDrawerCashText}" Foreground="#14532D" FontSize="26" FontWeight="Bold" />
+              <TextBlock Text="Ventas en efectivo + abonos cobrados" Foreground="#86EFAC" FontSize="11" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+          <!-- Cash collected -->
+          <Border Background="#F0FDF4" CornerRadius="12" Padding="14" Grid.Column="0">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Efectivo de Ventas" Foreground="#15803D" FontSize="12" />
+              <TextBlock Text="{Binding CashCollectedText}" Foreground="#14532D" FontSize="20" FontWeight="Bold" />
+            </StackPanel>
+          </Border>
+
+          <!-- Digital collected -->
+          <Border Background="#FDF4FF" CornerRadius="12" Padding="14" Grid.Column="1">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Pagos Digitales" Foreground="#7E22CE" FontSize="12" />
+              <TextBlock Text="{Binding DigitalCollectedText}" Foreground="#581C87" FontSize="20" FontWeight="Bold" />
+            </StackPanel>
+          </Border>
+
+          <!-- Receivable settlements -->
+          <Border Background="#FFF7ED" CornerRadius="12" Padding="14" Grid.Column="2">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Abonos Cobrados" Foreground="#C2410C" FontSize="12" />
+              <TextBlock Text="{Binding ReceivableSettlementsText}" Foreground="#9A3412" FontSize="20" FontWeight="Bold" />
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- Status message -->
+        <TextBlock Text="{Binding StatusMessage}" Foreground="#64748B" TextWrapping="Wrap" FontSize="12"
+                   IsVisible="{Binding !HasError}" />
+
+      </StackPanel>
+    </Border>
+
+  </Grid>
+</UserControl>

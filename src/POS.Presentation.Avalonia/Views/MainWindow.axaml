@@ -223,9 +223,94 @@
         </Border>
       </Grid>
 
+
+      <!-- ===== CUSTOMERS MODULE ===== -->
+      <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsCustomersSelected}">
+        <StackPanel Margin="0,0,0,20">
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="34" FontWeight="Bold" Foreground="#0F172A" />
+          <TextBlock Text="{Binding OperatorMessage}" FontSize="15" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <local:CustomersView Grid.Row="1"
+                             DataContext="{Binding Customers}"
+                             IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Customers, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <Border Grid.Row="1" Background="#EFF6FF" CornerRadius="16" Padding="32"
+                IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Customers, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <TextBlock Text="Clientes" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
+            <TextBlock Text="El módulo de clientes está listo para enlazarse por DI." Foreground="#64748B" HorizontalAlignment="Center" />
+            <TextBlock Text="No hay lógica de negocio en Avalonia; la pantalla usa CustomersViewModel compartido." Foreground="#94A3B8" TextWrapping="Wrap" HorizontalAlignment="Center" MaxWidth="460" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- ===== SUPPLIER PURCHASES MODULE ===== -->
+      <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsPurchasesSelected}">
+        <StackPanel Margin="0,0,0,20">
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="34" FontWeight="Bold" Foreground="#0F172A" />
+          <TextBlock Text="{Binding OperatorMessage}" FontSize="15" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <local:PurchasesView Grid.Row="1"
+                             DataContext="{Binding Purchases}"
+                             IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Purchases, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <Border Grid.Row="1" Background="#F0FDF4" CornerRadius="16" Padding="32"
+                IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Purchases, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <TextBlock Text="Proveedores y compras" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
+            <TextBlock Text="El módulo de compras está listo para enlazarse por DI." Foreground="#64748B" HorizontalAlignment="Center" />
+            <TextBlock Text="La pantalla usa PurchasesViewModel compartido; la compra se registra en Application." Foreground="#94A3B8" TextWrapping="Wrap" HorizontalAlignment="Center" MaxWidth="460" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- ===== RECEIVABLES MODULE ===== -->
+      <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsReceivablesSelected}">
+        <StackPanel Margin="0,0,0,20">
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="34" FontWeight="Bold" Foreground="#0F172A" />
+          <TextBlock Text="{Binding OperatorMessage}" FontSize="15" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <local:ReceivablesView Grid.Row="1"
+                               DataContext="{Binding Receivables}"
+                               IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Receivables, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <Border Grid.Row="1" Background="#FFF7ED" CornerRadius="16" Padding="32"
+                IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Receivables, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <TextBlock Text="Cuentas por Cobrar" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
+            <TextBlock Text="El módulo de cuentas por cobrar está listo para enlazarse por DI." Foreground="#64748B" HorizontalAlignment="Center" />
+            <TextBlock Text="Registra ReceivablesViewModel vía DI en App.axaml.cs para activar el listado." Foreground="#94A3B8" TextWrapping="Wrap" HorizontalAlignment="Center" MaxWidth="460" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- ===== REPORTS MODULE ===== -->
+      <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsReportsSelected}">
+        <StackPanel Margin="0,0,0,20">
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="34" FontWeight="Bold" Foreground="#0F172A" />
+          <TextBlock Text="{Binding OperatorMessage}" FontSize="15" Foreground="#475569" TextWrapping="Wrap" Margin="0,6,0,0" />
+        </StackPanel>
+
+        <local:ReportsView Grid.Row="1"
+                           DataContext="{Binding Reports}"
+                           IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Reports, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+        <Border Grid.Row="1" Background="#FFF7ED" CornerRadius="16" Padding="32"
+                IsVisible="{Binding $parent[Window].((vm:MainShellViewModel)DataContext).Reports, Converter={x:Static ObjectConverters.IsNull}}">
+          <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+            <TextBlock Text="Reportes" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
+            <TextBlock Text="El módulo de reportes está listo para enlazarse por DI." Foreground="#64748B" HorizontalAlignment="Center" />
+            <TextBlock Text="Registra ReportsViewModel vía DI en App.axaml.cs para activar el reporte operacional." Foreground="#94A3B8" TextWrapping="Wrap" HorizontalAlignment="Center" MaxWidth="460" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
       <!-- ===== OTHER PLANNED MODULES ===== -->
       <Border Background="#F8FAFC" CornerRadius="16" Padding="32"
-              IsVisible="{Binding !IsCashierSelected}">
+              IsVisible="{Binding IsPlannedModuleSelected}">
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
           <TextBlock Text="{Binding SelectedModule.Title}" FontSize="28" FontWeight="Bold" Foreground="#0F172A" HorizontalAlignment="Center" />
           <TextBlock Text="Este módulo está planificado en la arquitectura." Foreground="#64748B" HorizontalAlignment="Center" />
