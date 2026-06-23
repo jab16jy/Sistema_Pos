@@ -4,7 +4,7 @@
         Title="Esthetic Medical Store"
         Width="1360"
         Height="780"
-        MinWidth="1180"
+        MinWidth="1280"
         MinHeight="700"
         WindowStartupLocation="CenterScreen">
   <Window.Resources>

@@ -1,6 +1,7 @@
 <UserControl x:Class="POS.Presentation.Views.LoginView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:POS.Presentation.Helpers"
              MinWidth="900"
              MinHeight="620">
   <Grid>
@@ -48,7 +49,8 @@
                  ToolTip="Escribe el usuario asignado por el administrador." />
 
         <TextBlock Text="Contrasena" FontWeight="SemiBold" Margin="0,16,0,6" />
-        <PasswordBox ToolTip="Escribe tu contrasena de acceso." />
+        <PasswordBox helpers:PasswordHelper.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Escribe tu contrasena de acceso." />
 
         <Border Background="#E0F2FE"
                 BorderBrush="#BAE6FD"
@@ -76,6 +78,7 @@
         </Border>
 
         <Button Content="Iniciar sesion"
+                Command="{Binding LoginCommand}"
                 Style="{StaticResource PrimaryButton}"
                 Height="46"
                 HorizontalAlignment="Stretch" />

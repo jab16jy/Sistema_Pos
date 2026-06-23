@@ -15,6 +15,7 @@
     <Color x:Key="ColorBorder">#DDE5EC</Color>
     <Color x:Key="ColorDanger">#B91C1C</Color>
     <Color x:Key="ColorDangerSoft">#FEE2E2</Color>
+    <Color x:Key="ColorCard">#F3F6F8</Color>
 
     <SolidColorBrush x:Key="BrushBackground" Color="{StaticResource ColorBackground}" />
     <SolidColorBrush x:Key="BrushSurface" Color="{StaticResource ColorSurface}" />
@@ -28,6 +29,7 @@
     <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource ColorBorder}" />
     <SolidColorBrush x:Key="BrushDanger" Color="{StaticResource ColorDanger}" />
     <SolidColorBrush x:Key="BrushDangerSoft" Color="{StaticResource ColorDangerSoft}" />
+    <SolidColorBrush x:Key="BrushCard" Color="{StaticResource ColorCard}" />
 
     <DropShadowEffect x:Key="CardShadow"
                       Color="#203044"
@@ -52,7 +54,7 @@
     </Style>
 
     <Style x:Key="Card" TargetType="Border">
-      <Setter Property="Background" Value="#F3F6F8" />
+      <Setter Property="Background" Value="{StaticResource BrushCard}" />
       <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="CornerRadius" Value="12" />
@@ -87,6 +89,10 @@
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter TargetName="Chrome" Property="Opacity" Value="0.55" />
+              </Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource BrushPrimary}" />
+                <Setter TargetName="Chrome" Property="BorderThickness" Value="2" />
               </Trigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
@@ -141,6 +147,25 @@
       <Setter Property="Background" Value="White" />
       <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
       <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="PasswordBox">
+            <Border x:Name="Chrome"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="6">
+              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter TargetName="Chrome" Property="BorderBrush" Value="{StaticResource BrushPrimary}" />
+                <Setter TargetName="Chrome" Property="BorderThickness" Value="2" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
 
     <Style TargetType="ComboBox">
