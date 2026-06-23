@@ -1,0 +1,157 @@
+<Window x:Class="POS.Presentation.Views.NavigationShellView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:POS.Presentation.Views"
+        xmlns:shell="clr-namespace:POS.Presentation.Shared.Shell;assembly=POS.Presentation.Shared"
+        Title="Esthetic Medical Store"
+        Width="1360"
+        Height="780"
+        MinWidth="1280"
+        MinHeight="700">
+  <Grid Background="{StaticResource BrushBackground}">
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="300" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <Border Grid.Column="0" Background="{StaticResource BrushSidebar}">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Margin="24,28,24,20">
+          <TextBlock Text="Esthetic Medical Store" Foreground="White" FontSize="25" FontWeight="Bold" TextWrapping="Wrap" />
+          <TextBlock Text="Local POS" Foreground="#93C5FD" FontSize="13" Margin="0,6,0,0" />
+          <TextBlock Text="Fast cashier, customer, purchase, quote and reporting workflows." Foreground="#CBD5E1" TextWrapping="Wrap" Margin="0,12,0,0" />
+        </StackPanel>
+
+        <Border DockPanel.Dock="Bottom" Padding="20,12" Background="#111827">
+          <TextBlock Text="{Binding OperatorMessage}" Foreground="#94A3B8" FontSize="11" TextWrapping="Wrap" />
+        </Border>
+
+        <ListBox ItemsSource="{Binding Modules}"
+                 SelectedItem="{Binding SelectedModule, Mode=TwoWay}"
+                 Background="Transparent"
+                 BorderThickness="0"
+                 Margin="16,4,16,12">
+          <ListBox.ItemTemplate>
+            <DataTemplate DataType="{x:Type shell:ModuleNavigationItem}">
+              <Border Padding="12" Margin="0,0,0,8" CornerRadius="10" Background="#162036">
+                <Grid>
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding Title}" Foreground="White" FontWeight="SemiBold" />
+                  <TextBlock Grid.Column="1" Text="{Binding Shortcut}" Foreground="#93C5FD" FontSize="12" />
+                  <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Description}" Foreground="#CBD5E1" TextWrapping="Wrap" FontSize="12" Margin="0,4,0,0" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
+
+    <Grid Grid.Column="1" Margin="28">
+      <Grid Visibility="{Binding IsCashierSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel>
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="30" FontWeight="Bold" />
+          <TextBlock Text="{Binding OperatorMessage}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+        </StackPanel>
+        <ItemsControl Grid.Row="1" ItemsSource="{Binding Metrics}" Margin="0,20,0,16">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+              <UniformGrid Columns="4" />
+            </ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate DataType="{x:Type shell:DashboardMetric}">
+              <Border Style="{StaticResource Card}" Margin="0,0,12,0">
+                <StackPanel>
+                  <TextBlock Text="{Binding Label}" Style="{StaticResource MutedText}" />
+                  <TextBlock Text="{Binding Value}" FontSize="22" FontWeight="Bold" Margin="0,4,0,0" />
+                  <TextBlock Text="{Binding Hint}" Style="{StaticResource MutedText}" FontSize="11" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <local:CashierView Grid.Row="2" DataContext="{Binding Cashier}" />
+      </Grid>
+
+      <Grid Visibility="{Binding IsQuotesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Margin="0,0,0,18">
+          <TextBlock Text="{Binding SelectedModule.Title}" FontSize="30" FontWeight="Bold" />
+          <TextBlock Text="{Binding OperatorMessage}" Style="{StaticResource MutedText}" Margin="0,6,0,0" />
+        </StackPanel>
+        <TabControl Grid.Row="1">
+          <TabItem Header="Nueva Cotización">
+            <Grid>
+              <local:QuoteView DataContext="{Binding Quote}" Visibility="{Binding Quote, Converter={StaticResource NullToVisibilityConverter}}" />
+              <Border Style="{StaticResource Card}" Visibility="{Binding Quote, Converter={StaticResource InverseNullToVisibilityConverter}}">
+                <TextBlock Text="Quote creation is not available in this environment." Style="{StaticResource MutedText}" />
+              </Border>
+            </Grid>
+          </TabItem>
+          <TabItem Header="Historial">
+            <Grid>
+              <local:QuoteHistoryView DataContext="{Binding QuoteHistory}" Visibility="{Binding QuoteHistory, Converter={StaticResource NullToVisibilityConverter}}" />
+              <Border Style="{StaticResource Card}" Visibility="{Binding QuoteHistory, Converter={StaticResource InverseNullToVisibilityConverter}}">
+                <TextBlock Text="Quote history is not available in this environment." Style="{StaticResource MutedText}" />
+              </Border>
+            </Grid>
+          </TabItem>
+        </TabControl>
+      </Grid>
+
+      <Grid Visibility="{Binding IsCustomersSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:CustomersView DataContext="{Binding Customers}" Visibility="{Binding Customers, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}" Visibility="{Binding Customers, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Customer management is not available in this environment." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
+      <Grid Visibility="{Binding IsPurchasesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:PurchasesView DataContext="{Binding Purchases}" Visibility="{Binding Purchases, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}" Visibility="{Binding Purchases, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Purchases are not available in this environment." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
+      <Grid Visibility="{Binding IsReceivablesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:ReceivablesView DataContext="{Binding Receivables}" Visibility="{Binding Receivables, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}" Visibility="{Binding Receivables, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Receivables are not available in this environment." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
+      <Grid Visibility="{Binding IsReportsSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:ReportsView DataContext="{Binding Reports}" Visibility="{Binding Reports, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}" Visibility="{Binding Reports, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Reports are not available in this environment." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
+      <Grid Visibility="{Binding IsPlannedModuleSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Border Style="{StaticResource Card}" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
+          <StackPanel>
+            <TextBlock Text="{Binding SelectedModule.Title}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" />
+            <TextBlock Text="This module is planned for a later implementation slice." Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,8,0,0" />
+            <TextBlock Text="{Binding SelectedModule.Description}" Style="{StaticResource MutedText}" TextAlignment="Center" Margin="0,8,0,0" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>
