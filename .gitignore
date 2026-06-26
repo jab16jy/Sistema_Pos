@@ -33,6 +33,7 @@ backups/
 # Runtime logs
 logs/
 *.log
-
+.cursor/
 # Agent transient registry/cache
 .atl/
+.claude/
