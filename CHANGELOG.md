@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.2.1...v0.3.0) (2026-06-26)
+
+
+### Features
+
+* **runtime:** add report and print adapters ([6406da0](https://github.com/jab16jy/Sistema_Pos/commit/6406da08139358a4b8b866e0f194dc97a10ee230))
+* **runtime:** configure communication and product lookup ([a49aaba](https://github.com/jab16jy/Sistema_Pos/commit/a49aaba9261e577e60b9d00ef473fe15015c935c))
+* **runtime:** wire persisted lookup into WPF ([4577e7e](https://github.com/jab16jy/Sistema_Pos/commit/4577e7eb0e192e705dbfa4a5d5f56bcfdd84d9e2))
+
 ## [0.2.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.2.0...v0.2.1) (2026-06-26)
 
 
