@@ -21,13 +21,17 @@ Standard mode. `openspec/config.yaml` has `strict_tdd: false` and `rules.apply.t
 - [x] 4.3 Printer availability is independent from sale persistence/document sending paths.
 - [x] 3.3 WPF composition injects persisted lookup into cashier and quote flows.
 - [x] 3.4 Existing ViewModel constructors still support injected fakes/prototype lookup for tests.
+- [x] 5.1 Full solution tests passed.
+- [x] 5.2 Full solution build passed.
 - [x] 5.3 README documents runtime environment variables.
 
 ## Evidence
 
 - `dotnet test tests\POS.Application.Tests\POS.Application.Tests.csproj --no-restore` passed with 45 tests after runtime options and lookup.
 - `dotnet test tests\POS.Application.Tests\POS.Application.Tests.csproj --no-restore` passed with 47 tests after report/print runtime behavior.
+- `dotnet test POS.sln --no-restore` passed with 109 tests.
+- `dotnet build POS.sln --no-restore` passed with 0 warnings and 0 errors.
 
 ## Remaining
 
-- Full solution verify.
+- Ready for archive.

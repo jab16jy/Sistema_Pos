@@ -52,6 +52,6 @@ Chain strategy: pending
 
 ## Phase 5: Verification and Documentation
 
-- [ ] 5.1 Run `dotnet test POS.sln --no-restore`.
-- [ ] 5.2 Run `dotnet build POS.sln --no-restore`.
+- [x] 5.1 Run `dotnet test POS.sln --no-restore`.
+- [x] 5.2 Run `dotnet build POS.sln --no-restore`.
 - [x] 5.3 Update README or docs only if runtime configuration keys/usage become user-facing.

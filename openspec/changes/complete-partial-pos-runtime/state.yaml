@@ -1,14 +1,14 @@
 change: complete-partial-pos-runtime
 artifactStore: openspec
-status: planning
+status: verified
 phases:
   exploration: complete
   proposal: complete
   spec: complete
   design: complete
   tasks: complete
-  apply: pending
-  verify: pending
+  apply: complete
+  verify: complete
   archive: pending
-nextRecommended: apply
+nextRecommended: archive
 blockedReasons: []
