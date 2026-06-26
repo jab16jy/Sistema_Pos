@@ -2,22 +2,22 @@
 
 ## Technical Approach
 
-Keep the first implementation slice inside existing Clean Architecture boundaries: shared ViewModels orchestrate Application use cases, Infrastructure owns EF Core/SQLite persistence, and Avalonia supplies bindings only. Verification found `MainShellViewModel` exposes 9 modules including `quotes`; the shell test is stale at 8 modules; `CashierViewModel` still confirms a prototype sale; quote ViewModels exist but Avalonia only has `MainWindow`.
+Keep the first implementation slice inside existing Clean Architecture boundaries: shared ViewModels orchestrate Application use cases, Infrastructure owns EF Core/SQLite persistence, and WPF supplies bindings only. Verification found `MainShellViewModel` exposes 9 modules including `quotes`; the shell test is stale at 8 modules; `CashierViewModel` still confirms a prototype sale; quote ViewModels exist but WPF shell needs quote views wired.
 
 ## Architecture Decisions
 
 | Decision | Choice | Alternatives considered | Rationale |
 |---|---|---|---|
 | Shell verification | Update `MainShellViewModelTests` to assert 9 modules and `quotes` navigation. | Remove quotes from shell or mark it planned. | Runtime shell already includes `quotes`; tests should verify the current contract, not an older module count. |
-| Cashier persistence | Inject `CreateSaleUseCase` into `CashierViewModel` and replace `ConfirmPrototypeSaleCommand` with a real confirmation command that builds `CreateSaleRequest`. | Persist from Avalonia code-behind or keep prototype preview. | Keeps business behavior in Application/Domain and allows shared ViewModel tests. |
+| Cashier persistence | Inject `CreateSaleUseCase` into `CashierViewModel` and replace `ConfirmPrototypeSaleCommand` with a real confirmation command that builds `CreateSaleRequest`. | Persist from WPF code-behind or keep prototype preview. | Keeps business behavior in Application/Domain and allows shared ViewModel tests. |
 | Dashboard metrics | Add/read Application-level sales summary data rather than computing from UI state. | Keep static `DashboardMetric` values in shell. | Metrics must represent persisted sales/payments/inventory, and the shell should only present them. |
-| Quote UI | Add Avalonia views for create/history/send/convert backed by existing shared quote ViewModels. | Rebuild quote logic in Avalonia views. | Shared ViewModels already coordinate create/history/send workflows; views should bind and navigate. |
+| Quote UI | Add WPF views for create/history/send/convert backed by existing shared quote ViewModels. | Rebuild quote logic in WPF views. | Shared ViewModels already coordinate create/history/send workflows; views should bind and navigate. |
 | Contact data | Extend quote summary/history data to include email/phone when sending. | Use `"sin-contacto"` placeholders. | Send actions need real recipient contact and validation before calling `SendDocumentUseCase`. |
 
 ## Data Flow
 
 ```text
-Avalonia View ──binds──> Shared ViewModel ──calls──> Application UseCase
+WPF View ──binds──> Shared ViewModel ──calls──> Application UseCase
        │                                      │              │
        └──────── displays result/validation ◄─┴── Infrastructure repositories
                                                         │
@@ -42,11 +42,11 @@ Quote flow: `QuoteViewModel` creates quotes; `QuoteHistoryViewModel` loads rows 
 | `src/POS.Presentation.Shared/ViewModels/QuoteHistoryViewModel.cs` | Modify | Resolve real email/phone contact and complete convert-to-sale payment flow. |
 | `src/POS.Application/DTOs/Quotes/QuoteSummary.cs` | Modify | Include customer phone/email needed by send actions. |
 | `src/POS.Presentation.Shared/Quotes/QuoteSummaryRow.cs` | Modify | Expose contact fields to UI commands. |
-| `src/POS.Presentation.Avalonia/Views/QuoteView.axaml` | Create | Quote creation form bound to `QuoteViewModel`. |
-| `src/POS.Presentation.Avalonia/Views/QuoteHistoryView.axaml` | Create | History/filter/send/convert UI bound to `QuoteHistoryViewModel`. |
-| `src/POS.Presentation.Avalonia/Views/SendDocumentView.axaml` | Create | Recipient/channel send form bound to `SendDocumentViewModel`. |
-| `src/POS.Presentation.Avalonia/Views/MainWindow.axaml` | Modify | Switch central content by selected module and render quote views for `quotes`. |
-| `src/POS.Presentation.Avalonia/App.axaml.cs` | Modify | Compose ViewModels through DI instead of `new MainShellViewModel()` prototype defaults. |
+| `src/POS.Presentation/Views/QuoteView.xaml` | Create | Quote creation form bound to `QuoteViewModel`. |
+| `src/POS.Presentation/Views/QuoteHistoryView.xaml` | Create | History/filter/send/convert UI bound to `QuoteHistoryViewModel`. |
+| `src/POS.Presentation/Views/SendDocumentView.xaml` | Create | Recipient/channel send form bound to `SendDocumentViewModel`. |
+| `src/POS.Presentation/Views/NavigationShellView.xaml` | Modify | Switch central content by selected module and render quote views for `quotes`. |
+| `src/POS.Presentation/App.xaml.cs` | Modify | Compose ViewModels through DI instead of prototype defaults. |
 
 ## Interfaces / Contracts
 
@@ -64,7 +64,7 @@ If invoice numbering requires stronger guarantees than `POS-{UtcNow}`, introduce
 |---|---|---|
 | Unit | Shell module count/quotes selection; cashier request mapping and failure recovery; quote contact resolution/convert command state. | xUnit in `POS.Presentation.Shared.Tests` with fake use cases/services. |
 | Application | Sale persistence request behavior, dashboard summary, quote conversion. | Existing `POS.Application.Tests`; add repository fakes or SQLite-backed tests if summary query is infrastructure-specific. |
-| UI | Avalonia bindings compile and navigation content resolves. | `dotnet build` for Avalonia/shared projects on Linux; WPF remains Windows-only. |
+| UI | WPF bindings compile and navigation content resolves. | `dotnet build POS.sln` on Windows; Domain/Application/Infrastructure tests run on any OS. |
 
 ## Migration / Rollout
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Defines the Avalonia quotation workflow from navigation through quote creation, customer contact, sending, and sale conversion.
+Defines the WPF quotation workflow from navigation through quote creation, customer contact, sending, and sale conversion.
 
 ## Requirements
 

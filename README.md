@@ -1,6 +1,6 @@
 # Sistema POS Local
 
-Local desktop POS for small businesses, designed from the project documentation in `md/`.
+Local desktop POS for small businesses. Documentation lives in `docs md/`.
 
 ## Target stack
 
@@ -28,41 +28,26 @@ src/
   POS.Domain/
   POS.Application/
   POS.Infrastructure/
+  POS.Presentation.Shared/
   POS.Presentation/
 tests/
   POS.Domain.Tests/
   POS.Application.Tests/
+  POS.Presentation.Shared.Tests/
 ```
 
-## Current environment note
+## Development environment
 
-This repository is currently on EndeavourOS/Arch with .NET SDK `9.0.118` installed from the official Arch repositories.
+Build and run on **Windows** with the .NET Desktop SDK / Visual Studio (required for WPF).
 
-Verified commands:
+Domain, Application, and Infrastructure tests run on any OS:
 
 ```bash
-dotnet --info
-dotnet restore POS.sln
-dotnet build src/POS.Infrastructure/POS.Infrastructure.csproj --no-restore
-dotnet test tests/POS.Domain.Tests/POS.Domain.Tests.csproj --no-restore
-dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj --no-restore
+dotnet test tests/POS.Domain.Tests/POS.Domain.Tests.csproj
+dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj
+dotnet test tests/POS.Presentation.Shared.Tests/POS.Presentation.Shared.Tests.csproj
 ```
-
-Important: the Arch source-built .NET SDK does not include `Microsoft.NET.Sdk.WindowsDesktop`, so the WPF project (`POS.Presentation`) does not compile on this Linux environment. Build and run the WPF desktop app on Windows with the .NET Desktop SDK/Visual Studio, or use this Linux environment for Domain/Application/Infrastructure development and tests.
 
 ## Project-specific skills
 
-Read `.skills/README.md` before implementation. The local skills encode the architecture, domain, persistence, UI, printing, reporting, testing, and didactic usability rules extracted from the Markdown documentation.
-
-
-## Avalonia prototype UI
-
-The runnable Linux/MangoWM prototype lives in `src/POS.Presentation.Avalonia` and uses shared ViewModels from `src/POS.Presentation.Shared`.
-
-Run it with:
-
-```bash
-dotnet run --project src/POS.Presentation.Avalonia/POS.Presentation.Avalonia.csproj
-```
-
-The WPF project remains as the Windows-oriented final UI option. See `docs/UI_STRATEGY.md` for the rules that prevent business logic from leaking into the prototype UI.
+Read `.skills/README.md` before implementation. The local skills encode the architecture, domain, persistence, UI, printing, reporting, testing, and didactic usability rules extracted from the project documentation.
