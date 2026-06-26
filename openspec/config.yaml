@@ -1,7 +1,7 @@
 schema: spec-driven
 project: sistema_pos
 persistence: hybrid
-strict_tdd: true
+strict_tdd: false
 
 context: |
   Stack: C#/.NET 9 POS desktop application with Clean Architecture.
@@ -12,7 +12,7 @@ context: |
 
 testing:
   detected: 2026-06-21
-  strict_tdd: true
+  strict_tdd: false
   test_runner:
     framework: xUnit v3
     command: dotnet test POS.sln --no-restore
@@ -60,7 +60,7 @@ rules:
     - Group by phase with hierarchical numbering.
     - Keep tasks reviewable and favor slices under the 400 changed-line review budget.
   apply:
-    tdd: true
+    tdd: false
     test_command: dotnet test POS.sln --no-restore
     notes:
       - Follow RED-GREEN-REFACTOR when test coverage exists for the touched layer.
