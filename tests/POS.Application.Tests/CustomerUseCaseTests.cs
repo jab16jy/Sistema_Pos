@@ -180,6 +180,7 @@ public sealed class CustomerUseCaseTests
         }
         finally
         {
+            SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
