@@ -11,7 +11,7 @@ using POS.Presentation.Shared.ViewModels;
 
 namespace POS.Presentation;
 
-public partial class App : Application
+public partial class App : System.Windows.Application
 {
     private ServiceProvider? _services;
     private IServiceScope? _scope;
