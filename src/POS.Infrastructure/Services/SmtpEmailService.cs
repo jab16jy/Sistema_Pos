@@ -1,17 +1,16 @@
 using System.Net;
 using System.Net.Mail;
-using Microsoft.Extensions.Configuration;
 using POS.Application.Interfaces;
 
 namespace POS.Infrastructure.Services;
 
 public sealed class SmtpEmailService : IEmailService
 {
-    private readonly IConfiguration _configuration;
+    private readonly SmtpRuntimeOptions _options;
 
-    public SmtpEmailService(IConfiguration configuration)
+    public SmtpEmailService(SmtpRuntimeOptions options)
     {
-        _configuration = configuration;
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public async Task<bool> SendAsync(
@@ -22,21 +21,25 @@ public sealed class SmtpEmailService : IEmailService
         string attachmentName,
         CancellationToken ct = default)
     {
-        var host = _configuration["Smtp:Host"] ?? "localhost";
-        var port = int.TryParse(_configuration["Smtp:Port"], out var p) ? p : 587;
-        var user = _configuration["Smtp:User"] ?? string.Empty;
-        var password = _configuration["Smtp:Password"] ?? string.Empty;
-        var useSsl = bool.TryParse(_configuration["Smtp:UseSsl"], out var ssl) && ssl;
-
-        using var client = new SmtpClient(host, port)
+        if (string.IsNullOrWhiteSpace(_options.Host) ||
+            string.IsNullOrWhiteSpace(_options.FromAddress))
         {
-            Credentials = new NetworkCredential(user, password),
-            EnableSsl = useSsl
+            throw new InvalidOperationException("La configuración SMTP está incompleta. Configura servidor y remitente antes de enviar correos.");
+        }
+
+        using var client = new SmtpClient(_options.Host, _options.Port)
+        {
+            EnableSsl = _options.UseSsl
         };
+
+        if (!string.IsNullOrWhiteSpace(_options.User))
+        {
+            client.Credentials = new NetworkCredential(_options.User, _options.Password ?? string.Empty);
+        }
 
         using var message = new MailMessage
         {
-            From = new MailAddress(user),
+            From = new MailAddress(_options.FromAddress),
             Subject = subject,
             Body = body,
             IsBodyHtml = false

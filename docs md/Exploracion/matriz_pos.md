@@ -36,3 +36,9 @@
 |   |   |   |   | Validación de la impresión térmica con distintos modelos de impresora. |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | X |
 |   |   |   |   | Generación del instalador y prueba de instalación en equipo limpio. |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | X |
 |   |   |   |   | Entregable: Informe de pruebas, métricas de calidad y sistema listo para producción. |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   |   | X |
+
+---
+
+## Documentos relacionados
+
+[[requerimientos]] · [[modulos]] · [[00_indice_fase_diseno_pos]]

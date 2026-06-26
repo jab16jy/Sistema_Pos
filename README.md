@@ -48,6 +48,16 @@ dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj
 dotnet test tests/POS.Presentation.Shared.Tests/POS.Presentation.Shared.Tests.csproj
 ```
 
+## Runtime options
+
+The WPF app reads optional local settings from environment variables:
+
+- `POS_SMTP_HOST`, `POS_SMTP_PORT`, `POS_SMTP_FROM`, `POS_SMTP_USER`, `POS_SMTP_PASSWORD`, `POS_SMTP_SSL`
+- `POS_WHATSAPP_SCRIPT`, `POS_WHATSAPP_WORKDIR`
+- `POS_PRINTER_COMMAND`, `POS_PRINTER_WORKDIR`
+
+If these values are missing, document sending or printing fails with a recoverable operator message instead of breaking startup or losing the sale.
+
 ## Project-specific skills
 
 Read `.skills/README.md` before implementation. The local skills encode the architecture, domain, persistence, UI, printing, reporting, testing, and didactic usability rules extracted from the project documentation.

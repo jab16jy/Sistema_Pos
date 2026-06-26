@@ -112,3 +112,9 @@ El enfoque didáctico garantiza que el sistema no solo cumpla técnicamente con 
 ## Resultado esperado
 
 Este documento final debe funcionar como la guía oficial para iniciar la fase de desarrollo, evitando improvisaciones y asegurando que todo el equipo comprenda cómo se construirá el sistema.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[01_diseno_integracion_tecnologica]] · [[02_diseno_arquitectura_capas]] · [[03_diseno_modelo_dominio]] · [[04_diseno_modelo_datos_sqlite]] · [[05_diseno_flujos_funcionales]] · [[06_diseno_wireframes_interfaz]] · [[07_diseno_casos_uso]] · [[08_diseno_integracion_modulos]] · [[09_diseno_protocolo_pruebas]] · [[requerimientos]] · [[modulos]]

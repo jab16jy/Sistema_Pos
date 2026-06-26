@@ -175,3 +175,9 @@ public class DocumentSendLog
 ## Resultado esperado
 
 El modelo de dominio debe reflejar el negocio real de forma clara. Esto permite que el sistema sea confiable y que la interfaz pueda explicar los errores o pasos al usuario con mensajes fáciles de entender.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[02_diseno_arquitectura_capas]] · [[04_diseno_modelo_datos_sqlite]] · [[05_diseno_flujos_funcionales]] · [[07_diseno_casos_uso]] · [[08_diseno_integracion_modulos]] · [[11_diseno_cotizaciones]] · [[12_diseno_comunicacion_digital]]

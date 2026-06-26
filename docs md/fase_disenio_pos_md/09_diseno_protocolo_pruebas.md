@@ -98,3 +98,9 @@ Observaciones:
 ## Resultado esperado
 
 El protocolo de pruebas permitirá validar no solo que el sistema funcione, sino que sea realmente fácil de usar y aprender por cajeros y administradores de pequeños comercios.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[04_diseno_modelo_datos_sqlite]] · [[05_diseno_flujos_funcionales]] · [[07_diseno_casos_uso]]

@@ -116,3 +116,9 @@ Clientes ──────→ Cotizaciones ──→ Ventas (conversión)
 ## Resultado esperado
 
 La integración de módulos permite que el POS funcione como una herramienta única y coherente, donde cada acción alimenta otras áreas del sistema sin que el usuario tenga que repetir información.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[02_diseno_arquitectura_capas]] · [[03_diseno_modelo_dominio]] · [[modulos]] · [[11_diseno_cotizaciones]] · [[12_diseno_comunicacion_digital]]

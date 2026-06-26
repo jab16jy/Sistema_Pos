@@ -51,6 +51,8 @@ public sealed class Product
 
     public bool IsLowStock() => CurrentStock <= MinimumStock;
 
+    public void Deactivate() => IsActive = false;
+
     public void DecreaseStock(Quantity quantity)
     {
         if (CurrentStock < quantity.Value)

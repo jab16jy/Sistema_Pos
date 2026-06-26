@@ -180,3 +180,9 @@ Quote 0..1 ─── 0..1 Sale      (converted_sale_id)
 ## Resultado esperado
 
 El modelo SQLite permitirá que el POS funcione localmente, registre ventas de forma segura, actualice inventario automáticamente y genere reportes entendibles para el usuario final.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[02_diseno_arquitectura_capas]] · [[03_diseno_modelo_dominio]]

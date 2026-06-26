@@ -93,3 +93,9 @@ MainShellView
 ## Resultado esperado
 
 Este diseño permite comenzar el desarrollo sabiendo cómo se conectarán todas las tecnologías. Además, garantiza que el sistema sea comprensible para el usuario final y mantenible para el equipo desarrollador.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[02_diseno_arquitectura_capas]] · [[03_diseno_modelo_dominio]] · [[04_diseno_modelo_datos_sqlite]] · [[requerimientos]]

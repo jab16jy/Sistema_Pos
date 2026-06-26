@@ -6,6 +6,7 @@ using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Sales;
 using POS.Infrastructure;
+using POS.Infrastructure.Services;
 using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.ViewModels;
 
@@ -48,21 +49,53 @@ public partial class App : System.Windows.Application
             "PosLocal",
             "pos.db");
         System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(dbPath)!);
-        services.AddPosInfrastructure($"Data Source={dbPath}");
+        services.AddPosInfrastructure($"Data Source={dbPath}", ConfigureRuntimeOptions);
         return services.BuildServiceProvider();
+    }
+
+    private static void ConfigureRuntimeOptions(PosRuntimeOptions options)
+    {
+        options.Smtp.Host = Environment.GetEnvironmentVariable("POS_SMTP_HOST");
+        options.Smtp.FromAddress = Environment.GetEnvironmentVariable("POS_SMTP_FROM");
+        options.Smtp.User = Environment.GetEnvironmentVariable("POS_SMTP_USER");
+        options.Smtp.Password = Environment.GetEnvironmentVariable("POS_SMTP_PASSWORD");
+        if (int.TryParse(Environment.GetEnvironmentVariable("POS_SMTP_PORT"), out int smtpPort))
+        {
+            options.Smtp.Port = smtpPort;
+        }
+
+        if (bool.TryParse(Environment.GetEnvironmentVariable("POS_SMTP_SSL"), out bool smtpSsl))
+        {
+            options.Smtp.UseSsl = smtpSsl;
+        }
+
+        options.WhatsAppScript.FileName = Environment.GetEnvironmentVariable("POS_WHATSAPP_SCRIPT");
+        options.WhatsAppScript.WorkingDirectory = Environment.GetEnvironmentVariable("POS_WHATSAPP_WORKDIR");
+        options.Printer.Command = Environment.GetEnvironmentVariable("POS_PRINTER_COMMAND");
+        options.Printer.WorkingDirectory = Environment.GetEnvironmentVariable("POS_PRINTER_WORKDIR");
     }
 
     private static MainShellViewModel BuildMainShellViewModel(IServiceProvider sp)
     {
+        IProductLookupService productLookup;
+        try
+        {
+            productLookup = sp.GetRequiredService<IProductLookupService>();
+        }
+        catch
+        {
+            productLookup = new PrototypeProductLookupService();
+        }
+
         CashierViewModel cashier;
         try
         {
             var createSale = sp.GetRequiredService<CreateSaleUseCase>();
-            cashier = new CashierViewModel(new PrototypeProductLookupService(), createSale);
+            cashier = new CashierViewModel(productLookup, createSale);
         }
         catch
         {
-            cashier = new CashierViewModel(new PrototypeProductLookupService());
+            cashier = new CashierViewModel(productLookup);
         }
 
         cashier.CashierUserId = sp.GetRequiredService<ICurrentOperatorSession>().OperatorId;
@@ -107,7 +140,7 @@ public partial class App : System.Windows.Application
         try
         {
             var createQuote = sp.GetRequiredService<CreateQuoteUseCase>();
-            quote = new QuoteViewModel(new PrototypeProductLookupService(), createQuote);
+            quote = new QuoteViewModel(productLookup, createQuote);
         }
         catch
         {
