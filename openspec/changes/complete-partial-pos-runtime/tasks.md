@@ -28,7 +28,7 @@ Chain strategy: pending
 - [x] 1.1 Add DI construction tests covering `IEmailService`, `IWhatsAppService`, `IReportService`, `IPrintService`, and `IProductLookupService`.
 - [x] 1.2 Add communication tests for missing SMTP settings and missing WhatsApp script returning logged failures.
 - [x] 1.3 Add SQLite product lookup tests for name, barcode, stock, and inactive exclusion.
-- [ ] 1.4 Add report/print tests proving no `NotImplementedException` escapes.
+- [x] 1.4 Add report/print tests proving no `NotImplementedException` escapes.
 
 ## Phase 2: Runtime Options and Communication
 
@@ -46,9 +46,9 @@ Chain strategy: pending
 
 ## Phase 4: Report and Print Runtime Behavior
 
-- [ ] 4.1 Implement `ReportService.GenerateDailySalesReportAsync` with non-empty daily PDF bytes from persisted totals.
-- [ ] 4.2 Replace `PrintService` stub with configured command execution or clear configuration failure.
-- [ ] 4.3 Ensure sale persistence and document sending do not depend on printer availability.
+- [x] 4.1 Implement `ReportService.GenerateDailySalesReportAsync` with non-empty daily PDF bytes from persisted totals.
+- [x] 4.2 Replace `PrintService` stub with configured command execution or clear configuration failure.
+- [x] 4.3 Ensure sale persistence and document sending do not depend on printer availability.
 
 ## Phase 5: Verification and Documentation
 

@@ -2,11 +2,15 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.DTOs.Sales;
+using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 using POS.Infrastructure;
 using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Queries;
+using POS.Infrastructure.Persistence.Repositories;
 using POS.Infrastructure.Services;
 using Xunit;
 
@@ -104,6 +108,58 @@ public sealed class RuntimeReadinessTests
         Assert.Equal(12_000m, result.UnitPrice);
         Assert.Equal(7m, result.AvailableStock);
         Assert.Equal(active.Id, Assert.Single(barcodeResults).ProductId);
+    }
+
+    [Fact]
+    public async Task ReportService_GenerateDailySalesReportAsync_ReturnsNonEmptyPdfBytes()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var product = new Product(
+            "Serum",
+            Guid.NewGuid(),
+            new Money(20_000m),
+            new Money(35_000m),
+            new StockQuantity(5m),
+            new StockQuantity(1m));
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(
+            new ProductRepository(dbContext),
+            new SaleRepository(dbContext),
+            dbContext);
+        await saleUseCase.ExecuteAsync(
+            new CreateSaleRequest(
+                Guid.NewGuid(),
+                null,
+                [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+                [new CreateSalePaymentRequest(PaymentMethod.Cash, 35_000m, 40_000m, null)]),
+            TestContext.Current.CancellationToken);
+
+        var service = new ReportService(dbContext);
+
+        byte[] bytes = await service.GenerateDailySalesReportAsync(
+            DateOnly.FromDateTime(DateTime.UtcNow),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(bytes);
+        Assert.True(bytes.Length > 100);
+    }
+
+    [Fact]
+    public async Task PrintService_WhenPrinterIsMissing_FailsWithRecoverableMessage()
+    {
+        var service = new PrintService(new PrinterRuntimeOptions());
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.PrintReceiptAsync(Guid.NewGuid(), TestContext.Current.CancellationToken));
+
+        Assert.Contains("impresora", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("not implemented", error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static AppDbContext CreateDbContext(SqliteConnection connection)
