@@ -161,3 +161,9 @@ Domain no depende de ninguna otra capa
 ## Resultado esperado
 
 El diseño por capas permite iniciar el desarrollo sin mezclar responsabilidades. También facilita que el sistema sea didáctico, porque la interfaz puede enfocarse en guiar al usuario, mientras las reglas y validaciones quedan protegidas en capas internas.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[01_diseno_integracion_tecnologica]] · [[03_diseno_modelo_dominio]] · [[04_diseno_modelo_datos_sqlite]] · [[12_diseno_comunicacion_digital]]

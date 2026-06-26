@@ -219,3 +219,9 @@ public sealed class GetQuoteHistoryUseCase
 ## Resultado esperado
 
 Al finalizar la implementación de este módulo, el vendedor podrá generar propuestas comerciales formales, controlar su vigencia, consultarlas en historial y convertirlas a venta sin necesidad de volver a ingresar los productos ni los datos del cliente.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[03_diseno_modelo_dominio]] · [[05_diseno_flujos_funcionales]] · [[08_diseno_integracion_modulos]] · [[12_diseno_comunicacion_digital]]

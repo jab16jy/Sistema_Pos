@@ -177,3 +177,9 @@ Diseñar pantallas preliminares que sean fáciles de entender, rápidas de opera
 ## Resultado esperado
 
 Los wireframes permiten visualizar cómo será el sistema antes de programarlo. El diseño prioriza que el usuario entienda cada pantalla rápidamente y pueda realizar las tareas principales sin capacitación extensa.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[01_diseno_integracion_tecnologica]] · [[05_diseno_flujos_funcionales]] · [[07_diseno_casos_uso]] · [[08_diseno_integracion_modulos]] · [[UI_STRATEGY]]

@@ -36,3 +36,9 @@ The following has been verified:
 The Arch source-built SDK does not include `Microsoft.NET.Sdk.WindowsDesktop`, so `POS.Presentation` fails on Linux with MSB4019 for missing `Microsoft.NET.Sdk.WindowsDesktop.targets`. This is an environment/platform limitation for WPF, not a Domain/Application/Infrastructure failure.
 
 Build and run the WPF app on Windows with the .NET Desktop SDK/Visual Studio. Use Linux for the inner layers and tests.
+
+---
+
+## Documentos relacionados
+
+[[requerimientos]] · [[01_diseno_integracion_tecnologica]] · [[02_diseno_arquitectura_capas]] · [[03_diseno_modelo_dominio]] · [[04_diseno_modelo_datos_sqlite]] · [[09_diseno_protocolo_pruebas]] · [[UI_STRATEGY]]

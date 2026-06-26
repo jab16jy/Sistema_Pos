@@ -259,3 +259,9 @@ Definir las acciones principales que realizarán los usuarios del sistema POS, i
 ## Resultado esperado
 
 Estos casos de uso sirven como guía para programar los módulos y para validar que el sistema sea fácil de operar desde la perspectiva del usuario final.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[03_diseno_modelo_dominio]] · [[05_diseno_flujos_funcionales]] · [[requerimientos]]

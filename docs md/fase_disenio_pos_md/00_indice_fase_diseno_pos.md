@@ -36,3 +36,9 @@ Este paquete contiene los documentos Markdown de la **Fase 2 — Diseño** del S
 ## Resultado esperado de la fase
 
 Al finalizar esta fase, el equipo debe tener una guía clara para iniciar el desarrollo: qué se va a construir, cómo se conectarán las tecnologías, cómo se guardarán los datos, qué pantallas existirán, cómo se moverá el usuario dentro del sistema y cómo se probará que el POS sea fácil, rápido y confiable.
+
+---
+
+## Documentos relacionados
+
+[[requerimientos]] · [[modulos]] · [[01_diseno_integracion_tecnologica]] · [[02_diseno_arquitectura_capas]] · [[03_diseno_modelo_dominio]] · [[04_diseno_modelo_datos_sqlite]] · [[05_diseno_flujos_funcionales]] · [[06_diseno_wireframes_interfaz]] · [[07_diseno_casos_uso]] · [[08_diseno_integracion_modulos]] · [[09_diseno_protocolo_pruebas]] · [[10_diseno_entregable_final]] · [[11_diseno_cotizaciones]] · [[12_diseno_comunicacion_digital]]

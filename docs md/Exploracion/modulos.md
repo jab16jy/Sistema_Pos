@@ -256,3 +256,9 @@ Herramienta para enviar facturas y cotizaciones a los clientes por correo electr
 | **●** Reenvío de documentos directamente desde el historial de facturas o cotizaciones. | |
 | **●** Validación de datos de contacto (correo o teléfono) antes de intentar el envío. | |
 | **Nota:** El módulo no se integra directamente con la API de Meta. El puente de WhatsApp es un script externo intercambiable; el operador configura la ruta del script desde los parámetros del sistema. | |
+
+---
+
+## Documentos relacionados
+
+[[requerimientos]] · [[08_diseno_integracion_modulos]] · [[11_diseno_cotizaciones]] · [[12_diseno_comunicacion_digital]]

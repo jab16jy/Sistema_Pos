@@ -307,3 +307,9 @@ Los siguientes casos de uso del documento `07_diseno_casos_uso.md` cubren este m
 ## Resultado esperado
 
 Al finalizar la implementación de este módulo, el operador podrá enviar facturas y cotizaciones por correo electrónico y WhatsApp desde el POS sin salir de la aplicación. Cada envío quedará registrado para auditoría y el operador podrá reenviar documentos desde el historial en cualquier momento.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[02_diseno_arquitectura_capas]] · [[03_diseno_modelo_dominio]] · [[11_diseno_cotizaciones]] · [[requerimientos]]

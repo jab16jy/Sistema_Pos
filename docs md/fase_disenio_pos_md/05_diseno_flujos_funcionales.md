@@ -224,3 +224,9 @@ Administrador.
 ## Resultado esperado
 
 Estos flujos permiten diseñar un sistema donde el usuario sabe siempre dónde está, qué debe hacer y qué sucederá después de cada acción.
+
+---
+
+## Documentos relacionados
+
+[[00_indice_fase_diseno_pos]] · [[03_diseno_modelo_dominio]] · [[07_diseno_casos_uso]] · [[08_diseno_integracion_modulos]] · [[requerimientos]]
