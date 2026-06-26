@@ -25,22 +25,22 @@ Chain strategy: pending
 
 ## Phase 1: Tests First
 
-- [ ] 1.1 Add DI construction tests covering `IEmailService`, `IWhatsAppService`, `IReportService`, `IPrintService`, and `IProductLookupService`.
-- [ ] 1.2 Add communication tests for missing SMTP settings and missing WhatsApp script returning logged failures.
-- [ ] 1.3 Add SQLite product lookup tests for name, barcode, stock, and inactive exclusion.
+- [x] 1.1 Add DI construction tests covering `IEmailService`, `IWhatsAppService`, `IReportService`, `IPrintService`, and `IProductLookupService`.
+- [x] 1.2 Add communication tests for missing SMTP settings and missing WhatsApp script returning logged failures.
+- [x] 1.3 Add SQLite product lookup tests for name, barcode, stock, and inactive exclusion.
 - [ ] 1.4 Add report/print tests proving no `NotImplementedException` escapes.
 
 ## Phase 2: Runtime Options and Communication
 
-- [ ] 2.1 Create infrastructure option records for SMTP, WhatsApp script, and printer command settings.
-- [ ] 2.2 Update `DependencyInjection.cs` to register options defaults and runtime services.
-- [ ] 2.3 Update `SmtpEmailService.cs` to validate required options and return recoverable failures through `SendDocumentUseCase`.
-- [ ] 2.4 Update `WhatsAppScriptService.cs` to launch configured Windows-compatible processes without `/bin/bash`.
+- [x] 2.1 Create infrastructure option records for SMTP, WhatsApp script, and printer command settings.
+- [x] 2.2 Update `DependencyInjection.cs` to register options defaults and runtime services.
+- [x] 2.3 Update `SmtpEmailService.cs` to validate required options and return recoverable failures through `SendDocumentUseCase`.
+- [x] 2.4 Update `WhatsAppScriptService.cs` to launch configured Windows-compatible processes without `/bin/bash`.
 
 ## Phase 3: Persisted Lookup and WPF Wiring
 
-- [ ] 3.1 Create `ProductLookupService` over `AppDbContext.Products` mapping to `ProductLookupResult`.
-- [ ] 3.2 Register `IProductLookupService` in infrastructure.
+- [x] 3.1 Create `ProductLookupService` over `AppDbContext.Products` mapping to `ProductLookupResult`.
+- [x] 3.2 Register `IProductLookupService` in infrastructure.
 - [ ] 3.3 Update `App.xaml.cs` to inject persisted lookup into `CashierViewModel` and `QuoteViewModel`.
 - [ ] 3.4 Keep test constructors able to inject fakes/prototype lookup.
 

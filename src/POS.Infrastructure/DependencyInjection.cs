@@ -18,11 +18,20 @@ namespace POS.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddPosInfrastructure(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddPosInfrastructure(
+        this IServiceCollection services,
+        string connectionString,
+        Action<PosRuntimeOptions>? configureRuntime = null)
     {
+        var runtimeOptions = new PosRuntimeOptions();
+        configureRuntime?.Invoke(runtimeOptions);
+
         services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());
         services.AddSingleton<ICurrentOperatorSession, LocalFileOperatorSession>();
+        services.AddSingleton(runtimeOptions.Smtp);
+        services.AddSingleton(runtimeOptions.WhatsAppScript);
+        services.AddSingleton(runtimeOptions.Printer);
 
         // Repositories
         services.AddScoped<IProductRepository, ProductRepository>();
@@ -41,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<IPdfService, PdfService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
         services.AddScoped<IWhatsAppService, WhatsAppScriptService>();
+        services.AddScoped<IProductLookupService, ProductLookupService>();
         services.AddScoped<ICustomerHistoryQueryService, CustomerHistoryQueryService>();
         services.AddScoped<ICustomerLookupQueryService, CustomerLookupQueryService>();
         services.AddScoped<ISupplierLookupQueryService, SupplierLookupQueryService>();
