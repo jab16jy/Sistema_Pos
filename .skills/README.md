@@ -1,9 +1,6 @@
 # Project Skills — Sistema POS Local
 
-These project-local skills are derived from the Markdown documentation under:
-
-- `md/Exploracion/`
-- `md/fase_disenio_pos_md/`
+These project-local skills are derived from the documentation under `docs md/` (the project Obsidian vault).
 
 Use them as implementation guidance when building the POS. They are intentionally project-specific: the goal is not to replace official framework documentation, but to keep agents aligned with the system architecture, domain rules, UX constraints, and quality expectations already defined for this repository.
 
@@ -33,8 +30,8 @@ Use them as implementation guidance when building the POS. They are intentionall
 8. [`pos-didactic-usability`](./pos-didactic-usability/SKILL.md)
    - Use when designing screens, messages, error states, confirmations, onboarding flows, and keyboard/scanner-friendly interactions.
 
-9. [`pos-avalonia-prototype`](./pos-avalonia-prototype/SKILL.md)
-   - Use when editing the Linux/MangoWM Avalonia prototype while preserving future WPF compatibility.
+9. [`jornada`](./jornada/SKILL.md)
+    - Use when the user asks for a work session summary: "jornada", "jornada de hoy", "qué cambios hicimos", "resumen de cambios", "bitácora de la app", "jornada del módulo X", "qué cambios hicimos ayer".
 
 ## Non-negotiable project principles
 

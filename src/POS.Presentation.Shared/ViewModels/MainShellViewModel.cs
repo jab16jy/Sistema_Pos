@@ -63,6 +63,9 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public CashierViewModel Cashier { get; }
 
+    /// <summary>Quote creation ViewModel for presentation shells that expose the quote workflow.</summary>
+    public QuoteViewModel? Quote { get; init; }
+
     /// <summary>Quote history ViewModel for the Avalonia quotes module content area.
     /// Null in the prototype default constructor; injected by DI in App.axaml.cs.</summary>
     public QuoteHistoryViewModel? QuoteHistory { get; init; }

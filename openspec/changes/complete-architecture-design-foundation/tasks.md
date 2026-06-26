@@ -22,7 +22,7 @@ Chain strategy: feature-branch-chain
 |------|------|-----------|-------|
 | 1 | Align shell verification with 9 modules | PR 1 | Independent; validates `quotes` navigation. |
 | 2 | Persist cashier sales and real dashboard metrics | PR 2 | Depends on PR 1 only for shell confidence; keep tests with behavior. |
-| 3 | Complete quotation Avalonia workflow | PR 3 | Depends on quote contact DTOs and conversion path; retarget per chosen chain strategy. |
+| 3 | Complete quotation WPF workflow | PR 3 | Depends on quote contact DTOs and conversion path; retarget per chosen chain strategy. |
 
 ## Phase 1: Shell Verification Slice
 
@@ -43,6 +43,6 @@ Chain strategy: feature-branch-chain
 
 - [x] 3.1 RED: Add tests for quote history contact fields, blocked send without contact, and eligible conversion. [Req: Quote contact, send, and convert workflow]
 - [x] 3.2 GREEN: Extend `QuoteSummary`, `QuoteSummaryRow`, and `QuoteHistoryViewModel` with real email/phone send and convert state. [Req: Send quote to customer contact]
-- [x] 3.3 GREEN: Create `QuoteView.axaml`, `QuoteHistoryView.axaml`, and `SendDocumentView.axaml` bound to shared ViewModels. [Req: Quotations navigation and history]
-- [x] 3.4 GREEN: Update `MainWindow.axaml` and `App.axaml.cs` to resolve `quotes` content through DI. [Req: Navigate to quotations]
-- [x] 3.5 VERIFY: Run focused shared/application tests plus Avalonia/shared build; note WPF verification is Windows-only. [Req: all scenarios]
+- [x] 3.3 GREEN: Create `QuoteView.xaml`, `QuoteHistoryView.xaml`, and `SendDocumentView.xaml` bound to shared ViewModels. [Req: Quotations navigation and history]
+- [x] 3.4 GREEN: Update `NavigationShellView.xaml` and `App.xaml.cs` to resolve `quotes` content through DI. [Req: Navigate to quotations]
+- [x] 3.5 VERIFY: Run focused shared/application tests on any OS; build WPF project on Windows. [Req: all scenarios]

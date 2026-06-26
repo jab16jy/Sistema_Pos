@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore
+        run: dotnet restore POS.sln
+
+      - name: Build
+        run: dotnet build POS.sln --no-restore --configuration Release
+
+      - name: Test — Domain
+        run: dotnet test tests/POS.Domain.Tests/POS.Domain.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Test — Application
+        run: dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj --no-build --configuration Release --verbosity normal
+
+      - name: Test — Presentation.Shared
+        run: dotnet test tests/POS.Presentation.Shared.Tests/POS.Presentation.Shared.Tests.csproj --no-build --configuration Release --verbosity normal
