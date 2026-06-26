@@ -19,6 +19,9 @@ Standard mode. `openspec/config.yaml` has `strict_tdd: false` and `rules.apply.t
 - [x] 4.1 `ReportService.GenerateDailySalesReportAsync` returns non-empty PDF bytes from persisted totals.
 - [x] 4.2 `PrintService` uses configured command execution or clear configuration failure.
 - [x] 4.3 Printer availability is independent from sale persistence/document sending paths.
+- [x] 3.3 WPF composition injects persisted lookup into cashier and quote flows.
+- [x] 3.4 Existing ViewModel constructors still support injected fakes/prototype lookup for tests.
+- [x] 5.3 README documents runtime environment variables.
 
 ## Evidence
 
@@ -27,5 +30,4 @@ Standard mode. `openspec/config.yaml` has `strict_tdd: false` and `rules.apply.t
 
 ## Remaining
 
-- WPF composition root should inject persisted lookup into cashier and quote flows.
 - Full solution verify.

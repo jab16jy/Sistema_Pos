@@ -41,8 +41,8 @@ Chain strategy: pending
 
 - [x] 3.1 Create `ProductLookupService` over `AppDbContext.Products` mapping to `ProductLookupResult`.
 - [x] 3.2 Register `IProductLookupService` in infrastructure.
-- [ ] 3.3 Update `App.xaml.cs` to inject persisted lookup into `CashierViewModel` and `QuoteViewModel`.
-- [ ] 3.4 Keep test constructors able to inject fakes/prototype lookup.
+- [x] 3.3 Update `App.xaml.cs` to inject persisted lookup into `CashierViewModel` and `QuoteViewModel`.
+- [x] 3.4 Keep test constructors able to inject fakes/prototype lookup.
 
 ## Phase 4: Report and Print Runtime Behavior
 
@@ -54,4 +54,4 @@ Chain strategy: pending
 
 - [ ] 5.1 Run `dotnet test POS.sln --no-restore`.
 - [ ] 5.2 Run `dotnet build POS.sln --no-restore`.
-- [ ] 5.3 Update README or docs only if runtime configuration keys/usage become user-facing.
+- [x] 5.3 Update README or docs only if runtime configuration keys/usage become user-facing.
