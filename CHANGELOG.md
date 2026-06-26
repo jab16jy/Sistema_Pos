@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.2.0...v0.2.1) (2026-06-26)
+
+
+### Bug Fixes
+
+* resolve Application namespace ambiguity in App.xaml.cs ([10cca7d](https://github.com/jab16jy/Sistema_Pos/commit/10cca7d598fb35286e1565841bbb627378a27d14))
+* **tests:** clear SQLite connection pool before deleting temp db file ([effa8a6](https://github.com/jab16jy/Sistema_Pos/commit/effa8a663edbbf2cc6742ee6983f80915cb1a104))
+
 ## [0.2.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.1.0...v0.2.0) (2026-06-26)
 
 
