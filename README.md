@@ -48,6 +48,7 @@ Requirements:
 Launch the app by double-clicking `POS.Presentation.exe` inside `build_output/`, or from a terminal:
 
 ```cmd
+ dotnet build src/POS.Presentation/POS.Presentation.csproj -o build_output
 .\build_output\POS.Presentation.exe
 ```
 
