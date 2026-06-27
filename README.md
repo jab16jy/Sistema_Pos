@@ -36,6 +36,23 @@ tests/
   POS.Presentation.Shared.Tests/
 ```
 
+## Running the pre-built app
+
+A framework-dependent build for Windows is included in `build_output/`.
+
+Requirements:
+
+- Windows 10/11 (x64)
+- [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0) — `Microsoft.WindowsDesktop.App 9.0`
+
+Launch the app by double-clicking `POS.Presentation.exe` inside `build_output/`, or from a terminal:
+
+```cmd
+build_output\POS.Presentation.exe
+```
+
+The database file (`pos.db`) and any local configuration are created in the same directory on first run.
+
 ## Development environment
 
 Build and run on **Windows** with the .NET Desktop SDK / Visual Studio (required for WPF).
