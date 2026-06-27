@@ -46,3 +46,21 @@ The system MUST use real customer contact data when sending quotes and MUST allo
 - GIVEN a quote customer has no usable contact data
 - WHEN the user attempts to send the quote
 - THEN sending MUST be blocked with a recoverable validation result
+
+### Requirement: Recoverable quote send runtime
+
+The quote send workflow MUST use constructible communication services and report adapter failures as user-recoverable results.
+
+#### Scenario: Quote email configuration missing
+
+- GIVEN a quote has an email contact but SMTP configuration is missing
+- WHEN the user sends the quote by email
+- THEN the send result MUST fail without crashing the WPF module
+- AND the message SHOULD tell the user to configure SMTP
+
+#### Scenario: Quote WhatsApp script missing
+
+- GIVEN a quote has a phone contact but no WhatsApp script is configured
+- WHEN the user sends the quote by WhatsApp
+- THEN the send result MUST fail without crashing the WPF module
+- AND the message SHOULD tell the user to configure the WhatsApp script

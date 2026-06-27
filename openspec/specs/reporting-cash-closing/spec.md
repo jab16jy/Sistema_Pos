@@ -38,3 +38,21 @@ The system MUST produce a cash-closing summary with billed total, expected drawe
 - GIVEN persisted activity exists for a closing period
 - WHEN the operator attempts to close cash without counted cash
 - THEN the system MUST reject the closing and preserve the open state
+
+### Requirement: Export service is non-throwing
+
+The reporting export service MUST provide bounded report bytes for the currently supported daily sales scope or return a recoverable unsupported/configuration result through callers.
+
+#### Scenario: Daily report export succeeds
+
+- GIVEN persisted completed sales exist for a date
+- WHEN the report service generates the daily sales report
+- THEN it MUST return non-empty bytes
+- AND those bytes SHOULD preserve cash versus digital separation
+
+#### Scenario: Report scope unsupported
+
+- GIVEN a requested report format or scope is not yet supported
+- WHEN the report service is invoked
+- THEN the application MUST avoid `NotImplementedException`
+- AND the caller MUST receive a recoverable failure path
