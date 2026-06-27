@@ -323,14 +323,14 @@
 
 ### EF Migrations (sequential — must be added in this order)
 
-- [ ] Task 3.1 — Create EF migration `RenameCategoriesTable`
+- [x] Task 3.1 — Create EF migration `RenameCategoriesTable`
   - File: `src/POS.Infrastructure/Migrations/{timestamp}_RenameCategoriesTable.cs`
   - `Up()`: `migrationBuilder.RenameTable(name: "Categories", newName: "CATEGORIES")`
   - `Down()`: `migrationBuilder.RenameTable(name: "CATEGORIES", newName: "Categories")`
   - This migration must run first so CategoryConfiguration's `ToTable("CATEGORIES")` matches
   - Spec: R-PC-02; design ADR #6
 
-- [ ] Task 3.2 — Create EF migration `AddLoyaltyTables`
+- [x] Task 3.2 — Create EF migration `AddLoyaltyTables`
   - File: `src/POS.Infrastructure/Migrations/{timestamp}_AddLoyaltyTables.cs`
   - `Up()`:
     - Create `LOYALTY_ACCOUNTS` (Id TEXT PK, CustomerId TEXT NOT NULL UNIQUE, CreatedAt TEXT)
@@ -341,7 +341,7 @@
   - Depends on: 3.1 (sequential); [DECISION NEEDED] LoyaltyRule seeding
   - Spec: R-LP-01, R-LP-02, R-LP-03
 
-- [ ] Task 3.3 — Create EF migration `AddSaleReturnItemsAndUnitCost`
+- [x] Task 3.3 — Create EF migration `AddSaleReturnItemsAndUnitCost`
   - File: `src/POS.Infrastructure/Migrations/{timestamp}_AddSaleReturnItemsAndUnitCost.cs`
   - `Up()`:
     - Create `SALE_RETURN_ITEMS` (Id TEXT PK, SaleReturnId TEXT NOT NULL FK → SALE_RETURNS, ProductId TEXT, ProductName TEXT, QuantityReturned INT, UnitPrice REAL, RefundAmount REAL)
@@ -354,42 +354,42 @@
 
 ### EF Configurations (can write in parallel)
 
-- [ ] Task 3.4 — Create `src/POS.Infrastructure/Persistence/Configurations/CategoryConfiguration.cs`
+- [x] Task 3.4 — Create `src/POS.Infrastructure/Persistence/Configurations/CategoryConfiguration.cs`
   - `ToTable("CATEGORIES")`, `HasKey(c => c.Id)`, `Property(c => c.Name).IsRequired().HasMaxLength(200)`
   - Satisfies design ADR #6; ensures EF uses correct table name post-migration
   - Spec: R-PC-02
 
-- [ ] Task 3.5 — Create `src/POS.Infrastructure/Persistence/Configurations/LoyaltyAccountConfiguration.cs`
+- [x] Task 3.5 — Create `src/POS.Infrastructure/Persistence/Configurations/LoyaltyAccountConfiguration.cs`
   - `ToTable("LOYALTY_ACCOUNTS")`
   - Unique index on `CustomerId`: `HasIndex(a => a.CustomerId).IsUnique()`
   - FK to Customers table on `CustomerId`
   - Spec: R-LP-01
 
-- [ ] Task 3.6 — Create `src/POS.Infrastructure/Persistence/Configurations/LoyaltyRuleConfiguration.cs`
+- [x] Task 3.6 — Create `src/POS.Infrastructure/Persistence/Configurations/LoyaltyRuleConfiguration.cs`
   - `ToTable("LOYALTY_RULES")`
   - Map `RedemptionValuePerPoint` as decimal column
   - Spec: R-LP-03
 
-- [ ] Task 3.7 — Create `src/POS.Infrastructure/Persistence/Configurations/LoyaltyTransactionConfiguration.cs`
+- [x] Task 3.7 — Create `src/POS.Infrastructure/Persistence/Configurations/LoyaltyTransactionConfiguration.cs`
   - `ToTable("LOYALTY_TRANSACTIONS")`
   - `HasOne` FK to `LOYALTY_ACCOUNTS` on `LoyaltyAccountId`
   - `HasIndex(t => t.LoyaltyAccountId)` for balance SUM performance
   - `Property(t => t.SaleId).IsRequired(false)` (nullable FK)
   - Spec: R-LP-02
 
-- [ ] Task 3.8 — Create `src/POS.Infrastructure/Persistence/Configurations/SaleReturnItemConfiguration.cs`
+- [x] Task 3.8 — Create `src/POS.Infrastructure/Persistence/Configurations/SaleReturnItemConfiguration.cs`
   - `ToTable("SALE_RETURN_ITEMS")`
   - FK to `SALE_RETURNS` on `SaleReturnId`
   - Map `RefundAmount` using existing `Money` value converter convention (check `SaleItemConfiguration` for Money conversion pattern)
   - Map `UnitPrice` using same Money converter
   - Spec: R-IR-02
 
-- [ ] Task 3.9 — Modify `src/POS.Infrastructure/Persistence/Configurations/SaleReturnConfiguration.cs`
+- [x] Task 3.9 — Modify `src/POS.Infrastructure/Persistence/Configurations/SaleReturnConfiguration.cs`
   - Add: `HasMany(r => r.Items).WithOne().HasForeignKey(i => i.SaleReturnId).OnDelete(DeleteBehavior.Cascade)`
   - Depends on: 3.8
   - Spec: R-IR-01
 
-- [ ] Task 3.10 — Modify `src/POS.Infrastructure/Persistence/Configurations/SaleItemConfiguration.cs`
+- [x] Task 3.10 — Modify `src/POS.Infrastructure/Persistence/Configurations/SaleItemConfiguration.cs`
   - Map `UnitCost` property using the existing `Money` value converter (same pattern as `UnitPrice` in this file)
   - Use column name `UnitCost` with default value 0 for legacy rows
   - Depends on: 1.6 (SaleItem has the property)
@@ -399,7 +399,7 @@
 
 ### AppDbContext modification
 
-- [ ] Task 3.11 — Modify `src/POS.Infrastructure/Persistence/AppDbContext.cs`
+- [x] Task 3.11 — Modify `src/POS.Infrastructure/Persistence/AppDbContext.cs`
   - Add `DbSet<LoyaltyAccount> LoyaltyAccounts { get; set; }`
   - Add `DbSet<LoyaltyRule> LoyaltyRules { get; set; }`
   - Add `DbSet<LoyaltyTransaction> LoyaltyTransactions { get; set; }`
@@ -412,7 +412,7 @@
 
 ### Repositories and Services (parallel after 3.11)
 
-- [ ] Task 3.12 — Create `src/POS.Infrastructure/Persistence/Repositories/LoyaltyRepository.cs`
+- [x] Task 3.12 — Create `src/POS.Infrastructure/Persistence/Repositories/LoyaltyRepository.cs`
   - Implements `ILoyaltyRepository`
   - `GetBalanceAsync`: `await _ctx.LoyaltyTransactions.Where(t => t.LoyaltyAccountId == accountId).SumAsync(t => t.Points)`
   - `GetTransactionsAsync`: `.Where(...).OrderByDescending(t => t.CreatedAt).Take(take).ToListAsync()`
@@ -421,19 +421,19 @@
   - Depends on: 3.11, 2.1
   - Spec: R-LP-01, R-LP-09
 
-- [ ] Task 3.13 — Create `src/POS.Infrastructure/Persistence/Repositories/CategoryRepository.cs`
+- [x] Task 3.13 — Create `src/POS.Infrastructure/Persistence/Repositories/CategoryRepository.cs`
   - Implements `ICategoryRepository`
   - `GetAllAsync(activeOnly)`: queries `_ctx.Categories`; if `activeOnly`, filter by active flag (or return all if no soft-delete)
   - `HasProductsAsync(categoryId)`: `_ctx.Products.AnyAsync(p => p.CategoryId == categoryId)` — used by Application layer delete guard
   - Depends on: 3.11, 2.5
   - Spec: R-PC-01, R-PC-04
 
-- [ ] Task 3.14 — Modify `src/POS.Infrastructure/Persistence/Repositories/SaleReturnRepository.cs`
+- [x] Task 3.14 — Modify `src/POS.Infrastructure/Persistence/Repositories/SaleReturnRepository.cs`
   - In `GetBySaleIdAsync` (or equivalent lookup method): add `.Include(r => r.Items)` to the query chain
   - Depends on: 3.9
   - Spec: R-IR-01
 
-- [ ] Task 3.15 — Create `src/POS.Infrastructure/Persistence/Queries/ProfitQueryService.cs`
+- [x] Task 3.15 — Create `src/POS.Infrastructure/Persistence/Queries/ProfitQueryService.cs`
   - Implements `IProfitQueryService`
   - All methods use `IQueryable` GroupBy — no `ToList()` before aggregation
   - `GetMarginByProductAsync`: GroupBy `SaleItem.ProductId`, project `(SaleItem.UnitPrice, SaleItem.UnitCost, SaleItem.Quantity, SaleItem.Discount)` as raw columns (no domain Money methods in LINQ)
@@ -443,14 +443,14 @@
   - Depends on: 3.11, 2.2, 2.8
   - Spec: R-PA-01, R-PA-07, R-RC-01..04, R-RC-05
 
-- [ ] Task 3.16 — Modify `src/POS.Infrastructure/Persistence/Queries/OperationalReportQueryService.cs`
+- [x] Task 3.16 — Modify `src/POS.Infrastructure/Persistence/Queries/OperationalReportQueryService.cs`
   - Replace all `ToListAsync()` followed by in-memory LINQ aggregation with server-side EF GroupBy equivalents
   - Add platform breakdown method using `PaymentPlatforms.All` canonical list
   - Note: this is a prerequisite for profit analytics (R-PA-PRE-01); must be verified working before Task 3.15 is considered complete
   - Depends on: 3.11
   - Spec: R-PA-PRE-01, R-RC-05
 
-- [ ] Task 3.17 — Add ZXing.Net NuGet reference (AFTER prerequisite verification)
+- [x] Task 3.17 — Add ZXing.Net NuGet reference (AFTER prerequisite verification)
   - `src/POS.Infrastructure/POS.Infrastructure.csproj`: add `<PackageReference Include="ZXing.Net" />`
   - Also add `<PackageReference Include="ZXing.Net.Bindings.SkiaSharp" />` if SkiaSharp binding is a separate package
   - `Directory.Packages.props`: add `<PackageVersion Include="ZXing.Net" Version="0.16.10" />` and binding version
@@ -458,7 +458,7 @@
   - Depends on: [PREREQUISITE] ZXing.Net .NET 9 build verification
   - Spec: R-BL-04
 
-- [ ] Task 3.18 — Create `src/POS.Infrastructure/Services/ZXingBarcodeGenerationService.cs`
+- [x] Task 3.18 — Create `src/POS.Infrastructure/Services/ZXingBarcodeGenerationService.cs`
   - Implements `IBarcodeGenerationService`
   - `Generate(value, symbology)`:
     ```csharp
@@ -476,7 +476,7 @@
   - Depends on: 3.17, 2.3
   - Spec: R-BL-02, R-BL-04
 
-- [ ] Task 3.19 — Create `src/POS.Infrastructure/Services/LabelPrintService.cs`
+- [x] Task 3.19 — Create `src/POS.Infrastructure/Services/LabelPrintService.cs`
   - Implements `ILabelPrintService`
   - `BuildLabelsAsync`: QuestPDF `Document.Create(...)` with one section per label at 57×32mm; each label contains: product name (small text), barcode image from `IBarcodeGenerationService.GenerateAuto` (rendered as Image element), price (formatted string)
   - Repeat each label `request.Copies` times
@@ -489,7 +489,7 @@
 
 ### DI Registration (last in Phase 3)
 
-- [ ] Task 3.20 — Modify `src/POS.Infrastructure/DependencyInjection.cs`
+- [x] Task 3.20 — Modify `src/POS.Infrastructure/DependencyInjection.cs`
   - Add repository registrations:
     ```csharp
     services.AddScoped<ILoyaltyRepository, LoyaltyRepository>();

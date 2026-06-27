@@ -37,3 +37,4 @@ logs/
 # Agent transient registry/cache
 .atl/
 .claude/
+build_output/
