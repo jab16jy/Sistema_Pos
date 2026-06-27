@@ -15,5 +15,8 @@ internal sealed class SaleReturnConfiguration : IEntityTypeConfiguration<SaleRet
         builder.Property(saleReturn => saleReturn.ProcessedByUserId).HasConversion<string>();
         builder.Property(saleReturn => saleReturn.Reason).IsRequired().HasMaxLength(500);
         builder.HasIndex(saleReturn => saleReturn.OriginalSaleId).IsUnique();
+
+        // Phase 2: Items navigation is ignored until Phase 3 creates the SALE_RETURN_ITEMS table.
+        builder.Ignore(saleReturn => saleReturn.Items);
     }
 }

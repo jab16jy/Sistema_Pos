@@ -50,6 +50,72 @@ public sealed class ProcessReturnUseCase
 
         sale.MarkReturned();
 
+        var saleReturn = new SaleReturn(sale.Id, request.ProcessedByUserId, request.Reason);
+
+        bool isPartialReturn = request.Items is { Count: > 0 };
+
+        if (isPartialReturn)
+        {
+            // Partial return — validate and process only the listed items
+            await ProcessPartialReturnAsync(request, sale, saleReturn, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            // Full return — restore all items
+            await ProcessFullReturnAsync(request, sale, saleReturn, cancellationToken).ConfigureAwait(false);
+        }
+
+        await _saleReturns.AddAsync(saleReturn, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return saleReturn.Id;
+    }
+
+    private async Task ProcessPartialReturnAsync(
+        ProcessReturnRequest request,
+        Sale sale,
+        SaleReturn saleReturn,
+        CancellationToken cancellationToken)
+    {
+        foreach (var line in request.Items!)
+        {
+            var saleItem = sale.Items.FirstOrDefault(i => i.Id == line.SaleItemId)
+                ?? throw new InvalidOperationException($"Sale item '{line.SaleItemId}' was not found in sale '{sale.Id}'.");
+
+            if (line.QuantityReturned <= 0 || line.QuantityReturned > (int)saleItem.Quantity)
+            {
+                throw new InvalidOperationException(
+                    $"Quantity returned ({line.QuantityReturned}) for item '{saleItem.ProductName}' must be in [1, {(int)saleItem.Quantity}].");
+            }
+
+            Product product = await _products.GetByIdAsync(saleItem.ProductId, cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException($"Product '{saleItem.ProductId}' was not found.");
+
+            var qty = new Quantity(line.QuantityReturned);
+            product.IncreaseStock(qty);
+
+            await _inventory.AddMovementAsync(
+                new InventoryMovement(product.Id, InventoryMovementType.Return, qty, "Partial sale return", request.ProcessedByUserId, sale.Id),
+                cancellationToken).ConfigureAwait(false);
+
+            var returnItem = new SaleReturnItem(
+                saleReturn.Id,
+                saleItem.ProductId,
+                saleItem.ProductName,
+                line.QuantityReturned,
+                saleItem.UnitPrice,
+                new Money(line.RefundAmount));
+
+            saleReturn.AddItem(returnItem);
+        }
+    }
+
+    private async Task ProcessFullReturnAsync(
+        ProcessReturnRequest request,
+        Sale sale,
+        SaleReturn saleReturn,
+        CancellationToken cancellationToken)
+    {
         foreach (SaleItem item in sale.Items)
         {
             Product product = await _products.GetByIdAsync(item.ProductId, cancellationToken).ConfigureAwait(false)
@@ -57,15 +123,20 @@ public sealed class ProcessReturnUseCase
 
             var quantity = new Quantity(item.Quantity);
             product.IncreaseStock(quantity);
+
             await _inventory.AddMovementAsync(
-                new InventoryMovement(product.Id, InventoryMovementType.Return, quantity, "Sale return", request.ProcessedByUserId, sale.Id),
+                new InventoryMovement(product.Id, InventoryMovementType.Return, quantity, "Full sale return", request.ProcessedByUserId, sale.Id),
                 cancellationToken).ConfigureAwait(false);
+
+            var returnItem = new SaleReturnItem(
+                saleReturn.Id,
+                item.ProductId,
+                item.ProductName,
+                (int)item.Quantity,
+                item.UnitPrice,
+                item.Subtotal());
+
+            saleReturn.AddItem(returnItem);
         }
-
-        var saleReturn = new SaleReturn(sale.Id, request.ProcessedByUserId, request.Reason);
-        await _saleReturns.AddAsync(saleReturn, cancellationToken).ConfigureAwait(false);
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        return saleReturn.Id;
     }
 }

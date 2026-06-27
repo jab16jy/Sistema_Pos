@@ -150,6 +150,41 @@ public sealed class CreateSaleUseCaseTests
         Assert.Equal(1, unitOfWork.SaveCount);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_CapturesUnitCostSnapshotFromProductCostPrice()
+    {
+        var product = new Product("Coffee", Guid.NewGuid(), new Money(2_000m), new Money(3_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork());
+
+        await useCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 3_000m, 3_000m, null)]), TestContext.Current.CancellationToken);
+
+        var item = sales.Sales.Single().Items.Single();
+        Assert.Equal(2_000m, item.UnitCost.Amount); // snapshot of product.CostPrice
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithInvalidPlatform_ThrowsAndDoesNotSave()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(800m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new CreateSaleRequest(
+                Guid.NewGuid(),
+                null,
+                [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+                [new CreateSalePaymentRequest(PaymentMethod.Transfer, 800m, null, "PayPal")]),
+            TestContext.Current.CancellationToken));
+
+        Assert.Empty(sales.Sales);
+    }
+
     private sealed class InMemoryProductRepository : IProductRepository
     {
         private readonly Product _product;

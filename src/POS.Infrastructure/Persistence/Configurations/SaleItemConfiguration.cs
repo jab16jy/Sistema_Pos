@@ -21,5 +21,9 @@ internal sealed class SaleItemConfiguration : IEntityTypeConfiguration<SaleItem>
         builder.Property(si => si.Discount)
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("discount");
+
+        // Phase 2: UnitCost is computed in-memory and ignored by EF until Phase 3 creates the column+migration.
+        // Task 3.10 will remove this Ignore and add the proper column mapping + migration.
+        builder.Ignore(si => si.UnitCost);
     }
 }

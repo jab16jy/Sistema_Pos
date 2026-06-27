@@ -95,6 +95,81 @@ public sealed class InvoiceUseCaseTests
             TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task ProcessReturnAsync_PartialReturn_RestoresOnlyReturnedQty()
+    {
+        var product = CreateProduct();  // stock 10, qty added: 2
+        var sale = CreateCompletedSale(product);  // stock now 8
+        var saleItemId = sale.Items.Single().Id;
+        var inventory = new InMemoryInventoryRepository();
+        var returns = new InMemorySaleReturnRepository();
+        var uow = new CountingUnitOfWork();
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            inventory,
+            returns,
+            uow);
+
+        // Return only 1 of the 2 items sold
+        Guid returnId = await useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, Guid.NewGuid(), "Partial",
+                [new ReturnLineRequest(saleItemId, 1, 1_500m)]),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotEqual(Guid.Empty, returnId);
+        // Stock should increase by 1 (only the returned qty)
+        Assert.Equal(9m, product.CurrentStock);
+        // Only one inventory movement
+        Assert.Single(inventory.AddedMovements);
+        Assert.Equal(1m, inventory.AddedMovements[0].Quantity);
+        Assert.Equal(1, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task ProcessReturnAsync_PartialReturn_WhenQtyExceedsOriginal_Throws()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var saleItemId = sale.Items.Single().Id;
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            new InMemorySaleReturnRepository(),
+            new CountingUnitOfWork());
+
+        // Original qty was 2, trying to return 3
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, Guid.NewGuid(), "Over-qty",
+                [new ReturnLineRequest(saleItemId, 3, 4_500m)]),
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ProcessReturnAsync_SecondReturn_RejectedByOneReturnPerSaleGuard()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var returns = new InMemorySaleReturnRepository();
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            returns,
+            new CountingUnitOfWork());
+
+        // First return succeeds
+        await useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, Guid.NewGuid(), "First return"),
+            TestContext.Current.CancellationToken);
+
+        // Second return on same sale is rejected
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, Guid.NewGuid(), "Second return"),
+            TestContext.Current.CancellationToken));
+    }
+
     private static Product CreateProduct() => new(
         "Rice",
         Guid.NewGuid(),
