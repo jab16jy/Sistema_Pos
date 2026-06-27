@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.BarcodeLabels;
+using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Invoices;
+using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Purchases;
@@ -30,7 +33,9 @@ public static class DependencyInjection
         var runtimeOptions = new PosRuntimeOptions();
         configureRuntime?.Invoke(runtimeOptions);
 
-        services.AddDbContext<AppDbContext>(options => options.UseSqlite(connectionString));
+        services.AddDbContext<AppDbContext>(options =>
+            options.UseSqlite(connectionString)
+                   .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());
         services.AddSingleton<ICurrentOperatorSession, LocalFileOperatorSession>();
         services.AddSingleton(runtimeOptions.Smtp);
@@ -51,6 +56,8 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseRepository, PurchaseRepository>();
         services.AddScoped<IReceivableRepository, ReceivableRepository>();
         services.AddScoped<ICashClosingRepository, CashClosingRepository>();
+        services.AddScoped<ILoyaltyRepository, LoyaltyRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
 
         // Infrastructure services
         services.AddScoped<IPrintService, PrintService>();
@@ -67,6 +74,9 @@ public static class DependencyInjection
         services.AddScoped<ISupplierLookupQueryService, SupplierLookupQueryService>();
         services.AddScoped<IReceivableQueryService, ReceivableLookupQueryService>();
         services.AddScoped<IOperationalReportQueryService, OperationalReportQueryService>();
+        services.AddScoped<IProfitQueryService, ProfitQueryService>();
+        services.AddScoped<IBarcodeGenerationService, ZXingBarcodeGenerationService>();
+        services.AddScoped<ILabelPrintService, LabelPrintService>();
 
         // Application use cases
         services.AddScoped<SaveCustomerUseCase>();
@@ -100,6 +110,16 @@ public static class DependencyInjection
         services.AddScoped<IApplyReceivablePaymentUseCase, ApplyReceivablePaymentUseCase>();
         services.AddScoped<IGetOperationalReportUseCase, GetOperationalReportUseCase>();
         services.AddScoped<CloseCashRegisterUseCase>();
+
+        // New POS modules use cases
+        services.AddScoped<AccumulateLoyaltyPointsUseCase>();
+        services.AddScoped<RedeemLoyaltyPointsUseCase>();
+        services.AddScoped<GetLoyaltyBalanceUseCase>();
+        services.AddScoped<CreateCategoryUseCase>();
+        services.AddScoped<UpdateCategoryUseCase>();
+        services.AddScoped<SearchCategoriesUseCase>();
+        services.AddScoped<GenerateBarcodeUseCase>();
+        services.AddScoped<PrintLabelsUseCase>();
 
         return services;
     }

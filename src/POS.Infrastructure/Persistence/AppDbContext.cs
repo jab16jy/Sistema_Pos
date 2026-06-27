@@ -25,7 +25,11 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<Receivable> Receivables => Set<Receivable>();
     public DbSet<ReceivableSettlement> ReceivableSettlements => Set<ReceivableSettlement>();
     public DbSet<SaleReturn> SaleReturns => Set<SaleReturn>();
+    public DbSet<SaleReturnItem> SaleReturnItems => Set<SaleReturnItem>();
     public DbSet<BusinessSettings> BusinessSettings => Set<BusinessSettings>();
+    public DbSet<LoyaltyAccount> LoyaltyAccounts => Set<LoyaltyAccount>();
+    public DbSet<LoyaltyRule> LoyaltyRules => Set<LoyaltyRule>();
+    public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

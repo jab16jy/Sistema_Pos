@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using POS.Application.DTOs.Reporting;
 using POS.Application.Interfaces;
 using POS.Domain.Enums;
-using POS.Infrastructure.Persistence;
 
 namespace POS.Infrastructure.Persistence.Queries;
 
@@ -19,25 +18,36 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
         ReportRangeRequest request,
         CancellationToken cancellationToken = default)
     {
-        var salesInRange = await _dbContext.Sales
+        // SQLite cannot translate DateTimeOffset comparisons in LINQ, so we load
+        // completed sales with their items/payments and filter by date in memory.
+        // Aggregation is then performed on the filtered in-memory set.
+        var completedSales = await _dbContext.Sales
             .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
             .Include(s => s.Items)
             .Include(s => s.Payments)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var relevantSales = salesInRange
-            .Where(s => s.CreatedAt >= request.From && s.CreatedAt <= request.To &&
-                        s.Status == SaleStatus.Completed)
+        var relevantSales = completedSales
+            .Where(s => s.CreatedAt >= request.From && s.CreatedAt <= request.To)
             .ToList();
 
-        decimal billedSalesTotal = relevantSales.Sum(s => s.Total().Amount);
-        decimal saleCashCollected = relevantSales.Sum(s => s.CashInDrawer().Amount);
+        decimal billedSalesTotal = relevantSales
+            .SelectMany(s => s.Items)
+            .Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount);
+
+        decimal saleCashCollected = relevantSales
+            .SelectMany(s => s.Payments)
+            .Where(p => p.Method == PaymentMethod.Cash)
+            .Sum(p => p.Amount.Amount);
+
         decimal saleDigitalCollected = relevantSales
             .SelectMany(s => s.Payments)
             .Where(p => p.Method != PaymentMethod.Cash)
             .Sum(p => p.Amount.Amount);
 
+        // Receivable settlements — also loaded and filtered in memory for SQLite compat
         var allSettlements = await _dbContext.ReceivableSettlements
             .AsNoTracking()
             .ToListAsync(cancellationToken)
