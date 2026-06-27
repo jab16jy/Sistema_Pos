@@ -19,6 +19,14 @@ public sealed class SaleRepository : ISaleRepository
         await _dbContext.Sales.AddAsync(sale, cancellationToken);
     }
 
+    public Task<Sale?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Sales
+            .Include(sale => sale.Items)
+            .Include(sale => sale.Payments)
+            .FirstOrDefaultAsync(sale => sale.Id == id, cancellationToken);
+    }
+
     public async Task<DashboardSummaryData> GetDashboardSummaryAsync(
         DateTimeOffset from,
         DateTimeOffset to,
