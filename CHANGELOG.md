@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.3.0...v0.4.0) (2026-06-27)
+
+
+### Features
+
+* add runtime gap domain application layer ([42655b0](https://github.com/jab16jy/Sistema_Pos/commit/42655b06322c34fd13ae8a74ee8fd2dcf1a9fc36))
+* complete runtime gaps - products, inventory, invoices, settings modules ([3f66673](https://github.com/jab16jy/Sistema_Pos/commit/3f66673d3e0b0ddb8c0313912fa4495428d0ae8e))
+* complete runtime gaps - products, inventory, invoices, settings modules ([00199fa](https://github.com/jab16jy/Sistema_Pos/commit/00199fa92962ca84cbb453ab4a3acd35c378b4ab))
+
 ## [0.3.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.2.1...v0.3.0) (2026-06-26)
 
 
