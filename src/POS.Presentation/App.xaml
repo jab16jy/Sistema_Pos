@@ -212,5 +212,6 @@
     <converters:StringIsNotEmptyToVisibilityConverter x:Key="StringIsNotEmptyToVisibilityConverter" />
     <converters:DateOnlyToDateTimeConverter x:Key="DateOnlyToDateTimeConverter" />
     <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter" />
+    <converters:BytesToImageSourceConverter x:Key="BytesToImageSourceConverter" />
   </Application.Resources>
 </Application>

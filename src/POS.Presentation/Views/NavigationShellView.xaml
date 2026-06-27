@@ -171,6 +171,20 @@
         </Border>
       </Grid>
 
+      <Grid Visibility="{Binding IsLoyaltySelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:LoyaltyView DataContext="{Binding Loyalty}" Visibility="{Binding Loyalty, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}" Visibility="{Binding Loyalty, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Loyalty module is not available in this environment." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
+      <Grid Visibility="{Binding IsBarcodeSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:BarcodeView DataContext="{Binding Barcode}" Visibility="{Binding Barcode, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}" Visibility="{Binding Barcode, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Barcode module is not available in this environment." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
       <Grid Visibility="{Binding IsPlannedModuleSelected, Converter={StaticResource BoolToVisibilityConverter}}">
         <Border Style="{StaticResource Card}" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
           <StackPanel>

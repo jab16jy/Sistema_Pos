@@ -41,6 +41,8 @@ public sealed class MainShellViewModel : ViewModelBase
             new("receivables", "Cuentas por Cobrar", "Consulta saldos pendientes y registra abonos.", "F7", true),
             new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", true),
             new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F9", true),
+            new("loyalty", "Puntos", "Consulta saldo y redime puntos de lealtad.", "F11", true),
+            new("barcode", "Codigos de Barras", "Genera e imprime etiquetas con codigo de barras.", "F12", true),
             new("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", true)
         };
 
@@ -86,6 +88,10 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public SettingsViewModel? Settings { get; init; }
 
+    public LoyaltyViewModel? Loyalty { get; init; }
+
+    public BarcodeViewModel? Barcode { get; init; }
+
     public ICommand SelectModuleCommand { get; }
 
     public ModuleNavigationItem SelectedModule
@@ -111,6 +117,8 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsReceivablesSelected));
                 OnPropertyChanged(nameof(IsInvoicesSelected));
                 OnPropertyChanged(nameof(IsReportsSelected));
+                OnPropertyChanged(nameof(IsLoyaltySelected));
+                OnPropertyChanged(nameof(IsBarcodeSelected));
                 OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
             }
@@ -143,9 +151,13 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsReportsSelected => SelectedModule.Key == "reports";
 
+    public bool IsLoyaltySelected => SelectedModule.Key == "loyalty";
+
+    public bool IsBarcodeSelected => SelectedModule.Key == "barcode";
+
     public bool IsSettingsSelected => SelectedModule.Key == "settings";
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsSettingsSelected;
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -196,6 +208,8 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "receivables", IsImplemented: true } => "Módulo Cuentas por Cobrar activo. Consulta saldos pendientes y registra abonos.",
             { Key: "invoices", IsImplemented: true } => "Módulo Facturas activo. Reimprime recibos y procesa devoluciones.",
             { Key: "reports", IsImplemented: true } => "Módulo Reportes activo. Consulta totales operativos separados por efectivo, digital y abonos.",
+            { Key: "loyalty", IsImplemented: true } => "Módulo Puntos activo. Consulta saldo y redime puntos de lealtad.",
+            { Key: "barcode", IsImplemented: true } => "Módulo Códigos de Barras activo. Genera e imprime etiquetas.",
             { Key: "settings", IsImplemented: true } => "Módulo Configuración activo. Negocio, impresora, backup y moneda.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
         };

@@ -1,9 +1,12 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.BarcodeLabels;
+using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Invoices;
+using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Quotes;
@@ -110,7 +113,9 @@ public partial class App : System.Windows.Application
         try
         {
             var createSale = sp.GetRequiredService<CreateSaleUseCase>();
-            cashier = new CashierViewModel(productLookup, createSale);
+            RedeemLoyaltyPointsUseCase? redeemLoyalty = null;
+            try { redeemLoyalty = sp.GetRequiredService<RedeemLoyaltyPointsUseCase>(); } catch { }
+            cashier = new CashierViewModel(productLookup, new PreviewPaymentUseCase(), createSale, redeemLoyalty);
         }
         catch
         {
@@ -189,7 +194,9 @@ public partial class App : System.Windows.Application
         try
         {
             var getReport = sp.GetRequiredService<IGetOperationalReportUseCase>();
-            reports = new ReportsViewModel(getReport);
+            IProfitQueryService? profitQuery = null;
+            try { profitQuery = sp.GetRequiredService<IProfitQueryService>(); } catch { }
+            reports = new ReportsViewModel(getReport, profitQuery);
         }
         catch
         {
@@ -202,7 +209,28 @@ public partial class App : System.Windows.Application
             var updateProduct = sp.GetRequiredService<UpdateProductUseCase>();
             var deleteProduct = sp.GetRequiredService<DeleteProductUseCase>();
             var searchProducts = sp.GetRequiredService<SearchProductsUseCase>();
-            products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts);
+            SearchCategoriesUseCase? searchCategories = null;
+            try { searchCategories = sp.GetRequiredService<SearchCategoriesUseCase>(); } catch { }
+            products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories);
+
+            // Create CategoriesViewModel for the category CRUD tab
+            CategoriesViewModel? categoriesEditor = null;
+            try
+            {
+                var searchCat = sp.GetRequiredService<SearchCategoriesUseCase>();
+                var createCat = sp.GetRequiredService<CreateCategoryUseCase>();
+                var updateCat = sp.GetRequiredService<UpdateCategoryUseCase>();
+                categoriesEditor = new CategoriesViewModel(searchCat, createCat, updateCat);
+            }
+            catch { }
+
+            if (categoriesEditor is not null)
+            {
+                products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories)
+                {
+                    CategoriesEditor = categoriesEditor
+                };
+            }
         }
         catch
         {
@@ -251,6 +279,28 @@ public partial class App : System.Windows.Application
         {
         }
 
+        LoyaltyViewModel? loyalty = null;
+        try
+        {
+            var getBalance = sp.GetRequiredService<GetLoyaltyBalanceUseCase>();
+            var redeemPoints = sp.GetRequiredService<RedeemLoyaltyPointsUseCase>();
+            loyalty = new LoyaltyViewModel(getBalance, redeemPoints);
+        }
+        catch
+        {
+        }
+
+        BarcodeViewModel? barcode = null;
+        try
+        {
+            var generateBarcode = sp.GetRequiredService<GenerateBarcodeUseCase>();
+            var printLabels = sp.GetRequiredService<PrintLabelsUseCase>();
+            barcode = new BarcodeViewModel(generateBarcode, printLabels, productLookup);
+        }
+        catch
+        {
+        }
+
         return new MainShellViewModel(cashier, dashboardUseCase)
         {
             Quote = quote,
@@ -262,7 +312,9 @@ public partial class App : System.Windows.Application
             Products = products,
             Inventory = inventory,
             Invoices = invoices,
-            Settings = settings
+            Settings = settings,
+            Loyalty = loyalty,
+            Barcode = barcode
         };
     }
 }

@@ -1,9 +1,12 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using POS.Application.DTOs.Customers;
+using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Sales;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Enums;
 using POS.Presentation.Shared.Cashier;
@@ -17,6 +20,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly IProductLookupService _productLookupService;
     private readonly PreviewPaymentUseCase _previewPaymentUseCase;
     private readonly CreateSaleUseCase? _createSaleUseCase;
+    private readonly RedeemLoyaltyPointsUseCase? _redeemLoyaltyPointsUseCase;
     private readonly RelayCommand _addSelectedProductCommand;
     private readonly RelayCommand _clearCartCommand;
     private readonly RelayCommand _confirmPrototypeSaleCommand;
@@ -29,6 +33,10 @@ public sealed class CashierViewModel : ViewModelBase
     private string _message = "Busca o escanea un producto para iniciar la venta.";
     private bool _canConfirm;
     private decimal _changeAmount;
+    private CustomerResult? _selectedCustomer;
+    private decimal _loyaltyDiscount;
+    private string _bankOrPlatform = string.Empty;
+    private int _loyaltyPointsToRedeem;
 
     public CashierViewModel(IProductLookupService productLookupService)
         : this(productLookupService, new PreviewPaymentUseCase())
@@ -36,12 +44,12 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     public CashierViewModel(IProductLookupService productLookupService, PreviewPaymentUseCase previewPaymentUseCase)
-        : this(productLookupService, previewPaymentUseCase, null)
+        : this(productLookupService, previewPaymentUseCase, null, null)
     {
     }
 
     public CashierViewModel(IProductLookupService productLookupService, CreateSaleUseCase createSaleUseCase)
-        : this(productLookupService, new PreviewPaymentUseCase(), createSaleUseCase)
+        : this(productLookupService, new PreviewPaymentUseCase(), createSaleUseCase, null)
     {
     }
 
@@ -49,10 +57,20 @@ public sealed class CashierViewModel : ViewModelBase
         IProductLookupService productLookupService,
         PreviewPaymentUseCase previewPaymentUseCase,
         CreateSaleUseCase? createSaleUseCase)
+        : this(productLookupService, previewPaymentUseCase, createSaleUseCase, null)
+    {
+    }
+
+    public CashierViewModel(
+        IProductLookupService productLookupService,
+        PreviewPaymentUseCase previewPaymentUseCase,
+        CreateSaleUseCase? createSaleUseCase,
+        RedeemLoyaltyPointsUseCase? redeemLoyaltyPointsUseCase)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _previewPaymentUseCase = previewPaymentUseCase ?? throw new ArgumentNullException(nameof(previewPaymentUseCase));
         _createSaleUseCase = createSaleUseCase;
+        _redeemLoyaltyPointsUseCase = redeemLoyaltyPointsUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -73,6 +91,7 @@ public sealed class CashierViewModel : ViewModelBase
         AddSelectedProductCommand = _addSelectedProductCommand;
         ClearCartCommand = _clearCartCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
+        ApplyRedemptionCommand = new RelayCommand(async _ => await ApplyRedemptionAsync().ConfigureAwait(true));
     }
 
     public ObservableCollection<ProductLookupResult> SearchResults { get; }
@@ -92,6 +111,38 @@ public sealed class CashierViewModel : ViewModelBase
     public Guid CashierUserId { get; set; }
 
     public Guid? CustomerId { get; set; }
+
+    public CustomerResult? SelectedCustomer
+    {
+        get => _selectedCustomer;
+        set
+        {
+            if (SetProperty(ref _selectedCustomer, value))
+            {
+                CustomerId = value?.Id;
+            }
+        }
+    }
+
+    public decimal LoyaltyDiscount
+    {
+        get => _loyaltyDiscount;
+        private set => SetProperty(ref _loyaltyDiscount, value);
+    }
+
+    public string BankOrPlatform
+    {
+        get => _bankOrPlatform;
+        set => SetProperty(ref _bankOrPlatform, value ?? string.Empty);
+    }
+
+    public int LoyaltyPointsToRedeem
+    {
+        get => _loyaltyPointsToRedeem;
+        set => SetProperty(ref _loyaltyPointsToRedeem, value);
+    }
+
+    public ICommand ApplyRedemptionCommand { get; }
 
     public string SearchText
     {
@@ -305,6 +356,43 @@ public sealed class CashierViewModel : ViewModelBase
         _ = ConfirmSaleAsync();
     }
 
+    public async Task ApplyRedemptionAsync(CancellationToken cancellationToken = default)
+    {
+        if (_redeemLoyaltyPointsUseCase is null)
+        {
+            Message = "El modulo de puntos de lealtad no esta disponible.";
+            return;
+        }
+
+        if (SelectedCustomer is null)
+        {
+            Message = "Selecciona un cliente para aplicar descuento por puntos.";
+            return;
+        }
+
+        if (LoyaltyPointsToRedeem <= 0)
+        {
+            Message = "Ingresa una cantidad de puntos mayor a cero.";
+            return;
+        }
+
+        try
+        {
+            var request = new RedeemPointsRequest(SelectedCustomer.Id, LoyaltyPointsToRedeem);
+            var result = await _redeemLoyaltyPointsUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+            LoyaltyDiscount = result.DiscountAmount;
+            Message = $"Descuento de lealtad aplicado: ${result.DiscountAmount:N0} ({result.PointsRedeemed} puntos).";
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (ArgumentException ex)
+        {
+            Message = ex.Message;
+        }
+    }
+
     private CreateSaleRequest BuildCreateSaleRequest()
     {
         IReadOnlyCollection<CreateSaleItemRequest> items = CartItems
@@ -327,7 +415,7 @@ public sealed class CashierViewModel : ViewModelBase
                 SelectedPaymentMethod.Method,
                 TotalAmount,
                 SelectedPaymentMethod.Method == PaymentMethod.Cash ? ReceivedAmount : null,
-                null)
+                string.IsNullOrWhiteSpace(BankOrPlatform) ? null : BankOrPlatform)
         ];
 
         return new CreateSaleRequest(CashierUserId, CustomerId, items, payments);
