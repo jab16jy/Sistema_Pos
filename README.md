@@ -48,7 +48,7 @@ Requirements:
 Launch the app by double-clicking `POS.Presentation.exe` inside `build_output/`, or from a terminal:
 
 ```cmd
-build_output\POS.Presentation.exe
+.\build_output\POS.Presentation.exe
 ```
 
 The database file (`pos.db`) and any local configuration are created in the same directory on first run.
