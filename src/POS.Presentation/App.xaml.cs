@@ -25,9 +25,18 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
-        _services = BuildServiceProvider();
-        DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
-        _scope = _services.CreateScope();
+        DispatcherUnhandledException += (_, ex) =>
+        {
+            System.Windows.MessageBox.Show(ex.Exception.ToString(), "Error de inicio");
+            ex.Handled = true;
+            Shutdown(1);
+        };
+
+        try
+        {
+            _services = BuildServiceProvider();
+            DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
+            _scope = _services.CreateScope();
 
         var shell = new Views.NavigationShellView
         {
@@ -36,6 +45,12 @@ public partial class App : System.Windows.Application
 
         MainWindow = shell;
         shell.Show();
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(ex.ToString(), "Error de inicio");
+            Shutdown(1);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

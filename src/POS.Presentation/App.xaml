@@ -211,5 +211,6 @@
     <converters:NullToVisibilityConverter x:Key="InverseNullToVisibilityConverter" IsInverse="True" />
     <converters:StringIsNotEmptyToVisibilityConverter x:Key="StringIsNotEmptyToVisibilityConverter" />
     <converters:DateOnlyToDateTimeConverter x:Key="DateOnlyToDateTimeConverter" />
+    <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter" />
   </Application.Resources>
 </Application>
