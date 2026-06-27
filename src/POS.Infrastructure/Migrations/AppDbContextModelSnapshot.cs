@@ -71,6 +71,47 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("CASH_CLOSINGS", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.BusinessSettings", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BackupDirectory")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BusinessAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrinterCommand")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrinterWorkingDirectory")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BUSINESS_SETTINGS", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Category", b =>
                 {
                     b.Property<Guid>("Id")
@@ -527,6 +568,36 @@ namespace POS.Infrastructure.Migrations
                     b.HasIndex("SaleId");
 
                     b.ToTable("SALE_ITEMS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.SaleReturn", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalSaleId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProcessedByUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ReturnedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OriginalSaleId")
+                        .IsUnique();
+
+                    b.ToTable("SALE_RETURNS", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Supplier", b =>

@@ -2,9 +2,13 @@ using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
+using POS.Application.UseCases.Inventory;
+using POS.Application.UseCases.Invoices;
+using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Sales;
+using POS.Application.UseCases.Settings;
 using POS.Infrastructure;
 using POS.Infrastructure.Services;
 using POS.Presentation.Shared.Prototype;
@@ -176,6 +180,62 @@ public partial class App : System.Windows.Application
         {
         }
 
+        ProductsViewModel? products = null;
+        try
+        {
+            var createProduct = sp.GetRequiredService<CreateProductUseCase>();
+            var updateProduct = sp.GetRequiredService<UpdateProductUseCase>();
+            var deleteProduct = sp.GetRequiredService<DeleteProductUseCase>();
+            var searchProducts = sp.GetRequiredService<SearchProductsUseCase>();
+            products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts);
+        }
+        catch
+        {
+        }
+
+        InventoryViewModel? inventory = null;
+        try
+        {
+            var queryStock = sp.GetRequiredService<QueryStockUseCase>();
+            var queryLowStock = sp.GetRequiredService<QueryLowStockUseCase>();
+            var queryMovementHistory = sp.GetRequiredService<QueryMovementHistoryUseCase>();
+            var adjustStock = sp.GetRequiredService<AdjustStockUseCase>();
+            inventory = new InventoryViewModel(queryStock, queryLowStock, queryMovementHistory, adjustStock)
+            {
+                OperatorUserId = cashier.CashierUserId
+            };
+        }
+        catch
+        {
+        }
+
+        InvoicesViewModel? invoices = null;
+        try
+        {
+            var querySalesHistory = sp.GetRequiredService<QuerySalesHistoryUseCase>();
+            var reprintReceipt = sp.GetRequiredService<ReprintReceiptUseCase>();
+            var processReturn = sp.GetRequiredService<ProcessReturnUseCase>();
+            invoices = new InvoicesViewModel(querySalesHistory, reprintReceipt, processReturn)
+            {
+                OperatorUserId = cashier.CashierUserId
+            };
+        }
+        catch
+        {
+        }
+
+        SettingsViewModel? settings = null;
+        try
+        {
+            var loadSettings = sp.GetRequiredService<LoadSettingsUseCase>();
+            var saveSettings = sp.GetRequiredService<SaveSettingsUseCase>();
+            var triggerBackup = sp.GetRequiredService<TriggerManualBackupUseCase>();
+            settings = new SettingsViewModel(loadSettings, saveSettings, triggerBackup);
+        }
+        catch
+        {
+        }
+
         return new MainShellViewModel(cashier, dashboardUseCase)
         {
             Quote = quote,
@@ -183,7 +243,11 @@ public partial class App : System.Windows.Application
             Customers = customers,
             Purchases = purchases,
             Receivables = receivables,
-            Reports = reports
+            Reports = reports,
+            Products = products,
+            Inventory = inventory,
+            Invoices = invoices,
+            Settings = settings
         };
     }
 }

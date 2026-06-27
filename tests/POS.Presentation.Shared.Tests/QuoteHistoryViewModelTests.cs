@@ -378,6 +378,9 @@ public sealed class QuoteHistoryViewModelTests
     {
         public Task AddAsync(Domain.Entities.Sale sale, CancellationToken ct = default) => Task.CompletedTask;
 
+        public Task<Domain.Entities.Sale?> GetByIdAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult<Domain.Entities.Sale?>(null);
+
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
             => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));
     }

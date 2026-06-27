@@ -1,0 +1,110 @@
+<UserControl x:Class="POS.Presentation.Views.InventoryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid Margin="0,8">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+      <TextBlock Text="Inventario" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
+      <TextBlock Text="{Binding Message}" Visibility="{Binding Message, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" Style="{StaticResource MutedText}" Margin="16,0,0,0" VerticalAlignment="Center" />
+    </StackPanel>
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="2*" />
+        <ColumnDefinition Width="3*" />
+      </Grid.ColumnDefinitions>
+      <Border Style="{StaticResource Card}" Margin="0,0,12,0">
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <Button Content="Ver stock" Command="{Binding LoadStockCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
+            <Button Content="Stock bajo" Command="{Binding LoadLowStockCommand}" />
+          </StackPanel>
+          <ListBox ItemsSource="{Binding StockLevels}" SelectedItem="{Binding SelectedProduct, Mode=TwoWay}" MaxHeight="500">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="0,6">
+                  <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Barcode}" Style="{StaticResource MutedText}" FontSize="11" />
+                  <TextBlock Style="{StaticResource MutedText}" FontSize="11">
+                    <Run Text="Stock: " />
+                    <Run Text="{Binding CurrentStock, Mode=OneWay}" />
+                    <Run Text=" / Mín: " />
+                    <Run Text="{Binding MinimumStock, Mode=OneWay}" />
+                  </TextBlock>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Text="Productos con stock bajo" FontWeight="SemiBold" Margin="0,16,0,8" />
+          <ListBox ItemsSource="{Binding LowStockProducts}" MaxHeight="200">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="0,6">
+                  <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" Foreground="OrangeRed" />
+                  <TextBlock Style="{StaticResource MutedText}" FontSize="11">
+                    <Run Text="Stock: " />
+                    <Run Text="{Binding CurrentStock, Mode=OneWay}" />
+                    <Run Text=" | Déficit: " />
+                    <Run Text="{Binding Deficit, Mode=OneWay}" />
+                  </TextBlock>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="1" Style="{StaticResource Card}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+          </Grid.RowDefinitions>
+          <StackPanel Margin="0,0,0,12">
+            <TextBlock Text="Ajuste de stock" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="2*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Margin="0,0,8,0">
+                <TextBlock Text="Cantidad (+/-)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding AdjustmentDelta, Mode=TwoWay}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                <TextBlock Text="Razón del ajuste" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding AdjustmentReason, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="Ej: Conteo físico, Daño, Corrección" />
+              </StackPanel>
+            </Grid>
+            <Button Content="Ajustar stock" Command="{Binding AdjustStockCommand}" Style="{StaticResource PrimaryButton}" />
+          </StackPanel>
+          <StackPanel Grid.Row="1">
+            <TextBlock Text="Historial de movimientos" FontWeight="SemiBold" Margin="0,12,0,8" />
+            <Button Content="Ver historial" Command="{Binding LoadMovementHistoryCommand}" Margin="0,0,0,8" />
+            <ScrollViewer MaxHeight="400">
+              <ItemsControl ItemsSource="{Binding MovementHistory}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Border Padding="0,6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
+                      <StackPanel>
+                        <TextBlock FontWeight="SemiBold">
+                          <Run Text="{Binding Type, Mode=OneWay}" />
+                          <Run Text=" - " />
+                          <Run Text="{Binding Quantity, Mode=OneWay}" />
+                          <Run Text=" unidades" />
+                        </TextBlock>
+                        <TextBlock Text="{Binding Reason}" Style="{StaticResource MutedText}" FontSize="11" />
+                        <TextBlock Text="{Binding CreatedAt, StringFormat='{}{0:yyyy-MM-dd HH:mm}'}" Style="{StaticResource MutedText}" FontSize="11" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>
