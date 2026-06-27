@@ -18,6 +18,12 @@ public sealed class CreateProductUseCase
 
     public async Task<Guid> ExecuteAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
     {
+        if (!string.IsNullOrWhiteSpace(request.Barcode) &&
+            await _products.GetByBarcodeAsync(request.Barcode, cancellationToken).ConfigureAwait(false) is not null)
+        {
+            throw new InvalidOperationException("Another product already uses this barcode.");
+        }
+
         var product = new Product(
             request.Name,
             request.CategoryId,

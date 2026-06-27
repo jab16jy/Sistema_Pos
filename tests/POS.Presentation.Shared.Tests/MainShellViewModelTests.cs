@@ -26,7 +26,7 @@ public sealed class MainShellViewModelTests
     }
 
     [Fact]
-    public void SelectingPlannedModule_ChangesMessageAndActionWithoutBusinessLogic()
+    public void SelectingImplementedModule_ChangesMessageAndActionWithoutBusinessLogic()
     {
         var viewModel = new MainShellViewModel();
         var productsModule = viewModel.Modules.Single(module => module.Key == "products");
@@ -34,8 +34,9 @@ public sealed class MainShellViewModelTests
         viewModel.SelectedModule = productsModule;
 
         Assert.False(viewModel.IsCashierSelected);
+        Assert.True(viewModel.IsProductsSelected);
         Assert.Equal("Abrir módulo", viewModel.MainActionText);
-        Assert.Contains("planificado", viewModel.OperatorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Productos", viewModel.OperatorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -77,6 +78,9 @@ public sealed class MainShellViewModelTests
         public StaticSaleSummaryRepository(DashboardSummaryData summary) => _summary = summary;
 
         public Task AddAsync(Domain.Entities.Sale sale, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<Domain.Entities.Sale?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<Domain.Entities.Sale?>(null);
 
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
             => Task.FromResult(_summary);

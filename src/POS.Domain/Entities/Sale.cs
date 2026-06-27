@@ -114,4 +114,24 @@ public sealed class Sale
 
         Status = SaleStatus.OnHold;
     }
+
+    public void MarkReturned()
+    {
+        if (Status == SaleStatus.Returned)
+        {
+            throw new InvalidOperationException("Sale already returned.");
+        }
+
+        if (Status == SaleStatus.Cancelled)
+        {
+            throw new InvalidOperationException("Cannot return a cancelled sale.");
+        }
+
+        if (Status != SaleStatus.Completed)
+        {
+            throw new InvalidOperationException("Only completed sales can be returned.");
+        }
+
+        Status = SaleStatus.Returned;
+    }
 }

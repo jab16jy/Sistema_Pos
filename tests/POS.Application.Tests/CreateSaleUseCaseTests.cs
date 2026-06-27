@@ -97,6 +97,9 @@ public sealed class CreateSaleUseCaseSettlementTests
     private sealed class InMemSaleRepo : ISaleRepository
     {
         public Task AddAsync(Sale sale, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<Sale?> GetByIdAsync(Guid id, CancellationToken ct = default)
+            => Task.FromResult<Sale?>(null);
+
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
             => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));
     }
@@ -171,6 +174,9 @@ public sealed class CreateSaleUseCaseTests
             Sales.Add(sale);
             return Task.CompletedTask;
         }
+
+        public Task<Sale?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(Sales.SingleOrDefault(sale => sale.Id == id));
 
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
             => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));

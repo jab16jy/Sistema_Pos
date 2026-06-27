@@ -33,15 +33,15 @@ public sealed class MainShellViewModel : ViewModelBase
         Modules = new ObservableCollection<ModuleNavigationItem>
         {
             new("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F2", true),
-            new("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", false),
-            new("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", false),
+            new("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", true),
+            new("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", true),
             new("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
             new("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes", "Alt+Q", IsImplemented: true),
             new("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", true),
             new("receivables", "Cuentas por Cobrar", "Consulta saldos pendientes y registra abonos.", "F7", true),
-            new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", false),
+            new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", true),
             new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F9", true),
-            new("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", false)
+            new("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", true)
         };
 
         Metrics = new ObservableCollection<DashboardMetric>
@@ -78,6 +78,14 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public ReportsViewModel? Reports { get; init; }
 
+    public ProductsViewModel? Products { get; init; }
+
+    public InventoryViewModel? Inventory { get; init; }
+
+    public InvoicesViewModel? Invoices { get; init; }
+
+    public SettingsViewModel? Settings { get; init; }
+
     public ICommand SelectModuleCommand { get; }
 
     public ModuleNavigationItem SelectedModule
@@ -95,11 +103,15 @@ public sealed class MainShellViewModel : ViewModelBase
                 UpdateOperatorMessage(value);
                 OnPropertyChanged(nameof(MainActionText));
                 OnPropertyChanged(nameof(IsCashierSelected));
+                OnPropertyChanged(nameof(IsProductsSelected));
+                OnPropertyChanged(nameof(IsInventorySelected));
                 OnPropertyChanged(nameof(IsQuotesSelected));
                 OnPropertyChanged(nameof(IsCustomersSelected));
                 OnPropertyChanged(nameof(IsPurchasesSelected));
                 OnPropertyChanged(nameof(IsReceivablesSelected));
+                OnPropertyChanged(nameof(IsInvoicesSelected));
                 OnPropertyChanged(nameof(IsReportsSelected));
+                OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
             }
         }
@@ -115,6 +127,10 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsCashierSelected => SelectedModule.Key == "cashier";
 
+    public bool IsProductsSelected => SelectedModule.Key == "products";
+
+    public bool IsInventorySelected => SelectedModule.Key == "inventory";
+
     public bool IsQuotesSelected => SelectedModule.Key == "quotes";
 
     public bool IsCustomersSelected => SelectedModule.Key == "customers";
@@ -123,9 +139,13 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsReceivablesSelected => SelectedModule.Key == "receivables";
 
+    public bool IsInvoicesSelected => SelectedModule.Key == "invoices";
+
     public bool IsReportsSelected => SelectedModule.Key == "reports";
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsReportsSelected;
+    public bool IsSettingsSelected => SelectedModule.Key == "settings";
+
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsSettingsSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -167,12 +187,16 @@ public sealed class MainShellViewModel : ViewModelBase
     {
         OperatorMessage = module switch
         {
-            { Key: "cashier", IsImplemented: true } => "Módulo Caja activo como prototipo funcional. Valida carrito y pago sin guardar ventas todavía.",
-            { Key: "customers", IsImplemented: true } => "Módulo Clientes activo. Gestiona datos operativos e historial sin lógica de negocio en la UI.",
-            { Key: "quotes", IsImplemented: true } => "Módulo Cotizaciones activo para crear, consultar y convertir cotizaciones.",
-            { Key: "suppliers", IsImplemented: true } => "Módulo Proveedores activo. Registra proveedores y compras sin lógica de negocio en la UI.",
+            { Key: "cashier", IsImplemented: true } => "Módulo Caja activo. Escanea productos, cobra y confirma ventas.",
+            { Key: "products", IsImplemented: true } => "Módulo Productos activo. Registra catálogo, precios, stock mínimo y códigos.",
+            { Key: "inventory", IsImplemented: true } => "Módulo Inventario activo. Consulta existencias, bajo stock y movimientos.",
+            { Key: "customers", IsImplemented: true } => "Módulo Clientes activo. Gestiona datos operativos e historial.",
+            { Key: "quotes", IsImplemented: true } => "Módulo Cotizaciones activo. Crear, consultar y convertir cotizaciones.",
+            { Key: "suppliers", IsImplemented: true } => "Módulo Proveedores activo. Registra proveedores y compras.",
             { Key: "receivables", IsImplemented: true } => "Módulo Cuentas por Cobrar activo. Consulta saldos pendientes y registra abonos.",
+            { Key: "invoices", IsImplemented: true } => "Módulo Facturas activo. Reimprime recibos y procesa devoluciones.",
             { Key: "reports", IsImplemented: true } => "Módulo Reportes activo. Consulta totales operativos separados por efectivo, digital y abonos.",
+            { Key: "settings", IsImplemented: true } => "Módulo Configuración activo. Negocio, impresora, backup y moneda.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
         };
     }

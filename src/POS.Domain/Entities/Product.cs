@@ -53,6 +53,50 @@ public sealed class Product
 
     public void Deactivate() => IsActive = false;
 
+    public void UpdateDetails(
+        string name,
+        Guid categoryId,
+        Money costPrice,
+        Money salePrice,
+        StockQuantity minimumStock,
+        string? description = null,
+        Barcode? barcode = null)
+    {
+        if (!IsActive)
+        {
+            throw new InvalidOperationException("Cannot update an inactive product.");
+        }
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Product name is required.", nameof(name));
+        }
+
+        Name = name.Trim();
+        Description = description?.Trim() ?? string.Empty;
+        CategoryId = categoryId;
+        CostPrice = costPrice;
+        SalePrice = salePrice;
+        MinimumStock = minimumStock.Value;
+        Barcode = barcode?.Value;
+    }
+
+    public void AdjustStock(decimal delta)
+    {
+        if (delta == 0m)
+        {
+            throw new ArgumentException("Stock adjustment cannot be zero.", nameof(delta));
+        }
+
+        if (delta > 0m)
+        {
+            IncreaseStock(new Quantity(delta));
+            return;
+        }
+
+        DecreaseStock(new Quantity(Math.Abs(delta)));
+    }
+
     public void DecreaseStock(Quantity quantity)
     {
         if (CurrentStock < quantity.Value)

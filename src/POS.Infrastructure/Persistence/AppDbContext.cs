@@ -24,6 +24,8 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<DocumentSendLog> DocumentSendLogs => Set<DocumentSendLog>();
     public DbSet<Receivable> Receivables => Set<Receivable>();
     public DbSet<ReceivableSettlement> ReceivableSettlements => Set<ReceivableSettlement>();
+    public DbSet<SaleReturn> SaleReturns => Set<SaleReturn>();
+    public DbSet<BusinessSettings> BusinessSettings => Set<BusinessSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

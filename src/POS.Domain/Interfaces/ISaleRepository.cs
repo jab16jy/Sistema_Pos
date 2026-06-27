@@ -5,6 +5,8 @@ namespace POS.Domain.Interfaces;
 public interface ISaleRepository
 {
     Task AddAsync(Sale sale, CancellationToken cancellationToken = default);
+    Task<Sale?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+
     Task<DashboardSummaryData> GetDashboardSummaryAsync(
         DateTimeOffset from,
         DateTimeOffset to,

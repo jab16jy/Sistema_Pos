@@ -183,6 +183,9 @@ public sealed class CashierViewModelTests
             return Task.CompletedTask;
         }
 
+        public Task<Sale?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(Sales.FirstOrDefault(sale => sale.Id == id));
+
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
             => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));
     }
