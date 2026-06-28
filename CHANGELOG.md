@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.6.0...v0.7.0) (2026-06-28)
+
+
+### Features
+
+* PDF/Excel export for reports module and ESC/POS thermal printer service ([ecb048d](https://github.com/jab16jy/Sistema_Pos/commit/ecb048d303db5920fa2254d2280a9a71676141b6))
+* PDF/Excel report export + ESC/POS thermal printer service ([380d679](https://github.com/jab16jy/Sistema_Pos/commit/380d67975a14a034b81e4ab667ff6ca6d2054eb1))
+
 ## [0.6.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.5.0...v0.6.0) (2026-06-28)
 
 
