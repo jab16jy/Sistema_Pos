@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.9.0...v0.10.0) (2026-06-28)
+
+
+### Features
+
+* add phase 3 - IVA 19%, CSV import, audit log viewer, cashier shifts ([78d990c](https://github.com/jab16jy/Sistema_Pos/commit/78d990cf465155f6b6cbe781cf3f23972e8e5b1c))
+* phase 3 - IVA 19%, CSV import, audit log viewer, cashier shifts ([5c27e41](https://github.com/jab16jy/Sistema_Pos/commit/5c27e41505134860763c0546562fdba3ee05664e))
+
 ## [0.9.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.8.1...v0.9.0) (2026-06-28)
 
 
