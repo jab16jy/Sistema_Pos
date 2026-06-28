@@ -378,7 +378,7 @@ public sealed class CashierViewModel : ViewModelBase
 
         try
         {
-            var request = new RedeemPointsRequest(SelectedCustomer.Id, LoyaltyPointsToRedeem);
+            var request = new RedeemPointsRequest(SelectedCustomer.Id, LoyaltyPointsToRedeem, TotalAmount);
             var result = await _redeemLoyaltyPointsUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
             LoyaltyDiscount = result.DiscountAmount;
             Message = $"Descuento de lealtad aplicado: ${result.DiscountAmount:N0} ({result.PointsRedeemed} puntos).";

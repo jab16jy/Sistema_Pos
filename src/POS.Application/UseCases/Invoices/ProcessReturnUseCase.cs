@@ -1,6 +1,7 @@
 using POS.Application.DTOs.Invoices;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
 
@@ -12,6 +13,7 @@ public sealed class ProcessReturnUseCase
     private readonly IProductRepository _products;
     private readonly IInventoryRepository _inventory;
     private readonly ISaleReturnRepository _saleReturns;
+    private readonly IUserRepository _users;
     private readonly IUnitOfWork _unitOfWork;
 
     public ProcessReturnUseCase(
@@ -19,13 +21,15 @@ public sealed class ProcessReturnUseCase
         IProductRepository products,
         IInventoryRepository inventory,
         ISaleReturnRepository saleReturns,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IUserRepository users)
     {
         _sales = sales;
         _products = products;
         _inventory = inventory;
         _saleReturns = saleReturns;
         _unitOfWork = unitOfWork;
+        _users = users;
     }
 
     public async Task<Guid> ExecuteAsync(ProcessReturnRequest request, CancellationToken cancellationToken = default)
@@ -33,6 +37,15 @@ public sealed class ProcessReturnUseCase
         if (request.ProcessedByUserId == Guid.Empty)
         {
             throw new ArgumentException("Processed by user id is required.", nameof(request));
+        }
+
+        // R-IR-05: Only administrators can process sale returns
+        var user = await _users.GetByIdAsync(request.ProcessedByUserId, cancellationToken).ConfigureAwait(false)
+            ?? throw new UnauthorizedActionException("ProcessReturn");
+
+        if (user.Role != UserRole.Administrator)
+        {
+            throw new UnauthorizedActionException("ProcessReturn");
         }
 
         if (string.IsNullOrWhiteSpace(request.Reason))

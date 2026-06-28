@@ -20,7 +20,7 @@ public sealed class RedeemLoyaltyPointsUseCaseTests
 
         var useCase = new RedeemLoyaltyPointsUseCase(repo, uow);
 
-        var result = await useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10), TestContext.Current.CancellationToken);
+        var result = await useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10, SaleTotal: 100_000m), TestContext.Current.CancellationToken);
 
         Assert.Equal(10, result.PointsRedeemed);
         Assert.Equal(10_000m, result.DiscountAmount); // 10 pts * 1000 COP
@@ -42,7 +42,7 @@ public sealed class RedeemLoyaltyPointsUseCaseTests
         var useCase = new RedeemLoyaltyPointsUseCase(repo, uow);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10), TestContext.Current.CancellationToken));
+            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10, SaleTotal: 100_000m), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -56,7 +56,7 @@ public sealed class RedeemLoyaltyPointsUseCaseTests
         var useCase = new RedeemLoyaltyPointsUseCase(repo, uow);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10), TestContext.Current.CancellationToken));
+            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10, SaleTotal: 100_000m), TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -72,10 +72,54 @@ public sealed class RedeemLoyaltyPointsUseCaseTests
 
         // Requesting 10 pts when minimum is 50 should throw
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10), TestContext.Current.CancellationToken));
+            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10, SaleTotal: 100_000m), TestContext.Current.CancellationToken));
     }
 
     // --- Stubs ---
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDiscountExceedsSaleTotal_CapsToSaleTotal()
+    {
+        var customerId = Guid.NewGuid();
+        var account = new LoyaltyAccount(customerId);
+        // 1 pt = 1_000 COP, minimum redeem = 1
+        var rule = new LoyaltyRule(0.001m, 1_000m, minimumRedeemPoints: 1);
+        var repo = new InMemLoyaltyRepository(account, rule, balance: 100);
+        var uow = new CountingUow();
+
+        var useCase = new RedeemLoyaltyPointsUseCase(repo, uow);
+
+        // Requesting 10 pts would give 10_000 COP discount, but sale total is only 5_500
+        // Max whole points that fit: floor(5500 / 1000) = 5 pts = 5_000 COP
+        var result = await useCase.ExecuteAsync(
+            new RedeemPointsRequest(customerId, 10, SaleTotal: 5_500m),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(5, result.PointsRedeemed);
+        Assert.Equal(5_000m, result.DiscountAmount);
+        Assert.Single(repo.Transactions);
+        Assert.Equal(-5, repo.Transactions[0].Points);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDiscountExceedsSaleTotal_AndCappedBelowMinimum_Throws()
+    {
+        var customerId = Guid.NewGuid();
+        var account = new LoyaltyAccount(customerId);
+        // 1 pt = 1_000 COP, minimum redeem = 5
+        var rule = new LoyaltyRule(0.001m, 1_000m, minimumRedeemPoints: 5);
+        var repo = new InMemLoyaltyRepository(account, rule, balance: 100);
+        var uow = new CountingUow();
+
+        var useCase = new RedeemLoyaltyPointsUseCase(repo, uow);
+
+        // Requesting 10 pts = 10_000 COP discount, sale total = 3_000
+        // Max whole points that fit: floor(3000 / 1000) = 3, but minimum is 5 → throw
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(
+                new RedeemPointsRequest(customerId, 10, SaleTotal: 3_000m),
+                TestContext.Current.CancellationToken));
+    }
 
     private sealed class InMemLoyaltyRepository : ILoyaltyRepository
     {

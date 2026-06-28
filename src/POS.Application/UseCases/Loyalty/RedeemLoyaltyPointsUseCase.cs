@@ -7,7 +7,8 @@ namespace POS.Application.UseCases.Loyalty;
 
 /// <summary>
 /// Redeems loyalty points for a customer and returns the resulting COP discount amount.
-/// Validates that the customer has sufficient balance and meets the minimum redemption threshold.
+/// Validates that the customer has sufficient balance, meets the minimum redemption threshold,
+/// and caps the discount so it never exceeds the sale total (prevents negative totals).
 /// </summary>
 public sealed class RedeemLoyaltyPointsUseCase
 {
@@ -25,6 +26,11 @@ public sealed class RedeemLoyaltyPointsUseCase
         if (request.PointsToRedeem <= 0)
         {
             throw new ArgumentException("Points to redeem must be greater than zero.", nameof(request));
+        }
+
+        if (request.SaleTotal < 0m)
+        {
+            throw new ArgumentException("Sale total cannot be negative.", nameof(request));
         }
 
         var rule = await _loyalty.GetActiveRuleAsync(cancellationToken).ConfigureAwait(false)
@@ -51,18 +57,39 @@ public sealed class RedeemLoyaltyPointsUseCase
                 $"Insufficient loyalty balance. Available: {balance}, requested: {request.PointsToRedeem}.");
         }
 
-        var discount = rule.DiscountFor(request.PointsToRedeem);
+        var fullDiscount = rule.DiscountFor(request.PointsToRedeem);
+
+        // Guard: cap the discount to the sale total to prevent negative totals.
+        // When the computed discount exceeds the sale total, reduce the redeemed points
+        // so the discount fits within the sale total.
+        // SaleTotal == 0 means no sale context (standalone redemption) — skip the cap.
+        var actualPointsRedeemed = request.PointsToRedeem;
+        var actualDiscount = fullDiscount.Amount;
+
+        if (request.SaleTotal > 0m && actualDiscount > request.SaleTotal)
+        {
+            actualPointsRedeemed = (int)Math.Floor(request.SaleTotal.Value / rule.RedemptionValuePerPoint);
+
+            if (actualPointsRedeemed < rule.MinimumRedeemPoints)
+            {
+                throw new InvalidOperationException(
+                    $"Redemption discount ({actualDiscount}) exceeds sale total ({request.SaleTotal}), " +
+                    $"and the maximum redeemable points ({actualPointsRedeemed}) is below the minimum ({rule.MinimumRedeemPoints}).");
+            }
+
+            actualDiscount = rule.DiscountFor(actualPointsRedeemed).Amount;
+        }
 
         var transaction = new LoyaltyTransaction(
             account.Id,
             LoyaltyTransactionType.Redeemed,
-            -request.PointsToRedeem,  // negative = deduction
+            -actualPointsRedeemed,
             null,
-            $"Points redeemed: {request.PointsToRedeem} pts = {discount.Amount} COP discount");
+            $"Points redeemed: {actualPointsRedeemed} pts = {actualDiscount} COP discount");
 
         await _loyalty.AddTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        return new RedeemPointsResult(request.PointsToRedeem, discount.Amount);
+        return new RedeemPointsResult(actualPointsRedeemed, actualDiscount);
     }
 }

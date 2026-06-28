@@ -14,74 +14,43 @@ public sealed class ProfitQueryService : IProfitQueryService
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
-    /// <summary>
-    /// Loads sale items with their parent sale's CreatedAt for in-memory date filtering.
-    /// SQLite cannot translate DateTimeOffset comparisons, so we project raw columns
-    /// and filter/aggregate in memory.
-    /// </summary>
-    private async Task<List<SaleItemRow>> LoadSaleItemsAsync(CancellationToken ct)
-    {
-        return await _dbContext.Sales
-            .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
-            .SelectMany(s => s.Items.Select(si => new SaleItemRow
-            {
-                CreatedAt = s.CreatedAt,
-                ProductId = si.ProductId,
-                ProductName = si.ProductName,
-                UnitPriceAmount = si.UnitPrice.Amount,
-                UnitCostAmount = si.UnitCost.Amount,
-                Quantity = si.Quantity,
-                DiscountAmount = si.Discount.Amount
-            }))
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-    }
-
-    private async Task<List<PaymentRow>> LoadPaymentsAsync(CancellationToken ct)
-    {
-        return await _dbContext.Sales
-            .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
-            .SelectMany(s => s.Payments.Select(p => new PaymentRow
-            {
-                CreatedAt = s.CreatedAt,
-                BankOrPlatform = p.BankOrPlatform,
-                AmountValue = p.Amount.Amount
-            }))
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
-    }
-
     public async Task<IReadOnlyList<ProductMarginResult>> GetMarginByProductAsync(
         DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
     {
         var fromOffset = new DateTimeOffset(from, TimeOnly.MinValue, TimeSpan.Zero);
         var toOffset = new DateTimeOffset(to, TimeOnly.MaxValue, TimeSpan.Zero);
 
-        var allItems = await LoadSaleItemsAsync(cancellationToken).ConfigureAwait(false);
-
-        var results = allItems
-            .Where(x => x.CreatedAt >= fromOffset && x.CreatedAt <= toOffset)
-            .GroupBy(x => new { x.ProductId, x.ProductName })
-            .Select(g =>
+        var results = await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= fromOffset && s.CreatedAt <= toOffset)
+            .SelectMany(s => s.Items)
+            .GroupBy(si => new { si.ProductId, si.ProductName })
+            .Select(g => new
             {
-                var totalRevenue = g.Sum(x => (x.UnitPriceAmount * x.Quantity) - x.DiscountAmount);
-                var totalCost = g.Sum(x => x.UnitCostAmount * x.Quantity);
-                var margin = totalRevenue - totalCost;
-                var marginPercent = totalRevenue > 0 ? margin / totalRevenue * 100m : 0m;
+                g.Key.ProductId,
+                g.Key.ProductName,
+                TotalRevenue = g.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount),
+                TotalCost = g.Sum(si => si.UnitCost.Amount * si.Quantity)
+            })
+            .OrderByDescending(x => x.TotalRevenue - x.TotalCost)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return results
+            .Select(x =>
+            {
+                var margin = x.TotalRevenue - x.TotalCost;
+                var marginPercent = x.TotalRevenue > 0 ? margin / x.TotalRevenue * 100m : 0m;
                 return new ProductMarginResult(
-                    g.Key.ProductId,
-                    g.Key.ProductName,
-                    totalRevenue,
-                    totalCost,
+                    x.ProductId,
+                    x.ProductName,
+                    x.TotalRevenue,
+                    x.TotalCost,
                     margin,
                     marginPercent);
             })
-            .OrderByDescending(r => r.GrossMargin)
             .ToList();
-
-        return results;
     }
 
     public async Task<IReadOnlyList<TopSellerResult>> GetTopSellersAsync(
@@ -90,21 +59,21 @@ public sealed class ProfitQueryService : IProfitQueryService
         var fromOffset = new DateTimeOffset(from, TimeOnly.MinValue, TimeSpan.Zero);
         var toOffset = new DateTimeOffset(to, TimeOnly.MaxValue, TimeSpan.Zero);
 
-        var allItems = await LoadSaleItemsAsync(cancellationToken).ConfigureAwait(false);
-
-        var results = allItems
-            .Where(x => x.CreatedAt >= fromOffset && x.CreatedAt <= toOffset)
-            .GroupBy(x => new { x.ProductId, x.ProductName })
+        return await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= fromOffset && s.CreatedAt <= toOffset)
+            .SelectMany(s => s.Items)
+            .GroupBy(si => new { si.ProductId, si.ProductName })
             .Select(g => new TopSellerResult(
                 g.Key.ProductId,
                 g.Key.ProductName,
-                (int)g.Sum(x => x.Quantity),
-                g.Sum(x => (x.UnitPriceAmount * x.Quantity) - x.DiscountAmount)))
+                (int)g.Sum(si => si.Quantity),
+                g.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount)))
             .OrderByDescending(r => r.UnitsSold)
             .Take(top)
-            .ToList();
-
-        return results;
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 
     public async Task<PeriodComparisonResult> GetPeriodComparisonAsync(
@@ -117,15 +86,38 @@ public sealed class ProfitQueryService : IProfitQueryService
         var priFromOffset = new DateTimeOffset(priorFrom, TimeOnly.MinValue, TimeSpan.Zero);
         var priToOffset = new DateTimeOffset(priorTo, TimeOnly.MaxValue, TimeSpan.Zero);
 
-        var allItems = await LoadSaleItemsAsync(cancellationToken).ConfigureAwait(false);
+        // Server-side aggregation: SumAsync pushes aggregation to SQLite
+        var curRevenue = await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= curFromOffset && s.CreatedAt <= curToOffset)
+            .SelectMany(s => s.Items)
+            .SumAsync(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount, cancellationToken)
+            .ConfigureAwait(false);
 
-        var currentItems = allItems.Where(x => x.CreatedAt >= curFromOffset && x.CreatedAt <= curToOffset);
-        var priorItems = allItems.Where(x => x.CreatedAt >= priFromOffset && x.CreatedAt <= priToOffset);
+        var curCost = await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= curFromOffset && s.CreatedAt <= curToOffset)
+            .SelectMany(s => s.Items)
+            .SumAsync(si => si.UnitCost.Amount * si.Quantity, cancellationToken)
+            .ConfigureAwait(false);
 
-        var curRevenue = currentItems.Sum(x => (x.UnitPriceAmount * x.Quantity) - x.DiscountAmount);
-        var curCost = currentItems.Sum(x => x.UnitCostAmount * x.Quantity);
-        var priRevenue = priorItems.Sum(x => (x.UnitPriceAmount * x.Quantity) - x.DiscountAmount);
-        var priCost = priorItems.Sum(x => x.UnitCostAmount * x.Quantity);
+        var priRevenue = await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= priFromOffset && s.CreatedAt <= priToOffset)
+            .SelectMany(s => s.Items)
+            .SumAsync(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount, cancellationToken)
+            .ConfigureAwait(false);
+
+        var priCost = await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= priFromOffset && s.CreatedAt <= priToOffset)
+            .SelectMany(s => s.Items)
+            .SumAsync(si => si.UnitCost.Amount * si.Quantity, cancellationToken)
+            .ConfigureAwait(false);
 
         var growthPercent = priRevenue > 0
             ? (curRevenue - priRevenue) / priRevenue * 100m
@@ -144,37 +136,18 @@ public sealed class ProfitQueryService : IProfitQueryService
         var fromOffset = new DateTimeOffset(from, TimeOnly.MinValue, TimeSpan.Zero);
         var toOffset = new DateTimeOffset(to, TimeOnly.MaxValue, TimeSpan.Zero);
 
-        var payments = await LoadPaymentsAsync(cancellationToken).ConfigureAwait(false);
-
-        var results = payments
-            .Where(x => x.CreatedAt >= fromOffset && x.CreatedAt <= toOffset)
-            .GroupBy(x => x.BankOrPlatform ?? "Unknown")
+        return await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= fromOffset && s.CreatedAt <= toOffset)
+            .SelectMany(s => s.Payments)
+            .GroupBy(p => p.BankOrPlatform ?? "Unknown")
             .Select(g => new PlatformBreakdownResult(
                 g.Key,
-                g.Sum(x => x.AmountValue),
+                g.Sum(p => p.Amount.Amount),
                 g.Count()))
             .OrderByDescending(r => r.TotalAmount)
-            .ToList();
-
-        return results;
-    }
-
-    // Internal projection types for clean in-memory aggregation
-    private sealed class SaleItemRow
-    {
-        public DateTimeOffset CreatedAt { get; init; }
-        public Guid ProductId { get; init; }
-        public string ProductName { get; init; } = string.Empty;
-        public decimal UnitPriceAmount { get; init; }
-        public decimal UnitCostAmount { get; init; }
-        public decimal Quantity { get; init; }
-        public decimal DiscountAmount { get; init; }
-    }
-
-    private sealed class PaymentRow
-    {
-        public DateTimeOffset CreatedAt { get; init; }
-        public string? BankOrPlatform { get; init; }
-        public decimal AmountValue { get; init; }
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
 }

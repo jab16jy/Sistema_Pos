@@ -131,7 +131,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
 
         try
         {
-            var request = new RedeemPointsRequest(SelectedCustomer.Id, PointsToRedeem);
+            var request = new RedeemPointsRequest(SelectedCustomer.Id, PointsToRedeem, SaleTotal: 0m);
             var result = await _redeemPoints.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
             Message = $"Redimidos {result.PointsRedeemed} puntos. Descuento aplicado: ${result.DiscountAmount:N0}.";
             PointsToRedeem = 0;

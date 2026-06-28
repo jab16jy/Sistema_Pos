@@ -18,38 +18,48 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
         ReportRangeRequest request,
         CancellationToken cancellationToken = default)
     {
-        // SQLite cannot translate DateTimeOffset comparisons in LINQ, so we load
-        // completed sales with their items/payments and filter by date in memory.
-        // Aggregation is then performed on the filtered in-memory set.
+        // SQLite limitation: DateTimeOffset comparisons with SelectMany+SumAsync cannot be translated.
+        // Filter by status server-side, then evaluate date range in memory.
+        // For production SQL Server/PostgreSQL, this would be fully server-side.
+
         var completedSales = await _dbContext.Sales
             .AsNoTracking()
             .Where(s => s.Status == SaleStatus.Completed)
-            .Include(s => s.Items)
-            .Include(s => s.Payments)
+            .Select(s => new
+            {
+                s.Items,
+                s.Payments,
+                s.CreatedAt
+            })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var relevantSales = completedSales
+        var filteredSales = completedSales
             .Where(s => s.CreatedAt >= request.From && s.CreatedAt <= request.To)
             .ToList();
 
-        decimal billedSalesTotal = relevantSales
+        // Billed sales total: sum of item subtotals for completed sales in range
+        decimal billedSalesTotal = filteredSales
             .SelectMany(s => s.Items)
             .Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount);
 
-        decimal saleCashCollected = relevantSales
+        // Cash collected from sales
+        decimal saleCashCollected = filteredSales
             .SelectMany(s => s.Payments)
             .Where(p => p.Method == PaymentMethod.Cash)
             .Sum(p => p.Amount.Amount);
 
-        decimal saleDigitalCollected = relevantSales
+        // Digital collected from sales
+        decimal saleDigitalCollected = filteredSales
             .SelectMany(s => s.Payments)
             .Where(p => p.Method != PaymentMethod.Cash)
             .Sum(p => p.Amount.Amount);
 
-        // Receivable settlements — also loaded and filtered in memory for SQLite compat
+        // Receivable settlements in range — SQLite limitation: DateTimeOffset comparison
+        // with SumAsync cannot be translated. Materialize then filter in memory.
         var allSettlements = await _dbContext.ReceivableSettlements
             .AsNoTracking()
+            .Select(rs => new { rs.Amount, rs.AppliedAt })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 

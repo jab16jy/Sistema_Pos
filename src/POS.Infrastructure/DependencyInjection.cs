@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<ICashClosingRepository, CashClosingRepository>();
         services.AddScoped<ILoyaltyRepository, LoyaltyRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         // Infrastructure services
         services.AddScoped<IPrintService, PrintService>();

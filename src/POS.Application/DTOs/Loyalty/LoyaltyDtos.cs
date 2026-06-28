@@ -26,7 +26,8 @@ public sealed record EarnPointsRequest(
 /// <summary>Request to redeem points at checkout.</summary>
 public sealed record RedeemPointsRequest(
     Guid CustomerId,
-    int PointsToRedeem);
+    int PointsToRedeem,
+    decimal? SaleTotal = null);
 
 /// <summary>Result of a successful redemption — includes the COP discount amount.</summary>
 public sealed record RedeemPointsResult(
