@@ -89,3 +89,77 @@ The system MUST allow processing full returns for completed sales.
 - WHEN the sale is returned
 - THEN product X stock MUST increase from 17 to 20
 - AND a stock movement with type "RETURN" MUST be recorded
+
+### Requirement: Item-level partial return (SaleReturn entity)
+
+The system MUST support item-level partial returns via a SaleReturn container entity that holds one or more SaleReturnItem records. A unique index on OriginalSaleId enforces one return event per sale.
+
+**Attributes required:**
+- `Id` (Guid)
+- `OriginalSaleId` (Guid, FK to Sale)
+- `ReturnDate` (DateTimeOffset)
+- `ProcessedByUserId` (Guid, FK to User)
+- `Reason` (string, required, max 500 chars)
+- `TotalRefundAmount` (decimal) — sum of all SaleReturnItem.RefundAmount values
+- `Items` (IReadOnlyList<SaleReturnItem>)
+
+#### Scenario: Partial return of 2 out of 5 units of a single item
+
+- GIVEN Sale S1 contains SaleItem: ProductX, Qty=5, UnitPrice=$10,000 COP
+- AND no SaleReturn exists for S1
+- WHEN an Administrator creates a SaleReturn for S1 with:
+  - SaleReturnItem: ProductX, QuantityReturned=2, UnitPrice=$10,000
+  - Reason="Producto dañado"
+- THEN a SaleReturn record is persisted with OriginalSaleId=S1, TotalRefundAmount=$20,000
+- AND a SaleReturnItem record is persisted with QuantityReturned=2, RefundAmount=$20,000
+- AND an InventoryMovement of type RETURN with Quantity=+2 for ProductX is persisted
+- AND all records are saved in the same database transaction
+- AND the stock of ProductX increases by 2
+
+### Requirement: SaleReturnItem records per-item return detail
+
+A SaleReturnItem entity MUST record per-item return detail including ProductId, QuantityReturned (>= 1 and <= original SaleItem quantity), UnitPrice from the original SaleItem, and RefundAmount = QuantityReturned × UnitPrice.
+
+#### Scenario: Return quantity exceeding original sale quantity is rejected
+
+- GIVEN Sale S1 contains SaleItem: ProductY, Qty=3, UnitPrice=$5,000 COP
+- WHEN an Administrator attempts a SaleReturn with SaleReturnItem: ProductY, QuantityReturned=4
+- THEN the Application layer returns a validation error: "La cantidad a devolver (4) supera la cantidad vendida (3) para ProductY"
+- AND no SaleReturn is persisted
+
+#### Scenario: Second return attempt for the same sale is rejected
+
+- GIVEN Sale S1 already has a SaleReturn (SaleReturn_A)
+- WHEN an Administrator attempts to create a second SaleReturn for S1
+- THEN the Application layer returns an error: "Ya existe una devolución registrada para esta venta"
+- AND no new SaleReturn record is created
+
+#### Scenario: Return with zero items is rejected
+
+- GIVEN Sale S1 with valid items
+- WHEN an Administrator submits a SaleReturn with an empty Items list
+- THEN the Application layer returns a validation error: "Debe incluir al menos un artículo en la devolución"
+- AND no SaleReturn is persisted
+
+### Requirement: Return restores inventory atomically
+
+When a SaleReturn is confirmed, for each SaleReturnItem an InventoryMovement of type RETURN (positive quantity) MUST be created. All InventoryMovements and the SaleReturn + SaleReturnItems MUST be saved in a single database transaction. If any part fails, the transaction MUST be rolled back entirely.
+
+#### Scenario: Return rollback when InventoryMovement insert fails
+
+- GIVEN a valid SaleReturn is being processed
+- WHEN the InventoryMovement insert raises a database error
+- THEN the entire transaction is rolled back
+- AND no SaleReturn, SaleReturnItem, or InventoryMovement record is persisted
+- AND the Application layer surfaces the error to the Presentation layer
+
+### Requirement: Administrator authorization for returns
+
+Initiating a partial return MUST require the current user to have the Administrator role. Cashier-role users MUST see an error message if they attempt to access the return workflow.
+
+#### Scenario: Cashier cannot initiate a return
+
+- GIVEN a user with role=Cashier is logged in
+- WHEN the cashier attempts to access the return workflow for any sale
+- THEN the Application layer returns an authorization error
+- AND the return screen is not accessible to the cashier

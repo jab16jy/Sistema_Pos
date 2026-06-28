@@ -26,48 +26,48 @@
 
 ### New entities and enums
 
-- [ ] Task 1.1 — Create enum `src/POS.Domain/Enums/LoyaltyTransactionType.cs`
+- [x] Task 1.1 — Create enum `src/POS.Domain/Enums/LoyaltyTransactionType.cs`
   - Values: `Earned = 1`, `Redeemed = 2`
   - Spec: R-LP-02
 
-- [ ] Task 1.2 — Create entity `src/POS.Domain/Entities/LoyaltyAccount.cs`
+- [x] Task 1.2 — Create entity `src/POS.Domain/Entities/LoyaltyAccount.cs`
   - Props: `Guid Id`, `Guid CustomerId` (unique FK to Customer), `DateTime CreatedAt`
   - Factory ctor: `LoyaltyAccount(Guid customerId)` — guard against `Guid.Empty`
   - No stored Balance column — balance is computed at query time via `SUM(Points)`
   - Spec: R-LP-01
 
-- [ ] Task 1.3 — Create entity `src/POS.Domain/Entities/LoyaltyRule.cs`
+- [x] Task 1.3 — Create entity `src/POS.Domain/Entities/LoyaltyRule.cs`
   - Props: `Guid Id`, `decimal PointsPerCurrencyUnit` (default: 0.001 for 1 pt per 1,000 COP), `decimal RedemptionValuePerPoint`, `int MinimumRedeemPoints`, `bool IsActive`
   - Methods: `int PointsFor(Money saleTotal)` using `(int)Math.Floor(saleTotal.Amount * PointsPerCurrencyUnit)`; `Money DiscountFor(int points)` using `points * RedemptionValuePerPoint`
   - Spec: R-LP-03, R-LP-04, R-LP-05
 
-- [ ] Task 1.4 — Create entity `src/POS.Domain/Entities/LoyaltyTransaction.cs`
+- [x] Task 1.4 — Create entity `src/POS.Domain/Entities/LoyaltyTransaction.cs`
   - Props: `Guid Id`, `Guid LoyaltyAccountId`, `LoyaltyTransactionType Type`, `int Points` (signed: + for earn, – for redeem), `Guid? SaleId`, `DateTime CreatedAt`
   - Ctor guards: `Type == Earned` requires `Points > 0`; `Type == Redeemed` requires `Points < 0`
   - Depends on: 1.1, 1.2
   - Spec: R-LP-02, R-LP-07
 
-- [ ] Task 1.5 — Create entity `src/POS.Domain/Entities/SaleReturnItem.cs`
+- [x] Task 1.5 — Create entity `src/POS.Domain/Entities/SaleReturnItem.cs`
   - Props: `Guid Id`, `Guid SaleReturnId`, `Guid ProductId`, `string ProductName`, `Quantity QuantityReturned`, `Money UnitPrice`, `Money RefundAmount`
   - Ctor validates `QuantityReturned > 0` and `RefundAmount >= 0`
   - Spec: R-IR-02
 
 ### Modified entities
 
-- [ ] Task 1.6 — Modify `src/POS.Domain/Entities/SaleItem.cs`
+- [x] Task 1.6 — Modify `src/POS.Domain/Entities/SaleItem.cs`
   - Add `Money UnitCost` property (private setter)
   - Add `unitCost` parameter to the existing ctor (after existing positional params)
   - Add `Money Profit()` helper: `(UnitPrice - UnitCost) * Quantity.Value - Discount.Amount` (returns Money)
   - Note: update any existing callers of the SaleItem ctor (in Sale.AddItem and test factories)
   - Spec: R-PA-02; design ADR #2
 
-- [ ] Task 1.7 — Modify `src/POS.Domain/Entities/Sale.cs`
+- [x] Task 1.7 — Modify `src/POS.Domain/Entities/Sale.cs`
   - In `AddItem(Product product, Quantity qty, Money discount)`: capture `product.CostPrice` as the `unitCost` arg to `new SaleItem(..., unitCost: product.CostPrice)`
   - No other behavioural change; existing `Total()` is unchanged
   - Depends on: 1.6
   - Spec: R-PA-02
 
-- [ ] Task 1.8 — Modify `src/POS.Domain/Entities/SaleReturn.cs`
+- [x] Task 1.8 — Modify `src/POS.Domain/Entities/SaleReturn.cs`
   - Add `private readonly List<SaleReturnItem> _items = new()`
   - Add `IReadOnlyCollection<SaleReturnItem> Items => _items.AsReadOnly()`
   - Add `void AddItem(SaleReturnItem item)` — no duplicate ProductId check (same product returned once per event is valid)
@@ -77,7 +77,7 @@
 
 ### Domain layer tests
 
-- [ ] Task 1.9 — Create `tests/POS.Domain.Tests/LoyaltyTests.cs`
+- [x] Task 1.9 — Create `tests/POS.Domain.Tests/LoyaltyTests.cs`
   - `LoyaltyRule.PointsFor(1_000_000 COP at rate 0.001)` → 1000 pts
   - FLOOR rounding: 1_500 COP at 0.001 → 1 pt (not 2)
   - `LoyaltyRule.DiscountFor(500)` → `500 * RedemptionValuePerPoint` as Money
@@ -87,7 +87,7 @@
   - Depends on: 1.1, 1.2, 1.3, 1.4
   - Spec: R-LP-03, R-LP-04 (unit coverage)
 
-- [ ] Task 1.10 — Create/update `tests/POS.Domain.Tests/SaleReturnTests.cs` and update `SaleTests.cs`
+- [x] Task 1.10 — Create/update `tests/POS.Domain.Tests/SaleReturnTests.cs` and update `SaleTests.cs`
   - `SaleReturn.AddItem` with qty=0 → throws
   - `SaleReturn.TotalRefund()` sums item `RefundAmount` values correctly
   - `Sale.AddItem` captures `product.CostPrice` in `SaleItem.UnitCost`
@@ -106,7 +106,7 @@
 
 ### Group A — Interfaces, DTOs, and common (all parallel)
 
-- [ ] Task 2.1 — Create interface `src/POS.Application/Interfaces/ILoyaltyRepository.cs`
+- [x] Task 2.1 — Create interface `src/POS.Application/Interfaces/ILoyaltyRepository.cs`
   - `Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken ct = default)`
   - `Task AddAccountAsync(LoyaltyAccount account, CancellationToken ct = default)`
   - `Task AddTransactionAsync(LoyaltyTransaction tx, CancellationToken ct = default)`
@@ -115,24 +115,24 @@
   - `Task<int> GetBalanceAsync(Guid accountId, CancellationToken ct = default)` // SUM(Points)
   - Spec: R-LP-01, R-LP-02, R-LP-03, R-LP-09
 
-- [ ] Task 2.2 — Create interface `src/POS.Application/Interfaces/IProfitQueryService.cs`
+- [x] Task 2.2 — Create interface `src/POS.Application/Interfaces/IProfitQueryService.cs`
   - `Task<IReadOnlyList<ProductMarginResult>> GetMarginByProductAsync(ReportRangeRequest r, CancellationToken ct = default)`
   - `Task<IReadOnlyList<TopSellerResult>> GetTopSellersAsync(ReportRangeRequest r, int top = 10, CancellationToken ct = default)`
   - `Task<PeriodComparisonResult> GetPeriodComparisonAsync(ReportRangeRequest current, ReportRangeRequest prior, CancellationToken ct = default)`
   - `Task<IReadOnlyList<PlatformBreakdownResult>> GetPlatformBreakdownAsync(ReportRangeRequest r, CancellationToken ct = default)`
   - Spec: R-PA-01, R-RC-01..04
 
-- [ ] Task 2.3 — Create interface `src/POS.Application/Interfaces/IBarcodeGenerationService.cs`
+- [x] Task 2.3 — Create interface `src/POS.Application/Interfaces/IBarcodeGenerationService.cs`
   - `byte[] Generate(string value, BarcodeSymbology symbology)` — synchronous (CPU-bound, no I/O)
   - `byte[] GenerateAuto(string value)` — EAN-13 if exactly 12 numeric chars; Code128 otherwise
   - Spec: R-BL-01, R-BL-02
 
-- [ ] Task 2.4 — Create interface `src/POS.Application/Interfaces/ILabelPrintService.cs`
+- [x] Task 2.4 — Create interface `src/POS.Application/Interfaces/ILabelPrintService.cs`
   - `Task<byte[]> BuildLabelsAsync(IReadOnlyList<LabelRequest> requests, CancellationToken ct = default)` — returns PDF bytes
   - `Task PrintAsync(IReadOnlyList<LabelRequest> requests, CancellationToken ct = default)`
   - Spec: R-BL-03
 
-- [ ] Task 2.5 — Create interface `src/POS.Application/Interfaces/ICategoryRepository.cs`
+- [x] Task 2.5 — Create interface `src/POS.Application/Interfaces/ICategoryRepository.cs`
   - `Task<IReadOnlyList<Category>> GetAllAsync(bool activeOnly = false, CancellationToken ct = default)`
   - `Task<Category?> GetByIdAsync(Guid id, CancellationToken ct = default)`
   - `Task AddAsync(Category category, CancellationToken ct = default)`
@@ -140,13 +140,13 @@
   - `Task<bool> HasProductsAsync(Guid categoryId, CancellationToken ct = default)` // guard for delete
   - Spec: R-PC-01, R-PC-04
 
-- [ ] Task 2.6 — Create `src/POS.Application/Common/PaymentPlatforms.cs`
+- [x] Task 2.6 — Create `src/POS.Application/Common/PaymentPlatforms.cs`
   - `public static class PaymentPlatforms`
   - `public static readonly IReadOnlyList<string> All = ["Nequi", "Bancolombia", "Daviplata", "Efectivo"]`
   - `public static bool IsValid(string? platform)` — `All.Contains(platform, StringComparer.OrdinalIgnoreCase)`
   - Spec: R-CF-01, R-CF-02
 
-- [ ] Task 2.7 — Create `src/POS.Application/DTOs/Loyalty/LoyaltyDtos.cs`
+- [x] Task 2.7 — Create `src/POS.Application/DTOs/Loyalty/LoyaltyDtos.cs`
   - `record LoyaltyBalanceResult(int Balance, IReadOnlyList<LoyaltyTransactionResult> RecentTransactions)`
   - `record LoyaltyTransactionResult(Guid Id, string Type, int Points, DateTime CreatedAt, Guid? SaleId)`
   - `record EarnPointsRequest(Guid CustomerId, Guid SaleId, decimal EffectiveSaleTotal)`
@@ -154,25 +154,25 @@
   - `record RedeemPointsResult(bool Success, decimal DiscountApplied, string? ErrorMessage)`
   - Spec: R-LP-06, R-LP-07, R-LP-09
 
-- [ ] Task 2.8 — Create `src/POS.Application/DTOs/Reporting/ProfitDtos.cs`
+- [x] Task 2.8 — Create `src/POS.Application/DTOs/Reporting/ProfitDtos.cs`
   - `record ProductMarginResult(Guid ProductId, string ProductName, decimal TotalRevenue, decimal TotalCost, decimal GrossMargin, decimal MarginPercent)`
   - `record TopSellerResult(Guid ProductId, string ProductName, int UnitsSold, decimal TotalRevenue)`
   - `record PeriodComparisonResult(decimal CurrentRevenue, decimal PriorRevenue, decimal RevenueDelta, decimal CurrentMargin, decimal PriorMargin)`
   - `record PlatformBreakdownResult(string Platform, decimal TotalAmount, int TransactionCount, decimal Percentage)`
   - Spec: R-PA-03..06
 
-- [ ] Task 2.9 — Create `src/POS.Application/DTOs/Barcode/BarcodeDtos.cs`
+- [x] Task 2.9 — Create `src/POS.Application/DTOs/Barcode/BarcodeDtos.cs`
   - `public enum BarcodeSymbology { Code128 = 1, Ean13 = 2 }`
   - `record LabelRequest(Guid ProductId, string ProductName, decimal Price, string BarcodeValue, int Copies = 1)`
   - Spec: R-BL-01, R-BL-05
 
-- [ ] Task 2.10 — Create `src/POS.Application/DTOs/Products/CategoryDtos.cs`
+- [x] Task 2.10 — Create `src/POS.Application/DTOs/Products/CategoryDtos.cs`
   - `record CreateCategoryRequest(string Name)`
   - `record UpdateCategoryRequest(Guid Id, string Name)`
   - `record CategoryResult(Guid Id, string Name)`
   - Spec: R-PC-03
 
-- [ ] Task 2.11 — Modify `src/POS.Application/DTOs/Invoices/InvoiceDtos.cs` (or locate the existing ProcessReturnRequest file)
+- [x] Task 2.11 — Modify `src/POS.Application/DTOs/Invoices/InvoiceDtos.cs` (or locate the existing ProcessReturnRequest file)
   - Add `record ReturnLineRequest(Guid ProductId, int Quantity)`
   - Add `IReadOnlyList<ReturnLineRequest> Items` property to `ProcessReturnRequest`
   - Note: find the correct file path by searching for `ProcessReturnRequest` in the Application project
@@ -182,60 +182,60 @@
 
 ### Group B — Use Cases (loyalty, category, barcode in parallel; modifications sequential after their dependencies)
 
-- [ ] Task 2.12 — Create `src/POS.Application/UseCases/Loyalty/AccumulateLoyaltyPointsUseCase.cs`
+- [x] Task 2.12 — Create `src/POS.Application/UseCases/Loyalty/AccumulateLoyaltyPointsUseCase.cs`
   - Deps injected: `ILoyaltyRepository`, `IUnitOfWork`
   - Flow: get active rule → skip if no rule; compute `points = rule.PointsFor(effectiveSaleTotal)`; skip if points == 0; create-or-get LoyaltyAccount for customer; `AddTransactionAsync(LoyaltyTransaction(Earned, +points, saleId))` within UoW
   - Does not call `SaveChanges` itself — caller (CreateSaleUseCase) owns the UoW boundary
   - Depends on: 2.1, 2.7
   - Spec: R-LP-04, R-LP-05
 
-- [ ] Task 2.13 — Create `src/POS.Application/UseCases/Loyalty/RedeemLoyaltyPointsUseCase.cs`
+- [x] Task 2.13 — Create `src/POS.Application/UseCases/Loyalty/RedeemLoyaltyPointsUseCase.cs`
   - Deps: `ILoyaltyRepository`, `IUnitOfWork`
   - Flow: get account; get balance; get rule; validate `pointsToRedeem <= balance` and `pointsToRedeem >= MinimumRedeemPoints`; reject with `RedeemPointsResult(false, ...)` if checks fail; `AddTransactionAsync(LoyaltyTransaction(Redeemed, -pointsToRedeem, saleId: null))`; return discount Money
   - Throws `DomainException` if attempted total < 0 (safety guard)
   - Depends on: 2.1, 2.7
   - Spec: R-LP-06, R-LP-07, R-LP-08
 
-- [ ] Task 2.14 — Create `src/POS.Application/UseCases/Loyalty/GetLoyaltyBalanceUseCase.cs`
+- [x] Task 2.14 — Create `src/POS.Application/UseCases/Loyalty/GetLoyaltyBalanceUseCase.cs`
   - Deps: `ILoyaltyRepository`
   - Returns `LoyaltyBalanceResult(balance, lastN transactions)` where N=20
   - Returns null or empty result if customer has no LoyaltyAccount
   - Depends on: 2.1, 2.7
   - Spec: R-LP-09
 
-- [ ] Task 2.15 — Create `src/POS.Application/UseCases/Categories/CreateCategoryUseCase.cs`
+- [x] Task 2.15 — Create `src/POS.Application/UseCases/Categories/CreateCategoryUseCase.cs`
   - Deps: `ICategoryRepository`, `IUnitOfWork`
   - Validates name non-empty; checks `GetAllAsync` for case-insensitive duplicate → throws `DomainException("Category name already exists")`; creates `Category`; `AddAsync`; `SaveChanges`
   - Depends on: 2.5, 2.10
   - Spec: R-PC-04 (delete guard in repo), R-PC-05 (unique name)
 
-- [ ] Task 2.16 — Create `src/POS.Application/UseCases/Categories/UpdateCategoryUseCase.cs`
+- [x] Task 2.16 — Create `src/POS.Application/UseCases/Categories/UpdateCategoryUseCase.cs`
   - Deps: `ICategoryRepository`, `IUnitOfWork`
   - Gets by Id (throws if not found); validates name unique excluding self; updates entity; `UpdateAsync`; `SaveChanges`
   - Depends on: 2.5, 2.10
   - Spec: R-PC-05
 
-- [ ] Task 2.17 — Create `src/POS.Application/UseCases/Categories/SearchCategoriesUseCase.cs`
+- [x] Task 2.17 — Create `src/POS.Application/UseCases/Categories/SearchCategoriesUseCase.cs`
   - Deps: `ICategoryRepository`
   - Returns `IReadOnlyList<CategoryResult>` via `GetAllAsync`; maps entity → DTO
   - Depends on: 2.5, 2.10
   - Spec: R-PC-01
 
-- [ ] Task 2.18 — Create `src/POS.Application/UseCases/Barcode/GenerateBarcodeUseCase.cs`
+- [x] Task 2.18 — Create `src/POS.Application/UseCases/Barcode/GenerateBarcodeUseCase.cs`
   - Deps: `IBarcodeGenerationService`
   - Validates `value` non-empty; delegates to `GenerateAuto(value)`; returns `byte[]` PNG
   - Wraps `Exception` from generation service in a user-friendly `ApplicationException`
   - Depends on: 2.3, 2.9
   - Spec: R-BL-01, R-BL-02
 
-- [ ] Task 2.19 — Create `src/POS.Application/UseCases/Barcode/PrintLabelsUseCase.cs`
+- [x] Task 2.19 — Create `src/POS.Application/UseCases/Barcode/PrintLabelsUseCase.cs`
   - Deps: `ILabelPrintService`
   - Validates `requests` non-empty; validates each `Copies >= 1`; delegates to `PrintAsync`
   - On `Exception` from print service: wraps in `ApplicationException` (not crash)
   - Depends on: 2.4, 2.9
   - Spec: R-BL-03, R-BL-07
 
-- [ ] Task 2.20 — Modify `src/POS.Application/UseCases/Invoices/ProcessReturnUseCase.cs`
+- [x] Task 2.20 — Modify `src/POS.Application/UseCases/Invoices/ProcessReturnUseCase.cs`
   - Accept `ProcessReturnRequest.Items` (`IReadOnlyList<ReturnLineRequest>`)
   - Validate: `Items` count >= 1 (throw `DomainException` if empty)
   - For each item: validate `QuantityReturned` in [1, originalSaleItem.Quantity]; build `SaleReturnItem(productId, productName, qty, unitPrice, refundAmount)`
@@ -245,7 +245,7 @@
   - Depends on: 2.11
   - Spec: R-IR-03, R-IR-04
 
-- [ ] Task 2.21 — Modify `src/POS.Application/UseCases/Sales/CreateSaleUseCase.cs`
+- [x] Task 2.21 — Modify `src/POS.Application/UseCases/Sales/CreateSaleUseCase.cs`
   - Add `PaymentPlatforms.IsValid(request.BankOrPlatform)` guard before `sale.Complete()`; throw `DomainException("Plataforma de pago no reconocida: {x}")` if invalid
   - Accept optional `ILoyaltyRepository? loyaltyRepository = null` ctor param (nullable to keep optional)
   - After `_unitOfWork.SaveChangesAsync()`, if `request.CustomerId != null && loyaltyRepository != null`: call `AccumulateLoyaltyPointsUseCase.ExecuteAsync(customerId, saleId, effectiveTotal)`
@@ -257,7 +257,7 @@
 
 ### Group C — Application layer tests (parallel with Group B after Group A)
 
-- [ ] Task 2.22 — Create `tests/POS.Application.Tests/AccumulateLoyaltyPointsUseCaseTests.cs`
+- [x] Task 2.22 — Create `tests/POS.Application.Tests/AccumulateLoyaltyPointsUseCaseTests.cs`
   - Points earned correctly per rule on sale close
   - Zero-point sale (e.g. very small total) creates no transaction record
   - Missing active rule → use case exits without error (no transaction)
@@ -265,7 +265,7 @@
   - Spec: R-LP-04 (unit coverage)
   - Depends on: 2.12
 
-- [ ] Task 2.23 — Create `tests/POS.Application.Tests/RedeemLoyaltyPointsUseCaseTests.cs`
+- [x] Task 2.23 — Create `tests/POS.Application.Tests/RedeemLoyaltyPointsUseCaseTests.cs`
   - Below-minimum points request → returns `(false, 0, error message)`
   - Over-balance request → returns `(false, 0, error message)`
   - Valid redemption → returns `(true, correctDiscount, null)`
@@ -273,7 +273,7 @@
   - Spec: R-LP-06, R-LP-08
   - Depends on: 2.13
 
-- [ ] Task 2.24 — Create `tests/POS.Application.Tests/CategoryUseCaseTests.cs`
+- [x] Task 2.24 — Create `tests/POS.Application.Tests/CategoryUseCaseTests.cs`
   - `CreateCategoryUseCase`: duplicate name (case-insensitive) → throws `DomainException`
   - `UpdateCategoryUseCase`: rename to existing name of other category → throws
   - `SearchCategoriesUseCase`: returns all categories mapped to `CategoryResult`
@@ -281,7 +281,7 @@
   - Spec: R-PC-04, R-PC-05
   - Depends on: 2.15, 2.16, 2.17
 
-- [ ] Task 2.25 — Create `tests/POS.Application.Tests/PaymentPlatformValidationTests.cs`
+- [x] Task 2.25 — Create `tests/POS.Application.Tests/PaymentPlatformValidationTests.cs`
   - "Nequi" → `IsValid` returns `true`
   - "nequi" (lowercase) → `IsValid` returns `true`
   - "MercadoPago" → `IsValid` returns `false`; `CreateSaleUseCase` throws `DomainException`
@@ -289,7 +289,7 @@
   - Spec: R-CF-01, R-CF-02
   - Depends on: 2.6, 2.21
 
-- [ ] Task 2.26 — Create `tests/POS.Application.Tests/BarcodeGenerationServiceTests.cs`
+- [x] Task 2.26 — Create `tests/POS.Application.Tests/BarcodeGenerationServiceTests.cs`
   - Mock `IBarcodeGenerationService` returning fake byte arrays
   - `GenerateBarcodeUseCase` with 12-digit numeric value → calls `GenerateAuto`
   - Empty value → throws `ApplicationException` (not crash)
@@ -297,7 +297,7 @@
   - Spec: R-BL-01, R-BL-02
   - Depends on: 2.18
 
-- [ ] Task 2.27 — Update `tests/POS.Application.Tests/Invoices/InvoiceUseCaseTests.cs`
+- [x] Task 2.27 — Update `tests/POS.Application.Tests/Invoices/InvoiceUseCaseTests.cs`
   - Partial return with 2 items (1 each) → only those quantities restored to stock
   - Empty `Items` list → `DomainException` thrown before DB write
   - `QuantityReturned > OriginalQuantity` → `DomainException` before DB write
@@ -305,7 +305,7 @@
   - Spec: R-IR-03, R-IR-04
   - Depends on: 2.20
 
-- [ ] Task 2.28 — Update `tests/POS.Application.Tests/CreateSaleUseCaseTests.cs`
+- [x] Task 2.28 — Update `tests/POS.Application.Tests/CreateSaleUseCaseTests.cs`
   - Sale with valid platform ("Efectivo") → saves successfully
   - Sale with invalid platform ("PayPal") → `DomainException` before save
   - After sale save with associated customer → `AccumulateLoyaltyPointsUseCase` invoked
@@ -525,7 +525,7 @@
 
 ### New ViewModels
 
-- [ ] Task 4.1 — Create `src/POS.Presentation/ViewModels/LoyaltyViewModel.cs`
+- [x] Task 4.1 — Create `src/POS.Presentation/ViewModels/LoyaltyViewModel.cs`
   - Inherits `ViewModelBase`; no direct DB access
   - Props: `int Balance`, `CustomerResult? SelectedCustomer`, `ObservableCollection<LoyaltyTransactionResult> Transactions`, `string Message`, `bool IsLoading`
   - Commands:
@@ -535,7 +535,7 @@
   - Depends on: 2.13, 2.14
   - Spec: R-LP-09, R-LP-10
 
-- [ ] Task 4.2 — Create `src/POS.Presentation/ViewModels/BarcodeViewModel.cs`
+- [x] Task 4.2 — Create `src/POS.Presentation/ViewModels/BarcodeViewModel.cs`
   - Inherits `ViewModelBase`
   - Props: `string BarcodeValue`, `ImageSource? PreviewImage`, `ObservableCollection<ProductLookupResult> SelectedProducts`, `int Copies` (default 1), `string Message`, `bool IsLoading`
   - Commands:
@@ -547,7 +547,7 @@
   - Depends on: 2.18, 2.19
   - Spec: R-BL-06, R-BL-07, R-BL-08
 
-- [ ] Task 4.3 — Create `src/POS.Presentation/ViewModels/CategoriesViewModel.cs`
+- [x] Task 4.3 — Create `src/POS.Presentation/ViewModels/CategoriesViewModel.cs`
   - Inherits `ViewModelBase`
   - Props: `ObservableCollection<CategoryResult> Categories`, `CategoryResult? SelectedCategory`, `string Name`, `string Message`
   - Commands:
@@ -562,14 +562,14 @@
 
 ### Modified ViewModels
 
-- [ ] Task 4.4 — Modify `src/POS.Presentation/ViewModels/ReportsViewModel.cs`
+- [x] Task 4.4 — Modify `src/POS.Presentation/ViewModels/ReportsViewModel.cs`
   - Add props: `ObservableCollection<TopSellerResult> TopSellers`, `PeriodComparisonResult? PeriodComparison`, `ObservableCollection<PlatformBreakdownResult> PlatformBreakdown`, `ObservableCollection<ProductMarginResult> ProductMargins`
   - Add `LoadAnalyticsCommand` (async): calls all four `IProfitQueryService` methods with the current `ReportRangeRequest`; populates collections
   - Add `IProfitQueryService` to constructor injection
   - Depends on: 2.2, 2.8 (DTOs), 3.15 (infra, but VM only knows the interface)
   - Spec: R-RC-01..05, R-PA-08
 
-- [ ] Task 4.5 — Modify `src/POS.Presentation/ViewModels/CashierViewModel.cs`
+- [x] Task 4.5 — Modify `src/POS.Presentation/ViewModels/CashierViewModel.cs`
   - Add `CustomerResult? SelectedCustomer` property (optional; null when no customer)
   - Add `decimal LoyaltyDiscount` property (read-only display)
   - Add `ApplyRedemptionCommand` (async): calls `RedeemLoyaltyPointsUseCase` with entered points; on success sets `LoyaltyDiscount`; on failure shows `Message`
@@ -578,7 +578,7 @@
   - Depends on: 2.6, 2.13, 2.21
   - Spec: R-CF-01..05
 
-- [ ] Task 4.6 — Modify `src/POS.Presentation/ViewModels/ProductsViewModel.cs`
+- [x] Task 4.6 — Modify `src/POS.Presentation/ViewModels/ProductsViewModel.cs`
   - Add `ObservableCollection<CategoryResult> Categories` property
   - Add `Guid? SelectedCategoryId` property bound to product form
   - Load categories via `SearchCategoriesUseCase` on VM initialization (async init or `LoadCommand`)
@@ -586,7 +586,7 @@
   - Depends on: 2.17
   - Spec: R-PC-03
 
-- [ ] Task 4.7 — Modify `src/POS.Presentation/ViewModels/MainShellViewModel.cs`
+- [x] Task 4.7 — Modify `src/POS.Presentation/ViewModels/MainShellViewModel.cs`
   - Add `LoyaltyViewModel? Loyalty { get; init; }`
   - Add `BarcodeViewModel? Barcode { get; init; }`
   - Add sidebar/navigation entries for both (same null-check pattern as existing `Products`, `Invoices` properties)
@@ -597,7 +597,7 @@
 
 ### New Views
 
-- [ ] Task 4.8 — Create `src/POS.Presentation/Views/LoyaltyView.xaml` + `LoyaltyView.xaml.cs`
+- [x] Task 4.8 — Create `src/POS.Presentation/Views/LoyaltyView.xaml` + `LoyaltyView.xaml.cs`
   - `DataContext` binds to `LoyaltyViewModel`
   - Layout: ComboBox for customer selection (bound `SelectedCustomer`); Label showing `Balance`; TextBox for points-to-redeem; "Aplicar Descuento" Button (bound `RedeemCommand`); DataGrid showing `Transactions` (last 20: Type, Points, Date, SaleId); TextBlock for `Message`
   - "Cargar" Button (bound `LoadBalanceCommand`)
@@ -605,7 +605,7 @@
   - Depends on: 4.1
   - Spec: R-LP-09, R-LP-10
 
-- [ ] Task 4.9 — Create `src/POS.Presentation/Views/BarcodeView.xaml` + `BarcodeView.xaml.cs`
+- [x] Task 4.9 — Create `src/POS.Presentation/Views/BarcodeView.xaml` + `BarcodeView.xaml.cs`
   - `DataContext` binds to `BarcodeViewModel`
   - Layout: TextBox for `BarcodeValue`; Image control bound to `PreviewImage`; "Generar Vista Previa" Button (`GenerateCommand`); DataGrid for `SelectedProducts`; NumberBox/TextBox for `Copies`; "Imprimir Etiqueta" Button (`PrintSingleCommand`); "Imprimir Por Categoría" Button (`PrintBulkCommand`); TextBlock for `Message`
   - Depends on: 4.2
@@ -615,7 +615,7 @@
 
 ### Modified Views
 
-- [ ] Task 4.10 — Modify `src/POS.Presentation/Views/ProductsView.xaml`
+- [x] Task 4.10 — Modify `src/POS.Presentation/Views/ProductsView.xaml`
   - Add a "Categorías" sub-tab (or sub-section) inside the existing Products screen containing:
     - DataGrid bound to `CategoriesViewModel.Categories`
     - Inline form: TextBox for `Name`, Save/Clear buttons
@@ -625,7 +625,7 @@
   - Depends on: 4.3, 4.6
   - Spec: R-PC-03
 
-- [ ] Task 4.11 — Modify `src/POS.Presentation/Views/ReportsView.xaml`
+- [x] Task 4.11 — Modify `src/POS.Presentation/Views/ReportsView.xaml`
   - Add "Análisis de Rentabilidad" section containing:
     - "Top 10 Productos" DataGrid (bound `TopSellers`): columns ProductName, UnitsSold, TotalRevenue
     - "Comparación de Períodos" panel (bound `PeriodComparison`): cards/labels for CurrentRevenue, PriorRevenue, RevenueDelta
@@ -639,7 +639,7 @@
 
 ### App.xaml.cs wiring (last in Phase 4)
 
-- [ ] Task 4.12 — Modify `src/POS.Presentation/App.xaml.cs`
+- [x] Task 4.12 — Modify `src/POS.Presentation/App.xaml.cs`
   - Resolve `LoyaltyViewModel` from DI (or compose manually) — wrap in try/catch nullable pattern (per existing `MainShellViewModel.Loyalty = ...` wiring style)
   - Resolve `BarcodeViewModel` from DI or compose manually — same try/catch pattern
   - Resolve `CategoriesViewModel` for use inside `ProductsViewModel` composition
@@ -654,7 +654,7 @@
 
 ### Presentation layer tests
 
-- [ ] Task 4.13 — Create `tests/POS.Presentation.Shared.Tests/LoyaltyViewModelTests.cs`
+- [x] Task 4.13 — Create `tests/POS.Presentation.Shared.Tests/LoyaltyViewModelTests.cs`
   - `LoadBalanceCommand` sets `Balance` and populates `Transactions`
   - `LoadBalanceCommand` with no LoyaltyAccount → sets `Balance = 0`, empty `Transactions`, no exception
   - `RedeemCommand` on success → sets `Message` with positive confirmation
@@ -662,7 +662,7 @@
   - Depends on: 4.1
   - Spec: design Testing table (Presentation)
 
-- [ ] Task 4.14 — Create `tests/POS.Presentation.Shared.Tests/BarcodeViewModelTests.cs`
+- [x] Task 4.14 — Create `tests/POS.Presentation.Shared.Tests/BarcodeViewModelTests.cs`
   - `GenerateCommand` with valid value → `PreviewImage` is non-null
   - `GenerateCommand` with empty value → `Message` shows error; `PreviewImage` remains null
   - `PrintBulkCommand` with no products selected → `Message` shows "no products" error; use case not invoked
@@ -670,7 +670,7 @@
   - Depends on: 4.2
   - Spec: design Testing table (Presentation)
 
-- [ ] Task 4.15 — Update `tests/POS.Presentation.Shared.Tests/ReportsViewModelTests.cs`
+- [x] Task 4.15 — Update `tests/POS.Presentation.Shared.Tests/ReportsViewModelTests.cs`
   - `LoadAnalyticsCommand` populates `TopSellers` (count > 0 when data exists)
   - `PeriodComparison` is non-null after load
   - `PlatformBreakdown` has exactly 4 entries (or fewer when platforms have no data)

@@ -92,3 +92,72 @@ The system MUST allow configuring a minimum stock level per product for inventor
 - WHEN the user sets minimum stock to 10
 - THEN the product MUST store this threshold
 - AND the inventory module MUST use this for low-stock alerts
+
+### Requirement: Category repository port
+
+A port interface `ICategoryRepository` MUST exist in POS.Application with methods: `GetAllAsync`, `CreateAsync`, `UpdateAsync`, `DeleteAsync`.
+
+#### Scenario: Category repository lists all categories
+
+- GIVEN categories "Bebidas" and "Carnes" exist
+- WHEN `GetAllAsync` is called
+- THEN both categories MUST be returned
+
+### Requirement: CATEGORIES table canonical name
+
+A reversible EF Core migration MUST rename the existing `Categories` table to `CATEGORIES`. All EF Core entity mappings MUST use `ToTable("CATEGORIES")`. The migration MUST include a Down step that renames `CATEGORIES` back to `Categories`.
+
+#### Scenario: CATEGORIES table migration is reversible
+
+- GIVEN the database has the CATEGORIES table (after migration applied)
+- WHEN the EF Core migration is reversed (Down step executed)
+- THEN the table is renamed back to "Categories"
+- AND existing data is preserved
+
+### Requirement: Category CRUD UI
+
+A `CategoryViewModel` in POS.Presentation MUST expose a list of all categories, a form for creating and editing a category (Name required, max 100 chars), and commands: `CreateCategoryCommand`, `UpdateCategoryCommand`, `DeleteCategoryCommand`. Validation messages MUST be visible inline when a command fails.
+
+#### Scenario: New category created successfully
+
+- GIVEN no category named "Bebidas" exists
+- WHEN an administrator creates a new category with Name="Bebidas"
+- THEN a Category record is persisted in the CATEGORIES table with Name="Bebidas"
+- AND the category appears in the GetAllAsync list
+
+#### Scenario: Category renamed successfully
+
+- GIVEN category C1 with Name="Abarrotes" exists
+- AND no category named "Víveres" exists
+- WHEN an administrator renames C1 to "Víveres"
+- THEN the CATEGORIES table record for C1 has Name="Víveres"
+- AND all Products that reference C1 still reference C1 (FK unchanged)
+
+### Requirement: Category deletion guarded against orphan products
+
+The Application layer MUST check whether any Product references the category before deletion. If products exist, DeleteAsync MUST throw or return a domain error: "No se puede eliminar la categoría: tiene productos asociados".
+
+#### Scenario: Category deletion rejected when products reference it
+
+- GIVEN category C2 with Name="Carnes" has 3 products assigned to it
+- WHEN an administrator attempts to delete C2
+- THEN the Application layer returns an error: "No se puede eliminar la categoría: tiene productos asociados"
+- AND C2 remains in the CATEGORIES table
+
+#### Scenario: Category deletion succeeds when no products reference it
+
+- GIVEN category C3 with Name="Test" has 0 products assigned to it
+- WHEN an administrator deletes C3
+- THEN the C3 record is removed from the CATEGORIES table
+- AND C3 no longer appears in the GetAllAsync list
+
+### Requirement: Category names must be unique
+
+Attempting to create or rename a category to a name that already exists (case-insensitive comparison) MUST be rejected by the Application layer with an error: "Ya existe una categoría con ese nombre".
+
+#### Scenario: Duplicate category name rejected
+
+- GIVEN category "Lácteos" already exists
+- WHEN an administrator attempts to create a new category with Name="lácteos" (different casing)
+- THEN the Application layer returns an error: "Ya existe una categoría con ese nombre"
+- AND no duplicate record is created in CATEGORIES
