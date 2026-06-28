@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.4.0...v0.5.0) (2026-06-28)
+
+
+### Features
+
+* add loyalty, barcode, profit analytics, categories, and return improvements ([9ac42ce](https://github.com/jab16jy/Sistema_Pos/commit/9ac42ce5785f47526c31c9acfb144c29ef9e53a6))
+* **app:** add loyalty, category, profit, return application layer for new-pos-modules ([b25aea4](https://github.com/jab16jy/Sistema_Pos/commit/b25aea416653d052be955e5dfac4df286c9660e1))
+* **domain:** add loyalty, barcode, profit domain layer for new-pos-modules ([9ce9b22](https://github.com/jab16jy/Sistema_Pos/commit/9ce9b22b76f9a9c86826d9391b367c8b6122f73f))
+* **infra:** add migrations, repositories, profit queries, ZXing barcode, and label printing for new-pos-modules ([f84489a](https://github.com/jab16jy/Sistema_Pos/commit/f84489aa48e5f98217f8b21b8b9556d2c6c6266a))
+* **presentation:** add loyalty, barcode, categories UI and analytics for new-pos-modules ([3782312](https://github.com/jab16jy/Sistema_Pos/commit/3782312381d7e71e7a0e9dfcacd9a8b86d84d2ba))
+
+
+### Bug Fixes
+
+* resolve 3 CRITICAL verification issues for new-pos-modules ([55af168](https://github.com/jab16jy/Sistema_Pos/commit/55af168e0adfcdeedb208db0107936b4d4f615ea))
+
 ## [0.4.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.3.0...v0.4.0) (2026-06-27)
 
 
