@@ -1,4 +1,7 @@
+using POS.Application.Common;
+using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Sales;
+using POS.Application.UseCases.Loyalty;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
@@ -11,10 +14,11 @@ public sealed class CreateSaleUseCase
     private readonly ISaleRepository _sales;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IReceivableRepository? _receivables;
+    private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
 
     /// <summary>Legacy constructor — no receivable support. Used by tests that don't need deferred balance.</summary>
     public CreateSaleUseCase(IProductRepository products, ISaleRepository sales, IUnitOfWork unitOfWork)
-        : this(products, sales, unitOfWork, null)
+        : this(products, sales, unitOfWork, null, null)
     {
     }
 
@@ -23,11 +27,22 @@ public sealed class CreateSaleUseCase
         ISaleRepository sales,
         IUnitOfWork unitOfWork,
         IReceivableRepository? receivables)
+        : this(products, sales, unitOfWork, receivables, null)
+    {
+    }
+
+    public CreateSaleUseCase(
+        IProductRepository products,
+        ISaleRepository sales,
+        IUnitOfWork unitOfWork,
+        IReceivableRepository? receivables,
+        AccumulateLoyaltyPointsUseCase? accumulatePoints)
     {
         _products = products;
         _sales = sales;
         _unitOfWork = unitOfWork;
         _receivables = receivables;
+        _accumulatePoints = accumulatePoints;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(CreateSaleRequest request, CancellationToken cancellationToken = default)
@@ -35,6 +50,21 @@ public sealed class CreateSaleUseCase
         if (request.Items.Count == 0)
         {
             throw new InvalidOperationException("Add at least one product before completing the sale.");
+        }
+
+        // Validate payment platforms before building the sale
+        if (request.Payments is not null)
+        {
+            foreach (var payment in request.Payments)
+            {
+                if (!string.IsNullOrWhiteSpace(payment.BankOrPlatform)
+                    && !PaymentPlatforms.IsValid(payment.BankOrPlatform))
+                {
+                    throw new InvalidOperationException(
+                        $"Payment platform '{payment.BankOrPlatform}' is not accepted. " +
+                        $"Valid platforms: {string.Join(", ", PaymentPlatforms.All)}.");
+                }
+            }
         }
 
         var sale = new Sale(request.CashierUserId, request.CustomerId);
@@ -49,10 +79,8 @@ public sealed class CreateSaleUseCase
 
         if (request.SettlementPlan is not null)
         {
-            // Settlement plan path: collected + deferred
             var plan = request.SettlementPlan;
 
-            // Guard: deferred balance requires an identified customer
             if (plan.DeferredBalanceAmount > 0m && request.CustomerId is null)
             {
                 throw new InvalidOperationException(
@@ -61,7 +89,6 @@ public sealed class CreateSaleUseCase
 
             sale.SetSettlementPlan(plan);
 
-            // Only add a payment line for the collected portion (deferred is a receivable, not a payment)
             if (plan.CollectedAmount > 0m && plan.CollectedMethod is not null)
             {
                 sale.AddPayment(new Payment(
@@ -73,7 +100,6 @@ public sealed class CreateSaleUseCase
         }
         else
         {
-            // Legacy full-payment path
             foreach (var payment in request.Payments!)
             {
                 sale.AddPayment(new Payment(
@@ -88,7 +114,6 @@ public sealed class CreateSaleUseCase
 
         await _sales.AddAsync(sale, cancellationToken);
 
-        // Create receivable inside the same transaction if a deferred balance exists
         Receivable? receivable = null;
         if (sale.DeferredBalance().Amount > 0m && request.CustomerId.HasValue)
         {
@@ -100,6 +125,21 @@ public sealed class CreateSaleUseCase
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Accumulate loyalty points after the sale is saved (optional — no loyalty = skip)
+        if (_accumulatePoints is not null && request.CustomerId.HasValue)
+        {
+            try
+            {
+                await _accumulatePoints.ExecuteAsync(
+                    new EarnPointsRequest(request.CustomerId.Value, sale.Id, sale.Total().Amount),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Loyalty accumulation failure must not roll back the sale
+            }
+        }
 
         return new CreateSaleResult(
             sale.Id,

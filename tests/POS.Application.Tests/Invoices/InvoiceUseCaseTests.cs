@@ -3,6 +3,7 @@ using POS.Application.Interfaces;
 using POS.Application.UseCases.Invoices;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
 using Xunit;
@@ -56,15 +57,17 @@ public sealed class InvoiceUseCaseTests
         var inventory = new InMemoryInventoryRepository();
         var returns = new InMemorySaleReturnRepository();
         var unitOfWork = new CountingUnitOfWork();
+        var adminUser = new User("admin", "hash", UserRole.Administrator);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
             inventory,
             returns,
-            unitOfWork);
+            unitOfWork,
+            new InMemoryUserRepository(adminUser));
 
         Guid returnId = await useCase.ExecuteAsync(
-            new ProcessReturnRequest(sale.Id, Guid.NewGuid(), "Customer refund"),
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Customer refund"),
             TestContext.Current.CancellationToken);
 
         Assert.NotEqual(Guid.Empty, returnId);
@@ -83,15 +86,137 @@ public sealed class InvoiceUseCaseTests
         var product = CreateProduct();
         var sale = CreateCompletedSale(product);
         sale.MarkReturned();
+        var adminUser = new User("admin", "hash", UserRole.Administrator);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
             new InMemoryInventoryRepository(),
             new InMemorySaleReturnRepository(),
-            new CountingUnitOfWork());
+            new CountingUnitOfWork(),
+            new InMemoryUserRepository(adminUser));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
-            new ProcessReturnRequest(sale.Id, Guid.NewGuid(), "Duplicate"),
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Duplicate"),
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ProcessReturnAsync_PartialReturn_RestoresOnlyReturnedQty()
+    {
+        var product = CreateProduct();  // stock 10, qty added: 2
+        var sale = CreateCompletedSale(product);  // stock now 8
+        var saleItemId = sale.Items.Single().Id;
+        var inventory = new InMemoryInventoryRepository();
+        var returns = new InMemorySaleReturnRepository();
+        var uow = new CountingUnitOfWork();
+        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            inventory,
+            returns,
+            uow,
+            new InMemoryUserRepository(adminUser));
+
+        // Return only 1 of the 2 items sold
+        Guid returnId = await useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Partial",
+                [new ReturnLineRequest(saleItemId, 1, 1_500m)]),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotEqual(Guid.Empty, returnId);
+        // Stock should increase by 1 (only the returned qty)
+        Assert.Equal(9m, product.CurrentStock);
+        // Only one inventory movement
+        Assert.Single(inventory.AddedMovements);
+        Assert.Equal(1m, inventory.AddedMovements[0].Quantity);
+        Assert.Equal(1, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task ProcessReturnAsync_PartialReturn_WhenQtyExceedsOriginal_Throws()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var saleItemId = sale.Items.Single().Id;
+        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            new InMemorySaleReturnRepository(),
+            new CountingUnitOfWork(),
+            new InMemoryUserRepository(adminUser));
+
+        // Original qty was 2, trying to return 3
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Over-qty",
+                [new ReturnLineRequest(saleItemId, 3, 4_500m)]),
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ProcessReturnAsync_SecondReturn_RejectedByOneReturnPerSaleGuard()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var returns = new InMemorySaleReturnRepository();
+        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            returns,
+            new CountingUnitOfWork(),
+            new InMemoryUserRepository(adminUser));
+
+        // First return succeeds
+        await useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "First return"),
+            TestContext.Current.CancellationToken);
+
+        // Second return on same sale is rejected
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Second return"),
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ProcessReturnAsync_WhenUserIsNotAdmin_ThrowsUnauthorizedActionException()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var cashierUser = new User("cashier", "hash", UserRole.Cashier);
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            new InMemorySaleReturnRepository(),
+            new CountingUnitOfWork(),
+            new InMemoryUserRepository(cashierUser));
+
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, cashierUser.Id, "Cashier attempt"),
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ProcessReturnAsync_WhenUserNotFound_ThrowsUnauthorizedActionException()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            new InMemorySaleReturnRepository(),
+            new CountingUnitOfWork(),
+            new InMemoryUserRepository(adminUser));
+
+        // Use a different user ID that won't be found in the repository
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, Guid.NewGuid(), "Unknown user return"),
             TestContext.Current.CancellationToken));
     }
 
@@ -222,5 +347,18 @@ public sealed class InvoiceUseCaseTests
             SaveCount++;
             return Task.FromResult(1);
         }
+    }
+
+    private sealed class InMemoryUserRepository : IUserRepository
+    {
+        private readonly User _user;
+
+        public InMemoryUserRepository(User user)
+        {
+            _user = user;
+        }
+
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(id == _user.Id ? _user : null);
     }
 }

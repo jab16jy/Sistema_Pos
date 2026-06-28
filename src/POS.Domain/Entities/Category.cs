@@ -22,4 +22,16 @@ public sealed class Category
     public Guid Id { get; private set; }
     public string Name { get; private set; }
     public bool IsActive { get; private set; }
+
+    public void Rename(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Category name is required.", nameof(name));
+        }
+
+        Name = name.Trim();
+    }
+
+    public void Deactivate() => IsActive = false;
 }

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using POS.Application.DTOs.Products;
+using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Products;
 using POS.Presentation.Shared.Commands;
 
@@ -12,6 +13,7 @@ public sealed class ProductsViewModel : ViewModelBase
     private readonly UpdateProductUseCase _updateProduct;
     private readonly DeleteProductUseCase _deleteProduct;
     private readonly SearchProductsUseCase _searchProducts;
+    private readonly SearchCategoriesUseCase? _searchCategories;
     private ProductSearchResult? _selectedProduct;
     private string _searchText = string.Empty;
     private string _name = string.Empty;
@@ -29,11 +31,23 @@ public sealed class ProductsViewModel : ViewModelBase
         UpdateProductUseCase updateProduct,
         DeleteProductUseCase deleteProduct,
         SearchProductsUseCase searchProducts)
+        : this(createProduct, updateProduct, deleteProduct, searchProducts, null)
+    {
+    }
+
+    public ProductsViewModel(
+        CreateProductUseCase createProduct,
+        UpdateProductUseCase updateProduct,
+        DeleteProductUseCase deleteProduct,
+        SearchProductsUseCase searchProducts,
+        SearchCategoriesUseCase? searchCategories)
     {
         _createProduct = createProduct;
         _updateProduct = updateProduct;
         _deleteProduct = deleteProduct;
         _searchProducts = searchProducts;
+        _searchCategories = searchCategories;
+        Categories = [];
         LoadCommand = new RelayCommand(_ => _ = LoadAsync());
         SaveCommand = new RelayCommand(_ => _ = SaveAsync());
         DeleteCommand = new RelayCommand(_ => _ = DeleteAsync(), _ => SelectedProduct is not null);
@@ -41,6 +55,14 @@ public sealed class ProductsViewModel : ViewModelBase
     }
 
     public ObservableCollection<ProductSearchResult> Products { get; } = [];
+
+    public ObservableCollection<CategoryResult> Categories { get; }
+
+    /// <summary>
+    /// Optional sub-ViewModel for category CRUD operations.
+    /// Set by App.xaml.cs when the category use cases are available.
+    /// </summary>
+    public CategoriesViewModel? CategoriesEditor { get; init; }
 
     public ICommand LoadCommand { get; }
 
@@ -148,6 +170,24 @@ public sealed class ProductsViewModel : ViewModelBase
         Message = Products.Count == 0
             ? "No encontramos productos con ese criterio. Puedes registrar uno nuevo."
             : $"Mostrando {Products.Count} producto(s). Selecciona uno para editar.";
+
+        // Load categories if the use case is available
+        if (_searchCategories is not null)
+        {
+            try
+            {
+                var categories = await _searchCategories.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+                Categories.Clear();
+                foreach (var category in categories)
+                {
+                    Categories.Add(category);
+                }
+            }
+            catch
+            {
+                // Category loading is best-effort; do not block product loading
+            }
+        }
     }
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)

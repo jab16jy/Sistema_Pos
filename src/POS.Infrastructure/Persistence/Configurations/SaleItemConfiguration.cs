@@ -21,5 +21,9 @@ internal sealed class SaleItemConfiguration : IEntityTypeConfiguration<SaleItem>
         builder.Property(si => si.Discount)
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("discount");
+
+        builder.Property(si => si.UnitCost)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("UnitCost");
     }
 }

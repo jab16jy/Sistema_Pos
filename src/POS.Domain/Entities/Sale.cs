@@ -61,7 +61,7 @@ public sealed class Sale
         }
 
         product.DecreaseStock(quantity);
-        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.SalePrice, discount));
+        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.SalePrice, discount, product.CostPrice));
     }
 
     public void AddPayment(Payment payment)

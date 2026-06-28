@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Reporting;
@@ -9,6 +10,7 @@ namespace POS.Presentation.Shared.ViewModels;
 /// <summary>
 /// ViewModel for the Reports module.
 /// Loads operational totals (billed, cash, digital, receivable settlements) from persisted records.
+/// Also loads profit analytics (top sellers, period comparison, platform breakdown, product margins).
 /// All business logic lives in the Application use case; this class only manages UI state.
 /// </summary>
 public sealed class ReportsViewModel : ViewModelBase
@@ -16,6 +18,7 @@ public sealed class ReportsViewModel : ViewModelBase
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
     private readonly IGetOperationalReportUseCase _reportUseCase;
+    private readonly IProfitQueryService? _profitQueryService;
     private decimal _reportBilledTotal;
     private decimal _reportCashCollected;
     private decimal _reportDigitalCollected;
@@ -25,15 +28,31 @@ public sealed class ReportsViewModel : ViewModelBase
     private bool _hasError;
     private string _errorMessage = string.Empty;
     private string _statusMessage = string.Empty;
+    private PeriodComparisonResult? _periodComparison;
 
     public ReportsViewModel(IGetOperationalReportUseCase reportUseCase)
+        : this(reportUseCase, null)
+    {
+    }
+
+    public ReportsViewModel(IGetOperationalReportUseCase reportUseCase, IProfitQueryService? profitQueryService)
     {
         _reportUseCase = reportUseCase ?? throw new ArgumentNullException(nameof(reportUseCase));
+        _profitQueryService = profitQueryService;
+
+        TopSellers = [];
+        PlatformBreakdown = [];
+        ProductMargins = [];
 
         LoadReportCommand = new RelayCommand(
             async _ => await LoadReportAsync(
                 DateTimeOffset.UtcNow.Date,
                 DateTimeOffset.UtcNow.Date.AddDays(1).AddTicks(-1)).ConfigureAwait(true));
+
+        LoadAnalyticsCommand = new RelayCommand(
+            async _ => await LoadAnalyticsAsync(
+                DateOnly.FromDateTime(DateTime.Today),
+                DateOnly.FromDateTime(DateTime.Today)).ConfigureAwait(true));
     }
 
     // ── Report totals (read-only output) ──
@@ -106,6 +125,22 @@ public sealed class ReportsViewModel : ViewModelBase
 
     public ICommand LoadReportCommand { get; }
 
+    public ICommand LoadAnalyticsCommand { get; }
+
+    // ── Analytics collections ──
+
+    public ObservableCollection<TopSellerResult> TopSellers { get; }
+
+    public PeriodComparisonResult? PeriodComparison
+    {
+        get => _periodComparison;
+        private set => SetProperty(ref _periodComparison, value);
+    }
+
+    public ObservableCollection<PlatformBreakdownResult> PlatformBreakdown { get; }
+
+    public ObservableCollection<ProductMarginResult> ProductMargins { get; }
+
     // ── Load ──
 
     /// <summary>
@@ -176,6 +211,71 @@ public sealed class ReportsViewModel : ViewModelBase
         ReportDigitalCollected = 0m;
         ReportReceivableSettlements = 0m;
         ReportExpectedDrawerCash = 0m;
+    }
+
+    /// <summary>
+    /// Loads profit analytics: top sellers, period comparison, platform breakdown, and product margins.
+    /// </summary>
+    public async Task LoadAnalyticsAsync(
+        DateOnly currentFrom,
+        DateOnly currentTo,
+        CancellationToken ct = default)
+    {
+        if (_profitQueryService is null)
+        {
+            StatusMessage = "El servicio de analisis de rentabilidad no esta disponible.";
+            return;
+        }
+
+        IsLoading = true;
+        HasError = false;
+        ErrorMessage = string.Empty;
+
+        try
+        {
+            // Compute prior period (same length, immediately before current)
+            int days = currentTo.DayNumber - currentFrom.DayNumber + 1;
+            var priorTo = currentFrom.AddDays(-1);
+            var priorFrom = priorTo.AddDays(-(days - 1));
+
+            var topSellersTask = _profitQueryService.GetTopSellersAsync(currentFrom, currentTo, 10, ct);
+            var comparisonTask = _profitQueryService.GetPeriodComparisonAsync(currentFrom, currentTo, priorFrom, priorTo, ct);
+            var platformTask = _profitQueryService.GetPlatformBreakdownAsync(currentFrom, currentTo, ct);
+            var marginsTask = _profitQueryService.GetMarginByProductAsync(currentFrom, currentTo, ct);
+
+            await Task.WhenAll(topSellersTask, comparisonTask, platformTask, marginsTask).ConfigureAwait(true);
+
+            TopSellers.Clear();
+            foreach (var item in topSellersTask.Result)
+            {
+                TopSellers.Add(item);
+            }
+
+            PeriodComparison = comparisonTask.Result;
+
+            PlatformBreakdown.Clear();
+            foreach (var item in platformTask.Result)
+            {
+                PlatformBreakdown.Add(item);
+            }
+
+            ProductMargins.Clear();
+            foreach (var item in marginsTask.Result)
+            {
+                ProductMargins.Add(item);
+            }
+
+            StatusMessage = "Analisis de rentabilidad cargado exitosamente.";
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            ErrorMessage = $"Error al cargar analisis: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private static string FormatCurrency(decimal amount) =>

@@ -18,7 +18,23 @@ public sealed record SaleHistoryResult(
     DateTimeOffset CreatedAt,
     decimal Total);
 
+/// <summary>
+/// A single line in a partial return request.
+/// SaleItemId identifies the original sale item; QuantityReturned must be in [1, originalQty].
+/// RefundAmount is the monetary amount to refund for this line.
+/// </summary>
+public sealed record ReturnLineRequest(
+    Guid SaleItemId,
+    int QuantityReturned,
+    decimal RefundAmount);
+
+/// <summary>
+/// Request to process a sale return (full or partial).
+/// When Items is null or empty, a full return of all items is performed (backward compatible).
+/// When Items is provided, only the listed items are returned at the specified quantities.
+/// </summary>
 public sealed record ProcessReturnRequest(
     Guid SaleId,
     Guid ProcessedByUserId,
-    string Reason);
+    string Reason,
+    IReadOnlyList<ReturnLineRequest>? Items = null);
