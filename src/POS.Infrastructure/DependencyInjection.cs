@@ -66,7 +66,8 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
 
         // Infrastructure services
-        services.AddScoped<IPrintService, PrintService>();
+        services.AddScoped<IPrintService, EscPosPrinterService>();
+        services.AddScoped<IReportExportService, ReportExportService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IPdfService, PdfService>();
         services.AddScoped<IEmailService, SmtpEmailService>();

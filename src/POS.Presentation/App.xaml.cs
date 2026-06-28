@@ -213,7 +213,9 @@ public partial class App : System.Windows.Application
             var getReport = sp.GetRequiredService<IGetOperationalReportUseCase>();
             IProfitQueryService? profitQuery = null;
             try { profitQuery = sp.GetRequiredService<IProfitQueryService>(); } catch { }
-            reports = new ReportsViewModel(getReport, profitQuery);
+            IReportExportService? exportService = null;
+            try { exportService = sp.GetRequiredService<IReportExportService>(); } catch { }
+            reports = new ReportsViewModel(getReport, profitQuery, exportService);
         }
         catch
         {

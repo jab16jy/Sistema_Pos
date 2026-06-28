@@ -7,18 +7,21 @@ using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
 
-/// <summary>
-/// ViewModel for the Reports module.
-/// Loads operational totals (billed, cash, digital, receivable settlements) from persisted records.
-/// Also loads profit analytics (top sellers, period comparison, platform breakdown, product margins).
-/// All business logic lives in the Application use case; this class only manages UI state.
-/// </summary>
 public sealed class ReportsViewModel : ViewModelBase
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
     private readonly IGetOperationalReportUseCase _reportUseCase;
     private readonly IProfitQueryService? _profitQueryService;
+    private readonly IReportExportService? _exportService;
+
+    // Last-loaded data for export
+    private OperationalReportDto? _lastOperationalReport;
+    private DateTimeOffset _lastOperationalFrom;
+    private DateTimeOffset _lastOperationalTo;
+    private DateOnly _lastAnalyticsFrom;
+    private DateOnly _lastAnalyticsTo;
+
     private decimal _reportBilledTotal;
     private decimal _reportCashCollected;
     private decimal _reportDigitalCollected;
@@ -30,15 +33,23 @@ public sealed class ReportsViewModel : ViewModelBase
     private string _statusMessage = string.Empty;
     private PeriodComparisonResult? _periodComparison;
 
+    public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
+
     public ReportsViewModel(IGetOperationalReportUseCase reportUseCase)
-        : this(reportUseCase, null)
+        : this(reportUseCase, null, null)
     {
     }
 
     public ReportsViewModel(IGetOperationalReportUseCase reportUseCase, IProfitQueryService? profitQueryService)
+        : this(reportUseCase, profitQueryService, null)
+    {
+    }
+
+    public ReportsViewModel(IGetOperationalReportUseCase reportUseCase, IProfitQueryService? profitQueryService, IReportExportService? exportService)
     {
         _reportUseCase = reportUseCase ?? throw new ArgumentNullException(nameof(reportUseCase));
         _profitQueryService = profitQueryService;
+        _exportService = exportService;
 
         TopSellers = [];
         PlatformBreakdown = [];
@@ -53,6 +64,22 @@ public sealed class ReportsViewModel : ViewModelBase
             async _ => await LoadAnalyticsAsync(
                 DateOnly.FromDateTime(DateTime.Today),
                 DateOnly.FromDateTime(DateTime.Today)).ConfigureAwait(true));
+
+        ExportOperationalPdfCommand = new RelayCommand(
+            async _ => await ExportOperationalAsync(pdf: true).ConfigureAwait(true),
+            _ => _exportService is not null && _lastOperationalReport is not null);
+
+        ExportOperationalExcelCommand = new RelayCommand(
+            async _ => await ExportOperationalAsync(pdf: false).ConfigureAwait(true),
+            _ => _exportService is not null && _lastOperationalReport is not null);
+
+        ExportProfitPdfCommand = new RelayCommand(
+            async _ => await ExportProfitAsync(pdf: true).ConfigureAwait(true),
+            _ => _exportService is not null && _periodComparison is not null);
+
+        ExportProfitExcelCommand = new RelayCommand(
+            async _ => await ExportProfitAsync(pdf: false).ConfigureAwait(true),
+            _ => _exportService is not null && _periodComparison is not null);
     }
 
     // ── Report totals (read-only output) ──
@@ -124,8 +151,11 @@ public sealed class ReportsViewModel : ViewModelBase
     // ── Commands ──
 
     public ICommand LoadReportCommand { get; }
-
     public ICommand LoadAnalyticsCommand { get; }
+    public ICommand ExportOperationalPdfCommand { get; }
+    public ICommand ExportOperationalExcelCommand { get; }
+    public ICommand ExportProfitPdfCommand { get; }
+    public ICommand ExportProfitExcelCommand { get; }
 
     // ── Analytics collections ──
 
@@ -143,10 +173,6 @@ public sealed class ReportsViewModel : ViewModelBase
 
     // ── Load ──
 
-    /// <summary>
-    /// Loads the operational report for the given date range.
-    /// Validates the range and delegates to the use case.
-    /// </summary>
     public async Task LoadReportAsync(
         DateTimeOffset from,
         DateTimeOffset to,
@@ -176,6 +202,10 @@ public sealed class ReportsViewModel : ViewModelBase
             ReportDigitalCollected = report.SaleDigitalCollected;
             ReportReceivableSettlements = report.ReceivableSettlementTotal;
             ReportExpectedDrawerCash = report.ExpectedDrawerCash;
+
+            _lastOperationalReport = report;
+            _lastOperationalFrom = from;
+            _lastOperationalTo = to;
 
             OnPropertyChanged(nameof(BilledTotalText));
             OnPropertyChanged(nameof(CashCollectedText));
@@ -265,12 +295,68 @@ public sealed class ReportsViewModel : ViewModelBase
                 ProductMargins.Add(item);
             }
 
+            _lastAnalyticsFrom = currentFrom;
+            _lastAnalyticsTo = currentTo;
+
             StatusMessage = "Analisis de rentabilidad cargado exitosamente.";
         }
         catch (Exception ex)
         {
             HasError = true;
             ErrorMessage = $"Error al cargar analisis: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ExportOperationalAsync(bool pdf)
+    {
+        if (_exportService is null || _lastOperationalReport is null) return;
+        try
+        {
+            IsLoading = true;
+            byte[] data = pdf
+                ? await _exportService.ExportOperationalReportPdfAsync(_lastOperationalReport, _lastOperationalFrom, _lastOperationalTo).ConfigureAwait(true)
+                : await _exportService.ExportOperationalReportExcelAsync(_lastOperationalReport, _lastOperationalFrom, _lastOperationalTo).ConfigureAwait(true);
+
+            string ext = pdf ? "pdf" : "xlsx";
+            string name = $"Reporte_Operacional_{_lastOperationalFrom.ToLocalTime():yyyyMMdd}.{ext}";
+            FileExportRequested?.Invoke(this, (name, data));
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            ErrorMessage = $"Error al exportar: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ExportProfitAsync(bool pdf)
+    {
+        if (_exportService is null || _periodComparison is null) return;
+        try
+        {
+            IsLoading = true;
+            var topSellers = (IReadOnlyList<TopSellerResult>)TopSellers;
+            var margins = (IReadOnlyList<ProductMarginResult>)ProductMargins;
+
+            byte[] data = pdf
+                ? await _exportService.ExportProfitReportPdfAsync(topSellers, _periodComparison, margins, _lastAnalyticsFrom, _lastAnalyticsTo).ConfigureAwait(true)
+                : await _exportService.ExportProfitReportExcelAsync(topSellers, _periodComparison, margins, _lastAnalyticsFrom, _lastAnalyticsTo).ConfigureAwait(true);
+
+            string ext = pdf ? "pdf" : "xlsx";
+            string name = $"Reporte_Rentabilidad_{_lastAnalyticsFrom:yyyyMMdd}.{ext}";
+            FileExportRequested?.Invoke(this, (name, data));
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            ErrorMessage = $"Error al exportar: {ex.Message}";
         }
         finally
         {
