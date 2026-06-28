@@ -1,6 +1,7 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Auth;
 using POS.Application.UseCases.BarcodeLabels;
 using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Customers;
@@ -12,6 +13,7 @@ using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Sales;
 using POS.Application.UseCases.Settings;
+using POS.Domain.Enums;
 using POS.Infrastructure;
 using POS.Infrastructure.Services;
 using POS.Presentation.Shared.Prototype;
@@ -41,13 +43,24 @@ public partial class App : System.Windows.Application
             DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
             _scope = _services.CreateScope();
 
-        var shell = new Views.NavigationShellView
-        {
-            DataContext = BuildMainShellViewModel(_scope.ServiceProvider)
-        };
+            var loginUseCase = _scope.ServiceProvider.GetRequiredService<LoginUseCase>();
+            var writableSession = _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>();
+            var loginVm = new ViewModels.LoginViewModel(loginUseCase, writableSession);
+            var loginWindow = new Views.LoginWindow(loginVm);
 
-        MainWindow = shell;
-        shell.Show();
+            if (loginWindow.ShowDialog() != true)
+            {
+                Shutdown(0);
+                return;
+            }
+
+            var shell = new Views.NavigationShellView
+            {
+                DataContext = BuildMainShellViewModel(_scope.ServiceProvider)
+            };
+
+            MainWindow = shell;
+            shell.Show();
         }
         catch (Exception ex)
         {
@@ -99,6 +112,10 @@ public partial class App : System.Windows.Application
 
     private static MainShellViewModel BuildMainShellViewModel(IServiceProvider sp)
     {
+        var session = sp.GetRequiredService<ICurrentOperatorSession>();
+        var role = session.Role;
+        var username = session.Username;
+
         IProductLookupService productLookup;
         try
         {
@@ -122,7 +139,7 @@ public partial class App : System.Windows.Application
             cashier = new CashierViewModel(productLookup);
         }
 
-        cashier.CashierUserId = sp.GetRequiredService<ICurrentOperatorSession>().OperatorId;
+        cashier.CashierUserId = session.OperatorId;
 
         CustomersViewModel? customers = null;
         try
@@ -213,7 +230,6 @@ public partial class App : System.Windows.Application
             try { searchCategories = sp.GetRequiredService<SearchCategoriesUseCase>(); } catch { }
             products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories);
 
-            // Create CategoriesViewModel for the category CRUD tab
             CategoriesViewModel? categoriesEditor = null;
             try
             {
@@ -301,7 +317,7 @@ public partial class App : System.Windows.Application
         {
         }
 
-        return new MainShellViewModel(cashier, dashboardUseCase)
+        return new MainShellViewModel(cashier, dashboardUseCase, role, username)
         {
             Quote = quote,
             QuoteHistory = quoteHistory,

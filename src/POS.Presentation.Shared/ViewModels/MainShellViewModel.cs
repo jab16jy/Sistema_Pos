@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Sales;
+using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
 using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.Shell;
@@ -12,6 +13,11 @@ namespace POS.Presentation.Shared.ViewModels;
 public sealed class MainShellViewModel : ViewModelBase
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+    private static readonly IReadOnlySet<string> CashierModuleKeys = new HashSet<string>
+    {
+        "cashier", "customers", "quotes", "invoices"
+    };
+
     private readonly GetDashboardSummaryUseCase? _dashboardSummaryUseCase;
     private ModuleNavigationItem _selectedModule;
     private string _operatorMessage;
@@ -27,24 +33,38 @@ public sealed class MainShellViewModel : ViewModelBase
     }
 
     public MainShellViewModel(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboardSummaryUseCase)
+        : this(cashier, dashboardSummaryUseCase, UserRole.Administrator, string.Empty)
+    {
+    }
+
+    public MainShellViewModel(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboardSummaryUseCase, UserRole role, string username)
     {
         Cashier = cashier ?? throw new ArgumentNullException(nameof(cashier));
         _dashboardSummaryUseCase = dashboardSummaryUseCase;
-        Modules = new ObservableCollection<ModuleNavigationItem>
+        Role = role;
+        OperatorDisplayName = BuildDisplayName(username, role);
+
+        var allModules = new[]
         {
-            new("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F2", true),
-            new("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", true),
-            new("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", true),
-            new("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
-            new("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes", "Alt+Q", IsImplemented: true),
-            new("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", true),
-            new("receivables", "Cuentas por Cobrar", "Consulta saldos pendientes y registra abonos.", "F7", true),
-            new("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", true),
-            new("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F9", true),
-            new("loyalty", "Puntos", "Consulta saldo y redime puntos de lealtad.", "F11", true),
-            new("barcode", "Codigos de Barras", "Genera e imprime etiquetas con codigo de barras.", "F12", true),
-            new("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", true)
+            new ModuleNavigationItem("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F2", true),
+            new ModuleNavigationItem("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", true),
+            new ModuleNavigationItem("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", true),
+            new ModuleNavigationItem("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
+            new ModuleNavigationItem("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes", "Alt+Q", IsImplemented: true),
+            new ModuleNavigationItem("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", true),
+            new ModuleNavigationItem("receivables", "Cuentas por Cobrar", "Consulta saldos pendientes y registra abonos.", "F7", true),
+            new ModuleNavigationItem("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", true),
+            new ModuleNavigationItem("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F9", true),
+            new ModuleNavigationItem("loyalty", "Puntos", "Consulta saldo y redime puntos de lealtad.", "F11", true),
+            new ModuleNavigationItem("barcode", "Codigos de Barras", "Genera e imprime etiquetas con codigo de barras.", "F12", true),
+            new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", true)
         };
+
+        var visible = role == UserRole.Cashier
+            ? allModules.Where(m => CashierModuleKeys.Contains(m.Key))
+            : allModules;
+
+        Modules = new ObservableCollection<ModuleNavigationItem>(visible);
 
         Metrics = new ObservableCollection<DashboardMetric>
         {
@@ -59,17 +79,17 @@ public sealed class MainShellViewModel : ViewModelBase
         SelectModuleCommand = new RelayCommand(SelectModule, CanSelectModule);
     }
 
+    public UserRole Role { get; }
+    public string OperatorDisplayName { get; }
+
     public ObservableCollection<ModuleNavigationItem> Modules { get; }
 
     public ObservableCollection<DashboardMetric> Metrics { get; }
 
     public CashierViewModel Cashier { get; }
 
-    /// <summary>Quote creation ViewModel for presentation shells that expose the quote workflow.</summary>
     public QuoteViewModel? Quote { get; init; }
 
-    /// <summary>Quote history ViewModel for the Avalonia quotes module content area.
-    /// Null in the prototype default constructor; injected by DI in App.axaml.cs.</summary>
     public QuoteHistoryViewModel? QuoteHistory { get; init; }
 
     public CustomersViewModel? Customers { get; init; }
@@ -216,4 +236,11 @@ public sealed class MainShellViewModel : ViewModelBase
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";
+
+    private static string BuildDisplayName(string username, UserRole role)
+    {
+        if (string.IsNullOrEmpty(username)) return string.Empty;
+        var roleName = role == UserRole.Administrator ? "Administrador" : "Cajero";
+        return $"{username} — {roleName}";
+    }
 }
