@@ -20,6 +20,9 @@
           <TextBlock Text="Esthetic Medical Store" Foreground="White" FontSize="25" FontWeight="Bold" TextWrapping="Wrap" />
           <TextBlock Text="Local POS" Foreground="#93C5FD" FontSize="13" Margin="0,6,0,0" />
           <TextBlock Text="Fast cashier, customer, purchase, quote and reporting workflows." Foreground="#CBD5E1" TextWrapping="Wrap" Margin="0,12,0,0" />
+          <Border Background="#1E3A5F" CornerRadius="6" Padding="10,6" Margin="0,14,0,0">
+            <TextBlock Text="{Binding OperatorDisplayName}" Foreground="#93C5FD" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+          </Border>
         </StackPanel>
 
         <Border DockPanel.Dock="Bottom" Padding="20,12" Background="#111827">

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Auth;
 using POS.Application.UseCases.BarcodeLabels;
 using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Communication;
@@ -37,7 +38,11 @@ public static class DependencyInjection
             options.UseSqlite(connectionString)
                    .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
         services.AddScoped<IUnitOfWork>(provider => provider.GetRequiredService<AppDbContext>());
-        services.AddSingleton<ICurrentOperatorSession, LocalFileOperatorSession>();
+        services.AddSingleton<InMemoryUserSession>();
+        services.AddSingleton<ICurrentOperatorSession>(sp => sp.GetRequiredService<InMemoryUserSession>());
+        services.AddSingleton<IWritableOperatorSession>(sp => sp.GetRequiredService<InMemoryUserSession>());
+        services.AddScoped<IPasswordHashService, Pbkdf2PasswordHashService>();
+        services.AddScoped<LoginUseCase>();
         services.AddSingleton(runtimeOptions.Smtp);
         services.AddSingleton(runtimeOptions.WhatsAppScript);
         services.AddSingleton(runtimeOptions.Printer);

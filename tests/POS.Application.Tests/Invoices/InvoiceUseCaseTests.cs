@@ -360,5 +360,14 @@ public sealed class InvoiceUseCaseTests
 
         public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(id == _user.Id ? _user : null);
+
+        public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default)
+            => Task.FromResult(_user.Username == username ? _user : null);
+
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
+
+        public Task AddAsync(User user, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }
