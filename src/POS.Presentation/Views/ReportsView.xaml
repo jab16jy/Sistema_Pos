@@ -20,7 +20,11 @@
           <TextBlock Text="Ventas, efectivo esperado, pagos digitales y abonos." Style="{StaticResource MutedText}" />
           <TextBlock Text="Cargando..." Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" Style="{StaticResource MutedText}" />
         </StackPanel>
-        <Button Grid.Column="1" Content="Cargar reporte del día" Command="{Binding LoadReportCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Top" />
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+          <Button Content="Cargar reporte del día" Command="{Binding LoadReportCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+          <Button Content="PDF" Command="{Binding ExportOperationalPdfCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+          <Button Content="Excel" Command="{Binding ExportOperationalExcelCommand}" Style="{StaticResource PrimaryButton}" />
+        </StackPanel>
       </Grid>
     </Border>
     <Border Grid.Row="1" Background="{StaticResource BrushDangerSoft}" BorderBrush="{StaticResource BrushDanger}" BorderThickness="1" CornerRadius="12" Padding="18" Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,12">
@@ -82,7 +86,11 @@
             <TextBlock Text="Analisis de Rentabilidad" FontSize="20" FontWeight="Bold" />
             <TextBlock Text="Top productos, comparacion de periodos, plataformas y margenes." Style="{StaticResource MutedText}" />
           </StackPanel>
-          <Button Grid.Column="1" Content="Cargar Analisis" Command="{Binding LoadAnalyticsCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Top" />
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
+            <Button Content="Cargar Analisis" Command="{Binding LoadAnalyticsCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+            <Button Content="PDF" Command="{Binding ExportProfitPdfCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+            <Button Content="Excel" Command="{Binding ExportProfitExcelCommand}" Style="{StaticResource PrimaryButton}" />
+          </StackPanel>
         </Grid>
 
         <!-- Top 10 Productos -->
