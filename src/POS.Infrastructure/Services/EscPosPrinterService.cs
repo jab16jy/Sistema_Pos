@@ -143,6 +143,8 @@ public sealed partial class EscPosPrinterService : IPrintService
         Separator();
 
         // ── Totals ───────────────────────────────────────────────────────────
+        WriteLine($"{"Base gravable:",-20}{FormatCurrency(sale.TaxableBaseTotal().Amount),12}");
+        WriteLine($"{"IVA incluido:",-20}{FormatCurrency(sale.TaxTotal().Amount),12}");
         Write(CmdBoldOn);
         WriteLine($"{"TOTAL:",-20}{FormatCurrency(sale.Total().Amount),12}");
         Write(CmdBoldOff);

@@ -97,6 +97,30 @@ public sealed class SaleTests
     }
 
     [Fact]
+    public void AddItem_CapturesTaxRateAndCalculatesIncludedIva()
+    {
+        var product = new Product(
+            "Coffee",
+            Guid.NewGuid(),
+            new Money(2_000m),
+            new Money(11_900m),
+            new StockQuantity(10m),
+            new StockQuantity(2m),
+            taxRate: 19m);
+
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+
+        var item = sale.Items.Single();
+        Assert.Equal(19m, item.TaxRate);
+        Assert.Equal(1_900m, item.TaxAmount().Amount);
+        Assert.Equal(10_000m, item.TaxableBaseAmount().Amount);
+        Assert.Equal(1_900m, sale.TaxTotal().Amount);
+        Assert.Equal(10_000m, sale.TaxableBaseTotal().Amount);
+        Assert.Equal(11_900m, sale.Total().Amount);
+    }
+
+    [Fact]
     public void SaleItem_Profit_CalculatesCorrectly()
     {
         var product = new Product(

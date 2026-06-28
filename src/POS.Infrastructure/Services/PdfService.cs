@@ -182,6 +182,10 @@ public sealed class PdfService : IPdfService
 
                     // ── Totals ───────────────────────────────────────────────
                     col.Item().AlignRight()
+                        .Text($"Base gravable: {sale.TaxableBaseTotal().Amount.ToString("C0", culture)}");
+                    col.Item().AlignRight()
+                        .Text($"IVA incluido: {sale.TaxTotal().Amount.ToString("C0", culture)}");
+                    col.Item().AlignRight()
                         .Text($"TOTAL: {sale.Total().Amount.ToString("C0", culture)}")
                         .FontSize(14).Bold();
 

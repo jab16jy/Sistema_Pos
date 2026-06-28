@@ -50,6 +50,7 @@ public sealed class ProductCatalogQueryService : IProductCatalogQueryService
                 product.SalePrice.Amount,
                 product.CurrentStock,
                 product.MinimumStock,
+                product.TaxRate,
                 product.Description,
                 product.Barcode,
                 product.IsActive))

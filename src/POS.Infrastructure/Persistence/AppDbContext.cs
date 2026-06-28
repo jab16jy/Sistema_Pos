@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using POS.Application.Interfaces;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 
@@ -6,8 +8,15 @@ namespace POS.Infrastructure.Persistence;
 
 public sealed class AppDbContext : DbContext, IUnitOfWork
 {
+    private readonly ICurrentOperatorSession? _session;
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
+    }
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentOperatorSession? session) : base(options)
+    {
+        _session = session;
     }
 
     public DbSet<Category> Categories => Set<Category>();
@@ -30,10 +39,64 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<LoyaltyAccount> LoyaltyAccounts => Set<LoyaltyAccount>();
     public DbSet<LoyaltyRule> LoyaltyRules => Set<LoyaltyRule>();
     public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<CashierShift> CashierShifts => Set<CashierShift>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        AddAuditEntries();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void AddAuditEntries()
+    {
+        var entries = ChangeTracker.Entries()
+            .Where(e => e.Entity is not AuditLog && e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted)
+            .ToList();
+
+        foreach (var entry in entries)
+        {
+            AuditLogs.Add(new AuditLog(
+                _session?.IsAuthenticated == true ? _session.OperatorId : null,
+                _session?.IsAuthenticated == true ? _session.Username : null,
+                entry.State.ToString(),
+                entry.Entity.GetType().Name,
+                TryGetEntityId(entry),
+                BuildDetails(entry)));
+        }
+    }
+
+    private static string? TryGetEntityId(EntityEntry entry)
+    {
+        var id = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "Id");
+        return id?.CurrentValue?.ToString();
+    }
+
+    private static string? BuildDetails(EntityEntry entry)
+    {
+        if (entry.State == EntityState.Added)
+        {
+            return "Registro creado.";
+        }
+
+        if (entry.State == EntityState.Deleted)
+        {
+            return "Registro eliminado.";
+        }
+
+        var changed = entry.Properties
+            .Where(p => p.IsModified)
+            .Select(p => p.Metadata.Name)
+            .Distinct()
+            .Take(12)
+            .ToList();
+
+        return changed.Count == 0 ? "Registro actualizado." : $"Campos modificados: {string.Join(", ", changed)}.";
     }
 }

@@ -8,7 +8,8 @@ public sealed record UpdateProductRequest(
     decimal SalePrice,
     decimal MinimumStock,
     string? Description,
-    string? Barcode);
+    string? Barcode,
+    decimal TaxRate = 19m);
 
 public sealed record ProductResult(
     Guid Id,
@@ -18,6 +19,7 @@ public sealed record ProductResult(
     decimal SalePrice,
     decimal CurrentStock,
     decimal MinimumStock,
+    decimal TaxRate,
     string? Description,
     string? Barcode,
     bool IsActive);
@@ -34,6 +36,7 @@ public sealed record ProductSearchResult(
     decimal SalePrice,
     decimal CurrentStock,
     decimal MinimumStock,
+    decimal TaxRate,
     string? Description,
     string? Barcode,
     bool IsActive);

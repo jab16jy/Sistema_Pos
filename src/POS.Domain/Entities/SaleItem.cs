@@ -9,7 +9,7 @@ public sealed class SaleItem
         ProductName = string.Empty;
     }
 
-    public SaleItem(Guid productId, string productName, Quantity quantity, Money unitPrice, Money discount, Money unitCost = default)
+    public SaleItem(Guid productId, string productName, Quantity quantity, Money unitPrice, Money discount, Money unitCost = default, decimal taxRate = 19m)
     {
         Id = Guid.NewGuid();
         ProductId = productId;
@@ -18,6 +18,7 @@ public sealed class SaleItem
         UnitPrice = unitPrice;
         Discount = discount;
         UnitCost = unitCost;
+        TaxRate = ValidateTaxRate(taxRate);
     }
 
     public Guid Id { get; private set; }
@@ -27,6 +28,7 @@ public sealed class SaleItem
     public decimal Quantity { get; private set; }
     public Money UnitPrice { get; private set; }
     public Money Discount { get; private set; }
+    public decimal TaxRate { get; private set; }
 
     /// <summary>
     /// Cost price snapshot captured at sale time from product.CostPrice.
@@ -46,6 +48,24 @@ public sealed class SaleItem
         return new Money(gross - Discount.Amount);
     }
 
+    public Money TaxAmount()
+    {
+        var subtotal = Subtotal().Amount;
+        if (TaxRate <= 0m)
+        {
+            return Money.Zero;
+        }
+
+        return new Money(Math.Round(subtotal * TaxRate / (100m + TaxRate), 2, MidpointRounding.AwayFromZero));
+    }
+
+    public Money TaxableBaseAmount()
+    {
+        var subtotal = Subtotal().Amount;
+        var tax = TaxAmount().Amount;
+        return tax >= subtotal ? Money.Zero : new Money(subtotal - tax);
+    }
+
     /// <summary>
     /// Gross profit for this line: Subtotal minus total cost.
     /// Returns zero if cost exceeds revenue (avoids negative Money).
@@ -60,5 +80,15 @@ public sealed class SaleItem
         }
 
         return new Money(subtotal - totalCost);
+    }
+
+    private static decimal ValidateTaxRate(decimal taxRate)
+    {
+        if (taxRate < 0m || taxRate > 100m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(taxRate), "Tax rate must be between 0 and 100.");
+        }
+
+        return taxRate;
     }
 }

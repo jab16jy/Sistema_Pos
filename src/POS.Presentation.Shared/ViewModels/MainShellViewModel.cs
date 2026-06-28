@@ -15,7 +15,7 @@ public sealed class MainShellViewModel : ViewModelBase
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private static readonly IReadOnlySet<string> CashierModuleKeys = new HashSet<string>
     {
-        "cashier", "customers", "quotes", "invoices"
+        "cashier", "shifts", "customers", "quotes", "invoices"
     };
 
     private readonly GetDashboardSummaryUseCase? _dashboardSummaryUseCase;
@@ -47,7 +47,9 @@ public sealed class MainShellViewModel : ViewModelBase
         var allModules = new[]
         {
             new ModuleNavigationItem("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F2", true),
+            new ModuleNavigationItem("shifts", "Turnos", "Abre y cierra turnos de cajeros.", "Alt+T", true),
             new ModuleNavigationItem("users", "Usuarios", "Crea y gestiona usuarios del sistema.", "F1", true),
+            new ModuleNavigationItem("audit", "Auditoría", "Consulta quién cambió qué y cuándo.", "Alt+A", true),
             new ModuleNavigationItem("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", true),
             new ModuleNavigationItem("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", true),
             new ModuleNavigationItem("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
@@ -118,6 +120,10 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public UserManagementViewModel? UserManagement { get; init; }
 
+    public ShiftsViewModel? Shifts { get; init; }
+
+    public AuditLogViewModel? AuditLog { get; init; }
+
     public ICommand SelectModuleCommand { get; }
     public ICommand LogoutCommand { get; }
 
@@ -136,7 +142,9 @@ public sealed class MainShellViewModel : ViewModelBase
                 UpdateOperatorMessage(value);
                 OnPropertyChanged(nameof(MainActionText));
                 OnPropertyChanged(nameof(IsCashierSelected));
+                OnPropertyChanged(nameof(IsShiftsSelected));
                 OnPropertyChanged(nameof(IsUsersSelected));
+                OnPropertyChanged(nameof(IsAuditSelected));
                 OnPropertyChanged(nameof(IsProductsSelected));
                 OnPropertyChanged(nameof(IsInventorySelected));
                 OnPropertyChanged(nameof(IsQuotesSelected));
@@ -165,6 +173,10 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsUsersSelected => SelectedModule.Key == "users";
 
+    public bool IsShiftsSelected => SelectedModule.Key == "shifts";
+
+    public bool IsAuditSelected => SelectedModule.Key == "audit";
+
     public bool IsProductsSelected => SelectedModule.Key == "products";
 
     public bool IsInventorySelected => SelectedModule.Key == "inventory";
@@ -187,7 +199,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsSettingsSelected => SelectedModule.Key == "settings";
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsUsersSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected;
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -230,7 +242,9 @@ public sealed class MainShellViewModel : ViewModelBase
         OperatorMessage = module switch
         {
             { Key: "cashier", IsImplemented: true } => "Módulo Caja activo. Escanea productos, cobra y confirma ventas.",
+            { Key: "shifts", IsImplemented: true } => "Módulo Turnos activo. Controla apertura y cierre por cajero.",
             { Key: "users", IsImplemented: true } => "Módulo Usuarios activo. Gestiona accesos y contraseñas.",
+            { Key: "audit", IsImplemented: true } => "Módulo Auditoría activo. Revisa cambios y operaciones recientes.",
             { Key: "products", IsImplemented: true } => "Módulo Productos activo. Registra catálogo, precios, stock mínimo y códigos.",
             { Key: "inventory", IsImplemented: true } => "Módulo Inventario activo. Consulta existencias, bajo stock y movimientos.",
             { Key: "customers", IsImplemented: true } => "Módulo Clientes activo. Gestiona datos operativos e historial.",

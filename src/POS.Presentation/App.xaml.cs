@@ -1,6 +1,7 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Audit;
 using POS.Application.UseCases.Auth;
 using POS.Application.UseCases.BarcodeLabels;
 using POS.Application.UseCases.Categories;
@@ -14,6 +15,7 @@ using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Reporting;
 using POS.Application.UseCases.Sales;
 using POS.Application.UseCases.Settings;
+using POS.Application.UseCases.Shifts;
 using POS.Domain.Enums;
 using POS.Infrastructure;
 using POS.Infrastructure.Services;
@@ -250,9 +252,10 @@ public partial class App : System.Windows.Application
             var updateProduct = sp.GetRequiredService<UpdateProductUseCase>();
             var deleteProduct = sp.GetRequiredService<DeleteProductUseCase>();
             var searchProducts = sp.GetRequiredService<SearchProductsUseCase>();
+            var importProductsCsv = sp.GetRequiredService<ImportProductsCsvUseCase>();
             SearchCategoriesUseCase? searchCategories = null;
             try { searchCategories = sp.GetRequiredService<SearchCategoriesUseCase>(); } catch { }
-            products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories);
+            products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv);
 
             CategoriesViewModel? categoriesEditor = null;
             try
@@ -266,7 +269,7 @@ public partial class App : System.Windows.Application
 
             if (categoriesEditor is not null)
             {
-                products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories)
+                products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv)
                 {
                     CategoriesEditor = categoriesEditor
                 };
@@ -354,6 +357,27 @@ public partial class App : System.Windows.Application
         {
         }
 
+        ShiftsViewModel? shifts = null;
+        try
+        {
+            var startShift = sp.GetRequiredService<StartShiftUseCase>();
+            var closeShift = sp.GetRequiredService<CloseShiftUseCase>();
+            var getShifts = sp.GetRequiredService<GetShiftsUseCase>();
+            shifts = new ShiftsViewModel(startShift, closeShift, getShifts, session);
+        }
+        catch
+        {
+        }
+
+        AuditLogViewModel? auditLog = null;
+        try
+        {
+            auditLog = new AuditLogViewModel(sp.GetRequiredService<GetAuditLogsUseCase>());
+        }
+        catch
+        {
+        }
+
         return new MainShellViewModel(cashier, dashboardUseCase, role, username)
         {
             Quote = quote,
@@ -368,7 +392,9 @@ public partial class App : System.Windows.Application
             Settings = settings,
             Loyalty = loyalty,
             Barcode = barcode,
-            UserManagement = userManagement
+            UserManagement = userManagement,
+            Shifts = shifts,
+            AuditLog = auditLog
         };
     }
 }

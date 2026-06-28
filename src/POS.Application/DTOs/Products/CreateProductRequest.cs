@@ -8,4 +8,5 @@ public sealed record CreateProductRequest(
     decimal CurrentStock,
     decimal MinimumStock,
     string? Description,
-    string? Barcode);
+    string? Barcode,
+    decimal TaxRate = 19m);

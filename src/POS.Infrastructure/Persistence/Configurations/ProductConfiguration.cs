@@ -22,5 +22,8 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.SalePrice)
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("sale_price");
+        builder.Property(p => p.TaxRate)
+               .HasColumnName("tax_rate")
+               .HasDefaultValue(19m);
     }
 }

@@ -110,7 +110,7 @@ public sealed class ProductUseCaseTests
     public async Task SearchProductsAsync_DelegatesToCatalogQuery()
     {
         Guid categoryId = Guid.NewGuid();
-        var expected = new ProductSearchResult(Guid.NewGuid(), "Aspirina", categoryId, 10m, 5m, 2m, null, "ABC", true);
+        var expected = new ProductSearchResult(Guid.NewGuid(), "Aspirina", categoryId, 10m, 5m, 2m, 19m, null, "ABC", true);
         var query = new StubProductCatalogQueryService([expected]);
         var useCase = new SearchProductsUseCase(query);
 
@@ -122,6 +122,27 @@ public sealed class ProductUseCaseTests
         Assert.Equal(expected.Id, result.Id);
         Assert.Equal("Aspir", query.LastRequest?.SearchText);
         Assert.Equal(categoryId, query.LastRequest?.CategoryId);
+    }
+
+    [Fact]
+    public async Task ImportProductsCsvAsync_WithValidRows_CreatesProductsWithTaxRate()
+    {
+        var categoryId = Guid.NewGuid();
+        var products = new InMemoryProductRepository();
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = new ImportProductsCsvUseCase(products, unitOfWork);
+        var csv = string.Join('\n',
+            "name,categoryId,costPrice,salePrice,currentStock,minimumStock,description,barcode,taxRate",
+            $"Cafe,{categoryId},2000,11900,5,1,Bebida,CAF001,19");
+
+        ImportProductsCsvResult result = await useCase.ExecuteAsync(new ImportProductsCsvRequest(csv), TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, result.Imported);
+        Assert.Equal(0, result.Skipped);
+        Assert.Empty(result.Errors);
+        Assert.Single(products.Products);
+        Assert.Equal(19m, products.Products[0].TaxRate);
+        Assert.Equal(1, unitOfWork.SaveCount);
     }
 
     private static Product CreateProduct(string name, string? barcode) => new(

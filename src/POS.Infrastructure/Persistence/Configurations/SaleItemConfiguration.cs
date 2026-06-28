@@ -21,6 +21,9 @@ internal sealed class SaleItemConfiguration : IEntityTypeConfiguration<SaleItem>
         builder.Property(si => si.Discount)
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("discount");
+        builder.Property(si => si.TaxRate)
+               .HasColumnName("tax_rate")
+               .HasDefaultValue(19m);
 
         builder.Property(si => si.UnitCost)
                .HasConversion(m => m.Amount, v => new Money(v))
