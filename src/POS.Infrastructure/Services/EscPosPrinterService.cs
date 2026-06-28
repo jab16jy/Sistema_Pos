@@ -1,9 +1,14 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO.Ports;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
 using POS.Application.Interfaces;
+using POS.Domain.Entities;
+using POS.Domain.Enums;
+using POS.Infrastructure.Persistence;
 
 namespace POS.Infrastructure.Services;
 
@@ -18,7 +23,7 @@ namespace POS.Infrastructure.Services;
 /// </summary>
 public sealed partial class EscPosPrinterService : IPrintService
 {
-    private static readonly byte[] CmdInit       = [0x1B, 0x40];
+    private static readonly byte[] CmdInit        = [0x1B, 0x40];
     private static readonly byte[] CmdCenterAlign = [0x1B, 0x61, 0x01];
     private static readonly byte[] CmdLeftAlign   = [0x1B, 0x61, 0x00];
     private static readonly byte[] CmdBoldOn      = [0x1B, 0x45, 0x01];
@@ -27,11 +32,15 @@ public sealed partial class EscPosPrinterService : IPrintService
     private static readonly byte[] CmdNormalSize  = [0x1D, 0x21, 0x00];
     private static readonly byte[] CmdFullCut     = [0x1D, 0x56, 0x00];
 
-    private readonly PrinterRuntimeOptions _options;
+    private static readonly CultureInfo CopCulture = CultureInfo.GetCultureInfo("es-CO");
 
-    public EscPosPrinterService(PrinterRuntimeOptions options)
+    private readonly PrinterRuntimeOptions _options;
+    private readonly AppDbContext _dbContext;
+
+    public EscPosPrinterService(PrinterRuntimeOptions options, AppDbContext dbContext)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_options.Command);
@@ -44,57 +53,141 @@ public sealed partial class EscPosPrinterService : IPrintService
                 "La impresora no está configurada. La venta queda guardada y podrás imprimir el recibo cuando configures la impresora.");
         }
 
+        var sale = await _dbContext.Sales
+            .AsNoTracking()
+            .Include(s => s.Items)
+            .Include(s => s.Payments)
+            .FirstOrDefaultAsync(s => s.Id == saleId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (sale is null)
+            throw new InvalidOperationException($"Venta {saleId} no encontrada.");
+
+        var settings = await _dbContext.BusinessSettings
+            .AsNoTracking()
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var receiptBytes = BuildReceiptBytes(sale, settings);
         var target = _options.Command!.Trim();
 
         if (SerialPortRegex().IsMatch(target))
         {
-            await PrintViaSerialAsync(target, saleId, cancellationToken).ConfigureAwait(false);
+            await PrintViaSerialAsync(target, receiptBytes, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         if (TcpAddressRegex().IsMatch(target))
         {
-            await PrintViaTcpAsync(target, saleId, cancellationToken).ConfigureAwait(false);
+            await PrintViaTcpAsync(target, receiptBytes, cancellationToken).ConfigureAwait(false);
             return;
         }
 
         if (target.StartsWith("USB", StringComparison.OrdinalIgnoreCase) ||
             target.StartsWith(@"\\.\USB", StringComparison.OrdinalIgnoreCase))
         {
-            await PrintViaFileStreamAsync(@"\\.\USB001", saleId, cancellationToken).ConfigureAwait(false);
+            await PrintViaFileStreamAsync(@"\\.\USB001", receiptBytes, cancellationToken).ConfigureAwait(false);
             return;
         }
 
-        // Legacy fallback: external process (same behaviour as original PrintService)
         await PrintViaProcessAsync(target, saleId, cancellationToken).ConfigureAwait(false);
     }
 
-    private static byte[] BuildReceiptBytes(Guid saleId)
+    private static byte[] BuildReceiptBytes(Sale sale, BusinessSettings? settings)
     {
         var buf = new List<byte>();
         void Write(byte[] b) => buf.AddRange(b);
         void WriteText(string text) => buf.AddRange(Encoding.UTF8.GetBytes(text));
+        void WriteLine(string text = "") => WriteText(text + "\n");
+        void Separator() => WriteLine("--------------------------------");
 
         Write(CmdInit);
+
+        // ── Header ──────────────────────────────────────────────────────────
         Write(CmdCenterAlign);
         Write(CmdBoldOn);
         Write(CmdDoubleSize);
-        WriteText("Esthetic Medical Store\n");
+        WriteLine(settings?.BusinessName ?? "POS Local");
         Write(CmdNormalSize);
         Write(CmdBoldOff);
-        WriteText($"Venta: {saleId}\n");
-        WriteText($"{DateTime.Now:yyyy-MM-dd HH:mm}\n");
-        WriteText("--------------------------------\n");
+
+        if (!string.IsNullOrWhiteSpace(settings?.BusinessAddress))
+            WriteLine(settings.BusinessAddress);
+        if (!string.IsNullOrWhiteSpace(settings?.TaxId))
+            WriteLine($"NIT: {settings.TaxId}");
+
+        WriteLine();
+
+        // ── Invoice metadata ─────────────────────────────────────────────────
         Write(CmdLeftAlign);
-        WriteText("Recibo generado correctamente.\n");
-        WriteText("Gracias por su compra!\n");
-        WriteText("\n\n\n");
+        Separator();
+        WriteLine($"Factura: {sale.InvoiceNumber}");
+        WriteLine($"Fecha:   {sale.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm}");
+        Separator();
+
+        // ── Line items ───────────────────────────────────────────────────────
+        foreach (var item in sale.Items)
+        {
+            var name = item.ProductName.Length > 20
+                ? item.ProductName[..20]
+                : item.ProductName;
+
+            var qty      = $"x{item.Quantity:0.##}";
+            var subtotal = FormatCurrency(item.Subtotal().Amount);
+
+            // 32-char line: name(20) qty(5) price(7)
+            var line = $"{name,-20}{qty,5} {subtotal,6}";
+            WriteLine(line);
+        }
+
+        Separator();
+
+        // ── Totals ───────────────────────────────────────────────────────────
+        Write(CmdBoldOn);
+        WriteLine($"{"TOTAL:",-20}{FormatCurrency(sale.Total().Amount),12}");
+        Write(CmdBoldOff);
+
+        var cashPayment = sale.Payments.FirstOrDefault(p => p.Method == PaymentMethod.Cash);
+        if (cashPayment is not null)
+        {
+            var received = cashPayment.ReceivedAmount?.Amount ?? cashPayment.Amount.Amount;
+            var change   = cashPayment.ChangeAmount().Amount;
+            WriteLine($"{"Efectivo:",-20}{FormatCurrency(received),12}");
+            if (change > 0)
+                WriteLine($"{"Cambio:",-20}{FormatCurrency(change),12}");
+        }
+
+        var methods = sale.Payments
+            .Select(p => p.Method switch
+            {
+                PaymentMethod.Cash       => "Efectivo",
+                PaymentMethod.DebitCard  => "Tarjeta Débito",
+                PaymentMethod.CreditCard => "Tarjeta Crédito",
+                PaymentMethod.Transfer   => "Transferencia",
+                _                        => p.Method.ToString()
+            })
+            .Distinct();
+        WriteLine($"Método: {string.Join(", ", methods)}");
+
+        Separator();
+
+        // ── Footer ───────────────────────────────────────────────────────────
+        Write(CmdCenterAlign);
+        WriteLine();
+        WriteLine("¡Gracias por su compra!");
+        WriteLine("Conserve su recibo.");
+        WriteLine();
+        WriteLine();
+        WriteLine();
         Write(CmdFullCut);
 
         return [.. buf];
     }
 
-    private static async Task PrintViaSerialAsync(string port, Guid saleId, CancellationToken ct)
+    private static string FormatCurrency(decimal amount) =>
+        $"${amount.ToString("N0", CopCulture)}";
+
+    private static async Task PrintViaSerialAsync(string port, byte[] data, CancellationToken ct)
     {
         using var serial = new SerialPort(port, 9600, Parity.None, 8, StopBits.One)
         {
@@ -102,27 +195,24 @@ public sealed partial class EscPosPrinterService : IPrintService
             ReadTimeout = 2000
         };
         serial.Open();
-        var data = BuildReceiptBytes(saleId);
         await serial.BaseStream.WriteAsync(data, ct).ConfigureAwait(false);
         await serial.BaseStream.FlushAsync(ct).ConfigureAwait(false);
     }
 
-    private static async Task PrintViaTcpAsync(string address, Guid saleId, CancellationToken ct)
+    private static async Task PrintViaTcpAsync(string address, byte[] data, CancellationToken ct)
     {
         var parts = address.Split(':');
-        var host = parts[0];
-        var port = int.Parse(parts[1]);
+        var host  = parts[0];
+        var port  = int.Parse(parts[1]);
 
         using var tcp = new TcpClient();
         await tcp.ConnectAsync(host, port, ct).ConfigureAwait(false);
-        var data = BuildReceiptBytes(saleId);
         await tcp.GetStream().WriteAsync(data, ct).ConfigureAwait(false);
         await tcp.GetStream().FlushAsync(ct).ConfigureAwait(false);
     }
 
-    private static async Task PrintViaFileStreamAsync(string path, Guid saleId, CancellationToken ct)
+    private static async Task PrintViaFileStreamAsync(string path, byte[] data, CancellationToken ct)
     {
-        var data = BuildReceiptBytes(saleId);
         await File.WriteAllBytesAsync(path, data, ct).ConfigureAwait(false);
     }
 
