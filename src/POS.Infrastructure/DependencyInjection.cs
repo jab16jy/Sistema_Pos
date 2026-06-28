@@ -118,6 +118,12 @@ public static class DependencyInjection
         services.AddScoped<IGetOperationalReportUseCase, GetOperationalReportUseCase>();
         services.AddScoped<CloseCashRegisterUseCase>();
 
+        // User management use cases
+        services.AddScoped<GetAllUsersUseCase>();
+        services.AddScoped<CreateUserUseCase>();
+        services.AddScoped<UpdateUserUseCase>();
+        services.AddScoped<DeactivateUserUseCase>();
+
         // New POS modules use cases
         services.AddScoped<AccumulateLoyaltyPointsUseCase>();
         services.AddScoped<RedeemLoyaltyPointsUseCase>();

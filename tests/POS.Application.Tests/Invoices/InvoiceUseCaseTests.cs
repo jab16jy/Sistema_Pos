@@ -369,5 +369,11 @@ public sealed class InvoiceUseCaseTests
 
         public Task AddAsync(User user, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<User>>([_user]);
+
+        public Task UpdateAsync(User user, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 }

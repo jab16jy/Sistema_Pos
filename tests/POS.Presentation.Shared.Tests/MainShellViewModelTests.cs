@@ -9,7 +9,7 @@ namespace POS.Presentation.Shared.Tests;
 
 public sealed class MainShellViewModelTests
 {
-    private const int ActiveShellModuleCount = 12; // Phase 4: added loyalty + barcode modules
+    private const int ActiveShellModuleCount = 13; // users + loyalty + barcode modules
     private const string CashierModuleKey = "cashier";
     private const string QuotesModuleKey = "quotes";
 
