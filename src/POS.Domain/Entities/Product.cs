@@ -45,6 +45,8 @@ public sealed class Product
     public string Name { get; private set; }
     public string Description { get; private set; }
     public Guid CategoryId { get; private set; }
+    public Guid? SubCategoryId { get; private set; }
+    public Guid? UnitOfMeasureId { get; private set; }
     public Money CostPrice { get; private set; }
     public Money SalePrice { get; private set; }
     public decimal CurrentStock { get; private set; }
@@ -55,6 +57,10 @@ public sealed class Product
     public bool IsLowStock() => CurrentStock <= MinimumStock;
 
     public void Deactivate() => IsActive = false;
+
+    public void SetSubCategory(Guid? subCategoryId) => SubCategoryId = subCategoryId;
+
+    public void SetUnitOfMeasure(Guid? unitOfMeasureId) => UnitOfMeasureId = unitOfMeasureId;
 
     public void UpdateDetails(
         string name,
