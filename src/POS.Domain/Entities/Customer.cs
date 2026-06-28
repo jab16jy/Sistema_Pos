@@ -23,6 +23,9 @@ public sealed class Customer
     public string? Email { get; private set; }
     public string? Address { get; private set; }
     public bool IsActive { get; private set; }
+    public Guid? LoyaltyTierId { get; private set; }
+
+    public void SetLoyaltyTier(Guid? loyaltyTierId) => LoyaltyTierId = loyaltyTierId;
 
     public void UpdateContactInfo(string fullName, string identification, string? phone, string? email, string? address)
     {

@@ -41,6 +41,10 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<LoyaltyTransaction> LoyaltyTransactions => Set<LoyaltyTransaction>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<CashierShift> CashierShifts => Set<CashierShift>();
+    public DbSet<SubCategory> SubCategories => Set<SubCategory>();
+    public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
+    public DbSet<ProductSupplier> ProductSuppliers => Set<ProductSupplier>();
+    public DbSet<LoyaltyTier> LoyaltyTiers => Set<LoyaltyTier>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

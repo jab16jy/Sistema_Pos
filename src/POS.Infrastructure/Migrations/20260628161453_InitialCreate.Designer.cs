@@ -11,8 +11,8 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260622072357_AddReceivables")]
-    partial class AddReceivables
+    [Migration("20260628161453_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -20,11 +20,108 @@ namespace POS.Infrastructure.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.17");
 
+            modelBuilder.Entity("POS.Domain.Entities.AuditLog", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Details")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EntityName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("EntityName");
+
+                    b.ToTable("AUDIT_LOGS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.BusinessSettings", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BackupDirectory")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BusinessAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BusinessName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CurrencyCode")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrinterCommand")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrinterWorkingDirectory")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BUSINESS_SETTINGS", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.CashClosing", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<decimal>("BilledTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("billed_total");
+
+                    b.Property<decimal>("CashCollected")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("cash_collected");
 
                     b.Property<DateTimeOffset>("ClosedAt")
                         .HasColumnType("TEXT");
@@ -33,6 +130,12 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("counted_cash");
 
+                    b.Property<decimal>("DigitalCollected")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("digital_collected");
+
                     b.Property<decimal>("DigitalPayments")
                         .HasColumnType("TEXT")
                         .HasColumnName("digital_payments");
@@ -40,6 +143,12 @@ namespace POS.Infrastructure.Migrations
                     b.Property<decimal>("ExpectedCash")
                         .HasColumnType("TEXT")
                         .HasColumnName("expected_cash");
+
+                    b.Property<decimal>("ReceivableSettlementTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("receivable_settlement_total");
 
                     b.Property<string>("UserId")
                         .IsRequired()
@@ -50,9 +159,54 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("CASH_CLOSINGS", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.CashierShift", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CashierUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CashierUsername")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ClosingCash")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("closing_cash");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("OpenedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("OpeningCash")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("opening_cash");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OpenedAt");
+
+                    b.HasIndex("CashierUserId", "Status");
+
+                    b.ToTable("CASHIER_SHIFTS", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Category", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
@@ -61,11 +215,12 @@ namespace POS.Infrastructure.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories");
+                    b.ToTable("CATEGORIES", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Customer", b =>
@@ -91,10 +246,15 @@ namespace POS.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("LoyaltyTierId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Phone")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("LoyaltyTierId");
 
                     b.ToTable("Customers", (string)null);
                 });
@@ -166,6 +326,122 @@ namespace POS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("InventoryMovements", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyAccount", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CustomerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CustomerId")
+                        .IsUnique();
+
+                    b.ToTable("LOYALTY_ACCOUNTS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyRule", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("MinimumRedeemPoints")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("PointsPerCurrencyUnit")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("RedemptionValuePerPoint")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LOYALTY_RULES", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyTier", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("MinPoints")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("PointsMultiplier")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(1.0m);
+
+                    b.HasKey("Id");
+
+                    b.ToTable("LOYALTY_TIERS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyTransaction", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LoyaltyAccountId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Points")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SaleId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoyaltyAccountId");
+
+                    b.ToTable("LOYALTY_TRANSACTIONS", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Payment", b =>
@@ -241,9 +517,40 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("sale_price");
 
+                    b.Property<string>("SubCategoryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("TaxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(19m)
+                        .HasColumnName("tax_rate");
+
+                    b.Property<string>("UnitOfMeasureId")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("SubCategoryId");
+
+                    b.HasIndex("UnitOfMeasureId");
+
                     b.ToTable("PRODUCTS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ProductSupplier", b =>
+                {
+                    b.Property<string>("ProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SupplierId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("ProductId", "SupplierId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.ToTable("PRODUCT_SUPPLIERS", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Purchase", b =>
@@ -497,6 +804,16 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal>("TaxRate")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(19m)
+                        .HasColumnName("tax_rate");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UnitCost");
+
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("TEXT")
                         .HasColumnName("unit_price");
@@ -506,6 +823,98 @@ namespace POS.Infrastructure.Migrations
                     b.HasIndex("SaleId");
 
                     b.ToTable("SALE_ITEMS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.SaleReturn", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OriginalSaleId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProcessedByUserId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ReturnedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OriginalSaleId")
+                        .IsUnique();
+
+                    b.ToTable("SALE_RETURNS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.SaleReturnItem", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("QuantityReturned")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("RefundAmount")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("RefundAmount");
+
+                    b.Property<string>("SaleReturnId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("UnitPrice");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SaleReturnId");
+
+                    b.ToTable("SALE_RETURN_ITEMS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.SubCategory", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CategoryId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("SUBCATEGORIES", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Supplier", b =>
@@ -536,6 +945,30 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("Suppliers", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.UnitOfMeasure", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Abbreviation")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UNIT_OF_MEASURES", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -564,11 +997,65 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.Customer", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.LoyaltyTier", null)
+                        .WithMany()
+                        .HasForeignKey("LoyaltyTierId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyAccount", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyTransaction", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.LoyaltyAccount", null)
+                        .WithMany()
+                        .HasForeignKey("LoyaltyAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Payment", b =>
                 {
                     b.HasOne("POS.Domain.Entities.Sale", null)
                         .WithMany("Payments")
                         .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.Product", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.SubCategory", null)
+                        .WithMany()
+                        .HasForeignKey("SubCategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("POS.Domain.Entities.UnitOfMeasure", null)
+                        .WithMany()
+                        .HasForeignKey("UnitOfMeasureId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ProductSupplier", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("POS.Domain.Entities.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -609,6 +1096,26 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.SaleReturnItem", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.SaleReturn", null)
+                        .WithMany("Items")
+                        .HasForeignKey("SaleReturnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.SubCategory", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Purchase", b =>
                 {
                     b.Navigation("Items");
@@ -629,6 +1136,11 @@ namespace POS.Infrastructure.Migrations
                     b.Navigation("Items");
 
                     b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.SaleReturn", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

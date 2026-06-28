@@ -12,5 +12,10 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
         builder.HasKey(customer => customer.Id);
         builder.Property(customer => customer.FullName).IsRequired();
         builder.Property(customer => customer.Identification).IsRequired();
+        builder.Property(customer => customer.LoyaltyTierId).HasConversion<string>();
+        builder.HasOne<LoyaltyTier>()
+               .WithMany()
+               .HasForeignKey(customer => customer.LoyaltyTierId)
+               .OnDelete(DeleteBehavior.SetNull);
     }
 }
