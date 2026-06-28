@@ -66,6 +66,9 @@ public partial class App : System.Windows.Application
     // Returns true if user logged in and shell was shown; false if user closed login
     private bool ShowLoginAndLaunchShell()
     {
+        // Prevent app shutdown when login window closes (no windows open momentarily)
+        ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
+
         var loginUseCase = _scope!.ServiceProvider.GetRequiredService<LoginUseCase>();
         var writableSession = _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>();
         var loginVm = new ViewModels.LoginViewModel(loginUseCase, writableSession);
@@ -74,12 +77,24 @@ public partial class App : System.Windows.Application
         if (loginWindow.ShowDialog() != true)
             return false;
 
+        MainShellViewModel shellVm;
+        try
+        {
+            shellVm = BuildMainShellViewModel(_scope.ServiceProvider);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Error al construir el shell principal:\n\n{ex}",
+                "Error de inicio");
+            return false;
+        }
+
         var shell = new Views.NavigationShellView
         {
-            DataContext = BuildMainShellViewModel(_scope.ServiceProvider)
+            DataContext = shellVm
         };
 
-        var shellVm = (MainShellViewModel)shell.DataContext;
         shellVm.LogoutRequested += () =>
         {
             // Clear session and close current shell
@@ -93,6 +108,9 @@ public partial class App : System.Windows.Application
 
         MainWindow = shell;
         shell.Show();
+
+        // Now that shell is open, restore normal shutdown behavior
+        ShutdownMode = System.Windows.ShutdownMode.OnMainWindowClose;
         return true;
     }
 
