@@ -68,10 +68,10 @@ public sealed class LoginViewModel : ViewModelBase
                 Message = result.ErrorMessage ?? "Error de acceso.";
             }
         }
-        catch
-        {
-            Message = "Error inesperado. Verifica la base de datos.";
-        }
+    catch (Exception ex)
+    {
+        Message = $"Error inesperado: {ex.Message}";
+    }
         finally
         {
             IsLoading = false;

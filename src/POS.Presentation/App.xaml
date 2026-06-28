@@ -117,6 +117,7 @@
       <Setter Property="Padding" Value="12,8" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Background" Value="White" />
+      <Setter Property="Foreground" Value="{StaticResource BrushText}" />
       <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Template">
@@ -128,7 +129,9 @@
                     BorderThickness="{TemplateBinding BorderThickness}"
                     CornerRadius="6">
               <Grid>
-                <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+                <ScrollViewer x:Name="PART_ContentHost"
+                              Foreground="{TemplateBinding Foreground}"
+                              Margin="{TemplateBinding Padding}" />
                 <TextBlock x:Name="PART_Watermark"
                            Text="{TemplateBinding Tag}"
                            Foreground="{StaticResource BrushMuted}"
@@ -161,6 +164,7 @@
       <Setter Property="Padding" Value="12,8" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Background" Value="White" />
+      <Setter Property="Foreground" Value="{StaticResource BrushText}" />
       <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
       <Setter Property="BorderThickness" Value="1" />
       <Setter Property="Template">
@@ -171,7 +175,9 @@
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
                     CornerRadius="6">
-              <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" />
+              <ScrollViewer x:Name="PART_ContentHost"
+                            Foreground="{TemplateBinding Foreground}"
+                            Margin="{TemplateBinding Padding}" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsKeyboardFocused" Value="True">
