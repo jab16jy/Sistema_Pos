@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.7.0...v0.8.0) (2026-06-28)
+
+
+### Features
+
+* add cash closing UI and date range filters to reports module ([56ee2fd](https://github.com/jab16jy/Sistema_Pos/commit/56ee2fd8cdef104b3424366445196415b1183304))
+* cash closing UI + date range filters in reports ([28012b2](https://github.com/jab16jy/Sistema_Pos/commit/28012b261297990ac4ba103b46e24dbd73914c36))
+
 ## [0.7.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.6.0...v0.7.0) (2026-06-28)
 
 
