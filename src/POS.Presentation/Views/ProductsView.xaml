@@ -33,6 +33,9 @@
                         <Run Text="{Binding CurrentStock, Mode=OneWay}" />
                         <Run Text=" | Precio: $" />
                         <Run Text="{Binding SalePrice, Mode=OneWay}" />
+                        <Run Text=" | IVA: " />
+                        <Run Text="{Binding TaxRate, Mode=OneWay}" />
+                        <Run Text="%" />
                       </TextBlock>
                     </StackPanel>
                   </DataTemplate>
@@ -82,11 +85,29 @@
                     <TextBox Text="{Binding MinimumStock, Mode=TwoWay}" />
                   </StackPanel>
                 </Grid>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Margin="0,0,8,0">
+                    <TextBlock Text="IVA (%)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                    <TextBox Text="{Binding TaxRate, Mode=TwoWay}" />
+                  </StackPanel>
+                </Grid>
                 <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
                   <Button Content="Guardar" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
                   <Button Content="Eliminar" Command="{Binding DeleteCommand}" Margin="0,0,8,0" />
                   <Button Content="Limpiar" Command="{Binding ClearCommand}" />
                 </StackPanel>
+                <Border Background="#F8FAFC" BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,16,0,0">
+                  <StackPanel>
+                    <TextBlock Text="Importar CSV" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <TextBlock Text="Columnas: name, categoryId, costPrice, salePrice, currentStock, minimumStock, description, barcode, taxRate" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8" />
+                    <TextBox Text="{Binding CsvPath, Mode=TwoWay}" Tag="Ruta del archivo CSV" Margin="0,0,0,8" />
+                    <Button Content="Importar productos" Command="{Binding ImportCsvCommand}" />
+                  </StackPanel>
+                </Border>
               </StackPanel>
             </ScrollViewer>
           </Border>

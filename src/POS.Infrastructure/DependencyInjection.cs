@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Audit;
 using POS.Application.UseCases.Auth;
 using POS.Application.UseCases.BarcodeLabels;
 using POS.Application.UseCases.Categories;
@@ -16,6 +17,7 @@ using POS.Application.UseCases.Receivables;
 using POS.Application.UseCases.Reporting;
 using POS.Application.UseCases.Sales;
 using POS.Application.UseCases.Settings;
+using POS.Application.UseCases.Shifts;
 using POS.Domain.Interfaces;
 using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Queries;
@@ -61,9 +63,11 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseRepository, PurchaseRepository>();
         services.AddScoped<IReceivableRepository, ReceivableRepository>();
         services.AddScoped<ICashClosingRepository, CashClosingRepository>();
+        services.AddScoped<ICashierShiftRepository, CashierShiftRepository>();
         services.AddScoped<ILoyaltyRepository, LoyaltyRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
         // Infrastructure services
         services.AddScoped<IPrintService, EscPosPrinterService>();
@@ -90,6 +94,7 @@ public static class DependencyInjection
         services.AddScoped<GetCustomerHistoryUseCase>();
         services.AddScoped<SearchCustomersUseCase>();
         services.AddScoped<CreateProductUseCase>();
+        services.AddScoped<ImportProductsCsvUseCase>();
         services.AddScoped<UpdateProductUseCase>();
         services.AddScoped<DeleteProductUseCase>();
         services.AddScoped<SearchProductsUseCase>();
@@ -117,6 +122,10 @@ public static class DependencyInjection
         services.AddScoped<IApplyReceivablePaymentUseCase, ApplyReceivablePaymentUseCase>();
         services.AddScoped<IGetOperationalReportUseCase, GetOperationalReportUseCase>();
         services.AddScoped<CloseCashRegisterUseCase>();
+        services.AddScoped<StartShiftUseCase>();
+        services.AddScoped<CloseShiftUseCase>();
+        services.AddScoped<GetShiftsUseCase>();
+        services.AddScoped<GetAuditLogsUseCase>();
 
         // User management use cases
         services.AddScoped<GetAllUsersUseCase>();

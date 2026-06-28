@@ -19,7 +19,8 @@ public sealed class Product
         StockQuantity currentStock,
         StockQuantity minimumStock,
         string? description = null,
-        Barcode? barcode = null)
+        Barcode? barcode = null,
+        decimal taxRate = 19m)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -35,6 +36,7 @@ public sealed class Product
         CurrentStock = currentStock.Value;
         MinimumStock = minimumStock.Value;
         Barcode = barcode?.Value;
+        TaxRate = ValidateTaxRate(taxRate);
         IsActive = true;
     }
 
@@ -47,6 +49,7 @@ public sealed class Product
     public Money SalePrice { get; private set; }
     public decimal CurrentStock { get; private set; }
     public decimal MinimumStock { get; private set; }
+    public decimal TaxRate { get; private set; }
     public bool IsActive { get; private set; }
 
     public bool IsLowStock() => CurrentStock <= MinimumStock;
@@ -60,7 +63,8 @@ public sealed class Product
         Money salePrice,
         StockQuantity minimumStock,
         string? description = null,
-        Barcode? barcode = null)
+        Barcode? barcode = null,
+        decimal taxRate = 19m)
     {
         if (!IsActive)
         {
@@ -79,6 +83,7 @@ public sealed class Product
         SalePrice = salePrice;
         MinimumStock = minimumStock.Value;
         Barcode = barcode?.Value;
+        TaxRate = ValidateTaxRate(taxRate);
     }
 
     public void AdjustStock(decimal delta)
@@ -108,4 +113,14 @@ public sealed class Product
     }
 
     public void IncreaseStock(Quantity quantity) => CurrentStock += quantity.Value;
+
+    private static decimal ValidateTaxRate(decimal taxRate)
+    {
+        if (taxRate < 0m || taxRate > 100m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(taxRate), "Tax rate must be between 0 and 100.");
+        }
+
+        return taxRate;
+    }
 }

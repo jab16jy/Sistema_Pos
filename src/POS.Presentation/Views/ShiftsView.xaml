@@ -1,0 +1,53 @@
+<UserControl x:Class="POS.Presentation.Views.ShiftsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Grid Margin="0,8">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+      <TextBlock Text="Turnos" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
+      <TextBlock Text="{Binding Message}" Style="{StaticResource MutedText}" Margin="16,0,0,0" VerticalAlignment="Center" />
+    </StackPanel>
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="2*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Border Style="{StaticResource Card}" Margin="0,0,12,0">
+        <StackPanel>
+          <Button Content="Actualizar" Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" />
+          <DataGrid ItemsSource="{Binding Shifts}"
+                    SelectedItem="{Binding SelectedShift, Mode=TwoWay}"
+                    AutoGenerateColumns="False"
+                    IsReadOnly="True"
+                    CanUserAddRows="False">
+            <DataGrid.Columns>
+              <DataGridTextColumn Header="Cajero" Binding="{Binding CashierUsername}" Width="*" />
+              <DataGridTextColumn Header="Estado" Binding="{Binding Status}" Width="90" />
+              <DataGridTextColumn Header="Apertura" Binding="{Binding OpenedAt}" Width="160" />
+              <DataGridTextColumn Header="Base" Binding="{Binding OpeningCash}" Width="90" />
+              <DataGridTextColumn Header="Cierre" Binding="{Binding ClosingCash}" Width="90" />
+            </DataGrid.Columns>
+          </DataGrid>
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="1" Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="Abrir turno" FontWeight="SemiBold" Margin="0,0,0,8" />
+          <TextBlock Text="Base inicial" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+          <TextBox Text="{Binding OpeningCash, Mode=TwoWay}" Margin="0,0,0,8" />
+          <TextBlock Text="Notas" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+          <TextBox Text="{Binding Notes, Mode=TwoWay}" AcceptsReturn="True" Height="70" Margin="0,0,0,8" />
+          <Button Content="Abrir turno" Command="{Binding StartShiftCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,16" />
+
+          <TextBlock Text="Cerrar turno seleccionado" FontWeight="SemiBold" Margin="0,8,0,8" />
+          <TextBlock Text="Efectivo contado" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+          <TextBox Text="{Binding ClosingCash, Mode=TwoWay}" Margin="0,0,0,8" />
+          <Button Content="Cerrar turno" Command="{Binding CloseShiftCommand}" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

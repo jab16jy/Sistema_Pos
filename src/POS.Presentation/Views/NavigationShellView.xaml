@@ -93,12 +93,26 @@
         <local:CashierView Grid.Row="2" DataContext="{Binding Cashier}" />
       </Grid>
 
+      <Grid Visibility="{Binding IsShiftsSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:ShiftsView DataContext="{Binding Shifts}" Visibility="{Binding Shifts, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}" Visibility="{Binding Shifts, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Gestión de turnos no disponible en este entorno." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
       <Grid Visibility="{Binding IsUsersSelected, Converter={StaticResource BoolToVisibilityConverter}}">
         <local:UserManagementView DataContext="{Binding UserManagement}"
                                    Visibility="{Binding UserManagement, Converter={StaticResource NullToVisibilityConverter}}" />
         <Border Style="{StaticResource Card}"
                 Visibility="{Binding UserManagement, Converter={StaticResource InverseNullToVisibilityConverter}}">
           <TextBlock Text="Gestión de usuarios no disponible en este entorno." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
+      <Grid Visibility="{Binding IsAuditSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:AuditLogView DataContext="{Binding AuditLog}" Visibility="{Binding AuditLog, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}" Visibility="{Binding AuditLog, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Auditoría no disponible en este entorno." Style="{StaticResource MutedText}" />
         </Border>
       </Grid>
 
