@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.8.0...v0.8.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* populate thermal receipt and invoice PDF with real sale data ([561affd](https://github.com/jab16jy/Sistema_Pos/commit/561affdaad17cb192ce2a3368334173312366a38))
+* populate thermal receipt and invoice PDF with real sale data ([84c5256](https://github.com/jab16jy/Sistema_Pos/commit/84c52567afd3accad30564b94c8784076d23614f))
+
 ## [0.8.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.7.0...v0.8.0) (2026-06-28)
 
 
