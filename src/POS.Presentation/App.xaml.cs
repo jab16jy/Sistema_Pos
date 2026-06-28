@@ -11,6 +11,7 @@ using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Quotes;
+using POS.Application.UseCases.Reporting;
 using POS.Application.UseCases.Sales;
 using POS.Application.UseCases.Settings;
 using POS.Domain.Enums;
@@ -215,7 +216,11 @@ public partial class App : System.Windows.Application
             try { profitQuery = sp.GetRequiredService<IProfitQueryService>(); } catch { }
             IReportExportService? exportService = null;
             try { exportService = sp.GetRequiredService<IReportExportService>(); } catch { }
-            reports = new ReportsViewModel(getReport, profitQuery, exportService);
+            CloseCashRegisterUseCase? closeCash = null;
+            try { closeCash = sp.GetRequiredService<CloseCashRegisterUseCase>(); } catch { }
+            ICurrentOperatorSession? operatorSession = null;
+            try { operatorSession = sp.GetRequiredService<ICurrentOperatorSession>(); } catch { }
+            reports = new ReportsViewModel(getReport, profitQuery, exportService, closeCash, operatorSession);
         }
         catch
         {

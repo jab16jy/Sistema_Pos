@@ -8,7 +8,10 @@
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
+
+    <!-- Reporte Operacional card -->
     <Border Style="{StaticResource Card}" Margin="0,0,0,12">
       <Grid>
         <Grid.ColumnDefinitions>
@@ -20,16 +23,36 @@
           <TextBlock Text="Ventas, efectivo esperado, pagos digitales y abonos." Style="{StaticResource MutedText}" />
           <TextBlock Text="Cargando..." Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibilityConverter}}" Style="{StaticResource MutedText}" />
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
-          <Button Content="Cargar reporte del día" Command="{Binding LoadReportCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
-          <Button Content="PDF" Command="{Binding ExportOperationalPdfCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
-          <Button Content="Excel" Command="{Binding ExportOperationalExcelCommand}" Style="{StaticResource PrimaryButton}" />
+        <StackPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">
+          <!-- Preset range buttons -->
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Content="Hoy" Command="{Binding SetTodayCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+            <Button Content="Esta semana" Command="{Binding SetThisWeekCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+            <Button Content="Este mes" Command="{Binding SetThisMonthCommand}" Style="{StaticResource PrimaryButton}" />
+          </StackPanel>
+          <!-- Date pickers -->
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="Desde:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <DatePicker SelectedDate="{Binding ReportFromDate}" Width="130" Margin="0,0,8,0" />
+            <TextBlock Text="Hasta:" VerticalAlignment="Center" Margin="0,0,6,0" />
+            <DatePicker SelectedDate="{Binding ReportToDate}" Width="130" />
+          </StackPanel>
+          <!-- Action buttons -->
+          <StackPanel Orientation="Horizontal">
+            <Button Content="Generar reporte" Command="{Binding LoadReportCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+            <Button Content="PDF" Command="{Binding ExportOperationalPdfCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+            <Button Content="Excel" Command="{Binding ExportOperationalExcelCommand}" Style="{StaticResource PrimaryButton}" />
+          </StackPanel>
         </StackPanel>
       </Grid>
     </Border>
+
+    <!-- Error card -->
     <Border Grid.Row="1" Background="{StaticResource BrushDangerSoft}" BorderBrush="{StaticResource BrushDanger}" BorderThickness="1" CornerRadius="12" Padding="18" Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,12">
       <TextBlock Text="{Binding ErrorMessage}" Foreground="{StaticResource BrushDanger}" TextWrapping="Wrap" />
     </Border>
+
+    <!-- Totals summary card -->
     <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,12">
       <StackPanel>
         <Grid>
@@ -75,7 +98,7 @@
     </Border>
 
     <!-- Analytics / Profit Section -->
-    <Border Grid.Row="3" Style="{StaticResource Card}">
+    <Border Grid.Row="3" Style="{StaticResource Card}" Margin="0,0,0,12">
       <StackPanel>
         <Grid Margin="0,0,0,12">
           <Grid.ColumnDefinitions>
@@ -86,10 +109,19 @@
             <TextBlock Text="Analisis de Rentabilidad" FontSize="20" FontWeight="Bold" />
             <TextBlock Text="Top productos, comparacion de periodos, plataformas y margenes." Style="{StaticResource MutedText}" />
           </StackPanel>
-          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Right">
-            <Button Content="Cargar Analisis" Command="{Binding LoadAnalyticsCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
-            <Button Content="PDF" Command="{Binding ExportProfitPdfCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
-            <Button Content="Excel" Command="{Binding ExportProfitExcelCommand}" Style="{StaticResource PrimaryButton}" />
+          <StackPanel Grid.Column="1" VerticalAlignment="Top" HorizontalAlignment="Right">
+            <!-- Analytics date pickers -->
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+              <TextBlock Text="Desde:" VerticalAlignment="Center" Margin="0,0,6,0" />
+              <DatePicker SelectedDate="{Binding AnalyticsFromDateAsDateTime, Mode=TwoWay}" Width="130" Margin="0,0,8,0" />
+              <TextBlock Text="Hasta:" VerticalAlignment="Center" Margin="0,0,6,0" />
+              <DatePicker SelectedDate="{Binding AnalyticsToDateAsDateTime, Mode=TwoWay}" Width="130" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <Button Content="Cargar Analisis" Command="{Binding LoadAnalyticsCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+              <Button Content="PDF" Command="{Binding ExportProfitPdfCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,0" />
+              <Button Content="Excel" Command="{Binding ExportProfitExcelCommand}" Style="{StaticResource PrimaryButton}" />
+            </StackPanel>
           </StackPanel>
         </Grid>
 
@@ -163,6 +195,69 @@
         </DataGrid>
       </StackPanel>
     </Border>
+
+    <!-- Cierre de Caja card -->
+    <Border Grid.Row="4" Style="{StaticResource Card}">
+      <StackPanel>
+        <TextBlock Text="Cierre de Caja" FontSize="20" FontWeight="Bold" Margin="0,0,0,4" />
+        <TextBlock Text="Ingresa el efectivo contado físicamente para cerrar el turno." Style="{StaticResource MutedText}" Margin="0,0,0,14" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <!-- Efectivo esperado (read-only) -->
+          <Border Background="#EFF6FF" CornerRadius="10" Padding="14" Margin="0,0,8,0">
+            <StackPanel>
+              <TextBlock Text="Efectivo Esperado" Foreground="#1D4ED8" FontSize="13" />
+              <TextBlock Text="{Binding ExpectedCashText}" Foreground="#1E3A8A" FontSize="22" FontWeight="Bold" />
+            </StackPanel>
+          </Border>
+          <!-- Efectivo contado (input) -->
+          <StackPanel Grid.Column="1" Margin="8,0,8,0" VerticalAlignment="Center">
+            <TextBlock Text="Efectivo Contado" FontSize="13" Style="{StaticResource MutedText}" Margin="0,0,0,6" />
+            <TextBox Text="{Binding CountedCashText, UpdateSourceTrigger=PropertyChanged}"
+                     FontSize="18" FontWeight="Bold" Padding="10,8"
+                     HorizontalContentAlignment="Right" />
+          </StackPanel>
+          <!-- Diferencia -->
+          <Border Grid.Column="2" CornerRadius="10" Padding="14" Margin="8,0,0,0">
+            <Border.Style>
+              <Style TargetType="Border">
+                <Setter Property="Background" Value="#F0FDF4" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding DifferenceIsNegative}" Value="True">
+                    <Setter Property="Background" Value="#FEF2F2" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Border.Style>
+            <StackPanel>
+              <TextBlock Text="Diferencia" FontSize="13" Style="{StaticResource MutedText}" />
+              <TextBlock Text="{Binding DifferenceText}" FontSize="22" FontWeight="Bold">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="#166534" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding DifferenceIsNegative}" Value="True">
+                        <Setter Property="Foreground" Value="#DC2626" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </StackPanel>
+          </Border>
+        </Grid>
+        <Button Content="Cerrar Caja" Command="{Binding CloseCashCommand}"
+                Style="{StaticResource PrimaryButton}"
+                HorizontalAlignment="Left" Margin="0,16,0,0" />
+        <TextBlock Text="{Binding ClosingStatusMessage}" Margin="0,10,0,0" TextWrapping="Wrap"
+                   Visibility="{Binding HasClosingStatus, Converter={StaticResource BoolToVisibilityConverter}}" />
+      </StackPanel>
+    </Border>
+
   </Grid>
   </ScrollViewer>
 </UserControl>
