@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.5.0...v0.6.0) (2026-06-28)
+
+
+### Features
+
+* add authentication and role-based access control ([5379cd9](https://github.com/jab16jy/Sistema_Pos/commit/5379cd9fbab21986460fab6296afcc988a3dff48))
+* add authentication and role-based access control ([5922aad](https://github.com/jab16jy/Sistema_Pos/commit/5922aadfeeaf971e9a7f67ba23510bff39b8b832))
+
 ## [0.5.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.4.0...v0.5.0) (2026-06-28)
 
 
