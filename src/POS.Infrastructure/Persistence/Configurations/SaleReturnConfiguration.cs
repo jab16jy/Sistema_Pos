@@ -15,5 +15,10 @@ internal sealed class SaleReturnConfiguration : IEntityTypeConfiguration<SaleRet
         builder.Property(saleReturn => saleReturn.ProcessedByUserId).HasConversion<string>();
         builder.Property(saleReturn => saleReturn.Reason).IsRequired().HasMaxLength(500);
         builder.HasIndex(saleReturn => saleReturn.OriginalSaleId).IsUnique();
+
+        builder.HasMany(r => r.Items)
+               .WithOne()
+               .HasForeignKey(i => i.SaleReturnId)
+               .OnDelete(DeleteBehavior.Cascade);
     }
 }

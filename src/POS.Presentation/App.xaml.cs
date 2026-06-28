@@ -1,14 +1,22 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Audit;
+using POS.Application.UseCases.Auth;
+using POS.Application.UseCases.BarcodeLabels;
+using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Invoices;
+using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Quotes;
+using POS.Application.UseCases.Reporting;
 using POS.Application.UseCases.Sales;
 using POS.Application.UseCases.Settings;
+using POS.Application.UseCases.Shifts;
+using POS.Domain.Enums;
 using POS.Infrastructure;
 using POS.Infrastructure.Services;
 using POS.Presentation.Shared.Prototype;
@@ -25,17 +33,27 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
-        _services = BuildServiceProvider();
-        DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
-        _scope = _services.CreateScope();
-
-        var shell = new Views.NavigationShellView
+        DispatcherUnhandledException += (_, ex) =>
         {
-            DataContext = BuildMainShellViewModel(_scope.ServiceProvider)
+            System.Windows.MessageBox.Show(ex.Exception.ToString(), "Error de inicio");
+            ex.Handled = true;
+            Shutdown(1);
         };
 
-        MainWindow = shell;
-        shell.Show();
+        try
+        {
+            _services = BuildServiceProvider();
+            DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
+            _scope = _services.CreateScope();
+
+            if (!ShowLoginAndLaunchShell())
+                Shutdown(0);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(ex.ToString(), "Error de inicio");
+            Shutdown(1);
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -43,6 +61,57 @@ public partial class App : System.Windows.Application
         _scope?.Dispose();
         _services?.Dispose();
         base.OnExit(e);
+    }
+
+    // Returns true if user logged in and shell was shown; false if user closed login
+    private bool ShowLoginAndLaunchShell()
+    {
+        // Prevent app shutdown when login window closes (no windows open momentarily)
+        ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown;
+
+        var loginUseCase = _scope!.ServiceProvider.GetRequiredService<LoginUseCase>();
+        var writableSession = _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>();
+        var loginVm = new ViewModels.LoginViewModel(loginUseCase, writableSession);
+        var loginWindow = new Views.LoginWindow(loginVm);
+
+        if (loginWindow.ShowDialog() != true)
+            return false;
+
+        MainShellViewModel shellVm;
+        try
+        {
+            shellVm = BuildMainShellViewModel(_scope.ServiceProvider);
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(
+                $"Error al construir el shell principal:\n\n{ex}",
+                "Error de inicio");
+            return false;
+        }
+
+        var shell = new Views.NavigationShellView
+        {
+            DataContext = shellVm
+        };
+
+        shellVm.LogoutRequested += () =>
+        {
+            // Clear session and close current shell
+            _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>().ClearSession();
+            shell.Close();
+
+            // Re-enter login flow
+            if (!ShowLoginAndLaunchShell())
+                Shutdown(0);
+        };
+
+        MainWindow = shell;
+        shell.Show();
+
+        // Now that shell is open, restore normal shutdown behavior
+        ShutdownMode = System.Windows.ShutdownMode.OnMainWindowClose;
+        return true;
     }
 
     private static ServiceProvider BuildServiceProvider()
@@ -81,6 +150,10 @@ public partial class App : System.Windows.Application
 
     private static MainShellViewModel BuildMainShellViewModel(IServiceProvider sp)
     {
+        var session = sp.GetRequiredService<ICurrentOperatorSession>();
+        var role = session.Role;
+        var username = session.Username;
+
         IProductLookupService productLookup;
         try
         {
@@ -95,14 +168,16 @@ public partial class App : System.Windows.Application
         try
         {
             var createSale = sp.GetRequiredService<CreateSaleUseCase>();
-            cashier = new CashierViewModel(productLookup, createSale);
+            RedeemLoyaltyPointsUseCase? redeemLoyalty = null;
+            try { redeemLoyalty = sp.GetRequiredService<RedeemLoyaltyPointsUseCase>(); } catch { }
+            cashier = new CashierViewModel(productLookup, new PreviewPaymentUseCase(), createSale, redeemLoyalty);
         }
         catch
         {
             cashier = new CashierViewModel(productLookup);
         }
 
-        cashier.CashierUserId = sp.GetRequiredService<ICurrentOperatorSession>().OperatorId;
+        cashier.CashierUserId = session.OperatorId;
 
         CustomersViewModel? customers = null;
         try
@@ -174,7 +249,15 @@ public partial class App : System.Windows.Application
         try
         {
             var getReport = sp.GetRequiredService<IGetOperationalReportUseCase>();
-            reports = new ReportsViewModel(getReport);
+            IProfitQueryService? profitQuery = null;
+            try { profitQuery = sp.GetRequiredService<IProfitQueryService>(); } catch { }
+            IReportExportService? exportService = null;
+            try { exportService = sp.GetRequiredService<IReportExportService>(); } catch { }
+            CloseCashRegisterUseCase? closeCash = null;
+            try { closeCash = sp.GetRequiredService<CloseCashRegisterUseCase>(); } catch { }
+            ICurrentOperatorSession? operatorSession = null;
+            try { operatorSession = sp.GetRequiredService<ICurrentOperatorSession>(); } catch { }
+            reports = new ReportsViewModel(getReport, profitQuery, exportService, closeCash, operatorSession);
         }
         catch
         {
@@ -187,7 +270,28 @@ public partial class App : System.Windows.Application
             var updateProduct = sp.GetRequiredService<UpdateProductUseCase>();
             var deleteProduct = sp.GetRequiredService<DeleteProductUseCase>();
             var searchProducts = sp.GetRequiredService<SearchProductsUseCase>();
-            products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts);
+            var importProductsCsv = sp.GetRequiredService<ImportProductsCsvUseCase>();
+            SearchCategoriesUseCase? searchCategories = null;
+            try { searchCategories = sp.GetRequiredService<SearchCategoriesUseCase>(); } catch { }
+            products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv);
+
+            CategoriesViewModel? categoriesEditor = null;
+            try
+            {
+                var searchCat = sp.GetRequiredService<SearchCategoriesUseCase>();
+                var createCat = sp.GetRequiredService<CreateCategoryUseCase>();
+                var updateCat = sp.GetRequiredService<UpdateCategoryUseCase>();
+                categoriesEditor = new CategoriesViewModel(searchCat, createCat, updateCat);
+            }
+            catch { }
+
+            if (categoriesEditor is not null)
+            {
+                products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv)
+                {
+                    CategoriesEditor = categoriesEditor
+                };
+            }
         }
         catch
         {
@@ -236,7 +340,63 @@ public partial class App : System.Windows.Application
         {
         }
 
-        return new MainShellViewModel(cashier, dashboardUseCase)
+        LoyaltyViewModel? loyalty = null;
+        try
+        {
+            var getBalance = sp.GetRequiredService<GetLoyaltyBalanceUseCase>();
+            var redeemPoints = sp.GetRequiredService<RedeemLoyaltyPointsUseCase>();
+            loyalty = new LoyaltyViewModel(getBalance, redeemPoints);
+        }
+        catch
+        {
+        }
+
+        BarcodeViewModel? barcode = null;
+        try
+        {
+            var generateBarcode = sp.GetRequiredService<GenerateBarcodeUseCase>();
+            var printLabels = sp.GetRequiredService<PrintLabelsUseCase>();
+            barcode = new BarcodeViewModel(generateBarcode, printLabels, productLookup);
+        }
+        catch
+        {
+        }
+
+        UserManagementViewModel? userManagement = null;
+        try
+        {
+            var getAllUsers = sp.GetRequiredService<GetAllUsersUseCase>();
+            var createUser = sp.GetRequiredService<CreateUserUseCase>();
+            var updateUser = sp.GetRequiredService<UpdateUserUseCase>();
+            var deactivateUser = sp.GetRequiredService<DeactivateUserUseCase>();
+            userManagement = new UserManagementViewModel(getAllUsers, createUser, updateUser, deactivateUser, session);
+        }
+        catch
+        {
+        }
+
+        ShiftsViewModel? shifts = null;
+        try
+        {
+            var startShift = sp.GetRequiredService<StartShiftUseCase>();
+            var closeShift = sp.GetRequiredService<CloseShiftUseCase>();
+            var getShifts = sp.GetRequiredService<GetShiftsUseCase>();
+            shifts = new ShiftsViewModel(startShift, closeShift, getShifts, session);
+        }
+        catch
+        {
+        }
+
+        AuditLogViewModel? auditLog = null;
+        try
+        {
+            auditLog = new AuditLogViewModel(sp.GetRequiredService<GetAuditLogsUseCase>());
+        }
+        catch
+        {
+        }
+
+        return new MainShellViewModel(cashier, dashboardUseCase, role, username)
         {
             Quote = quote,
             QuoteHistory = quoteHistory,
@@ -247,7 +407,12 @@ public partial class App : System.Windows.Application
             Products = products,
             Inventory = inventory,
             Invoices = invoices,
-            Settings = settings
+            Settings = settings,
+            Loyalty = loyalty,
+            Barcode = barcode,
+            UserManagement = userManagement,
+            Shifts = shifts,
+            AuditLog = auditLog
         };
     }
 }

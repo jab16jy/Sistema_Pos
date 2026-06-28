@@ -61,7 +61,7 @@ public sealed class Sale
         }
 
         product.DecreaseStock(quantity);
-        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.SalePrice, discount));
+        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.SalePrice, discount, product.CostPrice, product.TaxRate));
     }
 
     public void AddPayment(Payment payment)
@@ -75,6 +75,10 @@ public sealed class Sale
     }
 
     public Money Total() => new(_items.Sum(item => item.Subtotal().Amount));
+
+    public Money TaxTotal() => new(_items.Sum(item => item.TaxAmount().Amount));
+
+    public Money TaxableBaseTotal() => new(_items.Sum(item => item.TaxableBaseAmount().Amount));
 
     public Money TotalPaid() => new(_payments.Sum(payment => payment.Amount.Amount));
 

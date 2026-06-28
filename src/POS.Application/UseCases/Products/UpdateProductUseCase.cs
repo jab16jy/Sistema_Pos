@@ -37,7 +37,8 @@ public sealed class UpdateProductUseCase
             new Money(request.SalePrice),
             new StockQuantity(request.MinimumStock),
             request.Description,
-            string.IsNullOrWhiteSpace(request.Barcode) ? null : new Barcode(request.Barcode));
+            string.IsNullOrWhiteSpace(request.Barcode) ? null : new Barcode(request.Barcode),
+            request.TaxRate);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -52,6 +53,7 @@ public sealed class UpdateProductUseCase
         product.SalePrice.Amount,
         product.CurrentStock,
         product.MinimumStock,
+        product.TaxRate,
         product.Description,
         product.Barcode,
         product.IsActive);

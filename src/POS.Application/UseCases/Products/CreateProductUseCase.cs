@@ -32,7 +32,8 @@ public sealed class CreateProductUseCase
             new StockQuantity(request.CurrentStock),
             new StockQuantity(request.MinimumStock),
             request.Description,
-            string.IsNullOrWhiteSpace(request.Barcode) ? null : new Barcode(request.Barcode));
+            string.IsNullOrWhiteSpace(request.Barcode) ? null : new Barcode(request.Barcode),
+            request.TaxRate);
 
         await _products.AddAsync(product, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

@@ -22,6 +22,7 @@ public sealed class SaleReturnRepository : ISaleReturnRepository
     {
         return _dbContext.SaleReturns
             .AsNoTracking()
+            .Include(r => r.Items)
             .FirstOrDefaultAsync(saleReturn => saleReturn.OriginalSaleId == saleId, cancellationToken);
     }
 }

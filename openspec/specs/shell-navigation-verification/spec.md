@@ -8,14 +8,15 @@ Defines the expected shell module contract so verification covers the full modul
 
 ### Requirement: Nine-module shell contract
 
-The system MUST expose and verify exactly the active shell modules required for the first architecture-design slice, including quotations.
+The system MUST expose and verify exactly the active shell modules required for the complete POS runtime, including quotations, products, inventory, invoices, and settings.
 
 #### Scenario: Shell exposes required modules
 
 - GIVEN the main shell is initialized
 - WHEN navigation modules are inspected
-- THEN the module set MUST contain 9 active modules
-- AND the set MUST include `quotes`
+- THEN the module set MUST contain 10 active modules
+- AND the set MUST include `quotes`, `products`, `inventory`, `invoices`, and `settings`
+- AND all 10 modules MUST have `IsImplemented: true`
 
 #### Scenario: Verification rejects stale expectations
 

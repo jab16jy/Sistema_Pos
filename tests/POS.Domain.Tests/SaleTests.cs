@@ -77,6 +77,68 @@ public sealed class SaleTests
         Assert.Equal(Money.Zero, sale.DeferredBalance());
     }
 
+    [Fact]
+    public void AddItem_CapturesUnitCostFromProductCostPrice()
+    {
+        var costPrice = new Money(2_000m);
+        var product = new Product(
+            "Coffee",
+            Guid.NewGuid(),
+            costPrice,
+            new Money(3_000m),
+            new StockQuantity(10m),
+            new StockQuantity(2m));
+
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+
+        var item = sale.Items.Single();
+        Assert.Equal(2_000m, item.UnitCost.Amount);
+    }
+
+    [Fact]
+    public void AddItem_CapturesTaxRateAndCalculatesIncludedIva()
+    {
+        var product = new Product(
+            "Coffee",
+            Guid.NewGuid(),
+            new Money(2_000m),
+            new Money(11_900m),
+            new StockQuantity(10m),
+            new StockQuantity(2m),
+            taxRate: 19m);
+
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+
+        var item = sale.Items.Single();
+        Assert.Equal(19m, item.TaxRate);
+        Assert.Equal(1_900m, item.TaxAmount().Amount);
+        Assert.Equal(10_000m, item.TaxableBaseAmount().Amount);
+        Assert.Equal(1_900m, sale.TaxTotal().Amount);
+        Assert.Equal(10_000m, sale.TaxableBaseTotal().Amount);
+        Assert.Equal(11_900m, sale.Total().Amount);
+    }
+
+    [Fact]
+    public void SaleItem_Profit_CalculatesCorrectly()
+    {
+        var product = new Product(
+            "Widget",
+            Guid.NewGuid(),
+            new Money(1_000m),  // cost
+            new Money(1_500m),  // sale price
+            new StockQuantity(10m),
+            new StockQuantity(2m));
+
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(3m), Money.Zero);
+
+        var item = sale.Items.Single();
+        // Profit = (1500 - 1000) * 3 - 0 = 1500
+        Assert.Equal(1_500m, item.Profit().Amount);
+    }
+
     private static Product MakeProduct(decimal salePrice, decimal stock = 10m) =>
         new Product("Item", Guid.NewGuid(), new Money(salePrice / 2), new Money(salePrice),
             new StockQuantity(stock), new StockQuantity(1m));

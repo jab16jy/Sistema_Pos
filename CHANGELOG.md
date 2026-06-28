@@ -1,5 +1,75 @@
 # Changelog
 
+## [0.10.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.10.0...v0.10.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* login text visibility and button activation ([#36](https://github.com/jab16jy/Sistema_Pos/issues/36)) ([ba09006](https://github.com/jab16jy/Sistema_Pos/commit/ba09006923e70bacc19ccc4a6c73674d2c4db99f))
+
+## [0.10.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.9.0...v0.10.0) (2026-06-28)
+
+
+### Features
+
+* add phase 3 - IVA 19%, CSV import, audit log viewer, cashier shifts ([78d990c](https://github.com/jab16jy/Sistema_Pos/commit/78d990cf465155f6b6cbe781cf3f23972e8e5b1c))
+* phase 3 - IVA 19%, CSV import, audit log viewer, cashier shifts ([5c27e41](https://github.com/jab16jy/Sistema_Pos/commit/5c27e41505134860763c0546562fdba3ee05664e))
+
+## [0.9.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.8.1...v0.9.0) (2026-06-28)
+
+
+### Features
+
+* logout, session lock & User Management module ([638609e](https://github.com/jab16jy/Sistema_Pos/commit/638609e6ab6a7f3e1d948fb3d56d8ef799b9ee9d))
+
+## [0.8.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.8.0...v0.8.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* populate thermal receipt and invoice PDF with real sale data ([561affd](https://github.com/jab16jy/Sistema_Pos/commit/561affdaad17cb192ce2a3368334173312366a38))
+* populate thermal receipt and invoice PDF with real sale data ([84c5256](https://github.com/jab16jy/Sistema_Pos/commit/84c52567afd3accad30564b94c8784076d23614f))
+
+## [0.8.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.7.0...v0.8.0) (2026-06-28)
+
+
+### Features
+
+* add cash closing UI and date range filters to reports module ([56ee2fd](https://github.com/jab16jy/Sistema_Pos/commit/56ee2fd8cdef104b3424366445196415b1183304))
+* cash closing UI + date range filters in reports ([28012b2](https://github.com/jab16jy/Sistema_Pos/commit/28012b261297990ac4ba103b46e24dbd73914c36))
+
+## [0.7.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.6.0...v0.7.0) (2026-06-28)
+
+
+### Features
+
+* PDF/Excel export for reports module and ESC/POS thermal printer service ([ecb048d](https://github.com/jab16jy/Sistema_Pos/commit/ecb048d303db5920fa2254d2280a9a71676141b6))
+* PDF/Excel report export + ESC/POS thermal printer service ([380d679](https://github.com/jab16jy/Sistema_Pos/commit/380d67975a14a034b81e4ab667ff6ca6d2054eb1))
+
+## [0.6.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.5.0...v0.6.0) (2026-06-28)
+
+
+### Features
+
+* add authentication and role-based access control ([5379cd9](https://github.com/jab16jy/Sistema_Pos/commit/5379cd9fbab21986460fab6296afcc988a3dff48))
+* add authentication and role-based access control ([5922aad](https://github.com/jab16jy/Sistema_Pos/commit/5922aadfeeaf971e9a7f67ba23510bff39b8b832))
+
+## [0.5.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.4.0...v0.5.0) (2026-06-28)
+
+
+### Features
+
+* add loyalty, barcode, profit analytics, categories, and return improvements ([9ac42ce](https://github.com/jab16jy/Sistema_Pos/commit/9ac42ce5785f47526c31c9acfb144c29ef9e53a6))
+* **app:** add loyalty, category, profit, return application layer for new-pos-modules ([b25aea4](https://github.com/jab16jy/Sistema_Pos/commit/b25aea416653d052be955e5dfac4df286c9660e1))
+* **domain:** add loyalty, barcode, profit domain layer for new-pos-modules ([9ce9b22](https://github.com/jab16jy/Sistema_Pos/commit/9ce9b22b76f9a9c86826d9391b367c8b6122f73f))
+* **infra:** add migrations, repositories, profit queries, ZXing barcode, and label printing for new-pos-modules ([f84489a](https://github.com/jab16jy/Sistema_Pos/commit/f84489aa48e5f98217f8b21b8b9556d2c6c6266a))
+* **presentation:** add loyalty, barcode, categories UI and analytics for new-pos-modules ([3782312](https://github.com/jab16jy/Sistema_Pos/commit/3782312381d7e71e7a0e9dfcacd9a8b86d84d2ba))
+
+
+### Bug Fixes
+
+* resolve 3 CRITICAL verification issues for new-pos-modules ([55af168](https://github.com/jab16jy/Sistema_Pos/commit/55af168e0adfcdeedb208db0107936b4d4f615ea))
+
 ## [0.4.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.3.0...v0.4.0) (2026-06-27)
 
 
