@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.8.1...v0.9.0) (2026-06-28)
+
+
+### Features
+
+* logout, session lock & User Management module ([638609e](https://github.com/jab16jy/Sistema_Pos/commit/638609e6ab6a7f3e1d948fb3d56d8ef799b9ee9d))
+
 ## [0.8.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.8.0...v0.8.1) (2026-06-28)
 
 
