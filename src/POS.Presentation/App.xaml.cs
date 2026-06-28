@@ -44,24 +44,8 @@ public partial class App : System.Windows.Application
             DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
             _scope = _services.CreateScope();
 
-            var loginUseCase = _scope.ServiceProvider.GetRequiredService<LoginUseCase>();
-            var writableSession = _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>();
-            var loginVm = new ViewModels.LoginViewModel(loginUseCase, writableSession);
-            var loginWindow = new Views.LoginWindow(loginVm);
-
-            if (loginWindow.ShowDialog() != true)
-            {
+            if (!ShowLoginAndLaunchShell())
                 Shutdown(0);
-                return;
-            }
-
-            var shell = new Views.NavigationShellView
-            {
-                DataContext = BuildMainShellViewModel(_scope.ServiceProvider)
-            };
-
-            MainWindow = shell;
-            shell.Show();
         }
         catch (Exception ex)
         {
@@ -75,6 +59,39 @@ public partial class App : System.Windows.Application
         _scope?.Dispose();
         _services?.Dispose();
         base.OnExit(e);
+    }
+
+    // Returns true if user logged in and shell was shown; false if user closed login
+    private bool ShowLoginAndLaunchShell()
+    {
+        var loginUseCase = _scope!.ServiceProvider.GetRequiredService<LoginUseCase>();
+        var writableSession = _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>();
+        var loginVm = new ViewModels.LoginViewModel(loginUseCase, writableSession);
+        var loginWindow = new Views.LoginWindow(loginVm);
+
+        if (loginWindow.ShowDialog() != true)
+            return false;
+
+        var shell = new Views.NavigationShellView
+        {
+            DataContext = BuildMainShellViewModel(_scope.ServiceProvider)
+        };
+
+        var shellVm = (MainShellViewModel)shell.DataContext;
+        shellVm.LogoutRequested += () =>
+        {
+            // Clear session and close current shell
+            _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>().ClearSession();
+            shell.Close();
+
+            // Re-enter login flow
+            if (!ShowLoginAndLaunchShell())
+                Shutdown(0);
+        };
+
+        MainWindow = shell;
+        shell.Show();
+        return true;
     }
 
     private static ServiceProvider BuildServiceProvider()
@@ -324,6 +341,19 @@ public partial class App : System.Windows.Application
         {
         }
 
+        UserManagementViewModel? userManagement = null;
+        try
+        {
+            var getAllUsers = sp.GetRequiredService<GetAllUsersUseCase>();
+            var createUser = sp.GetRequiredService<CreateUserUseCase>();
+            var updateUser = sp.GetRequiredService<UpdateUserUseCase>();
+            var deactivateUser = sp.GetRequiredService<DeactivateUserUseCase>();
+            userManagement = new UserManagementViewModel(getAllUsers, createUser, updateUser, deactivateUser, session);
+        }
+        catch
+        {
+        }
+
         return new MainShellViewModel(cashier, dashboardUseCase, role, username)
         {
             Quote = quote,
@@ -337,7 +367,8 @@ public partial class App : System.Windows.Application
             Invoices = invoices,
             Settings = settings,
             Loyalty = loyalty,
-            Barcode = barcode
+            Barcode = barcode,
+            UserManagement = userManagement
         };
     }
 }

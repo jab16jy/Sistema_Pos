@@ -47,6 +47,7 @@ public sealed class MainShellViewModel : ViewModelBase
         var allModules = new[]
         {
             new ModuleNavigationItem("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F2", true),
+            new ModuleNavigationItem("users", "Usuarios", "Crea y gestiona usuarios del sistema.", "F1", true),
             new ModuleNavigationItem("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", true),
             new ModuleNavigationItem("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", true),
             new ModuleNavigationItem("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
@@ -77,7 +78,10 @@ public sealed class MainShellViewModel : ViewModelBase
         _selectedModule = Modules[0];
         _operatorMessage = "Escanea el código o escribe el nombre del producto. Este prototipo no guarda datos todavía.";
         SelectModuleCommand = new RelayCommand(SelectModule, CanSelectModule);
+        LogoutCommand = new RelayCommand(_ => LogoutRequested?.Invoke());
     }
+
+    public event Action? LogoutRequested;
 
     public UserRole Role { get; }
     public string OperatorDisplayName { get; }
@@ -112,7 +116,10 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public BarcodeViewModel? Barcode { get; init; }
 
+    public UserManagementViewModel? UserManagement { get; init; }
+
     public ICommand SelectModuleCommand { get; }
+    public ICommand LogoutCommand { get; }
 
     public ModuleNavigationItem SelectedModule
     {
@@ -129,6 +136,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 UpdateOperatorMessage(value);
                 OnPropertyChanged(nameof(MainActionText));
                 OnPropertyChanged(nameof(IsCashierSelected));
+                OnPropertyChanged(nameof(IsUsersSelected));
                 OnPropertyChanged(nameof(IsProductsSelected));
                 OnPropertyChanged(nameof(IsInventorySelected));
                 OnPropertyChanged(nameof(IsQuotesSelected));
@@ -155,6 +163,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsCashierSelected => SelectedModule.Key == "cashier";
 
+    public bool IsUsersSelected => SelectedModule.Key == "users";
+
     public bool IsProductsSelected => SelectedModule.Key == "products";
 
     public bool IsInventorySelected => SelectedModule.Key == "inventory";
@@ -177,7 +187,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsSettingsSelected => SelectedModule.Key == "settings";
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected;
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsUsersSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -220,6 +230,7 @@ public sealed class MainShellViewModel : ViewModelBase
         OperatorMessage = module switch
         {
             { Key: "cashier", IsImplemented: true } => "Módulo Caja activo. Escanea productos, cobra y confirma ventas.",
+            { Key: "users", IsImplemented: true } => "Módulo Usuarios activo. Gestiona accesos y contraseñas.",
             { Key: "products", IsImplemented: true } => "Módulo Productos activo. Registra catálogo, precios, stock mínimo y códigos.",
             { Key: "inventory", IsImplemented: true } => "Módulo Inventario activo. Consulta existencias, bajo stock y movimientos.",
             { Key: "customers", IsImplemented: true } => "Módulo Clientes activo. Gestiona datos operativos e historial.",

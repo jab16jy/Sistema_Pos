@@ -20,4 +20,11 @@ public sealed class InMemoryUserSession : IWritableOperatorSession
         _username = username;
         _role = role;
     }
+
+    public void ClearSession()
+    {
+        _operatorId = Guid.Empty;
+        _username = string.Empty;
+        _role = UserRole.Cashier;
+    }
 }

@@ -26,4 +26,16 @@ public sealed class User
     public UserRole Role { get; private set; }
     public bool IsActive { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+
+    public void UpdatePasswordHash(string newHash)
+    {
+        if (string.IsNullOrWhiteSpace(newHash)) throw new ArgumentException("Hash is required.", nameof(newHash));
+        PasswordHash = newHash;
+    }
+
+    public void UpdateRole(UserRole role) => Role = role;
+
+    public void Deactivate() => IsActive = false;
+
+    public void Activate() => IsActive = true;
 }
