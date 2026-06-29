@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F5 · Compras — Esthetic POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap">
+<style>
+:root{--surface:#FFFFFF;--surface-container:#F4F4F5;--surface-variant:#E8EAED;--on-surface:#18181B;--on-surface-muted:#71717A;--outline:#D4D4D8;--primary:#0369A1;--on-primary:#FFFFFF;--primary-container:#E0F2FE;--secondary:#0F766E;--secondary-container:#CCFBF1;--error:#DC2626;--error-container:#FEE2E2;--warning:#D97706;--warning-container:#FEF3C7;--success:#16A34A;--success-container:#DCFCE7;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--font:'Segoe UI','Inter',system-ui,sans-serif;--font-mono:'Consolas','Courier New',monospace;--topbar-h:48px;--funcbar-h:44px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--surface);color:var(--on-surface);font-size:13px;line-height:1.4;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:var(--topbar-h);min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--outline);display:flex;align-items:center;padding:0 var(--s6);position:relative;}
+.app-icon{width:20px;height:20px;background:var(--primary);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;}
+.topbar-center{position:absolute;left:50%;transform:translateX(-50%);font-size:15px;font-weight:600;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:var(--s4);}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--primary-container);color:var(--primary);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;}
+.clock{font-family:var(--font-mono);font-size:12px;color:var(--on-surface-muted);}
+.funcbar{height:var(--funcbar-h);min-height:var(--funcbar-h);background:var(--surface-container);border-top:1px solid var(--outline);display:flex;align-items:stretch;padding:0 var(--s6);}
+.funcbar-item{display:flex;align-items:center;gap:var(--s1);padding:0 var(--s3);cursor:pointer;border-bottom:2px solid transparent;text-decoration:none;transition:background 120ms;}
+.funcbar-item:hover{background:var(--surface-variant);}
+.funcbar-item.active{border-bottom-color:var(--primary);}
+.funcbar-item.active .fkey,.funcbar-item.active .flabel{color:var(--primary);}
+.funcbar-item.active .flabel{font-weight:500;}
+.funcbar-sep{width:1px;background:var(--outline);margin:12px 0;}
+.fkey{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--primary);}
+.fdot{font-size:11px;color:var(--outline);}
+.flabel{font-size:13px;color:var(--on-surface);}
+.content{flex:1;display:flex;gap:var(--s3);padding:var(--s4);overflow:hidden;background:var(--surface-container);}
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:6px;display:flex;flex-direction:column;}
+.btn{height:36px;border-radius:4px;font-size:13px;font-weight:600;font-family:var(--font);padding:0 var(--s4);cursor:pointer;border:none;display:inline-flex;align-items:center;gap:var(--s1);transition:background 120ms;white-space:nowrap;flex-shrink:0;}
+.btn-primary{background:var(--primary);color:var(--on-primary);}
+.btn-primary:hover{background:#075985;}
+.btn-success{background:var(--success);color:#fff;}
+.btn-success:hover{background:#15803d;}
+.btn-ghost{background:transparent;color:var(--primary);}
+.btn-ghost:hover{background:var(--primary-container);}
+.btn-sm{height:28px;font-size:12px;padding:0 var(--s3);}
+.btn-icon{width:28px;height:28px;padding:0;background:transparent;border:none;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--on-surface-muted);}
+.btn-icon:hover{background:var(--surface-variant);}
+.btn-icon .material-symbols-outlined,.btn .material-symbols-outlined{font-size:16px;}
+.input,.select{width:100%;height:36px;border:1px solid var(--outline);border-radius:4px;padding:0 var(--s3);font-size:13px;font-family:var(--font);color:var(--on-surface);background:var(--surface);outline:none;}
+.input:focus,.select:focus{border:2px solid var(--primary);}
+.input-wrap{position:relative;}
+.input-wrap .material-symbols-outlined{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--on-surface-muted);pointer-events:none;}
+.input-wrap .input{padding-left:34px;}
+.field-label{font-size:11px;font-weight:500;color:var(--on-surface-muted);display:block;margin-bottom:var(--s1);}
+.field-group{display:flex;flex-direction:column;gap:var(--s1);}
+.chip{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:3px;font-size:11px;font-weight:500;white-space:nowrap;}
+.chip-success{background:var(--success-container);color:var(--success);}
+.chip-primary{background:var(--primary-container);color:var(--primary);}
+.chip-neutral{background:var(--surface-variant);color:var(--on-surface-muted);}
+.section-header{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;}
+.section-title{font-size:13px;font-weight:600;flex:1;}
+.toolbar{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--outline);border-radius:2px;}
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 20;user-select:none;}
+/* Supplier item */
+.sup-item{display:flex;align-items:center;gap:var(--s3);padding:10px var(--s4);border-bottom:1px solid var(--outline);cursor:pointer;transition:background 100ms;}
+.sup-item:hover{background:var(--primary-container);}
+.sup-item.selected{background:var(--primary-container);outline:2px solid var(--primary);outline-offset:-2px;}
+.sup-icon{width:32px;height:32px;border-radius:6px;background:var(--surface-container);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sup-name{font-size:13px;font-weight:600;}
+.sup-meta{font-size:11px;color:var(--on-surface-muted);}
+/* Purchase item */
+.pur-item{display:flex;align-items:center;gap:var(--s3);padding:8px var(--s4);border-bottom:1px solid var(--outline);}
+.pur-item .material-symbols-outlined.del{font-size:16px;color:var(--error);cursor:pointer;margin-left:auto;}
+.pur-item .material-symbols-outlined.del:hover{color:var(--error);}
+/* Collapsible */
+.coll-hdr{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s4);cursor:pointer;border-top:1px solid var(--outline);font-size:12px;font-weight:500;color:var(--primary);}
+.coll-hdr .material-symbols-outlined{font-size:16px;transition:transform 200ms;}
+.coll-hdr.open .material-symbols-outlined.chevron{transform:rotate(180deg);}
+.coll-body{display:none;padding:var(--s3) var(--s4);border-top:1px solid var(--outline);background:var(--surface-container);}
+.coll-body.open{display:flex;flex-direction:column;gap:var(--s3);}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:var(--s2);">
+    <div class="app-icon">PS</div>
+    <span style="font-size:13px;font-weight:500;">Esthetic POS</span>
+  </div>
+  <div class="topbar-center">Compras</div>
+  <div class="topbar-right"><div class="avatar">AD</div><span class="clock" id="clock">14:32</span></div>
+</header>
+
+<div class="content">
+
+  <!-- ═══ PROVEEDORES ═══ -->
+  <div style="width:34%;display:flex;flex-direction:column;gap:var(--s3);overflow:hidden;">
+    <div class="card" style="flex:1;overflow:hidden;">
+      <div class="toolbar">
+        <div class="input-wrap" style="flex:1;">
+          <span class="material-symbols-outlined">search</span>
+          <input class="input" type="text" placeholder="Buscar proveedor..." id="sup-search" oninput="filterSup()">
+        </div>
+        <button class="btn btn-primary" style="padding:0 10px;" onclick="showNewSup()">
+          <span class="material-symbols-outlined">add</span>
+        </button>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;" id="sup-list"><!-- JS --></div>
+
+      <!-- New supplier collapsible -->
+      <div class="coll-hdr" id="new-sup-hdr" onclick="toggleNewSup()" style="display:none;">
+        <span class="material-symbols-outlined">store</span>
+        <span style="flex:1;">Nuevo proveedor</span>
+        <span class="material-symbols-outlined chevron">expand_more</span>
+      </div>
+      <div class="coll-body" id="new-sup-body">
+        <div class="field-group">
+          <label class="field-label">Nombre del proveedor *</label>
+          <input class="input" type="text" id="sup-name" placeholder="Distribuidora XYZ">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);">
+          <div class="field-group">
+            <label class="field-label">Teléfono</label>
+            <input class="input" type="tel" id="sup-phone" placeholder="3001234567">
+          </div>
+          <div class="field-group">
+            <label class="field-label">NIT</label>
+            <input class="input" type="text" id="sup-nit" placeholder="900123456">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Email</label>
+          <input class="input" type="email" id="sup-email" placeholder="ventas@dist.com">
+        </div>
+        <button class="btn btn-primary" onclick="saveSup()" style="align-self:flex-start;">
+          <span class="material-symbols-outlined">save</span>
+          Guardar proveedor
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ COMPRA ═══ -->
+  <div style="flex:1;display:flex;flex-direction:column;gap:var(--s3);overflow:hidden;">
+
+    <!-- Header de compra -->
+    <div class="card" style="flex-shrink:0;">
+      <div class="section-header">
+        <span class="material-symbols-outlined" style="color:var(--primary);">local_shipping</span>
+        <span class="section-title">Nueva compra</span>
+        <span class="chip chip-neutral" id="sup-chip">Selecciona un proveedor</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--s3);padding:var(--s3) var(--s4);">
+        <div class="field-group">
+          <label class="field-label">Número de factura proveedor</label>
+          <input class="input" type="text" id="pur-invoice" placeholder="FAC-2026-001">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Fecha de compra</label>
+          <input class="input" type="date" id="pur-date" value="2026-06-29">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Forma de pago</label>
+          <select class="select" id="pur-payment">
+            <option>Contado</option>
+            <option>Crédito 30 días</option>
+            <option>Crédito 60 días</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agregar item -->
+    <div class="card" style="flex-shrink:0;">
+      <div class="section-header">
+        <span class="material-symbols-outlined" style="color:var(--on-surface-muted);">add_box</span>
+        <span class="section-title">Agregar producto</span>
+      </div>
+      <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:var(--s3);padding:var(--s3) var(--s4);">
+        <div class="field-group">
+          <label class="field-label">Producto (nombre o barcode)</label>
+          <div class="input-wrap">
+            <span class="material-symbols-outlined">inventory_2</span>
+            <input class="input" type="text" id="item-prod" placeholder="Buscar..." id="item-search" list="prod-dl">
+            <datalist id="prod-dl">
+              <option value="Ibuprofeno 400mg">
+              <option value="Crema Cicatrizante 50g">
+              <option value="Guantes Latex M x100">
+              <option value="Suero Fisiológico 500ml">
+            </datalist>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Cantidad</label>
+          <input class="input" type="number" id="item-qty" value="1" min="1">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Costo unitario</label>
+          <div class="input-wrap">
+            <span class="material-symbols-outlined" style="font-size:16px;">paid</span>
+            <input class="input" type="number" id="item-cost" placeholder="0">
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn btn-primary" onclick="addItem()">
+            <span class="material-symbols-outlined">add</span>
+            Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de items -->
+    <div class="card" style="flex:1;overflow:hidden;">
+      <div class="section-header">
+        <span class="material-symbols-outlined" style="color:var(--on-surface-muted);">list_alt</span>
+        <span class="section-title">Ítems de la compra</span>
+        <span id="item-count" class="chip chip-neutral">0 ítems</span>
+      </div>
+
+      <!-- Header grid -->
+      <div style="display:grid;grid-template-columns:2fr 80px 120px 120px 40px;gap:0;background:var(--surface-container);border-bottom:1px solid var(--outline);padding:0 var(--s4);">
+        <div style="font-size:11px;font-weight:500;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;padding:8px 0;">Producto</div>
+        <div style="font-size:11px;font-weight:500;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;padding:8px 0;text-align:center;">Qty</div>
+        <div style="font-size:11px;font-weight:500;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;padding:8px 0;text-align:right;">Costo unit.</div>
+        <div style="font-size:11px;font-weight:500;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;padding:8px 0;text-align:right;">Subtotal</div>
+        <div></div>
+      </div>
+
+      <div style="flex:1;overflow-y:auto;" id="items-list">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s3);padding:40px;color:var(--on-surface-muted);font-size:13px;">
+          <span class="material-symbols-outlined" style="font-size:36px;color:var(--outline);">add_shopping_cart</span>
+          Agrega productos a la compra
+        </div>
+      </div>
+
+      <!-- Footer totals + CTA -->
+      <div style="border-top:1px solid var(--outline);padding:var(--s3) var(--s4);display:flex;align-items:center;gap:var(--s4);">
+        <div style="flex:1;display:flex;gap:var(--s6);">
+          <div>
+            <div class="field-label">Subtotal</div>
+            <div style="font-size:15px;font-weight:600;font-family:var(--font-mono);" id="total-sub">$ 0</div>
+          </div>
+          <div>
+            <div class="field-label">IVA</div>
+            <div style="font-size:15px;font-weight:600;font-family:var(--font-mono);" id="total-iva">$ 0</div>
+          </div>
+          <div>
+            <div class="field-label">Total</div>
+            <div style="font-size:20px;font-weight:700;font-family:var(--font-mono);color:var(--primary);" id="total-total">$ 0</div>
+          </div>
+        </div>
+        <button class="btn btn-success" style="height:44px;font-size:15px;padding:0 var(--s6);" onclick="registerPurchase()">
+          <span class="material-symbols-outlined">check_circle</span>
+          Registrar compra
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="funcbar">
+  <a class="funcbar-item" href="wireframe-caja.html"><span class="fkey">F1</span><span class="fdot">·</span><span class="flabel">Caja</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-productos.html"><span class="fkey">F2</span><span class="fdot">·</span><span class="flabel">Productos</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-inventario.html"><span class="fkey">F3</span><span class="fdot">·</span><span class="flabel">Inventario</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-clientes.html"><span class="fkey">F4</span><span class="fdot">·</span><span class="flabel">Clientes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item active" href="wireframe-compras.html"><span class="fkey">F5</span><span class="fdot">·</span><span class="flabel">Compras</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cotizaciones.html"><span class="fkey">F6</span><span class="fdot">·</span><span class="flabel">Cotizaciones</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cobrar.html"><span class="fkey">F7</span><span class="fdot">·</span><span class="flabel">Por Cobrar</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-facturas.html"><span class="fkey">F8</span><span class="fdot">·</span><span class="flabel">Facturas</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-reportes.html"><span class="fkey">F9</span><span class="fdot">·</span><span class="flabel">Reportes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-configuracion.html"><span class="fkey">ADM</span><span class="fdot">·</span><span class="flabel">Admin</span></a>
+</nav>
+
+<div id="toast" style="position:fixed;bottom:68px;right:24px;background:#18181B;color:white;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;min-width:260px;opacity:0;transform:translateY(8px);transition:opacity 200ms,transform 200ms;pointer-events:none;z-index:999;">
+  <div id="toast-icon" style="width:18px;height:18px;border-radius:50%;background:var(--success);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">✓</div>
+  <span id="toast-msg" style="flex:1;"></span>
+</div>
+
+<script>
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;}
+updateClock();setInterval(updateClock,1000);
+
+const SUPPLIERS=[
+  {id:1,name:'Distribuidora MedFarma',phone:'6014512233',nit:'900123456',products:12},
+  {id:2,name:'Insumos Clínicos SA',phone:'6013219087',nit:'800456789',products:8},
+  {id:3,name:'Cosméticos del Valle',phone:'3105551234',nit:'900987654',products:5},
+];
+
+let selectedSup=null;
+let items=[];
+
+function renderSup(q=''){
+  const list=document.getElementById('sup-list');
+  const data=SUPPLIERS.filter(s=>s.name.toLowerCase().includes(q.toLowerCase()));
+  list.innerHTML=data.map(s=>`
+    <div class="sup-item ${selectedSup?.id===s.id?'selected':''}" onclick="selectSup(${s.id})">
+      <div class="sup-icon"><span class="material-symbols-outlined" style="font-size:18px;color:var(--primary);">store</span></div>
+      <div style="flex:1;min-width:0;">
+        <div class="sup-name">${s.name}</div>
+        <div class="sup-meta">${s.phone} · ${s.products} productos</div>
+      </div>
+    </div>
+  `).join('');
+}
+function filterSup(){renderSup(document.getElementById('sup-search').value);}
+function selectSup(id){
+  selectedSup=SUPPLIERS.find(s=>s.id===id);
+  document.getElementById('sup-chip').textContent=selectedSup.name;
+  document.getElementById('sup-chip').className='chip chip-primary';
+  renderSup(document.getElementById('sup-search').value);
+}
+
+let newSupOpen=false;
+function showNewSup(){
+  const hdr=document.getElementById('new-sup-hdr');
+  hdr.style.display='flex';
+  newSupOpen=true;
+  document.getElementById('new-sup-body').classList.add('open');
+  hdr.classList.add('open');
+}
+function toggleNewSup(){
+  newSupOpen=!newSupOpen;
+  const hdr=document.getElementById('new-sup-hdr');
+  const body=document.getElementById('new-sup-body');
+  hdr.classList.toggle('open',newSupOpen);
+  body.classList.toggle('open',newSupOpen);
+}
+function saveSup(){showToast('success','Proveedor guardado');}
+
+function addItem(){
+  const prod=document.getElementById('item-prod').value;
+  const qty=parseInt(document.getElementById('item-qty').value)||1;
+  const cost=parseFloat(document.getElementById('item-cost').value)||0;
+  if(!prod)return;
+  items.push({prod,qty,cost});
+  document.getElementById('item-prod').value='';
+  document.getElementById('item-qty').value=1;
+  document.getElementById('item-cost').value='';
+  renderItems();
+}
+
+function removeItem(i){items.splice(i,1);renderItems();}
+
+function renderItems(){
+  const list=document.getElementById('items-list');
+  if(!items.length){
+    list.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px;color:var(--on-surface-muted);font-size:13px;"><span class="material-symbols-outlined" style="font-size:36px;color:var(--outline);">add_shopping_cart</span>Agrega productos a la compra</div>';
+    document.getElementById('total-sub').textContent='$ 0';
+    document.getElementById('total-iva').textContent='$ 0';
+    document.getElementById('total-total').textContent='$ 0';
+    document.getElementById('item-count').textContent='0 ítems';
+    return;
+  }
+  let sub=0;
+  list.innerHTML=items.map((it,i)=>{
+    const subtotal=it.qty*it.cost;sub+=subtotal;
+    return`<div style="display:grid;grid-template-columns:2fr 80px 120px 120px 40px;align-items:center;gap:0;padding:8px var(--s4);border-bottom:1px solid var(--outline);">
+      <div style="font-size:13px;font-weight:500;">${it.prod}</div>
+      <div style="text-align:center;font-family:var(--font-mono);font-weight:600;">${it.qty}</div>
+      <div style="text-align:right;font-family:var(--font-mono);">$${it.cost.toLocaleString()}</div>
+      <div style="text-align:right;font-family:var(--font-mono);font-weight:600;">$${subtotal.toLocaleString()}</div>
+      <div style="display:flex;justify-content:center;"><button class="btn-icon" onclick="removeItem(${i})"><span class="material-symbols-outlined" style="font-size:16px;color:var(--error);">delete</span></button></div>
+    </div>`;
+  }).join('');
+  const iva=sub*0.19;
+  document.getElementById('total-sub').textContent='$'+sub.toLocaleString();
+  document.getElementById('total-iva').textContent='$'+Math.round(iva).toLocaleString();
+  document.getElementById('total-total').textContent='$'+(sub+iva).toLocaleString();
+  document.getElementById('item-count').textContent=items.length+' ítem'+(items.length!==1?'s':'');
+}
+
+function registerPurchase(){
+  if(!selectedSup){showToast('error','Selecciona un proveedor');return;}
+  if(!items.length){showToast('error','Agrega al menos un producto');return;}
+  showToast('success',`Compra registrada · Proveedor: ${selectedSup.name}`);
+  items=[];renderItems();
+}
+
+function showToast(type,msg){const t=document.getElementById('toast'),i=document.getElementById('toast-icon'),m=document.getElementById('toast-msg');const c={success:{bg:'var(--success)',text:'✓'},error:{bg:'var(--error)',text:'✕'},info:{bg:'var(--primary)',text:'i'}}[type];i.style.background=c.bg;i.textContent=c.text;m.textContent=msg;t.style.opacity='1';t.style.transform='translateY(0)';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},3000);}
+
+renderSup();
+</script>
+</body>
+</html>
+

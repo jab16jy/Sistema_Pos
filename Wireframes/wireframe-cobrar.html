@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F7 · Cuentas por Cobrar — Esthetic POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap">
+<style>
+:root{--surface:#FFFFFF;--surface-container:#F4F4F5;--surface-variant:#E8EAED;--on-surface:#18181B;--on-surface-muted:#71717A;--outline:#D4D4D8;--primary:#0369A1;--on-primary:#FFFFFF;--primary-container:#E0F2FE;--secondary:#0F766E;--secondary-container:#CCFBF1;--error:#DC2626;--error-container:#FEE2E2;--warning:#D97706;--warning-container:#FEF3C7;--success:#16A34A;--success-container:#DCFCE7;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--font:'Segoe UI','Inter',system-ui,sans-serif;--font-mono:'Consolas','Courier New',monospace;--topbar-h:48px;--funcbar-h:44px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--surface);color:var(--on-surface);font-size:13px;line-height:1.4;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:var(--topbar-h);min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--outline);display:flex;align-items:center;padding:0 var(--s6);position:relative;}
+.app-icon{width:20px;height:20px;background:var(--primary);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;}
+.topbar-center{position:absolute;left:50%;transform:translateX(-50%);font-size:15px;font-weight:600;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:var(--s4);}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--primary-container);color:var(--primary);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;}
+.clock{font-family:var(--font-mono);font-size:12px;color:var(--on-surface-muted);}
+.funcbar{height:var(--funcbar-h);min-height:var(--funcbar-h);background:var(--surface-container);border-top:1px solid var(--outline);display:flex;align-items:stretch;padding:0 var(--s6);}
+.funcbar-item{display:flex;align-items:center;gap:var(--s1);padding:0 var(--s3);cursor:pointer;border-bottom:2px solid transparent;text-decoration:none;transition:background 120ms;}
+.funcbar-item:hover{background:var(--surface-variant);}
+.funcbar-item.active{border-bottom-color:var(--primary);}
+.funcbar-item.active .fkey,.funcbar-item.active .flabel{color:var(--primary);}
+.funcbar-item.active .flabel{font-weight:500;}
+.funcbar-sep{width:1px;background:var(--outline);margin:12px 0;}
+.fkey{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--primary);}
+.fdot{font-size:11px;color:var(--outline);}
+.flabel{font-size:13px;color:var(--on-surface);}
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--surface-container);}
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:6px;display:flex;flex-direction:column;}
+.btn{height:36px;border-radius:4px;font-size:13px;font-weight:600;font-family:var(--font);padding:0 var(--s4);cursor:pointer;border:none;display:inline-flex;align-items:center;gap:var(--s1);transition:background 120ms;white-space:nowrap;flex-shrink:0;}
+.btn-primary{background:var(--primary);color:var(--on-primary);}
+.btn-primary:hover{background:#075985;}
+.btn-success{background:var(--success);color:#fff;}
+.btn-success:hover{background:#15803d;}
+.btn-ghost{background:transparent;color:var(--primary);}
+.btn-ghost:hover{background:var(--primary-container);}
+.btn-sm{height:28px;font-size:12px;padding:0 var(--s3);}
+.input,.select{width:100%;height:36px;border:1px solid var(--outline);border-radius:4px;padding:0 var(--s3);font-size:13px;font-family:var(--font);color:var(--on-surface);background:var(--surface);outline:none;}
+.input:focus,.select:focus{border:2px solid var(--primary);}
+.input-wrap{position:relative;}
+.input-wrap .material-symbols-outlined{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--on-surface-muted);pointer-events:none;}
+.input-wrap .input{padding-left:34px;}
+.field-label{font-size:11px;font-weight:500;color:var(--on-surface-muted);display:block;margin-bottom:var(--s1);}
+.field-group{display:flex;flex-direction:column;gap:var(--s1);}
+.chip{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:3px;font-size:11px;font-weight:500;white-space:nowrap;}
+.chip-error{background:var(--error-container);color:var(--error);}
+.chip-warning{background:var(--warning-container);color:var(--warning);}
+.chip-success{background:var(--success-container);color:var(--success);}
+.chip-neutral{background:var(--surface-variant);color:var(--on-surface-muted);}
+.chip-primary{background:var(--primary-container);color:var(--primary);}
+.kpi-row{display:flex;gap:var(--s4);padding:var(--s4);}
+.kpi{flex:1;background:var(--surface-container);border-radius:6px;padding:var(--s3) var(--s4);border:1px solid var(--outline);}
+.kpi-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--on-surface-muted);}
+.kpi-val{font-size:22px;font-weight:700;font-family:var(--font-mono);}
+.dg-head{display:flex;align-items:center;height:34px;background:var(--surface-container);border-bottom:1px solid var(--outline);padding:0 var(--s4);flex-shrink:0;}
+.dg-th{font-size:11px;font-weight:500;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;padding:0 var(--s2);}
+.dg-body{flex:1;overflow-y:auto;}
+.dg-row{display:flex;align-items:center;min-height:48px;padding:6px var(--s4);border-bottom:1px solid var(--outline);cursor:pointer;transition:background 100ms;position:relative;}
+.dg-row:hover{background:var(--primary-container);}
+.dg-row.alt{background:var(--surface-container);}
+.dg-row.alt:hover{background:var(--primary-container);}
+.dg-row.selected{background:var(--primary-container);outline:2px solid var(--primary);outline-offset:-2px;}
+.dg-row:hover .row-actions{opacity:1;}
+.dg-cell{font-size:13px;color:var(--on-surface);padding:0 var(--s2);}
+.dg-cell.mono{font-family:var(--font-mono);}
+.dg-cell.bold{font-weight:700;}
+.dg-cell.muted{color:var(--on-surface-muted);font-size:12px;}
+.row-actions{opacity:0;transition:opacity 120ms;}
+.section-header{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;}
+.section-title{font-size:13px;font-weight:600;flex:1;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--outline);border-radius:2px;}
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 20;user-select:none;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:var(--s2);">
+    <div class="app-icon">PS</div>
+    <span style="font-size:13px;font-weight:500;">Esthetic POS</span>
+  </div>
+  <div class="topbar-center">Cuentas por Cobrar</div>
+  <div class="topbar-right"><div class="avatar">AD</div><span class="clock" id="clock">14:32</span></div>
+</header>
+
+<div class="content">
+
+  <!-- KPI strip -->
+  <div style="background:var(--surface);border-bottom:1px solid var(--outline);flex-shrink:0;">
+    <div class="kpi-row">
+      <div class="kpi">
+        <div class="kpi-label">Total por cobrar</div>
+        <div class="kpi-val" style="color:var(--error);">$1.240.000</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Vencidas</div>
+        <div class="kpi-val" style="color:var(--error);">3</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Por vencer (7 días)</div>
+        <div class="kpi-val" style="color:var(--warning);">5</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Al día</div>
+        <div class="kpi-val" style="color:var(--success);">12</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main grid + panel -->
+  <div style="flex:1;display:flex;gap:var(--s4);padding:var(--s4);overflow:hidden;">
+
+    <!-- ═══ Grid de cuentas ═══ -->
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div class="card" style="flex:1;overflow:hidden;">
+        <!-- Filtros -->
+        <div style="display:flex;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;flex-wrap:wrap;">
+          <div class="input-wrap" style="flex:1;min-width:160px;">
+            <span class="material-symbols-outlined">search</span>
+            <input class="input" type="text" placeholder="Cliente o factura..." id="cxc-search" oninput="filterCxC()">
+          </div>
+          <select class="select" style="width:130px;" id="cxc-status" onchange="filterCxC()">
+            <option value="">Todo estado</option>
+            <option value="vencida">Vencida</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="pagada">Pagada</option>
+          </select>
+          <input class="input" type="date" style="width:140px;" value="2026-06-01">
+          <span style="align-self:center;color:var(--on-surface-muted);font-size:13px;">→</span>
+          <input class="input" type="date" style="width:140px;" value="2026-06-29">
+        </div>
+
+        <!-- Grid header -->
+        <div class="dg-head">
+          <div class="dg-th" style="flex:1;">Cliente</div>
+          <div class="dg-th" style="width:120px;">Factura</div>
+          <div class="dg-th" style="width:120px;">Original</div>
+          <div class="dg-th" style="width:130px;">Saldo</div>
+          <div class="dg-th" style="width:90px;">Estado</div>
+          <div class="dg-th" style="width:100px;">Vencimiento</div>
+          <div class="dg-th" style="width:80px;"></div>
+        </div>
+        <div class="dg-body" id="cxc-list"><!-- JS --></div>
+      </div>
+    </div>
+
+    <!-- ═══ Panel de pago ═══ -->
+    <div style="width:320px;display:flex;flex-direction:column;gap:var(--s3);">
+      <div class="card" style="flex:1;">
+        <div class="section-header">
+          <span class="material-symbols-outlined" style="color:var(--primary);">payments</span>
+          <span class="section-title">Registrar abono</span>
+        </div>
+
+        <div style="padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);flex:1;">
+
+          <!-- Cuenta seleccionada -->
+          <div style="background:var(--surface-container);border-radius:6px;padding:var(--s3);display:flex;flex-direction:column;gap:var(--s1);" id="sel-panel">
+            <div style="font-size:12px;font-weight:500;color:var(--on-surface-muted);">CUENTA SELECCIONADA</div>
+            <div style="font-size:14px;font-weight:700;" id="sel-client">— ninguna —</div>
+            <div style="display:flex;gap:var(--s4);">
+              <div>
+                <div class="field-label">Factura</div>
+                <div style="font-family:var(--font-mono);font-weight:600;" id="sel-invoice">—</div>
+              </div>
+              <div>
+                <div class="field-label">Saldo</div>
+                <div style="font-family:var(--font-mono);font-weight:700;font-size:18px;color:var(--error);" id="sel-balance">—</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--on-surface-muted);">
+            Esta pantalla es la bandeja global de cartera. El detalle comercial del cliente se consulta desde <a href="wireframe-clientes.html" style="color:var(--primary);text-decoration:none;">Clientes</a>.
+          </div>
+
+          <!-- Monto abono -->
+          <div class="field-group">
+            <label class="field-label">Monto del abono</label>
+            <div class="input-wrap">
+              <span class="material-symbols-outlined" style="font-size:16px;">paid</span>
+              <input class="input" type="number" id="pay-amount" placeholder="0" oninput="updatePayPreview()">
+            </div>
+          </div>
+
+          <!-- Preview saldo restante -->
+          <div id="pay-preview" style="display:none;background:var(--success-container);border-radius:4px;padding:var(--s2) var(--s3);">
+            <div style="font-size:11px;font-weight:500;color:var(--on-surface-muted);">Saldo después del abono</div>
+            <div style="font-size:20px;font-weight:700;font-family:var(--font-mono);color:var(--success);" id="pay-remaining">$0</div>
+          </div>
+
+          <!-- Forma de pago -->
+          <div class="field-group">
+            <label class="field-label">Forma de pago</label>
+            <select class="select" id="pay-method">
+              <option>Efectivo</option>
+              <option>Transferencia</option>
+              <option>Tarjeta débito</option>
+              <option>Tarjeta crédito</option>
+            </select>
+          </div>
+
+          <!-- Nota -->
+          <div class="field-group">
+            <label class="field-label">Nota (opcional)</label>
+            <input class="input" type="text" id="pay-note" placeholder="Referencia del pago...">
+          </div>
+
+          <div style="flex:1;"></div>
+
+          <button class="btn btn-success" onclick="registerPayment()" style="width:100%;justify-content:center;height:44px;font-size:15px;">
+            <span class="material-symbols-outlined">check_circle</span>
+            Registrar abono
+          </button>
+          <button class="btn btn-ghost" onclick="clearPayment()" style="width:100%;justify-content:center;">
+            <span class="material-symbols-outlined">clear</span>
+            Limpiar
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<nav class="funcbar">
+  <a class="funcbar-item" href="wireframe-caja.html"><span class="fkey">F1</span><span class="fdot">·</span><span class="flabel">Caja</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-productos.html"><span class="fkey">F2</span><span class="fdot">·</span><span class="flabel">Productos</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-inventario.html"><span class="fkey">F3</span><span class="fdot">·</span><span class="flabel">Inventario</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-clientes.html"><span class="fkey">F4</span><span class="fdot">·</span><span class="flabel">Clientes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-compras.html"><span class="fkey">F5</span><span class="fdot">·</span><span class="flabel">Compras</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cotizaciones.html"><span class="fkey">F6</span><span class="fdot">·</span><span class="flabel">Cotizaciones</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item active" href="wireframe-cobrar.html"><span class="fkey">F7</span><span class="fdot">·</span><span class="flabel">Por Cobrar</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-facturas.html"><span class="fkey">F8</span><span class="fdot">·</span><span class="flabel">Facturas</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-reportes.html"><span class="fkey">F9</span><span class="fdot">·</span><span class="flabel">Reportes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-configuracion.html"><span class="fkey">ADM</span><span class="fdot">·</span><span class="flabel">Admin</span></a>
+</nav>
+
+<div id="toast" style="position:fixed;bottom:68px;right:24px;background:#18181B;color:white;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;min-width:260px;opacity:0;transform:translateY(8px);transition:opacity 200ms,transform 200ms;pointer-events:none;z-index:999;">
+  <div id="toast-icon" style="width:18px;height:18px;border-radius:50%;background:var(--success);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">✓</div>
+  <span id="toast-msg" style="flex:1;"></span>
+</div>
+
+<script>
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;}
+updateClock();setInterval(updateClock,1000);
+
+const ACCOUNTS=[
+  {id:1,client:'María López',invoice:'#1055',original:200000,balance:80000,status:'vencida',due:'2026-06-20'},
+  {id:2,client:'Carlos Ruiz',invoice:'#1060',original:400000,balance:200000,status:'pendiente',due:'2026-07-10'},
+  {id:3,client:'Pedro Martínez',invoice:'#1062',original:250000,balance:120000,status:'pendiente',due:'2026-07-05'},
+  {id:4,client:'Luis Pérez',invoice:'#1048',original:180000,balance:60000,status:'vencida',due:'2026-06-15'},
+  {id:5,client:'Ana Torres',invoice:'#1071',original:350000,balance:350000,status:'vencida',due:'2026-06-22'},
+  {id:6,client:'Jorge Mesa',invoice:'#1073',original:120000,balance:120000,status:'pendiente',due:'2026-07-15'},
+];
+const STATUS_CHIP={vencida:'chip-error',pendiente:'chip-warning',pagada:'chip-success'};
+const STATUS_LABEL={vencida:'Vencida',pendiente:'Pendiente',pagada:'Pagada'};
+
+let selectedAccount=null;
+
+function renderAccounts(q='',statusF=''){
+  const list=document.getElementById('cxc-list');
+  const data=ACCOUNTS.filter(a=>{
+    const mq=a.client.toLowerCase().includes(q.toLowerCase())||a.invoice.includes(q);
+    const ms=!statusF||a.status===statusF;
+    return mq&&ms;
+  });
+  list.innerHTML=data.map((a,i)=>`
+    <div class="dg-row ${i%2===0?'alt':''} ${selectedAccount?.id===a.id?'selected':''}" onclick="selectAccount(${a.id})">
+      <div class="dg-cell" style="flex:1;font-weight:500;">${a.client}</div>
+      <div class="dg-cell mono" style="width:120px;">${a.invoice}</div>
+      <div class="dg-cell mono" style="width:120px;">$${a.original.toLocaleString()}</div>
+      <div class="dg-cell bold mono" style="width:130px;color:var(--error);">$${a.balance.toLocaleString()}</div>
+      <div class="dg-cell" style="width:90px;"><span class="chip ${STATUS_CHIP[a.status]}">${STATUS_LABEL[a.status]}</span></div>
+      <div class="dg-cell muted" style="width:100px;">${a.due}</div>
+      <div class="dg-cell row-actions" style="width:80px;display:flex;gap:4px;">
+        <button class="btn-sm btn-ghost" style="padding:0 6px;display:flex;align-items:center;" onclick="event.stopPropagation();showToast('info','Recordatorio enviado')"><span class="material-symbols-outlined" style="font-size:14px;">notifications</span></button>
+      </div>
+    </div>
+  `).join('');
+}
+function filterCxC(){renderAccounts(document.getElementById('cxc-search').value,document.getElementById('cxc-status').value);}
+
+function selectAccount(id){
+  selectedAccount=ACCOUNTS.find(a=>a.id===id);
+  document.getElementById('sel-client').textContent=selectedAccount.client;
+  document.getElementById('sel-invoice').textContent=selectedAccount.invoice;
+  document.getElementById('sel-balance').textContent='$'+selectedAccount.balance.toLocaleString();
+  document.getElementById('pay-amount').value='';
+  document.getElementById('pay-preview').style.display='none';
+  renderAccounts(document.getElementById('cxc-search').value,document.getElementById('cxc-status').value);
+}
+
+function updatePayPreview(){
+  if(!selectedAccount){return;}
+  const amt=parseFloat(document.getElementById('pay-amount').value)||0;
+  const remaining=Math.max(0,selectedAccount.balance-amt);
+  document.getElementById('pay-preview').style.display='block';
+  document.getElementById('pay-remaining').textContent='$'+remaining.toLocaleString();
+  document.getElementById('pay-preview').style.background=remaining===0?'var(--success-container)':'var(--warning-container)';
+  document.getElementById('pay-remaining').style.color=remaining===0?'var(--success)':'var(--warning)';
+}
+
+function registerPayment(){
+  if(!selectedAccount){showToast('error','Selecciona una cuenta');return;}
+  const amt=parseFloat(document.getElementById('pay-amount').value)||0;
+  if(!amt){showToast('error','Ingresa el monto del abono');return;}
+  showToast('success',`Abono de $${amt.toLocaleString()} registrado`);
+  clearPayment();
+}
+
+function clearPayment(){
+  selectedAccount=null;
+  document.getElementById('sel-client').textContent='— ninguna —';
+  document.getElementById('sel-invoice').textContent='—';
+  document.getElementById('sel-balance').textContent='—';
+  document.getElementById('pay-amount').value='';
+  document.getElementById('pay-preview').style.display='none';
+  renderAccounts();
+}
+
+function showToast(type,msg){const t=document.getElementById('toast'),i=document.getElementById('toast-icon'),m=document.getElementById('toast-msg');const c={success:{bg:'var(--success)',text:'✓'},error:{bg:'var(--error)',text:'✕'},info:{bg:'var(--primary)',text:'i'}}[type];i.style.background=c.bg;i.textContent=c.text;m.textContent=msg;t.style.opacity='1';t.style.transform='translateY(0)';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},3000);}
+
+renderAccounts();
+</script>
+</body>
+</html>
+

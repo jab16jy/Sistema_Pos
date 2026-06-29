@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Etiquetas y Códigos — Esthetic POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap">
+<style>
+:root{--surface:#FFFFFF;--surface-container:#F4F4F5;--surface-variant:#E8EAED;--on-surface:#18181B;--on-surface-muted:#71717A;--outline:#D4D4D8;--primary:#0369A1;--on-primary:#FFFFFF;--primary-container:#E0F2FE;--error:#DC2626;--success:#16A34A;--success-container:#DCFCE7;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--font:'Segoe UI','Inter',system-ui,sans-serif;--font-mono:'Consolas','Courier New',monospace;--topbar-h:48px;--funcbar-h:44px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--surface);color:var(--on-surface);font-size:13px;line-height:1.4;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:var(--topbar-h);min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--outline);display:flex;align-items:center;padding:0 var(--s6);position:relative;}
+.app-icon{width:20px;height:20px;background:var(--primary);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;}
+.topbar-center{position:absolute;left:50%;transform:translateX(-50%);font-size:15px;font-weight:600;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:var(--s4);}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--primary-container);color:var(--primary);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;}
+.clock{font-family:var(--font-mono);font-size:12px;color:var(--on-surface-muted);}
+.funcbar{height:var(--funcbar-h);min-height:var(--funcbar-h);background:var(--surface-container);border-top:1px solid var(--outline);display:flex;align-items:stretch;padding:0 var(--s6);}
+.funcbar-item{display:flex;align-items:center;gap:var(--s1);padding:0 var(--s3);cursor:pointer;border-bottom:2px solid transparent;text-decoration:none;transition:background 120ms;}
+.funcbar-item:hover{background:var(--surface-variant);}
+.funcbar-item.active{border-bottom-color:var(--primary);}
+.funcbar-item.active .fkey,.funcbar-item.active .flabel{color:var(--primary);}
+.funcbar-item.active .flabel{font-weight:500;}
+.funcbar-sep{width:1px;background:var(--outline);margin:12px 0;}
+.fkey{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--primary);}
+.fdot{font-size:11px;color:var(--outline);}
+.flabel{font-size:13px;color:var(--on-surface);}
+.content{flex:1;display:flex;gap:var(--s4);padding:var(--s4);overflow:hidden;background:var(--surface-container);}
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:6px;display:flex;flex-direction:column;overflow:hidden;}
+.btn{height:36px;border-radius:4px;font-size:13px;font-weight:600;font-family:var(--font);padding:0 var(--s4);cursor:pointer;border:none;display:inline-flex;align-items:center;gap:var(--s1);transition:background 120ms;white-space:nowrap;flex-shrink:0;}
+.btn-primary{background:var(--primary);color:var(--on-primary);}
+.btn-primary:hover{background:#075985;}
+.btn-ghost{background:transparent;color:var(--primary);}
+.btn-ghost:hover{background:var(--primary-container);}
+.btn-sm{height:28px;font-size:12px;padding:0 var(--s3);}
+.input,.select{width:100%;height:36px;border:1px solid var(--outline);border-radius:4px;padding:0 var(--s3);font-size:13px;font-family:var(--font);color:var(--on-surface);background:var(--surface);outline:none;}
+.input:focus,.select:focus{border:2px solid var(--primary);}
+.input-wrap{position:relative;}
+.input-wrap .material-symbols-outlined{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--on-surface-muted);pointer-events:none;}
+.input-wrap .input{padding-left:34px;}
+.field-label{font-size:11px;font-weight:500;color:var(--on-surface-muted);display:block;margin-bottom:var(--s1);}
+.field-group{display:flex;flex-direction:column;gap:var(--s1);}
+.section-header{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;}
+.section-title{font-size:13px;font-weight:600;flex:1;}
+/* SVG barcode simulation */
+.bc-preview{background:white;border:1px solid var(--outline);border-radius:4px;padding:var(--s3);display:flex;flex-direction:column;align-items:center;gap:var(--s2);}
+.bc-bars{display:flex;align-items:flex-end;gap:1px;height:60px;padding:4px;}
+.bc-bar{background:#000;border-radius:1px;}
+.bc-num{font-family:var(--font-mono);font-size:12px;letter-spacing:2px;font-weight:500;}
+.bc-label{font-size:10px;font-weight:600;}
+.bc-price{font-size:14px;font-weight:700;font-family:var(--font-mono);}
+/* Product row in list */
+.prod-row{display:flex;align-items:center;gap:var(--s3);padding:8px var(--s4);border-bottom:1px solid var(--outline);cursor:pointer;transition:background 100ms;}
+.prod-row:hover{background:var(--primary-container);}
+.prod-row.selected{background:var(--primary-container);outline:2px solid var(--primary);outline-offset:-2px;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--outline);border-radius:2px;}
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 20;user-select:none;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:var(--s2);">
+    <div class="app-icon">PS</div>
+    <span style="font-size:13px;font-weight:500;">Esthetic POS</span>
+  </div>
+  <div class="topbar-center">Etiquetas y códigos</div>
+  <div class="topbar-right"><div class="avatar">AD</div><span class="clock" id="clock">14:32</span></div>
+</header>
+
+<div class="content">
+
+  <!-- ═══ Panel izquierdo: Generador ═══ -->
+  <div style="width:320px;display:flex;flex-direction:column;gap:var(--s3);overflow:hidden;">
+    <div class="card" style="flex:1;">
+      <div class="section-header">
+        <span class="material-symbols-outlined" style="color:var(--primary);">barcode</span>
+        <span class="section-title">Generador</span>
+      </div>
+
+      <div style="padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);flex:1;overflow-y:auto;">
+        <div style="background:var(--primary-container);border-radius:6px;padding:var(--s3);font-size:12px;color:var(--primary);">
+          Utilidad administrativa. No aparece como módulo principal: normalmente se abre desde <a href="wireframe-productos.html" style="color:var(--primary);font-weight:600;text-decoration:none;">Productos</a> o <a href="wireframe-configuracion.html" style="color:var(--primary);font-weight:600;text-decoration:none;">Admin</a>.
+        </div>
+
+        <!-- Valor del código -->
+        <div class="field-group">
+          <label class="field-label">Valor del código de barras</label>
+          <div class="input-wrap">
+            <span class="material-symbols-outlined">qr_code_scanner</span>
+            <input class="input" type="text" id="bc-value" placeholder="7770001234567" oninput="updatePreview()">
+          </div>
+        </div>
+
+        <!-- Formato -->
+        <div class="field-group">
+          <label class="field-label">Formato</label>
+          <select class="select" id="bc-format">
+            <option value="code128">CODE 128 (general)</option>
+            <option value="ean13">EAN-13 (productos)</option>
+            <option value="code39">CODE 39</option>
+            <option value="qr">QR Code</option>
+          </select>
+        </div>
+
+        <!-- Label / precio -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s3);">
+          <div class="field-group">
+            <label class="field-label">Etiqueta</label>
+            <input class="input" type="text" id="bc-label" placeholder="Producto" oninput="updatePreview()">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Precio (opcional)</label>
+            <input class="input" type="number" id="bc-price" placeholder="0" oninput="updatePreview()">
+          </div>
+        </div>
+
+        <!-- Copias -->
+        <div class="field-group">
+          <label class="field-label">Número de copias</label>
+          <input class="input" type="number" id="bc-copies" value="1" min="1" max="100">
+        </div>
+
+        <!-- Preview -->
+        <div>
+          <label class="field-label">Vista previa</label>
+          <div class="bc-preview" id="bc-preview">
+            <div class="bc-label" id="pv-label">PRODUCTO</div>
+            <div class="bc-bars" id="pv-bars"><!-- JS --></div>
+            <div class="bc-num" id="pv-num">7 770001 234567</div>
+            <div class="bc-price" id="pv-price" style="display:none;"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:var(--s2);">
+          <button class="btn btn-ghost" onclick="printSingle()" style="flex:1;justify-content:center;font-size:12px;">
+            <span class="material-symbols-outlined">print</span>Imprimir
+          </button>
+          <button class="btn btn-primary" onclick="addToBatch()" style="flex:1;justify-content:center;font-size:12px;">
+            <span class="material-symbols-outlined">add</span>Agregar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Panel derecho: Lote de productos ═══ -->
+  <div style="flex:1;display:flex;flex-direction:column;gap:var(--s3);overflow:hidden;">
+    <div class="card" style="flex:1;overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;">
+        <span class="material-symbols-outlined" style="color:var(--on-surface-muted);font-size:16px;">list_alt</span>
+        <span style="font-size:13px;font-weight:600;flex:1;">Lote de impresión</span>
+        <span id="batch-count" style="font-size:12px;color:var(--on-surface-muted);">0 ítems</span>
+        <button class="btn btn-primary" onclick="printBatch()" style="gap:var(--s1);">
+          <span class="material-symbols-outlined">print</span>Imprimir lote
+        </button>
+        <button class="btn btn-ghost" onclick="clearBatch()">
+          <span class="material-symbols-outlined">clear_all</span>
+        </button>
+      </div>
+
+      <!-- Search to add from catalog -->
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;">
+        <div class="input-wrap">
+          <span class="material-symbols-outlined">search</span>
+          <input class="input" type="text" placeholder="Buscar producto del catálogo para agregar al lote..." id="batch-search" oninput="filterBatchSearch()">
+        </div>
+      </div>
+
+      <!-- Search results -->
+      <div style="flex:0 0 auto;max-height:180px;overflow-y:auto;border-bottom:1px solid var(--outline);" id="search-results"><!-- JS --></div>
+
+      <!-- Batch items -->
+      <div style="flex:1;overflow-y:auto;" id="batch-list">
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px;color:var(--on-surface-muted);font-size:13px;">
+          <span class="material-symbols-outlined" style="font-size:36px;color:var(--outline);">barcode</span>
+          Agrega productos para imprimir etiquetas en lote
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<nav class="funcbar">
+  <a class="funcbar-item" href="wireframe-caja.html"><span class="fkey">F1</span><span class="fdot">·</span><span class="flabel">Caja</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-productos.html"><span class="fkey">F2</span><span class="fdot">·</span><span class="flabel">Productos</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-inventario.html"><span class="fkey">F3</span><span class="fdot">·</span><span class="flabel">Inventario</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-clientes.html"><span class="fkey">F4</span><span class="fdot">·</span><span class="flabel">Clientes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-compras.html"><span class="fkey">F5</span><span class="fdot">·</span><span class="flabel">Compras</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cotizaciones.html"><span class="fkey">F6</span><span class="fdot">·</span><span class="flabel">Cotizaciones</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cobrar.html"><span class="fkey">F7</span><span class="fdot">·</span><span class="flabel">Por Cobrar</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-facturas.html"><span class="fkey">F8</span><span class="fdot">·</span><span class="flabel">Facturas</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-reportes.html"><span class="fkey">F9</span><span class="fdot">·</span><span class="flabel">Reportes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item active" href="wireframe-configuracion.html"><span class="fkey">ADM</span><span class="fdot">·</span><span class="flabel">Admin</span></a>
+</nav>
+
+<div id="toast" style="position:fixed;bottom:68px;right:24px;background:#18181B;color:white;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;min-width:260px;opacity:0;transform:translateY(8px);transition:opacity 200ms,transform 200ms;pointer-events:none;z-index:999;">
+  <div id="toast-icon" style="width:18px;height:18px;border-radius:50%;background:var(--success);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">✓</div>
+  <span id="toast-msg" style="flex:1;"></span>
+</div>
+
+<script>
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;}
+updateClock();setInterval(updateClock,1000);
+
+const PRODUCTS=[
+  {id:1,name:'Ibuprofeno 400mg · Caja x10',barcode:'7770001001',price:8500},
+  {id:2,name:'Crema Cicatrizante 50g',barcode:'7770001002',price:22000},
+  {id:3,name:'Guantes Latex M x100',barcode:'7770001003',price:15000},
+  {id:4,name:'Suero Fisiológico 500ml',barcode:'7770001004',price:4800},
+  {id:5,name:'Bisturí Desechable #22',barcode:'7770001005',price:1500},
+];
+
+let batch=[];
+const HEIGHTS=[40,56,48,52,36,60,44,52,40,48,56,44,36,60,52,40,48,56,36,60,44,52,48,56,40,44,60,36,52,48,56,44,40,60,52,36,48,44,56,40,52,60,36,44,48,56,40,52,44,60];
+
+function genBars(val){
+  const len=Math.max(30,Math.min(50,val.length*3));
+  return HEIGHTS.slice(0,len).map((h,i)=>`<div class="bc-bar" style="width:${i%5===0?3:2}px;height:${h}px;"></div>`).join('');
+}
+
+function updatePreview(){
+  const val=document.getElementById('bc-value').value||'7770001234567';
+  const label=document.getElementById('bc-label').value||'PRODUCTO';
+  const price=parseFloat(document.getElementById('bc-price').value);
+  document.getElementById('pv-bars').innerHTML=genBars(val);
+  document.getElementById('pv-label').textContent=label.toUpperCase();
+  document.getElementById('pv-num').textContent=val;
+  const priceEl=document.getElementById('pv-price');
+  if(price>0){priceEl.style.display='';priceEl.textContent='$'+price.toLocaleString();}
+  else{priceEl.style.display='none';}
+}
+
+function filterBatchSearch(){
+  const q=document.getElementById('batch-search').value.toLowerCase();
+  const res=document.getElementById('search-results');
+  if(!q){res.innerHTML='';return;}
+  const data=PRODUCTS.filter(p=>p.name.toLowerCase().includes(q)||p.barcode.includes(q));
+  res.innerHTML=data.map(p=>`
+    <div class="prod-row" onclick="addProductToBatch(${p.id})">
+      <span class="material-symbols-outlined" style="font-size:16px;color:var(--primary);">inventory_2</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;">${p.name}</div>
+        <div style="font-size:11px;color:var(--on-surface-muted);font-family:var(--font-mono);">${p.barcode}</div>
+      </div>
+      <span style="font-size:12px;font-weight:600;font-family:var(--font-mono);">$${p.price.toLocaleString()}</span>
+      <button class="btn-sm btn-ghost" style="padding:0 8px;"><span class="material-symbols-outlined" style="font-size:16px;">add</span></button>
+    </div>
+  `).join('');
+}
+
+function addProductToBatch(id){
+  const p=PRODUCTS.find(x=>x.id===id);
+  const ex=batch.find(x=>x.id===id);
+  if(ex){ex.copies++;}else{batch.push({...p,copies:1});}
+  renderBatch();
+  document.getElementById('batch-search').value='';
+  document.getElementById('search-results').innerHTML='';
+}
+
+function addToBatch(){
+  const val=document.getElementById('bc-value').value;
+  if(!val){showToast('error','Ingresa el valor del código');return;}
+  batch.push({id:Date.now(),name:document.getElementById('bc-label').value||val,barcode:val,price:parseFloat(document.getElementById('bc-price').value)||0,copies:parseInt(document.getElementById('bc-copies').value)||1});
+  renderBatch();
+  showToast('success','Agregado al lote');
+}
+
+function renderBatch(){
+  const list=document.getElementById('batch-list');
+  document.getElementById('batch-count').textContent=batch.length+' ítem'+(batch.length!==1?'s':'');
+  if(!batch.length){list.innerHTML='<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:40px;color:var(--on-surface-muted);font-size:13px;"><span class="material-symbols-outlined" style="font-size:36px;color:var(--outline);">barcode</span>Agrega productos para imprimir etiquetas en lote</div>';return;}
+  list.innerHTML=batch.map((it,i)=>`
+    <div style="display:flex;align-items:center;gap:var(--s3);padding:10px var(--s4);border-bottom:1px solid var(--outline);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${it.name}</div>
+        <div style="font-size:11px;color:var(--on-surface-muted);font-family:var(--font-mono);">${it.barcode}${it.price?` · $${it.price.toLocaleString()}`:''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button class="btn-icon" onclick="changeCopies(${i},-1)"><span class="material-symbols-outlined" style="font-size:14px;">remove</span></button>
+        <span style="font-family:var(--font-mono);font-weight:700;min-width:24px;text-align:center;">${it.copies}</span>
+        <button class="btn-icon" onclick="changeCopies(${i},+1)"><span class="material-symbols-outlined" style="font-size:14px;">add</span></button>
+      </div>
+      <button class="btn-icon" onclick="removeBatch(${i})"><span class="material-symbols-outlined" style="font-size:16px;color:var(--error);">close</span></button>
+    </div>
+  `).join('');
+}
+
+function changeCopies(i,d){batch[i].copies=Math.max(1,batch[i].copies+d);renderBatch();}
+function removeBatch(i){batch.splice(i,1);renderBatch();}
+function clearBatch(){batch=[];renderBatch();}
+function printSingle(){const val=document.getElementById('bc-value').value;if(!val){showToast('error','Ingresa el valor del código');return;}showToast('success',`${document.getElementById('bc-copies').value} etiqueta(s) enviada(s) a imprimir`);}
+function printBatch(){if(!batch.length){showToast('error','El lote está vacío');return;}const total=batch.reduce((a,x)=>a+x.copies,0);showToast('success',`${total} etiqueta(s) enviadas a imprimir`);clearBatch();}
+
+function showToast(type,msg){const t=document.getElementById('toast'),i=document.getElementById('toast-icon'),m=document.getElementById('toast-msg');const c={success:{bg:'var(--success)',text:'✓'},error:{bg:'var(--error)',text:'✕'},info:{bg:'var(--primary)',text:'i'}}[type];i.style.background=c.bg;i.textContent=c.text;m.textContent=msg;t.style.opacity='1';t.style.transform='translateY(0)';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},3000);}
+
+updatePreview();
+</script>
+</body>
+</html>
+
