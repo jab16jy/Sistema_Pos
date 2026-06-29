@@ -22,6 +22,9 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly CreateSaleUseCase? _createSaleUseCase;
     private readonly RedeemLoyaltyPointsUseCase? _redeemLoyaltyPointsUseCase;
     private readonly RelayCommand _addSelectedProductCommand;
+    private readonly RelayCommand _appendReceivedAmountCommand;
+    private readonly RelayCommand _backspaceReceivedAmountCommand;
+    private readonly RelayCommand _setExactAmountCommand;
     private readonly RelayCommand _clearCartCommand;
     private readonly RelayCommand _confirmPrototypeSaleCommand;
     private string _searchText = string.Empty;
@@ -86,9 +89,15 @@ public sealed class CashierViewModel : ViewModelBase
 
         SearchCommand = new RelayCommand(async _ => await SearchAsync().ConfigureAwait(true));
         _addSelectedProductCommand = new RelayCommand(_ => AddSelectedProduct(), _ => CanAddSelectedProduct);
+        _appendReceivedAmountCommand = new RelayCommand(AppendReceivedAmount);
+        _backspaceReceivedAmountCommand = new RelayCommand(_ => BackspaceReceivedAmount());
+        _setExactAmountCommand = new RelayCommand(_ => SetExactReceivedAmount(), _ => TotalAmount > 0m);
         _clearCartCommand = new RelayCommand(_ => ClearCart(), _ => CartItems.Count > 0);
         _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale(), _ => CanConfirm);
         AddSelectedProductCommand = _addSelectedProductCommand;
+        AppendReceivedAmountCommand = _appendReceivedAmountCommand;
+        BackspaceReceivedAmountCommand = _backspaceReceivedAmountCommand;
+        SetExactAmountCommand = _setExactAmountCommand;
         ClearCartCommand = _clearCartCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
         ApplyRedemptionCommand = new RelayCommand(async _ => await ApplyRedemptionAsync().ConfigureAwait(true));
@@ -103,6 +112,12 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand SearchCommand { get; }
 
     public ICommand AddSelectedProductCommand { get; }
+
+    public ICommand AppendReceivedAmountCommand { get; }
+
+    public ICommand BackspaceReceivedAmountCommand { get; }
+
+    public ICommand SetExactAmountCommand { get; }
 
     public ICommand ClearCartCommand { get; }
 
@@ -232,6 +247,16 @@ public sealed class CashierViewModel : ViewModelBase
     public decimal TotalAmount => CartItems.Sum(item => item.Subtotal);
 
     public string TotalText => FormatCurrency(TotalAmount);
+
+    public int CartLineCount => CartItems.Count;
+
+    public decimal CartUnitCount => CartItems.Sum(item => item.Quantity);
+
+    public string CartSummaryText => $"{CartLineCount} productos · {CartUnitCount:0.##} unidades";
+
+    public string SubtotalSummaryText => $"Subtotal: {TotalText}";
+
+    public bool HasCartItems => CartItems.Count > 0;
 
     public decimal ChangeAmount
     {
@@ -425,8 +450,14 @@ public sealed class CashierViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(TotalAmount));
         OnPropertyChanged(nameof(TotalText));
+        OnPropertyChanged(nameof(CartLineCount));
+        OnPropertyChanged(nameof(CartUnitCount));
+        OnPropertyChanged(nameof(CartSummaryText));
+        OnPropertyChanged(nameof(SubtotalSummaryText));
+        OnPropertyChanged(nameof(HasCartItems));
         RefreshPaymentPreview(updateMessage);
         _clearCartCommand.RaiseCanExecuteChanged();
+        _setExactAmountCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshPaymentPreview(bool updateMessage = true)
@@ -462,6 +493,44 @@ public sealed class CashierViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(CanAddSelectedProduct));
         _addSelectedProductCommand.RaiseCanExecuteChanged();
+    }
+
+    private void AppendReceivedAmount(object? parameter)
+    {
+        string token = parameter as string ?? string.Empty;
+
+        if (token.Length == 0)
+        {
+            return;
+        }
+
+        if (token == "000")
+        {
+            ReceivedAmount *= 1000m;
+            return;
+        }
+
+        if (token == ".")
+        {
+            return;
+        }
+
+        if (!int.TryParse(token, NumberStyles.None, CultureInfo.InvariantCulture, out int digit))
+        {
+            return;
+        }
+
+        ReceivedAmount = (ReceivedAmount * 10m) + digit;
+    }
+
+    private void BackspaceReceivedAmount()
+    {
+        ReceivedAmount = decimal.Truncate(ReceivedAmount / 10m);
+    }
+
+    private void SetExactReceivedAmount()
+    {
+        ReceivedAmount = TotalAmount;
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";

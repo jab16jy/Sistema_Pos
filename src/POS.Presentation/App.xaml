@@ -3,19 +3,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:POS.Presentation.Converters">
   <Application.Resources>
-    <Color x:Key="ColorBackground">#F8F9FA</Color>
+    <Color x:Key="ColorBackground">#FFFFFF</Color>
     <Color x:Key="ColorSurface">#FFFFFF</Color>
-    <Color x:Key="ColorSurfaceAlt">#ECFEFF</Color>
-    <Color x:Key="ColorPrimary">#0284C7</Color>
+    <Color x:Key="ColorSurfaceAlt">#E8EAED</Color>
+    <Color x:Key="ColorPrimary">#0369A1</Color>
     <Color x:Key="ColorPrimaryDark">#075985</Color>
-    <Color x:Key="ColorAccent">#0D9488</Color>
+    <Color x:Key="ColorAccent">#0F766E</Color>
     <Color x:Key="ColorSidebar">#1E293B</Color>
-    <Color x:Key="ColorText">#0F172A</Color>
-    <Color x:Key="ColorMuted">#64748B</Color>
-    <Color x:Key="ColorBorder">#DDE5EC</Color>
-    <Color x:Key="ColorDanger">#B91C1C</Color>
+    <Color x:Key="ColorText">#18181B</Color>
+    <Color x:Key="ColorMuted">#71717A</Color>
+    <Color x:Key="ColorBorder">#D4D4D8</Color>
+    <Color x:Key="ColorDanger">#DC2626</Color>
     <Color x:Key="ColorDangerSoft">#FEE2E2</Color>
-    <Color x:Key="ColorCard">#F3F6F8</Color>
+    <Color x:Key="ColorCard">#FFFFFF</Color>
 
     <SolidColorBrush x:Key="BrushBackground" Color="{StaticResource ColorBackground}" />
     <SolidColorBrush x:Key="BrushSurface" Color="{StaticResource ColorSurface}" />
@@ -57,8 +57,8 @@
       <Setter Property="Background" Value="{StaticResource BrushCard}" />
       <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="12" />
-      <Setter Property="Padding" Value="18" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="16" />
     </Style>
 
     <Style TargetType="Button">
@@ -66,7 +66,7 @@
       <Setter Property="Background" Value="#FFFFFF" />
       <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
       <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="Padding" Value="16,9" />
       <Setter Property="FontWeight" Value="SemiBold" />
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="Template">
@@ -76,16 +76,16 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="6"
+                    CornerRadius="4"
                     Padding="{TemplateBinding Padding}">
               <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Chrome" Property="Background" Value="#F1F5F9" />
+                <Setter TargetName="Chrome" Property="Background" Value="#F4F4F5" />
               </Trigger>
               <Trigger Property="IsPressed" Value="True">
-                <Setter TargetName="Chrome" Property="Background" Value="#E2E8F0" />
+                <Setter TargetName="Chrome" Property="Background" Value="#E8EAED" />
               </Trigger>
               <Trigger Property="IsEnabled" Value="False">
                 <Setter TargetName="Chrome" Property="Opacity" Value="0.55" />
@@ -113,7 +113,7 @@
     </Style>
 
     <Style TargetType="TextBox">
-      <Setter Property="Height" Value="40" />
+      <Setter Property="Height" Value="36" />
       <Setter Property="Padding" Value="12,8" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Background" Value="White" />
@@ -127,7 +127,7 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="6">
+                    CornerRadius="4">
               <Grid>
                 <ScrollViewer x:Name="PART_ContentHost"
                               Foreground="{TemplateBinding Foreground}"
@@ -160,7 +160,7 @@
     </Style>
 
     <Style TargetType="PasswordBox">
-      <Setter Property="Height" Value="40" />
+      <Setter Property="Height" Value="36" />
       <Setter Property="Padding" Value="12,8" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
       <Setter Property="Background" Value="White" />
@@ -174,7 +174,7 @@
                     Background="{TemplateBinding Background}"
                     BorderBrush="{TemplateBinding BorderBrush}"
                     BorderThickness="{TemplateBinding BorderThickness}"
-                    CornerRadius="6">
+                    CornerRadius="4">
               <ScrollViewer x:Name="PART_ContentHost"
                             Foreground="{TemplateBinding Foreground}"
                             Margin="{TemplateBinding Padding}" />
@@ -191,8 +191,8 @@
     </Style>
 
     <Style TargetType="ComboBox">
-      <Setter Property="Height" Value="40" />
-      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="Height" Value="36" />
+      <Setter Property="Padding" Value="10,4" />
     </Style>
 
     <Style TargetType="DataGrid">

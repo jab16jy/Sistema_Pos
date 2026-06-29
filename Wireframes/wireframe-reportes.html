@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F8 · Reportes — Esthetic POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap">
+<style>
+:root{--surface:#FFFFFF;--surface-container:#F4F4F5;--surface-variant:#E8EAED;--on-surface:#18181B;--on-surface-muted:#71717A;--outline:#D4D4D8;--primary:#0369A1;--on-primary:#FFFFFF;--primary-container:#E0F2FE;--secondary:#0F766E;--secondary-container:#CCFBF1;--error:#DC2626;--error-container:#FEE2E2;--warning:#D97706;--warning-container:#FEF3C7;--success:#16A34A;--success-container:#DCFCE7;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--font:'Segoe UI','Inter',system-ui,sans-serif;--font-mono:'Consolas','Courier New',monospace;--topbar-h:48px;--funcbar-h:44px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--surface);color:var(--on-surface);font-size:13px;line-height:1.4;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:var(--topbar-h);min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--outline);display:flex;align-items:center;padding:0 var(--s6);position:relative;}
+.app-icon{width:20px;height:20px;background:var(--primary);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;}
+.topbar-center{position:absolute;left:50%;transform:translateX(-50%);font-size:15px;font-weight:600;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:var(--s4);}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--primary-container);color:var(--primary);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;}
+.clock{font-family:var(--font-mono);font-size:12px;color:var(--on-surface-muted);}
+.subtab-bar{display:flex;align-items:stretch;background:var(--surface);border-bottom:1px solid var(--outline);padding:0 var(--s5);height:40px;flex-shrink:0;}
+.subtab{display:flex;align-items:center;gap:var(--s1);padding:0 var(--s4);font-size:13px;font-weight:500;color:var(--on-surface-muted);cursor:pointer;border-bottom:2px solid transparent;transition:color 120ms,border-color 120ms;}
+.subtab:hover{color:var(--on-surface);}
+.subtab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600;}
+.subtab .material-symbols-outlined{font-size:16px;}
+.tab-content{flex:1;display:none;overflow:hidden;}
+.tab-content.active{display:flex;flex-direction:column;overflow:hidden;}
+.funcbar{height:var(--funcbar-h);min-height:var(--funcbar-h);background:var(--surface-container);border-top:1px solid var(--outline);display:flex;align-items:stretch;padding:0 var(--s6);}
+.funcbar-item{display:flex;align-items:center;gap:var(--s1);padding:0 var(--s3);cursor:pointer;border-bottom:2px solid transparent;text-decoration:none;transition:background 120ms;}
+.funcbar-item:hover{background:var(--surface-variant);}
+.funcbar-item.active{border-bottom-color:var(--primary);}
+.funcbar-item.active .fkey,.funcbar-item.active .flabel{color:var(--primary);}
+.funcbar-item.active .flabel{font-weight:500;}
+.funcbar-sep{width:1px;background:var(--outline);margin:12px 0;}
+.fkey{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--primary);}
+.fdot{font-size:11px;color:var(--outline);}
+.flabel{font-size:13px;color:var(--on-surface);}
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:6px;}
+.btn{height:36px;border-radius:4px;font-size:13px;font-weight:600;font-family:var(--font);padding:0 var(--s4);cursor:pointer;border:none;display:inline-flex;align-items:center;gap:var(--s1);transition:background 120ms;white-space:nowrap;flex-shrink:0;}
+.btn-primary{background:var(--primary);color:var(--on-primary);}
+.btn-primary:hover{background:#075985;}
+.btn-ghost{background:transparent;color:var(--primary);}
+.btn-ghost:hover{background:var(--primary-container);}
+.btn-warn{background:var(--warning);color:#fff;}
+.btn-sm{height:28px;font-size:12px;padding:0 var(--s3);}
+.input,.select{width:100%;height:36px;border:1px solid var(--outline);border-radius:4px;padding:0 var(--s3);font-size:13px;font-family:var(--font);color:var(--on-surface);background:var(--surface);outline:none;}
+.input:focus,.select:focus{border:2px solid var(--primary);}
+.field-label{font-size:11px;font-weight:500;color:var(--on-surface-muted);display:block;margin-bottom:var(--s1);}
+.field-group{display:flex;flex-direction:column;gap:var(--s1);}
+.chip{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:3px;font-size:11px;font-weight:500;white-space:nowrap;}
+.chip-success{background:var(--success-container);color:var(--success);}
+.chip-warning{background:var(--warning-container);color:var(--warning);}
+.chip-error{background:var(--error-container);color:var(--error);}
+.chip-primary{background:var(--primary-container);color:var(--primary);}
+/* KPI grid */
+.kpi-grid{display:grid;gap:var(--s3);padding:var(--s4);}
+.kpi-grid.cols-5{grid-template-columns:repeat(5,1fr);}
+.kpi-grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.kpi-card{background:var(--surface);border:1px solid var(--outline);border-radius:6px;padding:var(--s4);display:flex;flex-direction:column;gap:var(--s2);}
+.kpi-card.accent{border-left:3px solid var(--primary);}
+.kpi-label{font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;color:var(--on-surface-muted);}
+.kpi-val{font-size:22px;font-weight:700;font-family:var(--font-mono);}
+.kpi-sub{font-size:12px;color:var(--on-surface-muted);}
+/* Chart placeholder */
+.chart-ph{background:var(--surface-container);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s2);color:var(--on-surface-muted);font-size:13px;}
+.chart-ph .material-symbols-outlined{font-size:36px;color:var(--outline);}
+/* Table rows */
+.rank-row{display:flex;align-items:center;gap:var(--s3);padding:8px var(--s4);border-bottom:1px solid var(--outline);}
+.rank-num{width:24px;height:24px;border-radius:50%;background:var(--surface-container);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.rank-bar-bg{flex:1;height:6px;background:var(--surface-variant);border-radius:3px;overflow:hidden;}
+.rank-bar-fill{height:100%;border-radius:3px;background:var(--primary);}
+/* Closing */
+.close-row{display:flex;align-items:center;gap:var(--s3);padding:12px var(--s4);border-bottom:1px solid var(--outline);}
+.close-label{font-size:13px;font-weight:500;flex:1;}
+.close-val{font-size:15px;font-weight:700;font-family:var(--font-mono);}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-thumb{background:var(--outline);border-radius:2px;}
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 20;user-select:none;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:var(--s2);">
+    <div class="app-icon">PS</div>
+    <span style="font-size:13px;font-weight:500;">Esthetic POS</span>
+  </div>
+  <div class="topbar-center">Reportes</div>
+  <div class="topbar-right"><div class="avatar">AD</div><span class="clock" id="clock">14:32</span></div>
+</header>
+
+<div class="subtab-bar">
+  <div class="subtab active" id="tab-operacional" onclick="switchTab('operacional')">
+    <span class="material-symbols-outlined">bar_chart</span>Resumen operacional
+  </div>
+  <div class="subtab" id="tab-rentabilidad" onclick="switchTab('rentabilidad')">
+    <span class="material-symbols-outlined">trending_up</span>Rentabilidad
+  </div>
+  <div class="subtab" id="tab-cierre" onclick="switchTab('cierre')">
+    <span class="material-symbols-outlined">inventory</span>Cierres y arqueos
+  </div>
+</div>
+
+<!-- ════ OPERACIONAL ════ -->
+<div class="tab-content active" id="content-operacional" style="background:var(--surface-container);overflow-y:auto;">
+  <!-- Toolbar de filtros -->
+  <div style="display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);background:var(--surface);border-bottom:1px solid var(--outline);flex-shrink:0;flex-wrap:wrap;">
+    <div style="display:flex;gap:var(--s1);">
+      <button class="btn btn-primary btn-sm" id="preset-hoy" onclick="setPreset('hoy')">Hoy</button>
+      <button class="btn btn-ghost btn-sm" id="preset-semana" onclick="setPreset('semana')">Semana</button>
+      <button class="btn btn-ghost btn-sm" id="preset-mes" onclick="setPreset('mes')">Mes</button>
+    </div>
+    <div style="width:1px;background:var(--outline);height:24px;flex-shrink:0;"></div>
+    <input class="input" type="date" style="width:140px;" id="rpt-from" value="2026-06-29">
+    <span style="color:var(--on-surface-muted);">→</span>
+    <input class="input" type="date" style="width:140px;" id="rpt-to" value="2026-06-29">
+    <div style="flex:1;"></div>
+    <button class="btn btn-ghost" onclick="showToast('success','PDF generado')">
+      <span class="material-symbols-outlined">picture_as_pdf</span>PDF
+    </button>
+    <button class="btn btn-ghost" onclick="showToast('success','Excel generado')">
+      <span class="material-symbols-outlined">table_view</span>Excel
+    </button>
+  </div>
+
+  <!-- KPI cards: 5 -->
+  <div class="kpi-grid cols-5">
+    <div class="kpi-card accent">
+      <div class="kpi-label">Total facturado</div>
+      <div class="kpi-val" style="color:var(--primary);">$1.842.000</div>
+      <div class="kpi-sub">+12% vs ayer</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Efectivo esperado</div>
+      <div class="kpi-val" style="color:var(--on-surface);">$842.000</div>
+      <div class="kpi-sub">13 ventas en efectivo</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Efectivo ventas</div>
+      <div class="kpi-val" style="color:var(--success);">$842.000</div>
+      <div class="kpi-sub"><span class="chip chip-success">Cuadra</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Pagos digitales</div>
+      <div class="kpi-val" style="color:var(--secondary);">$780.000</div>
+      <div class="kpi-sub">Tarjeta + transfer.</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Abonos CxC</div>
+      <div class="kpi-val" style="color:var(--warning);">$220.000</div>
+      <div class="kpi-sub">3 cuentas</div>
+    </div>
+  </div>
+
+  <!-- Gráficas placeholder: Ventas por hora + Ventas por método -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:var(--s4);padding:0 var(--s4) var(--s4);">
+    <div class="card" style="display:flex;flex-direction:column;">
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);font-size:13px;font-weight:600;">Ventas por hora (hoy)</div>
+      <!-- Mini bar chart simulation -->
+      <div style="padding:var(--s4);display:flex;align-items:flex-end;gap:4px;height:140px;">
+        <div id="hour-bars" style="display:flex;align-items:flex-end;gap:4px;flex:1;height:100%;"></div>
+      </div>
+      <div style="display:flex;gap:4px;padding:0 var(--s4) var(--s3);justify-content:space-between;">
+        <span id="hour-labels" style="display:flex;gap:0;flex:1;justify-content:space-between;font-size:10px;color:var(--on-surface-muted);"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);font-size:13px;font-weight:600;">Por método de pago</div>
+      <div style="padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>Efectivo</span><span style="font-weight:700;font-family:var(--font-mono);">$842k (46%)</span></div>
+          <div style="height:8px;background:var(--surface-variant);border-radius:4px;"><div style="height:100%;width:46%;background:var(--success);border-radius:4px;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>Tarjeta débito</span><span style="font-weight:700;font-family:var(--font-mono);">$480k (26%)</span></div>
+          <div style="height:8px;background:var(--surface-variant);border-radius:4px;"><div style="height:100%;width:26%;background:var(--primary);border-radius:4px;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>Transferencia</span><span style="font-weight:700;font-family:var(--font-mono);">$300k (16%)</span></div>
+          <div style="height:8px;background:var(--surface-variant);border-radius:4px;"><div style="height:100%;width:16%;background:var(--secondary);border-radius:4px;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>Abonos CxC</span><span style="font-weight:700;font-family:var(--font-mono);">$220k (12%)</span></div>
+          <div style="height:8px;background:var(--surface-variant);border-radius:4px;"><div style="height:100%;width:12%;background:var(--warning);border-radius:4px;"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ RENTABILIDAD ════ -->
+<div class="tab-content" id="content-rentabilidad" style="background:var(--surface-container);overflow-y:auto;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);padding:var(--s4);">
+    <!-- Top 10 productos -->
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);font-size:13px;font-weight:600;display:flex;align-items:center;gap:var(--s2);">
+        <span class="material-symbols-outlined" style="font-size:16px;color:var(--primary);">emoji_events</span>
+        Top 10 · Productos más vendidos (hoy)
+      </div>
+      <div id="top10" style="overflow-y:auto;max-height:280px;"><!-- JS --></div>
+    </div>
+    <!-- Margen por categoría -->
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);font-size:13px;font-weight:600;display:flex;align-items:center;gap:var(--s2);">
+        <span class="material-symbols-outlined" style="font-size:16px;color:var(--secondary);">category</span>
+        Margen bruto por categoría
+      </div>
+      <div style="padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="font-weight:500;">Medicamentos</span><span style="font-family:var(--font-mono);font-weight:700;color:var(--success);">34%</span></div>
+          <div style="height:8px;background:var(--surface-variant);border-radius:4px;"><div style="height:100%;width:34%;background:var(--success);border-radius:4px;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="font-weight:500;">Cosméticos</span><span style="font-family:var(--font-mono);font-weight:700;color:var(--primary);">55%</span></div>
+          <div style="height:8px;background:var(--surface-variant);border-radius:4px;"><div style="height:100%;width:55%;background:var(--primary);border-radius:4px;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="font-weight:500;">Insumos médicos</span><span style="font-family:var(--font-mono);font-weight:700;color:var(--warning);">23%</span></div>
+          <div style="height:8px;background:var(--surface-variant);border-radius:4px;"><div style="height:100%;width:23%;background:var(--warning);border-radius:4px;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span style="font-weight:500;">Cuidado personal</span><span style="font-family:var(--font-mono);font-weight:700;color:var(--secondary);">48%</span></div>
+          <div style="height:8px;background:var(--surface-variant);border-radius:4px;"><div style="height:100%;width:48%;background:var(--secondary);border-radius:4px;"></div></div>
+        </div>
+      </div>
+    </div>
+    <!-- Comparativa periodos -->
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);font-size:13px;font-weight:600;">Comparativa de períodos</div>
+      <div style="padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);">
+        <div style="display:flex;align-items:center;gap:var(--s4);">
+          <div style="flex:1;"><div class="field-label">Período A</div><select class="select"><option>Hoy</option><option>Esta semana</option><option>Este mes</option></select></div>
+          <div style="flex:1;"><div class="field-label">Período B</div><select class="select"><option>Ayer</option><option>Semana pasada</option><option>Mes pasado</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--s3);background:var(--surface-container);border-radius:6px;padding:var(--s3);">
+          <div><div class="field-label">Período A</div><div style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--primary);">$1.842k</div></div>
+          <div><div class="field-label">Período B</div><div style="font-size:18px;font-weight:700;font-family:var(--font-mono);">$1.643k</div></div>
+          <div><div class="field-label">Diferencia</div><div style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--success);">+12%</div></div>
+        </div>
+      </div>
+    </div>
+    <!-- Platform breakdown placeholder -->
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);font-size:13px;font-weight:600;">Desglose por plataforma</div>
+      <div style="padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);">
+        <div style="display:flex;justify-content:space-between;padding:var(--s2) 0;border-bottom:1px solid var(--outline);"><span>Ventas POS (mostrador)</span><span style="font-weight:700;font-family:var(--font-mono);">$1.520k</span></div>
+        <div style="display:flex;justify-content:space-between;padding:var(--s2) 0;border-bottom:1px solid var(--outline);"><span>Cotizaciones convertidas</span><span style="font-weight:700;font-family:var(--font-mono);">$322k</span></div>
+        <div style="display:flex;justify-content:space-between;padding:var(--s2) 0;"><span>Total</span><span style="font-weight:700;font-family:var(--font-mono);color:var(--primary);">$1.842k</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ CIERRES HISTÓRICOS ════ -->
+<div class="tab-content" id="content-cierre" style="background:var(--surface-container);overflow-y:auto;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);padding:var(--s4);">
+    <!-- Resumen del último cierre -->
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);font-size:13px;font-weight:600;display:flex;align-items:center;gap:var(--s2);">
+        <span class="material-symbols-outlined" style="font-size:16px;color:var(--primary);">receipt_long</span>
+        Último cierre registrado
+      </div>
+      <div class="close-row">
+        <div class="close-label">Cajero</div>
+        <div class="close-val">Admin</div>
+      </div>
+      <div class="close-row">
+        <div class="close-label">Apertura</div>
+        <div class="close-val" style="font-size:13px;font-family:var(--font-mono);">08:00 · Caja: $100.000</div>
+      </div>
+      <div class="close-row">
+        <div class="close-label">Cierre</div>
+        <div class="close-val" style="font-size:13px;font-family:var(--font-mono);">18:12 · 2026-06-29</div>
+      </div>
+      <div class="close-row">
+        <div class="close-label">Total ventas</div>
+        <div class="close-val" style="color:var(--primary);">$1.842.000</div>
+      </div>
+      <div class="close-row">
+        <div class="close-label">Efectivo esperado</div>
+        <div class="close-val">$942.000</div>
+      </div>
+      <div class="close-row">
+        <div class="close-label">Digital (tarjeta/transfer.)</div>
+        <div class="close-val">$780.000</div>
+      </div>
+      <div class="close-row">
+        <div class="close-label">Abonos CxC</div>
+        <div class="close-val">$220.000</div>
+      </div>
+    </div>
+    <!-- Historial / consulta -->
+    <div class="card" style="overflow:hidden;">
+      <div style="padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);font-size:13px;font-weight:600;display:flex;align-items:center;gap:var(--s2);">
+        <span class="material-symbols-outlined" style="font-size:16px;color:var(--warning);">fact_check</span>
+        Consulta de cierres
+      </div>
+      <div style="padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);">
+        <div style="background:var(--surface-container);border-radius:6px;padding:var(--s3);display:flex;flex-direction:column;gap:var(--s2);">
+          <div style="font-size:12px;font-weight:600;">Qué sí hace este tab</div>
+          <div style="font-size:12px;color:var(--on-surface-muted);">Consultar arqueos ya cerrados, diferencias detectadas y exportar evidencia.</div>
+        </div>
+        <div style="background:var(--warning-container);border-radius:6px;padding:var(--s3);display:flex;flex-direction:column;gap:var(--s2);">
+          <div style="font-size:12px;font-weight:600;color:#92400E;">Qué ya no hace</div>
+          <div style="font-size:12px;color:#92400E;">El cierre operativo del turno no se ejecuta aquí. Se realiza desde <strong>Turnos</strong> para evitar duplicidad con reportes.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:var(--s2);border:1px solid var(--outline);border-radius:6px;padding:var(--s3);">
+          <div style="display:flex;justify-content:space-between;font-size:12px;">
+            <span>Diferencia reportada</span>
+            <span style="font-family:var(--font-mono);font-weight:700;color:var(--success);">$0</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;">
+            <span>Observación</span>
+            <span style="font-size:12px;color:var(--on-surface-muted);">Sin novedades</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:700;">
+            <span>Exportar evidencia</span>
+            <span style="font-size:12px;color:var(--primary);">PDF / Excel</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="showToast('info','Abriendo módulo Turnos')" style="width:100%;justify-content:center;height:44px;font-size:15px;">
+          <span class="material-symbols-outlined">point_of_sale</span>
+          Ir a Turnos para cerrar caja
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="funcbar">
+  <a class="funcbar-item" href="wireframe-caja.html"><span class="fkey">F1</span><span class="fdot">·</span><span class="flabel">Caja</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-productos.html"><span class="fkey">F2</span><span class="fdot">·</span><span class="flabel">Productos</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-inventario.html"><span class="fkey">F3</span><span class="fdot">·</span><span class="flabel">Inventario</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-clientes.html"><span class="fkey">F4</span><span class="fdot">·</span><span class="flabel">Clientes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-compras.html"><span class="fkey">F5</span><span class="fdot">·</span><span class="flabel">Compras</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cotizaciones.html"><span class="fkey">F6</span><span class="fdot">·</span><span class="flabel">Cotizaciones</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cobrar.html"><span class="fkey">F7</span><span class="fdot">·</span><span class="flabel">Por Cobrar</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-facturas.html"><span class="fkey">F8</span><span class="fdot">·</span><span class="flabel">Facturas</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item active" href="wireframe-reportes.html"><span class="fkey">F9</span><span class="fdot">·</span><span class="flabel">Reportes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-configuracion.html"><span class="fkey">ADM</span><span class="fdot">·</span><span class="flabel">Admin</span></a>
+</nav>
+
+<div id="toast" style="position:fixed;bottom:68px;right:24px;background:#18181B;color:white;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;min-width:260px;opacity:0;transform:translateY(8px);transition:opacity 200ms,transform 200ms;pointer-events:none;z-index:999;">
+  <div id="toast-icon" style="width:18px;height:18px;border-radius:50%;background:var(--success);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">✓</div>
+  <span id="toast-msg" style="flex:1;"></span>
+</div>
+
+<script>
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;}
+updateClock();setInterval(updateClock,1000);
+
+function switchTab(t){['operacional','rentabilidad','cierre'].forEach(n=>{document.getElementById(`tab-${n}`).classList.toggle('active',n===t);document.getElementById(`content-${n}`).classList.toggle('active',n===t);});}
+
+function setPreset(p){
+  ['hoy','semana','mes'].forEach(id=>{const el=document.getElementById(`preset-${id}`);el.className=id===p?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';});
+}
+
+/* ── Hour bars ── */
+const HOURS=['8','9','10','11','12','13','14','15','16','17'];
+const VALS =[38,62,45,80,55,92,75,88,40,15];
+function renderHours(){
+  const max=Math.max(...VALS);
+  document.getElementById('hour-bars').innerHTML=HOURS.map((h,i)=>`
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:2px;">
+      <div style="width:100%;background:var(--primary);border-radius:3px 3px 0 0;height:${(VALS[i]/max)*100}%;opacity:${i<7?1:0.4};min-height:4px;"></div>
+    </div>
+  `).join('');
+  document.getElementById('hour-labels').innerHTML=HOURS.map(h=>`<span>${h}h</span>`).join('');
+}
+
+/* ── Top 10 ── */
+const TOP10=[
+  {name:'Ibuprofeno 400mg · Caja x10',qty:24,pct:100},
+  {name:'Crema Cicatrizante 50g',qty:18,pct:75},
+  {name:'Guantes Latex M x100',qty:15,pct:62},
+  {name:'Suero Fisiológico 500ml',qty:14,pct:58},
+  {name:'Bisturí Desechable #22',qty:12,pct:50},
+];
+function renderTop10(){
+  document.getElementById('top10').innerHTML=TOP10.map((p,i)=>`
+    <div class="rank-row">
+      <div class="rank-num" style="background:${i<3?'var(--primary-container)':'var(--surface-variant)'};color:${i<3?'var(--primary)':'var(--on-surface-muted)'};">${i+1}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+        <div style="display:flex;align-items:center;gap:var(--s2);margin-top:4px;">
+          <div class="rank-bar-bg"><div class="rank-bar-fill" style="width:${p.pct}%;"></div></div>
+          <span style="font-size:11px;font-family:var(--font-mono);font-weight:700;width:32px;flex-shrink:0;">${p.qty}u</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+/* ── Cierre ── */
+function calcDiff(){
+  const counted=parseFloat(document.getElementById('counted').value)||0;
+  const expected=942000;
+  const diff=counted-expected;
+  document.getElementById('counted-display').textContent='$'+counted.toLocaleString();
+  const diffEl=document.getElementById('diff-display');
+  diffEl.textContent=(diff>=0?'+':'')+'$'+diff.toLocaleString();
+  diffEl.style.color=diff===0?'var(--success)':diff>0?'var(--primary)':'var(--error)';
+}
+
+function doClosure(){showToast('success','Turno cerrado · Reporte PDF generado');}
+
+function showToast(type,msg){const t=document.getElementById('toast'),i=document.getElementById('toast-icon'),m=document.getElementById('toast-msg');const c={success:{bg:'var(--success)',text:'✓'},error:{bg:'var(--error)',text:'✕'},info:{bg:'var(--primary)',text:'i'}}[type];i.style.background=c.bg;i.textContent=c.text;m.textContent=msg;t.style.opacity='1';t.style.transform='translateY(0)';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},3000);}
+
+renderHours();
+renderTop10();
+</script>
+</body>
+</html>
+

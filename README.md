@@ -11,7 +11,47 @@ Local desktop POS for small businesses. Documentation lives in `docs md/`.
 - EF Core 9
 - SQLite
 - ESC/POS thermal printing
-- PDF/Excel reporting
+- PDF/Excel reporting (QuestPDF + ClosedXML)
+- ZXing.Net barcode generation
+
+## Modules (15)
+
+| # | Module | Role |
+|---|--------|------|
+| 1 | Dashboard | All |
+| 2 | Cashier (POS) | Cashier + Admin |
+| 3 | Customers | Cashier + Admin |
+| 4 | Quotations | Cashier + Admin |
+| 5 | Invoices | Cashier + Admin |
+| 6 | Products | Admin |
+| 7 | Inventory | Admin |
+| 8 | Reports | Admin |
+| 9 | Settings | Admin |
+| 10 | Categories | Admin |
+| 11 | Loyalty | Admin |
+| 12 | Barcode Labels | Admin |
+| 13 | Profit Analytics | Admin |
+| 14 | User Management | Admin |
+| 15 | Audit Log | Admin |
+| — | Cashier Shifts | Admin |
+
+> Cashier role sees modules 1–5 only. Admin sees all.
+
+## Key features
+
+- **Authentication** — PBKDF2/SHA256 login; default admin/admin123 seeded on first run
+- **Role-based access** — Admin sees all modules; Cashier is restricted to sales flow
+- **IVA 19 %** — applied in domain layer on products and sale items
+- **ESC/POS printing** — auto-detects COM port, IP:PORT, USB, or falls back to process command
+- **PDF/Excel export** — operational and profit reports via QuestPDF + ClosedXML
+- **CSV product import** — row-level validation with error reporting
+- **Loyalty program** — points earned/redeemed per sale; tiered levels
+- **Barcode label printing** — ZXing.Net generation + label print flow
+- **Cash closing** — date-range filters and closing report in Reports module
+- **Audit log** — all significant operations recorded and viewable
+- **Cashier shifts** — start/close workflow with shift summary
+- **User management** — CRUD for users with role assignment; logout loop
+- **Manual backup** — one-click SQLite backup from Settings
 
 ## Architecture
 
