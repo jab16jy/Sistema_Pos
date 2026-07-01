@@ -111,15 +111,15 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ## Phase 2: caja-view (PR 2)
 
-- [ ] 2.1 Modify `CashierView.xaml` search dropdown row template: add stock-status chip (`ChipStyle` success/warning/error) next to thumbnail/name/code/price
-- [ ] 2.2 Verify/expose stock-status computed value on `CashierViewModel` search results (presentation-only, no new business logic)
-- [ ] 2.3 Modify cart row template: quantity input, unit price, subtotal, edit/delete icon buttons with `Visibility` bound via `IsMouseOver` style trigger
-- [ ] 2.4 Verify quantity-change recompute of row subtotal, cart summary, and total-to-pay (existing `CashierViewModel` logic)
-- [ ] 2.5 Confirm/add `AssociateCustomerCommand` (F6) and `HoldSaleCommand` (F7) on `CashierViewModel` — presentation-only delegation to existing use cases; flag if a new use case is required (out of scope)
-- [ ] 2.6 Wire "F6 · Cliente" / "F7 · En espera" buttons in the `pago-panel` to these commands with `IsEnabled` bindings
-- [ ] 2.7 Rebuild `pago-panel` layout to match wireframe: total, payment method selector, received-amount field, numpad, change/shortfall indicator, `F5 · Finalizar venta` CTA using the shared component library
-- [ ] 2.8 Verify shortfall message ("Falta $X", error color) and empty-cart block ("El carrito está vacío") on F5
-- [ ] 2.9 Run `dotnet build POS.sln --no-restore`
+- [x] 2.1 Modify `CashierView.xaml` search dropdown row template: add stock-status chip (`ChipStyle` success/warning/error) next to thumbnail/name/code/price
+- [x] 2.2 Verify/expose stock-status computed value on `CashierViewModel` search results (presentation-only, no new business logic)
+- [x] 2.3 Modify cart row template: quantity input, unit price, subtotal, edit/delete icon buttons with `Visibility` bound via `IsMouseOver` style trigger
+- [x] 2.4 Verify quantity-change recompute of row subtotal, cart summary, and total-to-pay (existing `CashierViewModel` logic)
+- [x] 2.5 Confirm/add `AssociateCustomerCommand` (F6) and `HoldSaleCommand` (F7) on `CashierViewModel` — presentation-only delegation to existing use cases; flag if a new use case is required (out of scope)
+- [x] 2.6 Wire "F6 · Cliente" / "F7 · En espera" buttons in the `pago-panel` to these commands with `IsEnabled` bindings
+- [x] 2.7 Rebuild `pago-panel` layout to match wireframe: total, payment method selector, received-amount field, numpad, change/shortfall indicator, `F5 · Finalizar venta` CTA using the shared component library
+- [x] 2.8 Verify shortfall message ("Falta $X", error color) and empty-cart block ("El carrito está vacío") on F5
+- [x] 2.9 Run `dotnet build POS.sln --no-restore`
 - [ ] 2.10 Manual visual QA against `Wireframes/wireframe-caja.html`; confirm shell `F1` shortcut does not collide with in-module search focus
 
 ---
@@ -167,7 +167,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 - [ ] 6.1 Rebuild `SettingsView.xaml` with shared `SubtabBar`: "Centro de control" (default), "Negocio", "Impresión y envíos"
 - [ ] 6.2 Add 4-item KPI strip (usuarios activos, turno actual, último backup, canales listos) using `KpiCard`
-- [ ] 6.3 Add quick-link grid (`QuickLink`) to Productos/Inventario/Compras/Reportes/Turnos/Lealtad/Barcode wired to `SelectModuleCommand`; render Usuarios y permisos/Auditoría operativa/Respaldos as static non-navigable placeholders
+- [ ] 6.3 Add quick-link grid (`QuickLink`) to Productos/Inventario/Compras/Reportes/Turnos/Lealtad/Barcode wired to `SelectModuleCommand`. Also add Usuarios ("users") and Auditoría ("audit") as real navigable `QuickLink` entries wired to `SelectModuleCommand` — both are already `IsImplemented: true` in `MainShellViewModel` with working views (`UserManagementView`, `AuditLogView`) and were left unreachable from any shell entry point after the Phase 1 shell rebuild (funcbar has 5 items, AdminHubModules has 7, neither includes users/audit); this closes that navigation gap. Render Respaldos as a static non-navigable placeholder only (no dedicated backup view exists yet)
 - [ ] 6.4 Add Alertas panel + Checklist de operación segura (pill-style status: printer/SMTP/WhatsApp script/backup)
 - [ ] 6.5 Add Negocio subtab: editable business name/tax ID/address/currency fields + "Guardar" wired to the existing `system-settings` business-information use case; add read-only policies list
 - [ ] 6.6 Add Impresión y envíos subtab: Impresión panel (command/port, receipt template), Email/SMTP panel (host/sender/port/test-send), WhatsApp/Script panel (script path/working dir/status/test-script) wired to existing `SettingsViewModel` commands

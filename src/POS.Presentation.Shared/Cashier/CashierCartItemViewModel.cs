@@ -8,23 +8,26 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private decimal _quantity;
 
-    public CashierCartItemViewModel(Guid productId, string productName, decimal quantity, decimal unitPrice)
+    public CashierCartItemViewModel(Guid productId, string productName, string productCode, decimal quantity, decimal unitPrice)
     {
         ProductId = productId;
         ProductName = productName;
+        ProductCode = productCode;
         _quantity = quantity;
         UnitPrice = unitPrice;
     }
 
     public Guid ProductId { get; }
     public string ProductName { get; }
+    public string ProductCode { get; }
 
     public decimal Quantity
     {
         get => _quantity;
-        private set
+        set
         {
-            if (SetProperty(ref _quantity, value))
+            decimal normalized = value < 1m ? 1m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+            if (SetProperty(ref _quantity, normalized))
             {
                 OnPropertyChanged(nameof(Subtotal));
                 OnPropertyChanged(nameof(SubtotalText));
