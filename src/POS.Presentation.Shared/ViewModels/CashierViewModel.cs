@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Customers;
@@ -26,9 +28,13 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _backspaceReceivedAmountCommand;
     private readonly RelayCommand _setExactAmountCommand;
     private readonly RelayCommand _clearCartCommand;
+    private readonly RelayCommand _editCartItemCommand;
+    private readonly RelayCommand _removeCartItemCommand;
+    private readonly RelayCommand _associateCustomerCommand;
+    private readonly RelayCommand _holdSaleCommand;
     private readonly RelayCommand _confirmPrototypeSaleCommand;
     private string _searchText = string.Empty;
-    private ProductLookupResult? _selectedProduct;
+    private CashierProductSearchResultViewModel? _selectedProduct;
     private decimal _quantity = 1m;
     private PaymentMethodOption _selectedPaymentMethod;
     private decimal _receivedAmount;
@@ -86,6 +92,7 @@ public sealed class CashierViewModel : ViewModelBase
 
         SearchResults = [];
         CartItems = [];
+        CartItems.CollectionChanged += OnCartItemsChanged;
 
         SearchCommand = new RelayCommand(async _ => await SearchAsync().ConfigureAwait(true));
         _addSelectedProductCommand = new RelayCommand(_ => AddSelectedProduct(), _ => CanAddSelectedProduct);
@@ -93,17 +100,25 @@ public sealed class CashierViewModel : ViewModelBase
         _backspaceReceivedAmountCommand = new RelayCommand(_ => BackspaceReceivedAmount());
         _setExactAmountCommand = new RelayCommand(_ => SetExactReceivedAmount(), _ => TotalAmount > 0m);
         _clearCartCommand = new RelayCommand(_ => ClearCart(), _ => CartItems.Count > 0);
-        _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale(), _ => CanConfirm);
+        _editCartItemCommand = new RelayCommand(EditCartItem, parameter => parameter is CashierCartItemViewModel);
+        _removeCartItemCommand = new RelayCommand(RemoveCartItem, parameter => parameter is CashierCartItemViewModel);
+        _associateCustomerCommand = new RelayCommand(_ => AssociateCustomer());
+        _holdSaleCommand = new RelayCommand(_ => HoldSale(), _ => HasCartItems);
+        _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale());
         AddSelectedProductCommand = _addSelectedProductCommand;
         AppendReceivedAmountCommand = _appendReceivedAmountCommand;
         BackspaceReceivedAmountCommand = _backspaceReceivedAmountCommand;
         SetExactAmountCommand = _setExactAmountCommand;
         ClearCartCommand = _clearCartCommand;
+        EditCartItemCommand = _editCartItemCommand;
+        RemoveCartItemCommand = _removeCartItemCommand;
+        AssociateCustomerCommand = _associateCustomerCommand;
+        HoldSaleCommand = _holdSaleCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
         ApplyRedemptionCommand = new RelayCommand(async _ => await ApplyRedemptionAsync().ConfigureAwait(true));
     }
 
-    public ObservableCollection<ProductLookupResult> SearchResults { get; }
+    public ObservableCollection<CashierProductSearchResultViewModel> SearchResults { get; }
 
     public ObservableCollection<CashierCartItemViewModel> CartItems { get; }
 
@@ -120,6 +135,14 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand SetExactAmountCommand { get; }
 
     public ICommand ClearCartCommand { get; }
+
+    public ICommand EditCartItemCommand { get; }
+
+    public ICommand RemoveCartItemCommand { get; }
+
+    public ICommand AssociateCustomerCommand { get; }
+
+    public ICommand HoldSaleCommand { get; }
 
     public ICommand ConfirmPrototypeSaleCommand { get; }
 
@@ -165,7 +188,7 @@ public sealed class CashierViewModel : ViewModelBase
         set => SetProperty(ref _searchText, value ?? string.Empty);
     }
 
-    public ProductLookupResult? SelectedProduct
+    public CashierProductSearchResultViewModel? SelectedProduct
     {
         get => _selectedProduct;
         set
@@ -272,6 +295,15 @@ public sealed class CashierViewModel : ViewModelBase
 
     public string ChangeText => FormatCurrency(ChangeAmount);
 
+    public bool IsPaymentShortfall => HasCartItems &&
+        SelectedPaymentMethod.Method == PaymentMethod.Cash &&
+        ReceivedAmount > 0m &&
+        ReceivedAmount < TotalAmount;
+
+    public string PaymentBalanceLabel => IsPaymentShortfall ? "Falta" : "Cambio";
+
+    public string PaymentBalanceText => IsPaymentShortfall ? FormatCurrency(TotalAmount - ReceivedAmount) : ChangeText;
+
     public bool CanConfirm
     {
         get => _canConfirm;
@@ -293,7 +325,7 @@ public sealed class CashierViewModel : ViewModelBase
         SearchResults.Clear();
         foreach (ProductLookupResult result in results)
         {
-            SearchResults.Add(result);
+            SearchResults.Add(new CashierProductSearchResultViewModel(result));
         }
 
         SelectedProduct = SearchResults.FirstOrDefault();
@@ -330,7 +362,7 @@ public sealed class CashierViewModel : ViewModelBase
         }
         else
         {
-            CartItems.Add(new CashierCartItemViewModel(SelectedProduct.ProductId, SelectedProduct.Name, Quantity, SelectedProduct.UnitPrice));
+            CartItems.Add(new CashierCartItemViewModel(SelectedProduct.ProductId, SelectedProduct.Name, SelectedProduct.Barcode, Quantity, SelectedProduct.UnitPrice));
         }
 
         Quantity = 1m;
@@ -349,6 +381,13 @@ public sealed class CashierViewModel : ViewModelBase
 
     public async Task ConfirmSaleAsync(CancellationToken cancellationToken = default)
     {
+        if (!HasCartItems)
+        {
+            Message = "El carrito está vacío.";
+            RefreshPaymentPreview(updateMessage: false);
+            return;
+        }
+
         if (!CanConfirm)
         {
             RefreshPaymentPreview();
@@ -379,6 +418,40 @@ public sealed class CashierViewModel : ViewModelBase
     private void ConfirmPrototypeSale()
     {
         _ = ConfirmSaleAsync();
+    }
+
+    private void EditCartItem(object? parameter)
+    {
+        if (parameter is not CashierCartItemViewModel item)
+        {
+            return;
+        }
+
+        Message = $"Ajusta la cantidad de {item.ProductName} directamente en la fila.";
+    }
+
+    private void RemoveCartItem(object? parameter)
+    {
+        if (parameter is not CashierCartItemViewModel item)
+        {
+            return;
+        }
+
+        CartItems.Remove(item);
+        RefreshTotals(updateMessage: false);
+        Message = $"{item.ProductName} eliminado del carrito.";
+    }
+
+    private void AssociateCustomer()
+    {
+        Message = SelectedCustomer is null
+            ? "Selecciona un cliente desde el módulo Clientes para asociarlo a esta venta."
+            : $"Cliente asociado: {SelectedCustomer.FullName}.";
+    }
+
+    private void HoldSale()
+    {
+        Message = "Venta en espera no disponible todavía. Requiere un caso de uso para guardar y recuperar ventas pendientes.";
     }
 
     public async Task ApplyRedemptionAsync(CancellationToken cancellationToken = default)
@@ -455,9 +528,11 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(CartSummaryText));
         OnPropertyChanged(nameof(SubtotalSummaryText));
         OnPropertyChanged(nameof(HasCartItems));
+        NotifyPaymentBalanceChanged();
         RefreshPaymentPreview(updateMessage);
         _clearCartCommand.RaiseCanExecuteChanged();
         _setExactAmountCommand.RaiseCanExecuteChanged();
+        _holdSaleCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshPaymentPreview(bool updateMessage = true)
@@ -467,6 +542,7 @@ public sealed class CashierViewModel : ViewModelBase
         {
             ChangeAmount = 0m;
             CanConfirm = false;
+            NotifyPaymentBalanceChanged();
             if (updateMessage)
             {
                 Message = "Se requiere identificar al cliente para registrar un saldo a crédito.";
@@ -483,10 +559,45 @@ public sealed class CashierViewModel : ViewModelBase
 
         ChangeAmount = preview.ChangeAmount;
         CanConfirm = preview.CanConfirm;
+        NotifyPaymentBalanceChanged();
         if (updateMessage)
         {
             Message = preview.Message;
         }
+    }
+
+    private void OnCartItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        if (e.OldItems is not null)
+        {
+            foreach (CashierCartItemViewModel item in e.OldItems)
+            {
+                item.PropertyChanged -= OnCartItemPropertyChanged;
+            }
+        }
+
+        if (e.NewItems is not null)
+        {
+            foreach (CashierCartItemViewModel item in e.NewItems)
+            {
+                item.PropertyChanged += OnCartItemPropertyChanged;
+            }
+        }
+    }
+
+    private void OnCartItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(CashierCartItemViewModel.Quantity) or nameof(CashierCartItemViewModel.Subtotal))
+        {
+            RefreshTotals(updateMessage: false);
+        }
+    }
+
+    private void NotifyPaymentBalanceChanged()
+    {
+        OnPropertyChanged(nameof(IsPaymentShortfall));
+        OnPropertyChanged(nameof(PaymentBalanceLabel));
+        OnPropertyChanged(nameof(PaymentBalanceText));
     }
 
     private void UpdateCommandState()

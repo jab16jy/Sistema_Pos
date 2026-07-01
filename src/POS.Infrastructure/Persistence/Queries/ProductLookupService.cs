@@ -37,7 +37,8 @@ public sealed class ProductLookupService : IProductLookupService
                 product.Name,
                 product.Barcode ?? string.Empty,
                 product.SalePrice.Amount,
-                product.CurrentStock))
+                product.CurrentStock,
+                product.MinimumStock))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }
