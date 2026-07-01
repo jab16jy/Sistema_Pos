@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.11.0...v0.12.0) (2026-07-01)
+
+
+### Features
+
+* **wpf:** translate caja view wireframe ([#44](https://github.com/jab16jy/Sistema_Pos/issues/44)) ([eea82d5](https://github.com/jab16jy/Sistema_Pos/commit/eea82d57db93e561ffcde7e3e2e407f41f2b6e4d))
+
 ## [0.11.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.10.1...v0.11.0) (2026-07-01)
 
 
