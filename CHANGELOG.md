@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.13.0...v0.14.0) (2026-07-01)
+
+
+### Features
+
+* **wpf:** translate facturas view and configuracion admin hub wireframes ([#51](https://github.com/jab16jy/Sistema_Pos/issues/51)) ([6be4e2e](https://github.com/jab16jy/Sistema_Pos/commit/6be4e2e04b53cc83c0e6468b8ce5b78495e8e03c))
+
 ## [0.13.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.12.0...v0.13.0) (2026-07-01)
 
 
