@@ -185,7 +185,9 @@ public partial class App : System.Windows.Application
             var saveCustomer = sp.GetRequiredService<SaveCustomerUseCase>();
             var getCustomerHistory = sp.GetRequiredService<GetCustomerHistoryUseCase>();
             var searchCustomers = sp.GetRequiredService<SearchCustomersUseCase>();
-            customers = new CustomersViewModel(saveCustomer, getCustomerHistory, searchCustomers);
+            GetLoyaltyBalanceUseCase? getLoyaltyBalanceForCustomers = null;
+            try { getLoyaltyBalanceForCustomers = sp.GetRequiredService<GetLoyaltyBalanceUseCase>(); } catch { }
+            customers = new CustomersViewModel(saveCustomer, getCustomerHistory, searchCustomers, getLoyaltyBalanceForCustomers);
         }
         catch
         {
@@ -219,7 +221,9 @@ public partial class App : System.Windows.Application
         try
         {
             var createQuote = sp.GetRequiredService<CreateQuoteUseCase>();
-            quote = new QuoteViewModel(productLookup, createQuote);
+            Application.UseCases.Communication.SendDocumentUseCase? sendDocumentForQuote = null;
+            try { sendDocumentForQuote = sp.GetRequiredService<Application.UseCases.Communication.SendDocumentUseCase>(); } catch { }
+            quote = new QuoteViewModel(productLookup, createQuote, sendDocumentForQuote);
         }
         catch
         {
