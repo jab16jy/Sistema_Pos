@@ -61,7 +61,7 @@ public sealed class BarcodeViewModelTests
 
         await vm.PrintBulkAsync(TestContext.Current.CancellationToken);
 
-        Assert.Contains("Selecciona", vm.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("lote esta vacio", vm.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(printService.WasCalled);
     }
 
@@ -75,14 +75,69 @@ public sealed class BarcodeViewModelTests
         var print = new PrintLabelsUseCase(printService);
         var vm = new BarcodeViewModel(generate, print, productLookup);
 
-        vm.SelectedProducts.Add(new ProductLookupResult(Guid.NewGuid(), "Product A", "BAR001", 5000m, 10m));
-        vm.SelectedProducts.Add(new ProductLookupResult(Guid.NewGuid(), "Product B", "BAR002", 3000m, 5m));
+        vm.BatchItems.Add(new BarcodeBatchItem(Guid.NewGuid().ToString(), "Product A", "BAR001", 5000m, 1));
+        vm.BatchItems.Add(new BarcodeBatchItem(Guid.NewGuid().ToString(), "Product B", "BAR002", 3000m, 1));
 
         await vm.PrintBulkAsync(TestContext.Current.CancellationToken);
 
         Assert.True(printService.WasCalled);
         Assert.Equal(2, printService.LastLabels?.Count ?? 0);
         Assert.Contains("enviada", vm.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(vm.BatchItems);
+    }
+
+    [Fact]
+    public void AddCatalogItemCommand_AddsProductToBatch()
+    {
+        var barcodeService = new FakeBarcodeGenerationService([]);
+        var printService = new FakeLabelPrintService();
+        var productLookup = new FakeProductLookupService();
+        var generate = new GenerateBarcodeUseCase(barcodeService);
+        var print = new PrintLabelsUseCase(printService);
+        var vm = new BarcodeViewModel(generate, print, productLookup);
+        var product = new ProductLookupResult(Guid.NewGuid(), "Product A", "BAR001", 5000m, 10m);
+
+        vm.AddCatalogItemCommand.Execute(product);
+
+        Assert.Single(vm.BatchItems);
+        Assert.Equal("Product A", vm.BatchItems[0].Name);
+    }
+
+    [Fact]
+    public void IncrementAndDecrementBatchItemCopiesCommand_ChangeCopies()
+    {
+        var barcodeService = new FakeBarcodeGenerationService([]);
+        var printService = new FakeLabelPrintService();
+        var productLookup = new FakeProductLookupService();
+        var generate = new GenerateBarcodeUseCase(barcodeService);
+        var print = new PrintLabelsUseCase(printService);
+        var vm = new BarcodeViewModel(generate, print, productLookup);
+        var item = new BarcodeBatchItem(Guid.NewGuid().ToString(), "Product A", "BAR001", 5000m, 1);
+        vm.BatchItems.Add(item);
+
+        vm.IncrementBatchItemCopiesCommand.Execute(item);
+        Assert.Equal(2, item.Copies);
+
+        vm.DecrementBatchItemCopiesCommand.Execute(item);
+        vm.DecrementBatchItemCopiesCommand.Execute(item);
+        Assert.Equal(1, item.Copies); // clamped to minimum of 1
+    }
+
+    [Fact]
+    public void RemoveBatchItemCommand_RemovesItemFromBatch()
+    {
+        var barcodeService = new FakeBarcodeGenerationService([]);
+        var printService = new FakeLabelPrintService();
+        var productLookup = new FakeProductLookupService();
+        var generate = new GenerateBarcodeUseCase(barcodeService);
+        var print = new PrintLabelsUseCase(printService);
+        var vm = new BarcodeViewModel(generate, print, productLookup);
+        var item = new BarcodeBatchItem(Guid.NewGuid().ToString(), "Product A", "BAR001", 5000m, 1);
+        vm.BatchItems.Add(item);
+
+        vm.RemoveBatchItemCommand.Execute(item);
+
+        Assert.Empty(vm.BatchItems);
     }
 
     /// <summary>
