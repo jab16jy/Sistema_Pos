@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.14.0...v0.15.0) (2026-07-01)
+
+
+### Features
+
+* **wpf:** translate productos, inventario, and compras view wireframes ([#53](https://github.com/jab16jy/Sistema_Pos/issues/53)) ([1cd3da3](https://github.com/jab16jy/Sistema_Pos/commit/1cd3da36db5104e666a37da5310b387021b84cc6))
+
 ## [0.14.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.13.0...v0.14.0) (2026-07-01)
 
 
