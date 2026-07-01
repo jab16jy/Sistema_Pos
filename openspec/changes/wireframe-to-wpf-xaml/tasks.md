@@ -9,45 +9,35 @@ Chain strategy: stacked-to-main
 
 | Field | Value |
 |-------|-------|
-| Estimated changed lines | ~4,800-6,500 total across 13 PRs (200-900 per slice, see per-slice table) |
-| Delivery strategy | ask-on-risk (resolved by user: proceed, no re-ask) |
-| Suggested split | PR 1 -> PR 2 -> ... -> PR 13, one capability per PR, stacked-to-main, in locked order |
+| Estimated changed lines | ~4,800-6,500 total across 7 PRs (200-1550 per PR, see per-slice table) |
+| Delivery strategy | ask-on-risk (resolved by user: proceed, no re-ask); user granted blanket size:exception for grouped PRs |
+| Suggested split | PR 1 -> PR 2 -> ... -> PR 7, 2-3 capabilities grouped per PR from Phase 3 onward, stacked-to-main, in locked order |
+
+> **2026-07-01 restructure**: Phases 3-13 (11 remaining module capabilities) were regrouped from "1 module = 1 PR" (11 PRs) into "2-3 modules = 1 PR" (5 PRs), per explicit user request to reduce PR count and make review easier. Task numbering per module (3.x, 4.x, ...) is unchanged — only the PR grouping label on each Phase header changed. Phases 1-2 (already merged to main) are untouched.
 
 ### Per-Slice Forecast
 
-| # | Slice (PR) | Est. lines | Risk | size:exception |
-|---|------------|-----------|------|-----------------|
-| 1 | shell-theme-foundation | 700-900 | High | Yes (pre-approved) |
-| 2 | caja-view | 200-300 | Low | No |
-| 3 | clientes-view | 450-550 | High | Yes (pre-approved) |
-| 4 | cotizaciones-view | 350-450 | Medium | No |
-| 5 | facturas-view | 300-400 | Medium | No |
-| 6 | configuracion-admin-hub | 500-650 | High | Yes (pre-approved) |
-| 7 | productos-view | 450-550 | High | Yes (pre-approved) |
-| 8 | inventario-view | 450-550 | High | Yes (pre-approved) |
-| 9 | compras-view | 350-450 | Medium (watch) | No |
-| 10 | turnos-view | 300-400 | Medium (watch) | No |
-| 11 | lealtad-view | 250-350 | Low-Medium | No |
-| 12 | barcode-view | 250-350 | Low-Medium | No |
-| 13 | reportes-view | 400-500 | Medium-High | No |
+| # | Slice (PR) | Modules | Est. lines | Risk | size:exception |
+|---|------------|---------|-----------|------|-----------------|
+| 1 | shell-theme-foundation | shell/theme | 700-900 | High | Yes (pre-approved) — **merged** |
+| 2 | caja-view | caja | 200-300 | Low | No — **merged** |
+| 3 | clientes + cotizaciones | clientes-view, cotizaciones-view | 800-1000 | High | Yes (pre-approved) |
+| 4 | facturas + configuracion-admin-hub | facturas-view, configuracion-admin-hub | 800-1050 | High | Yes (pre-approved) |
+| 5 | productos + inventario + compras | productos-view, inventario-view, compras-view | 1250-1550 | High | Yes (pre-approved) |
+| 6 | turnos + lealtad + barcode | turnos-view, lealtad-view, barcode-view | 800-1100 | Medium-High | Yes (pre-approved) |
+| 7 | reportes | reportes-view | 400-500 | Medium-High | No (kept solo — largest single-module rebuild, touches data from every other module) |
 
 ### Suggested Work Units
 
 | Unit | Goal | PR | Notes |
 |------|------|----|-------|
-| 1 | Ship theme + shell + IA rework foundation | PR 1 | Base=main; size:exception; unblocks all others |
-| 2 | Caja view to wireframe | PR 2 | Base=main (post PR1 merge); smallest gap, validates foundation |
-| 3 | Clientes view to wireframe | PR 3 | Base=main; size:exception |
-| 4 | Cotizaciones view (consolidate Quote+QuoteHistory) | PR 4 | Base=main |
-| 5 | Facturas view to wireframe | PR 5 | Base=main |
-| 6 | Configuración admin hub | PR 6 | Base=main; size:exception; must land after PR1 |
-| 7 | Productos view to wireframe | PR 7 | Base=main; size:exception |
-| 8 | Inventario view to wireframe | PR 8 | Base=main; size:exception |
-| 9 | Compras view to wireframe | PR 9 | Base=main; watch line count |
-| 10 | Turnos view to wireframe | PR 10 | Base=main; watch line count |
-| 11 | Lealtad view to wireframe | PR 11 | Base=main |
-| 12 | Barcode view to wireframe | PR 12 | Base=main |
-| 13 | Reportes view to wireframe | PR 13 | Base=main |
+| 1 | Ship theme + shell + IA rework foundation | PR 1 | Base=main; size:exception; unblocks all others — **merged (2026-07-01)** |
+| 2 | Caja view to wireframe | PR 2 | Base=main (post PR1 merge); smallest gap, validates foundation — **merged (2026-07-01)** |
+| 3 | Clientes + Cotizaciones views (consolidate Quote+QuoteHistory) | PR 3 | Base=main; size:exception; grouped — related customer/sales-document flows |
+| 4 | Facturas view + Configuración admin hub | PR 4 | Base=main; size:exception; grouped — admin hub's quick-links only need `SelectModuleCommand`, no hard dependency on target views being rebuilt first |
+| 5 | Productos + Inventario + Compras views | PR 5 | Base=main; size:exception; grouped — catalog/stock/supply chain |
+| 6 | Turnos + Lealtad + Barcode views | PR 6 | Base=main; size:exception; grouped — day-to-day operational tools |
+| 7 | Reportes view to wireframe | PR 7 | Base=main; kept solo — aggregates data across all other modules, best verified last |
 
 Note on tasks-artifact size: per-slice file-level detail below intentionally exceeds the generic 530-word guard because the user explicitly requested concrete file/task granularity for all 13 capability slices of a large, sequenced program. This is a deliberate, requested deviation, not an oversight.
 
@@ -124,7 +114,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 3: clientes-view (PR 3, size:exception)
+## Phase 3: clientes-view (PR 3, size:exception — grouped with Phase 4 cotizaciones-view)
 
 - [ ] 3.1 Rebuild `CustomersView.xaml` into a 3-column `Grid`: customer list (search + total/active stats), detail form (name/ID/phone/email/address/notes/active toggle), history panel
 - [ ] 3.2 Verify row selection populates the form via existing `SelectedCustomer` binding; "Nuevo" resets form to "Nuevo cliente" and hides delete + status chip
@@ -136,7 +126,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 4: cotizaciones-view (PR 4)
+## Phase 4: cotizaciones-view (PR 3, size:exception — grouped with Phase 3 clientes-view)
 
 - [ ] 4.1 Modify `QuoteView.xaml`: wrap existing new-quote form under a "Nueva cotización" subtab (shared `SubtabBar`), add a "Historial" subtab
 - [ ] 4.2 Port `QuoteHistoryView.xaml` grid/filter markup into the "Historial" subtab content inside `QuoteView.xaml`
@@ -151,7 +141,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 5: facturas-view (PR 5)
+## Phase 5: facturas-view (PR 4, size:exception — grouped with Phase 6 configuracion-admin-hub)
 
 - [ ] 5.1 Modify `InvoicesView.xaml`: add free-text search, date-range inputs, status selector (Todo/Activa/Anulada/Devuelta) filtering the invoice grid (number, client, total, status chip, date)
 - [ ] 5.2 Add "Factura seleccionada" panel (number/client/total/date) populated on row click
@@ -163,7 +153,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 6: configuracion-admin-hub (PR 6, size:exception)
+## Phase 6: configuracion-admin-hub (PR 4, size:exception — grouped with Phase 5 facturas-view)
 
 - [ ] 6.1 Rebuild `SettingsView.xaml` with shared `SubtabBar`: "Centro de control" (default), "Negocio", "Impresión y envíos"
 - [ ] 6.2 Add 4-item KPI strip (usuarios activos, turno actual, último backup, canales listos) using `KpiCard`
@@ -176,7 +166,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 7: productos-view (PR 7, size:exception)
+## Phase 7: productos-view (PR 5, size:exception — grouped with Phase 8 inventario-view and Phase 9 compras-view)
 
 - [ ] 7.1 Rebuild `ProductsView.xaml` with `SubtabBar`: "Productos" (list+form) and "Categorías" (grid+form)
 - [ ] 7.2 Add product list toolbar: search (name/barcode), "Etiquetas" link to Barcode module, "CSV" import trigger, "Nuevo" action; rows show name/code+category/price/stock-status chip; add "Sin resultados" empty state
@@ -190,7 +180,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 8: inventario-view (PR 8, size:exception)
+## Phase 8: inventario-view (PR 5, size:exception — grouped with Phase 7 productos-view and Phase 9 compras-view)
 
 - [ ] 8.1 Add 3-item KPI strip (total SKUs, stock bajo, sin stock) via `KpiCard`, warning/error coloring
 - [ ] 8.2 Add stock grid: search + status filter (Todos/En stock/Stock bajo/Sin stock), stock-level bar per row colored by status
@@ -203,7 +193,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 9: compras-view (PR 9 — watch line count)
+## Phase 9: compras-view (PR 5, size:exception — grouped with Phase 7 productos-view and Phase 8 inventario-view)
 
 - [ ] 9.1 Add supplier panel: searchable list (name/phone/product count) + collapsible "Nuevo proveedor" form (name required/phone/NIT/email) hidden until requested
 - [ ] 9.2 Wire supplier selection to purchase header chip (primary styling)
@@ -216,7 +206,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 10: turnos-view (PR 10 — watch line count)
+## Phase 10: turnos-view (PR 6, size:exception — grouped with Phase 11 lealtad-view and Phase 12 barcode-view)
 
 - [ ] 10.1 Add persistent active-shift banner (cashier, open time, base cash, running sales total, "Abierto" chip)
 - [ ] 10.2 Add shift history grid (cashier/status/open/close/base/sales/difference) filterable by date range with export action; color-code difference (Cuadra=neutral, positive=primary, negative=error)
@@ -228,7 +218,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 11: lealtad-view (PR 11)
+## Phase 11: lealtad-view (PR 6, size:exception — grouped with Phase 10 turnos-view and Phase 12 barcode-view)
 
 - [ ] 11.1 Add program status card (Activo chip, total points issued, enrolled customers, checkout usage rate, redemptions this month)
 - [ ] 11.2 Add rules panel: accumulation rate, redemption rate, expiration policy, checkout usage mode; "Guardar reglas" success toast ("Reglas guardadas")
@@ -239,7 +229,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 12: barcode-view (PR 12)
+## Phase 12: barcode-view (PR 6, size:exception — grouped with Phase 10 turnos-view and Phase 11 lealtad-view)
 
 - [ ] 12.1 Add generator panel: value, format (CODE 128/EAN-13/CODE 39/QR Code), label, optional price, copies (1-100), live preview; hide price line when empty
 - [ ] 12.2 Block "Imprimir" without a value ("Ingresa el valor del código"); success toast confirming copy count on valid print
@@ -250,7 +240,7 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ---
 
-## Phase 13: reportes-view (PR 13)
+## Phase 13: reportes-view (PR 7 — kept solo, largest single-module rebuild)
 
 - [ ] 13.1 Rebuild `ReportsView.xaml` with `SubtabBar`: Resumen operacional / Rentabilidad / Cierres y arqueos
 - [ ] 13.2 Add preset filters (Hoy/Semana/Mes) + explicit date-range inputs + PDF/Excel export actions on the operational subtab
