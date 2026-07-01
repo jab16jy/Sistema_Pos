@@ -22,6 +22,9 @@ Grep confirms `Receivable` is domain-woven: `CreateSaleUseCase` (credit sales), 
 ### Dead-Code Decision (resolved)
 `MainShellView.xaml`/`.xaml.cs` are referenced only by their own code-behind; `App.xaml.cs` uses `NavigationShellView` + the still-active `MainShellViewModel`. **Delete both** in the shell foundation slice. (`MainShellViewModel` stays — it is the live shell VM.)
 
+### CashClosing / CloseCashRegisterUseCase Decision (resolved)
+The `wireframe-reportes.html` wireframe's Cierres y arqueos subtab is explicitly read-only (no cash-closing action; a "Ir a Turnos para cerrar caja" link is the only action) — cash-closing now belongs exclusively to the Turnos module's per-shift `CloseShiftUseCase`/`CashierShift`. This leaves `CloseCashRegisterUseCase` (a distinct, period/date-range register reconciliation against `CashClosing`: separated billed/cash/digital/receivable-settlement totals vs. counted cash, not tied to a single cashier's shift) with no remaining UI caller anywhere in the app as of PR 7. Per the same rule applied to the Receivables removal above: **keep Domain/Application/Infrastructure + DB schema intact** (`CashClosing` entity, `ICashClosingRepository`, `CloseCashRegisterUseCase`, its DI registration, and its Application-layer tests) — deleting a working, tested Application-layer capability is out of scope for a UI-only wireframe migration and would destroy a period-level reconciliation capability that may be needed later (e.g. audit/compliance tooling) even though no current wireframe exposes it. The capability is simply unreachable from the UI today; this is a deliberate, documented gap, not an oversight.
+
 ## Capabilities
 
 > Contract with sdd-spec. 13 capabilities → 13 stacked PRs (one per slice).

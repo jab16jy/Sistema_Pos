@@ -247,11 +247,17 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ## Phase 13: reportes-view (PR 7 — kept solo, largest single-module rebuild)
 
-- [ ] 13.1 Rebuild `ReportsView.xaml` with `SubtabBar`: Resumen operacional / Rentabilidad / Cierres y arqueos
-- [ ] 13.2 Add preset filters (Hoy/Semana/Mes) + explicit date-range inputs + PDF/Excel export actions on the operational subtab
-- [ ] 13.3 Add 5 KPI cards (total facturado, efectivo esperado, efectivo ventas, pagos digitales, transferencias) with `chip-success` "Cuadra" when esperado equals ventas
-- [ ] 13.4 Add sales-by-hour bar chart panel and payment-method breakdown bar chart panel with percentage labels
-- [ ] 13.5 Add Rentabilidad subtab: top-10 best-selling products (proportional bars, descending units), per-category gross-margin breakdown, two-period comparison (percentage difference styling), POS-vs-converted-quotations platform breakdown
-- [ ] 13.6 Add Cierres y arqueos subtab (read-only): last shift closing summary + closings query/export panel, "Ir a Turnos para cerrar caja" navigation button (no cash-closing action here), explanatory scope note
-- [ ] 13.7 Run `dotnet build POS.sln --no-restore`
+- [x] 13.1 Rebuild `ReportsView.xaml` with `SubtabBar`: Resumen operacional / Rentabilidad / Cierres y arqueos
+  - Apply note: implemented as three `RadioButton`s styled with `SubtabItemStyle`, same documented deviation as Phases 4/6/7/9 (`SubtabBar` has no bindable `SelectedItem`/content-switching output).
+- [x] 13.2 Add preset filters (Hoy/Semana/Mes) + explicit date-range inputs + PDF/Excel export actions on the operational subtab
+- [x] 13.3 Add 5 KPI cards (total facturado, efectivo esperado, efectivo ventas, pagos digitales, transferencias) with `chip-success` "Cuadra" when esperado equals ventas
+  - Apply note: the 5th KPI ("Transferencias") has no backing data in `OperationalReportDto` (only cash-vs-digital totals exist, no card/transfer granularity); substituted with the real, already-tracked "Abonos cobrados" (receivable settlements) metric instead of inventing a figure. See apply-progress for details.
+- [x] 13.4 Add sales-by-hour bar chart panel and payment-method breakdown bar chart panel with percentage labels
+  - Apply note: sales-by-hour is a real gap (no hourly-bucket query exists) — shown as a static illustrative placeholder with an explanatory caption, consistent with Phase 6/11 placeholders. Payment-method breakdown (cash vs. digital, 2-category with percentages) is implemented for real using existing `OperationalReportDto` totals.
+- [x] 13.5 Add Rentabilidad subtab: top-10 best-selling products (proportional bars, descending units), per-category gross-margin breakdown, two-period comparison (percentage difference styling), POS-vs-converted-quotations platform breakdown
+  - Apply note: top-10 (real, `GetTopSellersAsync`, proportional bars) and two-period comparison (real, `GetPeriodComparisonAsync`, sign-colored) implemented for real. Per-category gross-margin breakdown is a real gap (`ProductMarginResult` has no category field) — shown as a static illustrative placeholder. "POS vs. Cotizaciones convertidas" platform breakdown has no backing data (`Sale` has no quote-origin tracking field) — relabeled to the real payment-bank/platform breakdown already returned by `GetPlatformBreakdownAsync` instead of inventing a channel split.
+- [x] 13.6 Add Cierres y arqueos subtab (read-only): last shift closing summary + closings query/export panel, "Ir a Turnos para cerrar caja" navigation button (no cash-closing action here), explanatory scope note
+  - Apply note: direct cash-close UI (`CloseCashCommand`/`CountedCashText`/etc.) removed cleanly from `ReportsViewModel` — no test coverage depended on it. Last-closed-shift metadata (cajero/apertura/cierre) and recent closings list are real data via `GetShiftsUseCase` (reusing `ShiftsViewModel.ToShiftRow`, widened to `internal`); the totals row on the "Último cierre" card reuses the Operational subtab's currently-loaded report totals (captioned to avoid confusion) since `ICashClosingRepository` has no per-closing query method yet. "Ir a Turnos" navigates via the same `SelectModuleCommand`/`AdminHubModules[4]` pattern used for the Etiquetas link in Phase 9.
+- [x] 13.7 Run `dotnet build POS.sln --no-restore`
+  - Result: 0 errors, 0 warnings. `dotnet test POS.sln --no-restore`: 43/80/112 passed (Domain/Presentation.Shared/Application), 0 failures — 9 new focused unit tests added for the new ViewModel logic.
 - [ ] 13.8 Manual visual QA against `Wireframes/wireframe-reportes.html`

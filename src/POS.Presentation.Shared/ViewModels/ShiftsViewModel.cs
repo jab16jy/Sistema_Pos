@@ -259,7 +259,12 @@ public sealed class ShiftsViewModel : ViewModelBase
         }
     }
 
-    private static ShiftRowPresentation ToShiftRow(ShiftSummary s)
+    /// <summary>
+    /// Maps a <see cref="ShiftSummary"/> into its presentation row, including difference coloring.
+    /// Internal so <see cref="ReportsViewModel"/> can reuse the same convention for the read-only
+    /// Cierres y arqueos subtab (13.6) instead of duplicating the mapping logic.
+    /// </summary>
+    internal static ShiftRowPresentation ToShiftRow(ShiftSummary s)
     {
         var statusLabel = s.Status == ShiftStatus.Open ? "Abierto" : "Cerrado";
         var statusChipKind = s.Status == ShiftStatus.Open ? "success" : "neutral";

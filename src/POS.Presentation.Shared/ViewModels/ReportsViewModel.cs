@@ -2,8 +2,10 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Reporting;
+using POS.Application.DTOs.Shifts;
 using POS.Application.Interfaces;
-using POS.Application.UseCases.Reporting;
+using POS.Application.UseCases.Shifts;
+using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
@@ -12,11 +14,13 @@ public sealed class ReportsViewModel : ViewModelBase
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
+    private const int MaxRecentShiftsToScan = 50;
+    private const int MaxRecentClosingsDisplayed = 10;
+
     private readonly IGetOperationalReportUseCase _reportUseCase;
     private readonly IProfitQueryService? _profitQueryService;
     private readonly IReportExportService? _exportService;
-    private readonly CloseCashRegisterUseCase? _closeCashUseCase;
-    private readonly ICurrentOperatorSession? _session;
+    private readonly GetShiftsUseCase? _getShiftsUseCase;
 
     // Last-loaded data for export
     private OperationalReportDto? _lastOperationalReport;
@@ -42,24 +46,25 @@ public sealed class ReportsViewModel : ViewModelBase
     private DateOnly _analyticsFromDate = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
     private DateOnly _analyticsToDate = DateOnly.FromDateTime(DateTime.Today);
 
-    // Cash closing fields
-    private string _countedCashText = string.Empty;
-    private string _closingStatusMessage = string.Empty;
+    // Subtab state: 0 = Operacional, 1 = Rentabilidad, 2 = Cierres y arqueos
+    private int _activeSubtabIndex;
+    private bool _closingsLoaded;
+    private ShiftSummary? _lastClosedShift;
 
     public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
 
     public ReportsViewModel(IGetOperationalReportUseCase reportUseCase)
-        : this(reportUseCase, null, null, null, null)
+        : this(reportUseCase, null, null, null)
     {
     }
 
     public ReportsViewModel(IGetOperationalReportUseCase reportUseCase, IProfitQueryService? profitQueryService)
-        : this(reportUseCase, profitQueryService, null, null, null)
+        : this(reportUseCase, profitQueryService, null, null)
     {
     }
 
     public ReportsViewModel(IGetOperationalReportUseCase reportUseCase, IProfitQueryService? profitQueryService, IReportExportService? exportService)
-        : this(reportUseCase, profitQueryService, exportService, null, null)
+        : this(reportUseCase, profitQueryService, exportService, null)
     {
     }
 
@@ -67,18 +72,18 @@ public sealed class ReportsViewModel : ViewModelBase
         IGetOperationalReportUseCase reportUseCase,
         IProfitQueryService? profitQueryService,
         IReportExportService? exportService,
-        CloseCashRegisterUseCase? closeCashUseCase,
-        ICurrentOperatorSession? session)
+        GetShiftsUseCase? getShiftsUseCase)
     {
         _reportUseCase = reportUseCase ?? throw new ArgumentNullException(nameof(reportUseCase));
         _profitQueryService = profitQueryService;
         _exportService = exportService;
-        _closeCashUseCase = closeCashUseCase;
-        _session = session;
+        _getShiftsUseCase = getShiftsUseCase;
 
         TopSellers = [];
+        TopSellerRows = [];
         PlatformBreakdown = [];
         ProductMargins = [];
+        RecentClosings = [];
 
         LoadReportCommand = new RelayCommand(
             async _ => await LoadReportAsync(
@@ -126,9 +131,9 @@ public sealed class ReportsViewModel : ViewModelBase
             async _ => await ExportProfitAsync(pdf: false).ConfigureAwait(true),
             _ => _exportService is not null && _periodComparison is not null);
 
-        CloseCashCommand = new RelayCommand(
-            async _ => await CloseCashAsync().ConfigureAwait(true),
-            _ => CanCloseCash());
+        LoadClosingsCommand = new RelayCommand(
+            async _ => await LoadClosingsAsync().ConfigureAwait(true),
+            _ => _getShiftsUseCase is not null);
     }
 
     // ── Date range properties ──
@@ -189,6 +194,49 @@ public sealed class ReportsViewModel : ViewModelBase
         }
     }
 
+    // ── Subtab state (Resumen operacional / Rentabilidad / Cierres y arqueos) ──
+    // Note: SubtabBar control has no bindable SelectedItem/content-switching output (documented
+    // deviation carried over from Phases 4/6/7/9) — the view uses RadioButtons styled with
+    // SubtabItemStyle bound to these three booleans instead.
+
+    public bool IsOperationalSubtabActive
+    {
+        get => _activeSubtabIndex == 0;
+        set { if (value) SetActiveSubtab(0); }
+    }
+
+    public bool IsProfitabilitySubtabActive
+    {
+        get => _activeSubtabIndex == 1;
+        set { if (value) SetActiveSubtab(1); }
+    }
+
+    public bool IsClosingsSubtabActive
+    {
+        get => _activeSubtabIndex == 2;
+        set
+        {
+            if (value)
+            {
+                SetActiveSubtab(2);
+                if (!_closingsLoaded)
+                {
+                    _closingsLoaded = true;
+                    _ = LoadClosingsAsync();
+                }
+            }
+        }
+    }
+
+    private void SetActiveSubtab(int index)
+    {
+        if (_activeSubtabIndex == index) return;
+        _activeSubtabIndex = index;
+        OnPropertyChanged(nameof(IsOperationalSubtabActive));
+        OnPropertyChanged(nameof(IsProfitabilitySubtabActive));
+        OnPropertyChanged(nameof(IsClosingsSubtabActive));
+    }
+
     // ── Report totals (read-only output) ──
 
     public decimal ReportBilledTotal
@@ -200,13 +248,32 @@ public sealed class ReportsViewModel : ViewModelBase
     public decimal ReportCashCollected
     {
         get => _reportCashCollected;
-        private set => SetProperty(ref _reportCashCollected, value);
+        private set
+        {
+            if (SetProperty(ref _reportCashCollected, value))
+            {
+                OnPropertyChanged(nameof(IsDrawerCashBalanced));
+                OnPropertyChanged(nameof(CashPaymentPercentText));
+                OnPropertyChanged(nameof(DigitalPaymentPercentText));
+                OnPropertyChanged(nameof(CashPaymentBarPercent));
+                OnPropertyChanged(nameof(DigitalPaymentBarPercent));
+            }
+        }
     }
 
     public decimal ReportDigitalCollected
     {
         get => _reportDigitalCollected;
-        private set => SetProperty(ref _reportDigitalCollected, value);
+        private set
+        {
+            if (SetProperty(ref _reportDigitalCollected, value))
+            {
+                OnPropertyChanged(nameof(CashPaymentPercentText));
+                OnPropertyChanged(nameof(DigitalPaymentPercentText));
+                OnPropertyChanged(nameof(CashPaymentBarPercent));
+                OnPropertyChanged(nameof(DigitalPaymentBarPercent));
+            }
+        }
     }
 
     public decimal ReportReceivableSettlements
@@ -222,12 +289,16 @@ public sealed class ReportsViewModel : ViewModelBase
         {
             if (SetProperty(ref _reportExpectedDrawerCash, value))
             {
-                OnPropertyChanged(nameof(ExpectedCashText));
-                OnPropertyChanged(nameof(DifferenceText));
-                OnPropertyChanged(nameof(DifferenceIsNegative));
+                OnPropertyChanged(nameof(IsDrawerCashBalanced));
             }
         }
     }
+
+    /// <summary>
+    /// Task 13.3: shows the "Cuadra" success chip on the "Efectivo ventas" KPI card when the
+    /// expected drawer cash exactly matches the cash collected from sales.
+    /// </summary>
+    public bool IsDrawerCashBalanced => ReportExpectedDrawerCash == ReportCashCollected;
 
     // ── State ──
 
@@ -263,61 +334,27 @@ public sealed class ReportsViewModel : ViewModelBase
     public string ReceivableSettlementsText => FormatCurrency(ReportReceivableSettlements);
     public string ExpectedDrawerCashText => FormatCurrency(ReportExpectedDrawerCash);
 
-    // ── Cash closing ──
+    // ── Payment-method breakdown (13.4): real cash-vs-digital split with percentages.
+    // Only two real categories exist in OperationalReportDto (cash and digital); no card/transfer
+    // granularity is tracked, so no further categories are invented here. ──
 
-    public string CountedCashText
-    {
-        get => _countedCashText;
-        set
-        {
-            if (SetProperty(ref _countedCashText, value ?? string.Empty))
-            {
-                OnPropertyChanged(nameof(DifferenceText));
-                OnPropertyChanged(nameof(DifferenceIsNegative));
-                OnPropertyChanged(nameof(ExpectedCashText));
-            }
-        }
-    }
+    private decimal PaymentTotal => ReportCashCollected + ReportDigitalCollected;
 
-    public string ExpectedCashText => _lastOperationalReport is not null
-        ? FormatCurrency(ReportExpectedDrawerCash)
-        : "—";
+    public string CashPaymentPercentText => PaymentTotal > 0
+        ? $"{ReportCashCollected / PaymentTotal * 100m:N0}%"
+        : "0%";
 
-    public string DifferenceText
-    {
-        get
-        {
-            if (_lastOperationalReport is null) return "—";
-            if (!decimal.TryParse(_countedCashText, NumberStyles.Any, ColombianCulture, out decimal counted) &&
-                !decimal.TryParse(_countedCashText, NumberStyles.Any, CultureInfo.InvariantCulture, out counted))
-                return "—";
-            return FormatCurrency(counted - ReportExpectedDrawerCash);
-        }
-    }
+    public string DigitalPaymentPercentText => PaymentTotal > 0
+        ? $"{ReportDigitalCollected / PaymentTotal * 100m:N0}%"
+        : "0%";
 
-    public bool DifferenceIsNegative
-    {
-        get
-        {
-            if (_lastOperationalReport is null) return false;
-            if (!decimal.TryParse(_countedCashText, NumberStyles.Any, ColombianCulture, out decimal counted) &&
-                !decimal.TryParse(_countedCashText, NumberStyles.Any, CultureInfo.InvariantCulture, out counted))
-                return false;
-            return counted < ReportExpectedDrawerCash;
-        }
-    }
+    public double CashPaymentBarPercent => PaymentTotal > 0
+        ? (double)(ReportCashCollected / PaymentTotal * 100m)
+        : 0d;
 
-    public string ClosingStatusMessage
-    {
-        get => _closingStatusMessage;
-        private set
-        {
-            if (SetProperty(ref _closingStatusMessage, value ?? string.Empty))
-                OnPropertyChanged(nameof(HasClosingStatus));
-        }
-    }
-
-    public bool HasClosingStatus => !string.IsNullOrEmpty(_closingStatusMessage);
+    public double DigitalPaymentBarPercent => PaymentTotal > 0
+        ? (double)(ReportDigitalCollected / PaymentTotal * 100m)
+        : 0d;
 
     // ── Commands ──
 
@@ -330,21 +367,76 @@ public sealed class ReportsViewModel : ViewModelBase
     public ICommand ExportOperationalExcelCommand { get; }
     public ICommand ExportProfitPdfCommand { get; }
     public ICommand ExportProfitExcelCommand { get; }
-    public ICommand CloseCashCommand { get; }
+    public ICommand LoadClosingsCommand { get; }
 
     // ── Analytics collections ──
 
     public ObservableCollection<TopSellerResult> TopSellers { get; }
 
+    /// <summary>
+    /// Presentation rows for the Top-10 list (13.5): rank + a bar percentage proportional to the
+    /// best seller's units (descending, matching <see cref="IProfitQueryService.GetTopSellersAsync"/>'s
+    /// real DB ordering).
+    /// </summary>
+    public ObservableCollection<TopSellerRow> TopSellerRows { get; }
+
     public PeriodComparisonResult? PeriodComparison
     {
         get => _periodComparison;
-        private set => SetProperty(ref _periodComparison, value);
+        private set
+        {
+            if (SetProperty(ref _periodComparison, value))
+            {
+                OnPropertyChanged(nameof(PeriodComparisonIsPositive));
+            }
+        }
     }
 
+    /// <summary>Growth-percent sign, used for positive/negative styling on the comparison card.</summary>
+    public bool PeriodComparisonIsPositive => (_periodComparison?.RevenueGrowthPercent ?? 0m) >= 0m;
+
+    /// <summary>
+    /// Desglose por plataforma (13.5): real data from <see cref="IProfitQueryService.GetPlatformBreakdownAsync"/>,
+    /// which groups by payment bank/platform (e.g. Nequi, Bancolombia) — not by sales channel.
+    /// The wireframe's "POS vs. Cotizaciones convertidas" breakdown has no backing data: Sale has no
+    /// quote-origin tracking field, and adding one is a Domain-layer schema change out of scope for this
+    /// Presentation-only PR. This panel is relabeled to reflect what the real data represents instead of
+    /// inventing a channel split.
+    /// </summary>
     public ObservableCollection<PlatformBreakdownResult> PlatformBreakdown { get; }
 
     public ObservableCollection<ProductMarginResult> ProductMargins { get; }
+
+    // ── Cierres y arqueos (13.6, read-only) ──
+
+    /// <summary>Recent closed shifts, most recent first (real data via <see cref="GetShiftsUseCase"/>).</summary>
+    public ObservableCollection<ShiftRowPresentation> RecentClosings { get; }
+
+    public bool HasLastClosedShift => _lastClosedShift is not null;
+
+    public string LastClosedShiftCashier => _lastClosedShift?.CashierUsername ?? "—";
+
+    public string LastClosedShiftOpenSummary => _lastClosedShift is not null
+        ? $"{_lastClosedShift.OpenedAt:HH:mm} · Base: {FormatCurrency(_lastClosedShift.OpeningCash)}"
+        : "—";
+
+    public string LastClosedShiftCloseSummary => _lastClosedShift?.ClosedAt is { } closedAt
+        ? closedAt.ToString("HH:mm · yyyy-MM-dd")
+        : "—";
+
+    /// <summary>
+    /// Total facturado / Efectivo esperado / Pagos digitales shown on the "Último cierre" card reuse
+    /// the Operational subtab's currently loaded report totals (real data, zero new backend work) rather
+    /// than a per-shift breakdown — <see cref="Domain.Entities.CashClosing"/> stores those totals per
+    /// closing, but <see cref="Domain.Interfaces.ICashClosingRepository"/> only exposes AddAsync, no query
+    /// method. Adding one is a reasonable but out-of-scope Infrastructure change for this PR; documented as
+    /// a deviation. The view captions this clearly so it is not confused with the shift's own numbers.
+    /// </summary>
+    public bool HasOperationalTotalsForClosing => _lastOperationalReport is not null;
+
+    public string LastClosingDifferenceLabel => RecentClosings.Count > 0 ? RecentClosings[0].DifferenceLabel : "—";
+
+    public string LastClosingDifferenceKind => RecentClosings.Count > 0 ? RecentClosings[0].DifferenceKind : "neutral";
 
     // ── Load ──
 
@@ -357,7 +449,6 @@ public sealed class ReportsViewModel : ViewModelBase
         HasError = false;
         ErrorMessage = string.Empty;
         StatusMessage = string.Empty;
-        ClosingStatusMessage = string.Empty;
 
         try
         {
@@ -388,7 +479,7 @@ public sealed class ReportsViewModel : ViewModelBase
             OnPropertyChanged(nameof(DigitalCollectedText));
             OnPropertyChanged(nameof(ReceivableSettlementsText));
             OnPropertyChanged(nameof(ExpectedDrawerCashText));
-            OnPropertyChanged(nameof(ExpectedCashText));
+            OnPropertyChanged(nameof(HasOperationalTotalsForClosing));
 
             if (report.BilledSalesTotal == 0m && report.ReceivableSettlementTotal == 0m)
             {
@@ -419,6 +510,7 @@ public sealed class ReportsViewModel : ViewModelBase
         ReportReceivableSettlements = 0m;
         ReportExpectedDrawerCash = 0m;
         _lastOperationalReport = null;
+        OnPropertyChanged(nameof(HasOperationalTotalsForClosing));
     }
 
     public async Task LoadAnalyticsAsync(
@@ -453,6 +545,8 @@ public sealed class ReportsViewModel : ViewModelBase
             foreach (var item in topSellersTask.Result)
                 TopSellers.Add(item);
 
+            RebuildTopSellerRows();
+
             PeriodComparison = comparisonTask.Result;
 
             PlatformBreakdown.Clear();
@@ -479,51 +573,65 @@ public sealed class ReportsViewModel : ViewModelBase
         }
     }
 
-    private bool CanCloseCash()
+    private void RebuildTopSellerRows()
     {
-        if (_closeCashUseCase is null || _lastOperationalReport is null) return false;
-        if (decimal.TryParse(_countedCashText, NumberStyles.Any, ColombianCulture, out decimal v1)) return v1 >= 0;
-        if (decimal.TryParse(_countedCashText, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal v2)) return v2 >= 0;
-        return false;
+        TopSellerRows.Clear();
+        int maxUnits = TopSellers.Count > 0 ? TopSellers.Max(t => t.UnitsSold) : 0;
+        int rank = 1;
+        foreach (var seller in TopSellers)
+        {
+            double barPercent = maxUnits > 0 ? (double)seller.UnitsSold / maxUnits * 100.0 : 0d;
+            TopSellerRows.Add(new TopSellerRow(rank++, seller.ProductName, seller.UnitsSold, seller.TotalRevenue, barPercent));
+        }
     }
 
-    private async Task CloseCashAsync()
+    /// <summary>
+    /// Loads the most recent closed shifts (13.6, read-only). Reuses <see cref="GetShiftsUseCase"/> —
+    /// the same real backend query already wired into Turnos — and <see cref="ShiftsViewModel.ToShiftRow"/>
+    /// for consistent difference-coloring conventions across both views.
+    /// </summary>
+    public async Task LoadClosingsAsync(CancellationToken ct = default)
     {
-        if (_closeCashUseCase is null || _lastOperationalReport is null) return;
-
-        if (!decimal.TryParse(_countedCashText, NumberStyles.Any, ColombianCulture, out decimal counted) &&
-            !decimal.TryParse(_countedCashText, NumberStyles.Any, CultureInfo.InvariantCulture, out counted))
+        if (_getShiftsUseCase is null)
         {
-            ClosingStatusMessage = "Ingresa un monto de efectivo contado válido.";
             return;
         }
 
         IsLoading = true;
-        ClosingStatusMessage = string.Empty;
+        HasError = false;
+        ErrorMessage = string.Empty;
 
         try
         {
-            var operatorId = _session?.OperatorId ?? Guid.Empty;
-            var request = new CashClosingRequest(operatorId, _lastOperationalFrom, _lastOperationalTo, counted);
-            var result = await _closeCashUseCase.ExecuteAsync(request).ConfigureAwait(true);
+            var shifts = await _getShiftsUseCase.ExecuteAsync(MaxRecentShiftsToScan, ct).ConfigureAwait(true);
+            var closed = shifts
+                .Where(s => s.Status == ShiftStatus.Closed)
+                .OrderByDescending(s => s.ClosedAt)
+                .Take(MaxRecentClosingsDisplayed)
+                .ToList();
 
-            if (result.IsSuccess && result.Summary is not null)
+            RecentClosings.Clear();
+            foreach (var shift in closed)
             {
-                var diff = result.Summary.Difference;
-                string diffText = diff >= 0
-                    ? $"Sobrante: {FormatCurrency(diff)}"
-                    : $"Faltante: {FormatCurrency(Math.Abs(diff))}";
-                ClosingStatusMessage = $"Caja cerrada correctamente. {diffText}.";
-                CountedCashText = string.Empty;
+                RecentClosings.Add(ShiftsViewModel.ToShiftRow(shift));
             }
-            else
-            {
-                ClosingStatusMessage = $"Error al cerrar caja: {result.Error}";
-            }
+
+            _lastClosedShift = closed.FirstOrDefault();
+
+            OnPropertyChanged(nameof(HasLastClosedShift));
+            OnPropertyChanged(nameof(LastClosedShiftCashier));
+            OnPropertyChanged(nameof(LastClosedShiftOpenSummary));
+            OnPropertyChanged(nameof(LastClosedShiftCloseSummary));
+            OnPropertyChanged(nameof(LastClosingDifferenceLabel));
+            OnPropertyChanged(nameof(LastClosingDifferenceKind));
         }
         catch (Exception ex)
         {
-            ClosingStatusMessage = $"Error inesperado: {ex.Message}";
+            HasError = true;
+            ErrorMessage = $"Error al cargar cierres: {ex.Message}";
+            // Allow a retry (manual button or next subtab activation) to actually re-fetch instead
+            // of being permanently blocked by the one-load-per-lifetime gate.
+            _closingsLoaded = false;
         }
         finally
         {
@@ -587,3 +695,6 @@ public sealed class ReportsViewModel : ViewModelBase
     private static string FormatCurrency(decimal amount) =>
         $"${amount.ToString("N0", ColombianCulture)}";
 }
+
+/// <summary>Presentation row for the Top-10 best-selling products list (13.5).</summary>
+public sealed record TopSellerRow(int Rank, string ProductName, int UnitsSold, decimal TotalRevenue, double BarPercent);
