@@ -24,6 +24,7 @@
       <converters:IntGreaterThanZeroToVisibilityConverter x:Key="IntGreaterThanZeroToVisibilityConverter" />
       <converters:InitialsConverter x:Key="InitialsConverter" />
       <converters:StockBarWidthConverter x:Key="StockBarWidthConverter" />
+      <converters:PercentToWidthConverter x:Key="PercentToWidthConverter" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>

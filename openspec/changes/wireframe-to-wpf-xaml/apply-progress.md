@@ -326,3 +326,80 @@ Per the orchestrator's scope note, Phase 10 (`ShiftsViewModel.cs`/`ShiftsView.xa
 - [ ] 10.7 Manual visual QA against `Wireframes/wireframe-turnos.html`.
 - [ ] 11.6 Manual visual QA against `Wireframes/wireframe-lealtad.html`.
 - [ ] 12.6 Manual visual QA against `Wireframes/wireframe-barcode.html`.
+
+---
+
+## Completed Phase 13 (PR 7 — reportes-view, FINAL PR)
+
+`ReportsView.xaml` was fully rebuilt into the wireframe's 3-subtab layout (`Wireframes/wireframe-reportes.html`): "Resumen operacional" / "Rentabilidad" / "Cierres y arqueos". `ReportsViewModel.cs` was extended (not rewritten) — every existing real backend wiring (`IGetOperationalReportUseCase`, `IProfitQueryService`, `IReportExportService`) was reused as-is; only genuinely missing presentation-only properties/commands were added.
+
+### 13.1 — Subtab structure
+
+Same documented deviation as Phases 4/6/7/9: `SubtabBar` has no bindable `SelectedItem`/content-switching output. Implemented as three `RadioButton`s (`GroupName="ReportSubtabs"`, `SubtabItemStyle`) bound to three new mutually-exclusive bool properties on `ReportsViewModel` (`IsOperationalSubtabActive`/`IsRentabilidadSubtabActive`/`IsCierresSubtabActive`, backed by a single `_activeSubtabIndex` field via `SetActiveSubtab(int)` — cleaner than the two-bool pattern used in `ProductsViewModel` since this view has 3 tabs, not 2). Selecting "Cierres y arqueos" for the first time lazily triggers `LoadClosingsAsync()`.
+
+### 13.2 — Filters + export (operational subtab)
+
+Reused 100% existing wiring: `SetTodayCommand`/`SetThisWeekCommand`/`SetThisMonthCommand`, `ReportFromDate`/`ReportToDate` `DatePicker`s, `LoadReportCommand` ("Generar reporte"), `ExportOperationalPdfCommand`/`ExportOperationalExcelCommand`. No ViewModel changes needed for this task.
+
+### 13.3 — 5 KPI cards + "Cuadra" chip
+
+Real data for 4 of 5 cards (Total facturado, Efectivo esperado, Efectivo ventas, Pagos digitales — all pre-existing `ReportXxxText` properties). New: `EfectivoCuadra` bool (`ReportExpectedDrawerCash == ReportCashCollected`) drives a `ChipSuccessStyle` "Cuadra" badge on the "Efectivo ventas" card, matching the wireframe exactly.
+
+**Deviation — 5th KPI relabeled from "Transferencias" to "Abonos cobrados":** `OperationalReportDto` only tracks cash-vs-digital totals; there is no card/transfer sub-category to split "Transferencias" out of "Pagos digitales" (same known limitation documented for the payment-method chart, task 13.4). Rather than inventing a number, the 5th card reuses the real, already-tracked `ReportReceivableSettlements` ("Abonos cobrados") metric — genuinely useful, real data that already existed in the pre-Phase-13 view.
+
+### 13.4 — Charts
+
+- **Ventas por hora**: real gap — no hourly-bucket query exists anywhere in `IGetOperationalReportUseCase`/`OperationalReportDto`, and adding one would require a new DB-aggregated Infrastructure-layer query, out of scope for this Presentation-only PR (also budget-constrained: PR 7 forecast says "size:exception: No — kept solo"). Rendered as a static illustrative bar placeholder with an explicit on-screen caption ("Datos ilustrativos — pendiente de agregacion por hora en el backend."), consistent with the Phase 6/11 static-KPI-placeholder precedent.
+- **Por método de pago**: implemented for real. New computed properties `CashPaymentPercentText`/`DigitalPaymentPercentText`/`CashPaymentBarPercent`/`DigitalPaymentBarPercent` (0-100 doubles) derive from the existing `ReportCashCollected`/`ReportDigitalCollected` totals; bars use a new `PercentToWidthConverter` (`src/POS.Presentation/Converters/PercentToWidthConverter.cs`, registered in `App.xaml`) — a single-value analog of the existing `StockBarWidthConverter`. Only the two real categories (cash, digital) are shown — no card/transfer granularity invented.
+
+### 13.5 — Rentabilidad subtab
+
+- **Top-10 best sellers**: real data, reused `TopSellers` (unchanged) plus a new `TopSellerRows` collection (`TopSellerRow` record: `Rank`, `ProductName`, `UnitsSold`, `TotalRevenue`, `BarPercent`) computed in `RebuildTopSellerRows()` after each `LoadAnalyticsAsync`. `BarPercent` is proportional to the best seller's units (100% for rank 1, scaled down for the rest) — confirmed `GetTopSellersAsync` already orders by `UnitsSold` descending server-side, matching the task's "descending units" requirement with zero query changes.
+- **Comparativa de periodos**: real data, reused `PeriodComparison` unchanged; added `PeriodComparisonIsPositive` bool (sign of `RevenueGrowthPercent`) for the positive/negative percentage-difference styling.
+- **Margen bruto por categoria**: real gap — `ProductMarginResult` has no `CategoryId`/`CategoryName` field, so a per-category breakdown cannot be computed without a new backend query (Infrastructure-layer change, out of scope). Rendered as a static illustrative placeholder with an explicit caption. The real per-product margin `DataGrid` (existing `ProductMargins`) is kept alongside it as the genuinely real alternative view of the same underlying data.
+- **Desglose por plataforma ("POS vs. Cotizaciones convertidas")**: real gap with no feasible in-scope fix — `Sale` has no quote-origin tracking field (verified: no `QuoteId`/`IsFromQuote`/`Origin` field exists anywhere on the `Sale` entity), so distinguishing "POS" vs "converted quotation" sales is a Domain-schema change, not a query change, and is out of scope for a Presentation-only PR. The existing `GetPlatformBreakdownAsync`/`PlatformBreakdown` (real data, groups by payment bank/platform e.g. Nequi/Bancolombia — confirmed via `ProfitQueryService.GetPlatformBreakdownAsync`'s `GroupBy(p => p.BankOrPlatform)`) is kept and relabeled "Desglose por plataforma de pago" with a caption clarifying what it actually represents, instead of inventing a channel split that doesn't exist in the data.
+
+### 13.6 — Cierres y arqueos (read-only)
+
+**Removed** the direct cash-closing UI/action from `ReportsViewModel`/`ReportsView.xaml` per the task's explicit requirement (cash-closing belongs exclusively to Turnos, per this same SDD change's Phase 10): deleted `CloseCashCommand`, `CanCloseCash()`, `CloseCashAsync()`, `CountedCashText`, `ClosingStatusMessage`, `HasClosingStatus`, `ExpectedCashText`, `DifferenceText`, `DifferenceIsNegative`, the `_closeCashUseCase`/`_session` fields, and the `CloseCashRegisterUseCase`/`ICurrentOperatorSession` constructor parameters. Checked `tests/POS.Presentation.Shared.Tests/ReportsViewModelTests.cs` first — zero tests referenced any of this, so it was safe to delete cleanly rather than leave unwired dead code. `CloseCashRegisterUseCase` itself (the Application-layer use case) was **not** touched or removed — it stays registered in DI and is covered by its own `ReportingUseCaseTests.cs` suite; only its Presentation-layer wiring into Reports was removed. `App.xaml.cs`'s `ReportsViewModel` construction block was updated to stop resolving `CloseCashRegisterUseCase`/`ICurrentOperatorSession` and instead resolve `GetShiftsUseCase` (new 4th constructor parameter, replacing the old 4th+5th params) for the read-only closings data.
+
+Added instead (all real data):
+- **Último cierre registrado card**: `LastClosedShiftCashier`/`LastClosedShiftOpenSummary`/`LastClosedShiftCloseSummary` (real, from the most recent `Closed`-status `ShiftSummary` via `GetShiftsUseCase`) + `HasLastClosedShift` empty-state gate. The card's Total facturado/Efectivo esperado/Pagos digitales rows reuse the Operational subtab's currently-loaded report totals (`BilledTotalText`/`ExpectedDrawerCashText`/`DigitalCollectedText`, gated by new `HasOperationalTotalsForClosing`) rather than a true per-shift breakdown — `Domain.Entities.CashClosing` already stores exactly those totals per closing (`BilledTotal`/`CashCollected`/`DigitalCollected`), but `ICashClosingRepository` only exposes `AddAsync`, no query method; adding one is a reasonable but out-of-scope Infrastructure change for this PR. The view captions this clearly ("Cifras del periodo cargado en Resumen operacional...") so it is never confused with the shift's own numbers.
+- **Consulta de cierres panel**: `RecentClosings` (`ObservableCollection<ShiftRowPresentation>`, real data, up to 10 most-recent closed shifts) populated by `LoadClosingsAsync()` via `GetShiftsUseCase`. Reused `ShiftsViewModel.ToShiftRow(ShiftSummary)` — widened from `private` to `internal` (same assembly, `POS.Presentation.Shared`) instead of duplicating the cashier/status/difference-coloring mapping logic a second time. `LastClosingDifferenceLabel`/`LastClosingDifferenceKind` surface the most recent closing's difference for the "Diferencia reportada" row. "Exportar evidencia" reuses `ExportOperationalPdfCommand`/`ExportOperationalExcelCommand` (documented reuse — no dedicated cash-closing export use case exists).
+- **"Ir a Turnos para cerrar caja" navigation button**: wired via `{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}` + `CommandParameter="{Binding DataContext.AdminHubModules[4], RelativeSource={RelativeSource AncestorType=Window}}"` — the exact same pattern used for the "Etiquetas" link in Phase 9's `ProductsView.xaml`/`InventoryView.xaml`. Confirmed index 4 = shifts by tracing `MainShellViewModel`'s `allModules` array filtered by `AdminHubModuleKeys` (products, inventory, suppliers, reports, shifts, loyalty, barcode — in that order, `Where` preserves enumeration order).
+- **Explanatory scope note**: "Qué sí hace este tab" / "Qué ya no hace" info boxes reproduce the wireframe's own static copy verbatim.
+
+### 13.7 — Build/test verification
+
+- `dotnet build POS.sln --no-restore`: 0 warnings, 0 errors.
+- `dotnet test POS.sln --no-restore`: all green —
+  - `POS.Domain.Tests`: 43 passed
+  - `POS.Presentation.Shared.Tests`: 80 passed (71 baseline + 9 new focused tests: `EfectivoCuadra` true/false, payment-method percentage computation, `TopSellerRows` proportional bar percent, `LoadClosingsAsync` with closed shifts / no closed shifts / null use case, default subtab state, subtab mutual-exclusivity)
+  - `POS.Application.Tests`: 112 passed (unaffected — `CloseCashRegisterUseCase` itself untouched, still covered by `ReportingUseCaseTests.cs`)
+
+### Files changed
+
+| File | Action | What |
+|------|--------|------|
+| `src/POS.Presentation/Views/ReportsView.xaml` | Rewritten | 3-subtab structure per 13.1-13.6 |
+| `src/POS.Presentation.Shared/ViewModels/ReportsViewModel.cs` | Modified | Removed cash-closing UI wiring; added subtab state, `EfectivoCuadra`, payment-method percentages, `TopSellerRow`/`TopSellerRows`, `RecentClosings`/`LoadClosingsAsync`, last-closed-shift properties; constructor now takes `GetShiftsUseCase?` instead of `CloseCashRegisterUseCase?`/`ICurrentOperatorSession?` |
+| `src/POS.Presentation.Shared/ViewModels/ShiftsViewModel.cs` | Modified | `ToShiftRow` visibility widened `private` → `internal` for reuse by `ReportsViewModel` |
+| `src/POS.Presentation/Converters/PercentToWidthConverter.cs` | Created | Single-value percent-to-pixel-width converter for proportional bars |
+| `src/POS.Presentation/App.xaml` | Modified | Registered `PercentToWidthConverter` |
+| `src/POS.Presentation/App.xaml.cs` | Modified | `ReportsViewModel` construction updated for the new constructor signature |
+| `tests/POS.Presentation.Shared.Tests/ReportsViewModelTests.cs` | Modified | Added 9 new focused unit tests; added a `StubCashierShiftRepository` |
+| `openspec/changes/wireframe-to-wpf-xaml/tasks.md` | Modified | Checked off 13.1-13.7 |
+
+## Remaining Checklist Items — Entire Program
+
+This is the last implementation PR of the 7-PR wireframe-to-WPF program. Every remaining unchecked item across all phases is manual visual QA requiring the user's Windows desktop session — the user will do one consolidated visual QA pass at the end covering all 7 PRs:
+
+- [ ] 7.9 Manual visual QA against `Wireframes/wireframe-productos.html`.
+- [ ] 8.8 Manual visual QA against `Wireframes/wireframe-inventario.html`.
+- [ ] 9.8 Manual visual QA against `Wireframes/wireframe-compras.html`.
+- [ ] 10.7 Manual visual QA against `Wireframes/wireframe-turnos.html`.
+- [ ] 11.6 Manual visual QA against `Wireframes/wireframe-lealtad.html`.
+- [ ] 12.6 Manual visual QA against `Wireframes/wireframe-barcode.html`.
+- [ ] 13.8 Manual visual QA against `Wireframes/wireframe-reportes.html`.
+
+Once these 7 manual QA items are confirmed by the user, the `wireframe-to-wpf-xaml` change is fully complete and ready for `sdd-archive`.

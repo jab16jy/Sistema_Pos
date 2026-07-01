@@ -246,11 +246,9 @@ public partial class App : System.Windows.Application
             try { profitQuery = sp.GetRequiredService<IProfitQueryService>(); } catch { }
             IReportExportService? exportService = null;
             try { exportService = sp.GetRequiredService<IReportExportService>(); } catch { }
-            CloseCashRegisterUseCase? closeCash = null;
-            try { closeCash = sp.GetRequiredService<CloseCashRegisterUseCase>(); } catch { }
-            ICurrentOperatorSession? operatorSession = null;
-            try { operatorSession = sp.GetRequiredService<ICurrentOperatorSession>(); } catch { }
-            reports = new ReportsViewModel(getReport, profitQuery, exportService, closeCash, operatorSession);
+            GetShiftsUseCase? getShiftsForReports = null;
+            try { getShiftsForReports = sp.GetRequiredService<GetShiftsUseCase>(); } catch { }
+            reports = new ReportsViewModel(getReport, profitQuery, exportService, getShiftsForReports);
         }
         catch
         {
