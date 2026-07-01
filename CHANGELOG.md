@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.10.1...v0.11.0) (2026-07-01)
+
+
+### Features
+
+* **wpf:** ship shell theme foundation ([#42](https://github.com/jab16jy/Sistema_Pos/issues/42)) ([9f305b7](https://github.com/jab16jy/Sistema_Pos/commit/9f305b7db19f7ed28bbd3fc05dee29d7c715d911))
+
 ## [0.10.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.10.0...v0.10.1) (2026-06-28)
 
 
