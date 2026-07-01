@@ -102,13 +102,14 @@ public sealed class PurchasesViewModelTests
     public void MainShell_ExposesPurchasesModuleAsImplementedWithoutActivatingReceivablesOrReports()
     {
         var shell = new MainShellViewModel { Purchases = CreateViewModel(new StaticSupplierLookupQueryService([])) };
-        var suppliers = shell.Modules.Single(module => module.Key == "suppliers");
-        var reports = shell.Modules.Single(module => module.Key == "reports");
+        var suppliers = shell.AdminHubModules.Single(module => module.Key == "suppliers");
+        var reports = shell.AdminHubModules.Single(module => module.Key == "reports");
 
         shell.SelectedModule = suppliers;
 
         Assert.True(suppliers.IsImplemented);
         Assert.True(shell.IsPurchasesSelected);
+        Assert.True(shell.IsAdminSectionSelected);
         // WU4: reports module is now implemented (IsImplemented: true); IsPlannedModuleSelected remains false
         Assert.True(reports.IsImplemented);
         Assert.False(shell.IsPlannedModuleSelected);
