@@ -234,17 +234,6 @@ public partial class App : System.Windows.Application
         {
         }
 
-        ReceivablesViewModel? receivables = null;
-        try
-        {
-            var receivableQueryService = sp.GetRequiredService<IReceivableQueryService>();
-            var applyPaymentUseCase = sp.GetRequiredService<IApplyReceivablePaymentUseCase>();
-            receivables = new ReceivablesViewModel(receivableQueryService, applyPaymentUseCase);
-        }
-        catch
-        {
-        }
-
         ReportsViewModel? reports = null;
         try
         {
@@ -402,7 +391,6 @@ public partial class App : System.Windows.Application
             QuoteHistory = quoteHistory,
             Customers = customers,
             Purchases = purchases,
-            Receivables = receivables,
             Reports = reports,
             Products = products,
             Inventory = inventory,

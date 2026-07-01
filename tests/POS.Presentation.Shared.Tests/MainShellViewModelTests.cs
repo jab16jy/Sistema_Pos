@@ -9,7 +9,7 @@ namespace POS.Presentation.Shared.Tests;
 
 public sealed class MainShellViewModelTests
 {
-    private const int ActiveShellModuleCount = 15; // users + shifts + audit + loyalty + barcode modules
+    private const int FuncbarModuleCount = 5;
     private const string CashierModuleKey = "cashier";
     private const string QuotesModuleKey = "quotes";
 
@@ -18,23 +18,38 @@ public sealed class MainShellViewModelTests
     {
         var viewModel = new MainShellViewModel();
 
-        Assert.Equal(ActiveShellModuleCount, viewModel.Modules.Count);
+        Assert.Equal(FuncbarModuleCount, viewModel.Modules.Count);
+        Assert.Equal(viewModel.FuncbarModules, viewModel.Modules);
         Assert.Contains(viewModel.Modules, module => module.Key == QuotesModuleKey);
+        Assert.DoesNotContain(viewModel.Modules, module => module.Key == "receivables");
         Assert.Equal(CashierModuleKey, viewModel.SelectedModule.Key);
         Assert.True(viewModel.IsCashierSelected);
         Assert.Equal("Cobrar", viewModel.MainActionText);
     }
 
     [Fact]
+    public void Constructor_ExposesWireframeFuncbarAndAdminHubProjection()
+    {
+        var viewModel = new MainShellViewModel();
+
+        Assert.Equal(["cashier", "customers", "quotes", "invoices", "admin"], viewModel.FuncbarModules.Select(module => module.Key));
+        Assert.Equal(["F1", "F4", "F6", "F8", "ADM"], viewModel.FuncbarModules.Select(module => module.Shortcut));
+        Assert.Equal(["products", "inventory", "suppliers", "reports", "shifts", "loyalty", "barcode"], viewModel.AdminHubModules.Select(module => module.Key));
+        Assert.DoesNotContain(viewModel.AdminHubModules, module => module.Key == "receivables");
+    }
+
+    [Fact]
     public void SelectingImplementedModule_ChangesMessageAndActionWithoutBusinessLogic()
     {
         var viewModel = new MainShellViewModel();
-        var productsModule = viewModel.Modules.Single(module => module.Key == "products");
+        var productsModule = viewModel.AdminHubModules.Single(module => module.Key == "products");
 
         viewModel.SelectedModule = productsModule;
 
         Assert.False(viewModel.IsCashierSelected);
         Assert.True(viewModel.IsProductsSelected);
+        Assert.True(viewModel.IsAdminSectionSelected);
+        Assert.Equal("admin", viewModel.CurrentFuncbarModule.Key);
         Assert.Equal("Abrir módulo", viewModel.MainActionText);
         Assert.Contains("Productos", viewModel.OperatorMessage, StringComparison.OrdinalIgnoreCase);
     }
@@ -43,11 +58,24 @@ public sealed class MainShellViewModelTests
     public void SelectModuleCommand_UpdatesSelectedModule()
     {
         var viewModel = new MainShellViewModel();
-        ModuleNavigationItem reportsModule = viewModel.Modules.Single(module => module.Key == "reports");
+        ModuleNavigationItem reportsModule = viewModel.AdminHubModules.Single(module => module.Key == "reports");
 
         viewModel.SelectModuleCommand.Execute(reportsModule);
 
         Assert.Equal(reportsModule, viewModel.SelectedModule);
+    }
+
+    [Fact]
+    public void SelectingAdminHub_UsesAdminFuncbarEntry()
+    {
+        var viewModel = new MainShellViewModel();
+        ModuleNavigationItem adminModule = viewModel.FuncbarModules.Single(module => module.Key == "admin");
+
+        viewModel.SelectModuleCommand.Execute(adminModule);
+
+        Assert.True(viewModel.IsAdminHubSelected);
+        Assert.True(viewModel.IsAdminSectionSelected);
+        Assert.Equal(adminModule, viewModel.CurrentFuncbarModule);
     }
 
     [Fact]
