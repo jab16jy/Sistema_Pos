@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.16.0...v0.17.0) (2026-07-01)
+
+
+### Features
+
+* **wpf:** translate reportes view wireframe ([#60](https://github.com/jab16jy/Sistema_Pos/issues/60)) ([289e5c0](https://github.com/jab16jy/Sistema_Pos/commit/289e5c0afe1d073cbd62f2098764aef44b20c6d7)), closes [#59](https://github.com/jab16jy/Sistema_Pos/issues/59)
+
 ## [0.16.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.15.0...v0.16.0) (2026-07-01)
 
 
