@@ -116,28 +116,30 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ## Phase 3: clientes-view (PR 3, size:exception — grouped with Phase 4 cotizaciones-view)
 
-- [ ] 3.1 Rebuild `CustomersView.xaml` into a 3-column `Grid`: customer list (search + total/active stats), detail form (name/ID/phone/email/address/notes/active toggle), history panel
-- [ ] 3.2 Verify row selection populates the form via existing `SelectedCustomer` binding; "Nuevo" resets form to "Nuevo cliente" and hides delete + status chip
-- [ ] 3.3 Add loyalty points badge to the form, bound to `LoyaltyPoints > 0` ("{points} puntos de lealtad disponibles"), with a link navigating to the Lealtad module
-- [ ] 3.4 Add history filter buttons (Todo/Ventas/Cotizaciones) bound to existing filter command/property; add "Selecciona un cliente para ver su historial" empty state
-- [ ] 3.5 Wire "Guardar"/"Eliminar" to existing commands with toast confirmation ("Cliente guardado correctamente") and list refresh
-- [ ] 3.6 Run `dotnet build POS.sln --no-restore`
+- [x] 3.1 Rebuild `CustomersView.xaml` into a 3-column `Grid`: customer list (search + total/active stats), detail form (name/ID/phone/email/address/notes/active toggle), history panel
+- [x] 3.2 Verify row selection populates the form via existing `SelectedCustomer` binding; "Nuevo" resets form to "Nuevo cliente" and hides delete + status chip
+- [x] 3.3 Add loyalty points badge to the form, bound to `LoyaltyPoints > 0` ("{points} puntos de lealtad disponibles"), with a link navigating to the Lealtad module
+- [x] 3.4 Add history filter buttons (Todo/Ventas/Cotizaciones) bound to existing filter command/property; add "Selecciona un cliente para ver su historial" empty state
+- [x] 3.5 Wire "Guardar"/"Eliminar" to existing commands with toast confirmation ("Cliente guardado correctamente") and list refresh
+- [x] 3.6 Run `dotnet build POS.sln --no-restore`
 - [ ] 3.7 Manual visual QA against `Wireframes/wireframe-clientes.html`
+  - Apply note: not run by agent; requires user visual inspection on the Windows desktop app.
 
 ---
 
 ## Phase 4: cotizaciones-view (PR 3, size:exception — grouped with Phase 3 clientes-view)
 
-- [ ] 4.1 Modify `QuoteView.xaml`: wrap existing new-quote form under a "Nueva cotización" subtab (shared `SubtabBar`), add a "Historial" subtab
-- [ ] 4.2 Port `QuoteHistoryView.xaml` grid/filter markup into the "Historial" subtab content inside `QuoteView.xaml`
-- [ ] 4.3 Delete `src/POS.Presentation/Views/QuoteHistoryView.xaml` and `.xaml.cs`; confirm the Cotizaciones nav entry resolves solely to the consolidated view
-- [ ] 4.4 Verify subtab switching preserves in-progress quote cart state (state lives in `QuoteViewModel`)
-- [ ] 4.5 Verify client fields (name required, phone, email, validity days, observations) and live subtotal/IVA/total recompute on cart changes
-- [ ] 4.6 Add validation blocking "Confirmar cotización" without client name ("Ingresa el nombre del cliente") or empty cart ("Agrega al menos un producto")
-- [ ] 4.7 Add WhatsApp/Email footer send actions delegating to `SendDocumentViewModel`/existing use case; block Email without email address, block WhatsApp with empty cart
-- [ ] 4.8 Verify Historial subtab: filterable/paginated grid (number, client, total, status chip, expiry), per-row PDF/email/WhatsApp actions, "Venta" action shown only when status is `aceptada`
-- [ ] 4.9 Run `dotnet build POS.sln --no-restore`
+- [x] 4.1 Modify `QuoteView.xaml`: wrap existing new-quote form under a "Nueva cotización" subtab (shared `SubtabBar`), add a "Historial" subtab
+- [x] 4.2 Port `QuoteHistoryView.xaml` grid/filter markup into the "Historial" subtab content inside `QuoteView.xaml`
+- [x] 4.3 Delete `src/POS.Presentation/Views/QuoteHistoryView.xaml` and `.xaml.cs`; confirm the Cotizaciones nav entry resolves solely to the consolidated view
+- [x] 4.4 Verify subtab switching preserves in-progress quote cart state (state lives in `QuoteViewModel`)
+- [x] 4.5 Verify client fields (name required, phone, email, validity days, observations) and live subtotal/IVA/total recompute on cart changes
+- [x] 4.6 Add validation blocking "Confirmar cotización" without client name ("Ingresa el nombre del cliente") or empty cart ("Agrega al menos un producto")
+- [x] 4.7 Add WhatsApp/Email footer send actions delegating to `SendDocumentViewModel`/existing use case; block Email without email address, block WhatsApp with empty cart
+- [x] 4.8 Verify Historial subtab: filterable/paginated grid (number, client, total, status chip, expiry), per-row PDF/email/WhatsApp actions, "Venta" action shown only when status is `aceptada`
+- [x] 4.9 Run `dotnet build POS.sln --no-restore`
 - [ ] 4.10 Manual visual QA against `Wireframes/wireframe-cotizaciones.html`
+  - Apply note: not run by agent; requires user visual inspection on the Windows desktop app.
 
 ---
 

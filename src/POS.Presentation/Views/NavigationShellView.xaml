@@ -89,7 +89,7 @@
     </Border>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-      <Grid Margin="20">
+      <Grid Margin="20" x:Name="ShellContent">
         <Grid Visibility="{Binding IsCashierSelected, Converter={StaticResource BoolToVisibilityConverter}}">
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -173,29 +173,12 @@
         </Grid>
 
         <Grid Visibility="{Binding IsQuotesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-          </Grid.RowDefinitions>
-          <TextBlock Text="{Binding OperatorMessage}" Style="{StaticResource MutedText}" Margin="0,0,0,12" />
-          <TabControl Grid.Row="1">
-            <TabItem Header="Nueva Cotización">
-              <Grid>
-                <local:QuoteView DataContext="{Binding Quote}" Visibility="{Binding Quote, Converter={StaticResource NullToVisibilityConverter}}" />
-                <Border Style="{StaticResource Card}" Visibility="{Binding Quote, Converter={StaticResource InverseNullToVisibilityConverter}}">
-                  <TextBlock Text="Quote creation is not available in this environment." Style="{StaticResource MutedText}" />
-                </Border>
-              </Grid>
-            </TabItem>
-            <TabItem Header="Historial">
-              <Grid>
-                <local:QuoteHistoryView DataContext="{Binding QuoteHistory}" Visibility="{Binding QuoteHistory, Converter={StaticResource NullToVisibilityConverter}}" />
-                <Border Style="{StaticResource Card}" Visibility="{Binding QuoteHistory, Converter={StaticResource InverseNullToVisibilityConverter}}">
-                  <TextBlock Text="Quote history is not available in this environment." Style="{StaticResource MutedText}" />
-                </Border>
-              </Grid>
-            </TabItem>
-          </TabControl>
+          <local:QuoteView DataContext="{Binding Quote}"
+                            HistoryViewModel="{Binding DataContext.QuoteHistory, ElementName=ShellContent}"
+                            Visibility="{Binding Quote, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}" Visibility="{Binding Quote, Converter={StaticResource InverseNullToVisibilityConverter}}">
+            <TextBlock Text="Quote creation is not available in this environment." Style="{StaticResource MutedText}" />
+          </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsCustomersSelected, Converter={StaticResource BoolToVisibilityConverter}}">

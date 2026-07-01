@@ -21,6 +21,8 @@
       <converters:DateOnlyToDateTimeConverter x:Key="DateOnlyToDateTimeConverter" />
       <converters:ZeroToVisibilityConverter x:Key="ZeroToVisibilityConverter" />
       <converters:BytesToImageSourceConverter x:Key="BytesToImageSourceConverter" />
+      <converters:IntGreaterThanZeroToVisibilityConverter x:Key="IntGreaterThanZeroToVisibilityConverter" />
+      <converters:InitialsConverter x:Key="InitialsConverter" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>

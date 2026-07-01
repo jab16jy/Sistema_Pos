@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using POS.Application.DTOs.Communication;
 using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Quotes;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Quotes;
+using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
 using POS.Presentation.Shared.Quotes;
 
@@ -15,6 +18,7 @@ public sealed class QuoteViewModel : ViewModelBase
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private readonly IProductLookupService _productLookupService;
     private readonly CreateQuoteUseCase _createQuoteUseCase;
+    private readonly SendDocumentUseCase? _sendDocumentUseCase;
     private string _searchQuery = string.Empty;
     private string _customerName = string.Empty;
     private string _customerPhone = string.Empty;
@@ -27,10 +31,11 @@ public sealed class QuoteViewModel : ViewModelBase
     private bool _isConfirming;
     private string _lastQuoteNumber = string.Empty;
 
-    public QuoteViewModel(IProductLookupService productLookupService, CreateQuoteUseCase createQuoteUseCase)
+    public QuoteViewModel(IProductLookupService productLookupService, CreateQuoteUseCase createQuoteUseCase, SendDocumentUseCase? sendDocumentUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _createQuoteUseCase = createQuoteUseCase ?? throw new ArgumentNullException(nameof(createQuoteUseCase));
+        _sendDocumentUseCase = sendDocumentUseCase;
 
         SearchResults = [];
         CartItems = [];
@@ -39,6 +44,8 @@ public sealed class QuoteViewModel : ViewModelBase
         AddToCartCommand = new RelayCommand(p => AddToCart(p as ProductLookupResult));
         RemoveFromCartCommand = new RelayCommand(p => RemoveFromCart(p as QuoteCartItemViewModel));
         ConfirmCommand = new RelayCommand(async _ => await ConfirmAsync().ConfigureAwait(true));
+        SendByEmailCommand = new RelayCommand(async _ => await SendByEmailAsync().ConfigureAwait(true));
+        SendByWhatsAppCommand = new RelayCommand(async _ => await SendByWhatsAppAsync().ConfigureAwait(true));
     }
 
     public ObservableCollection<ProductLookupResult> SearchResults { get; }
@@ -48,6 +55,8 @@ public sealed class QuoteViewModel : ViewModelBase
     public ICommand AddToCartCommand { get; }
     public ICommand RemoveFromCartCommand { get; }
     public ICommand ConfirmCommand { get; }
+    public ICommand SendByEmailCommand { get; }
+    public ICommand SendByWhatsAppCommand { get; }
 
     public string SearchQuery
     {
@@ -167,39 +176,18 @@ public sealed class QuoteViewModel : ViewModelBase
         RecalculateTotal();
     }
 
-    private async Task ConfirmAsync(CancellationToken cancellationToken = default)
+    public async Task ConfirmAsync(CancellationToken cancellationToken = default)
     {
-        if (CartItems.Count == 0)
-        {
-            ValidationMessage = "Agrega al menos un producto a la cotización.";
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(CustomerName))
-        {
-            ValidationMessage = "El nombre del cliente es obligatorio.";
-            return;
-        }
-
         IsConfirming = true;
         ValidationMessage = string.Empty;
 
         try
         {
-            IReadOnlyCollection<CreateQuoteItemRequest> items = CartItems
-                .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount))
-                .ToList();
-
-            CreateQuoteRequest request = new(
-                null,
-                CustomerName,
-                string.IsNullOrWhiteSpace(CustomerPhone) ? null : CustomerPhone,
-                string.IsNullOrWhiteSpace(CustomerEmail) ? null : CustomerEmail,
-                ValidityDays,
-                string.IsNullOrWhiteSpace(Observations) ? null : Observations,
-                items);
-
-            QuoteResult result = await _createQuoteUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+            QuoteResult? result = await CreateQuoteAsync(cancellationToken).ConfigureAwait(true);
+            if (result is null)
+            {
+                return;
+            }
 
             LastQuoteNumber = result.QuoteNumber;
             ValidationMessage = $"Cotización {result.QuoteNumber} creada correctamente.";
@@ -213,6 +201,103 @@ public sealed class QuoteViewModel : ViewModelBase
         {
             IsConfirming = false;
         }
+    }
+
+    /// <summary>
+    /// Sends the in-progress quote by email. The wireframe's mock JS sends an unsaved draft directly;
+    /// the real backend only sends persisted documents (SendDocumentUseCase requires a QuoteId), so this
+    /// creates the quote first (reusing the existing validation/creation path) and immediately sends it —
+    /// a deliberate, documented deviation from the literal wireframe mock.
+    /// </summary>
+    public async Task SendByEmailAsync(CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(CustomerEmail))
+        {
+            ValidationMessage = "Ingresa el email del cliente";
+            return;
+        }
+
+        await CreateAndSendAsync(SendChannel.Email, CustomerEmail, cancellationToken).ConfigureAwait(true);
+    }
+
+    /// <summary>Sends the in-progress quote by WhatsApp. See <see cref="SendByEmailAsync"/> for the create-then-send rationale.</summary>
+    public async Task SendByWhatsAppAsync(CancellationToken cancellationToken = default)
+    {
+        if (CartItems.Count == 0)
+        {
+            ValidationMessage = "Carrito vacío";
+            return;
+        }
+
+        await CreateAndSendAsync(SendChannel.WhatsApp, CustomerPhone, cancellationToken).ConfigureAwait(true);
+    }
+
+    private async Task CreateAndSendAsync(SendChannel channel, string recipient, CancellationToken cancellationToken)
+    {
+        if (_sendDocumentUseCase is null)
+        {
+            ValidationMessage = "El envío de documentos no está disponible en este entorno.";
+            return;
+        }
+
+        IsConfirming = true;
+        ValidationMessage = string.Empty;
+
+        try
+        {
+            QuoteResult? result = await CreateQuoteAsync(cancellationToken).ConfigureAwait(true);
+            if (result is null)
+            {
+                return;
+            }
+
+            SendDocumentRequest request = new(DocumentType.Quote, result.QuoteId, channel, recipient);
+            SendDocumentResult sendResult = await _sendDocumentUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+
+            LastQuoteNumber = result.QuoteNumber;
+            ValidationMessage = sendResult.Success
+                ? $"Cotización {result.QuoteNumber} enviada correctamente."
+                : $"Cotización {result.QuoteNumber} creada, pero no se pudo enviar: {sendResult.ErrorMessage}";
+            ClearForm();
+        }
+        catch (Exception ex)
+        {
+            ValidationMessage = $"Error al enviar la cotización: {ex.Message}";
+        }
+        finally
+        {
+            IsConfirming = false;
+        }
+    }
+
+    private async Task<QuoteResult?> CreateQuoteAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(CustomerName))
+        {
+            ValidationMessage = "Ingresa el nombre del cliente";
+            return null;
+        }
+
+        if (CartItems.Count == 0)
+        {
+            ValidationMessage = "Agrega al menos un producto";
+            return null;
+        }
+
+        IReadOnlyCollection<CreateQuoteItemRequest> items = CartItems
+            .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount))
+            .ToList();
+
+        CreateQuoteRequest request = new(
+            null,
+            CustomerName,
+            string.IsNullOrWhiteSpace(CustomerPhone) ? null : CustomerPhone,
+            string.IsNullOrWhiteSpace(CustomerEmail) ? null : CustomerEmail,
+            ValidityDays,
+            string.IsNullOrWhiteSpace(Observations) ? null : Observations,
+            items);
+
+        return await _createQuoteUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
     }
 
     private void RecalculateTotal()

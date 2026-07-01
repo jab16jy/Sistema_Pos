@@ -38,4 +38,25 @@ public sealed record QuoteSummaryRow(
         QuoteStatus.Converted => "Convertida",
         _ => status.ToString()
     };
+
+    /// <summary>
+    /// Chip color variant for the status badge ("success"/"warning"/"error"/"neutral"). Domain only models
+    /// Draft/Active/Expired/Converted (no separate "enviada"/"aceptada"/"rechazada" states like the wireframe
+    /// mock); Active is the closest equivalent to the wireframe's "aceptada" (ready-to-convert) state.
+    /// </summary>
+    public string StatusChipKind => Status switch
+    {
+        QuoteStatus.Active => "success",
+        QuoteStatus.Draft => "warning",
+        QuoteStatus.Expired => "error",
+        QuoteStatus.Converted => "neutral",
+        _ => "neutral"
+    };
+
+    /// <summary>
+    /// True when the "Venta" row action should be shown. Mirrors <c>ConvertQuoteToSaleUseCase</c>'s own guard
+    /// (blocks Converted/Expired), matching the wireframe's "only 'aceptada' quotes convert" intent as closely
+    /// as the real domain status set allows.
+    /// </summary>
+    public bool CanConvertToSale => Status == QuoteStatus.Active;
 }

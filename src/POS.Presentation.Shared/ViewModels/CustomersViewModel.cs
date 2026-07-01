@@ -1,16 +1,22 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Customers;
 using POS.Application.UseCases.Customers;
+using POS.Application.UseCases.Loyalty;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
 
 public sealed class CustomersViewModel : ViewModelBase
 {
+    private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+
     private readonly SaveCustomerUseCase _saveCustomer;
     private readonly GetCustomerHistoryUseCase _getHistory;
     private readonly SearchCustomersUseCase _searchCustomers;
+    private readonly GetLoyaltyBalanceUseCase? _getLoyaltyBalance;
     private CustomerSearchResult? _selectedCustomer;
     private string _searchText = string.Empty;
     private string _fullName = string.Empty;
@@ -21,26 +27,52 @@ public sealed class CustomersViewModel : ViewModelBase
     private bool _isActive = true;
     private bool _includeInactive;
     private string _message = "Selecciona un cliente o registra uno nuevo.";
+    private int _loyaltyPoints;
+    private int _totalCustomersCount;
+    private int _activeCustomersCount;
+    private string _historyFilter = "all";
 
-    public CustomersViewModel(SaveCustomerUseCase saveCustomer, GetCustomerHistoryUseCase getHistory, SearchCustomersUseCase searchCustomers)
+    public CustomersViewModel(
+        SaveCustomerUseCase saveCustomer,
+        GetCustomerHistoryUseCase getHistory,
+        SearchCustomersUseCase searchCustomers,
+        GetLoyaltyBalanceUseCase? getLoyaltyBalance = null)
     {
         _saveCustomer = saveCustomer;
         _getHistory = getHistory;
         _searchCustomers = searchCustomers;
+        _getLoyaltyBalance = getLoyaltyBalance;
+
+        Customers.CollectionChanged += OnCustomersCollectionChanged;
+        HistoryEntries.CollectionChanged += OnHistoryEntriesCollectionChanged;
+
         LoadCommand = new RelayCommand(_ => _ = LoadAsync());
         SaveCommand = new RelayCommand(_ => _ = SaveAsync());
+        DeleteCommand = new RelayCommand(_ => _ = DeleteAsync(), _ => SelectedCustomer is not null);
+        NewCommand = new RelayCommand(_ => ClearForm());
         OpenHistoryCommand = new RelayCommand(_ => _ = OpenHistoryAsync(), _ => SelectedCustomer is not null);
+        SetHistoryFilterCommand = new RelayCommand(filter => HistoryFilter = filter as string ?? "all");
     }
 
     public ObservableCollection<CustomerSearchResult> Customers { get; } = [];
 
+    /// <summary>Full, unfiltered history for the selected customer. Kept for backward compatibility with existing consumers/tests.</summary>
     public ObservableCollection<CustomerHistoryEntry> HistoryEntries { get; } = [];
+
+    /// <summary>History entries restricted by <see cref="HistoryFilter"/> ("all" / "sale" / "quote") for display.</summary>
+    public ObservableCollection<CustomerHistoryEntry> FilteredHistoryEntries { get; } = [];
 
     public ICommand LoadCommand { get; }
 
     public ICommand SaveCommand { get; }
 
+    public ICommand DeleteCommand { get; }
+
+    public ICommand NewCommand { get; }
+
     public ICommand OpenHistoryCommand { get; }
+
+    public ICommand SetHistoryFilterCommand { get; }
 
     public CustomerSearchResult? SelectedCustomer
     {
@@ -57,15 +89,32 @@ public sealed class CustomersViewModel : ViewModelBase
                     Email = value.Email;
                     Address = value.Address;
                     IsActive = value.IsActive;
+                    _ = LoadLoyaltyPointsAsync(value.Id);
+                    _ = OpenHistoryAsync();
+                }
+                else
+                {
+                    LoyaltyPoints = 0;
+                    HistoryEntries.Clear();
                 }
 
-                if (OpenHistoryCommand is RelayCommand command)
+                if (OpenHistoryCommand is RelayCommand openHistoryCommand)
                 {
-                    command.RaiseCanExecuteChanged();
+                    openHistoryCommand.RaiseCanExecuteChanged();
                 }
+
+                if (DeleteCommand is RelayCommand deleteCommand)
+                {
+                    deleteCommand.RaiseCanExecuteChanged();
+                }
+
+                OnPropertyChanged(nameof(HasSelectedCustomer));
             }
         }
     }
+
+    /// <summary>True when a customer is selected — drives form title, status chip, and delete-button visibility.</summary>
+    public bool HasSelectedCustomer => SelectedCustomer is not null;
 
     public string SearchText
     {
@@ -121,6 +170,47 @@ public sealed class CustomersViewModel : ViewModelBase
         private set => SetProperty(ref _message, value);
     }
 
+    /// <summary>Loyalty points available for the selected customer (0 when none/no customer selected).</summary>
+    public int LoyaltyPoints
+    {
+        get => _loyaltyPoints;
+        private set => SetProperty(ref _loyaltyPoints, value);
+    }
+
+    /// <summary>Count of currently loaded customers (reflects the active search/filter, not a separate global aggregate).</summary>
+    public int TotalCustomersCount
+    {
+        get => _totalCustomersCount;
+        private set => SetProperty(ref _totalCustomersCount, value);
+    }
+
+    /// <summary>Count of active customers among the currently loaded list.</summary>
+    public int ActiveCustomersCount
+    {
+        get => _activeCustomersCount;
+        private set => SetProperty(ref _activeCustomersCount, value);
+    }
+
+    /// <summary>Active history filter: "all", "sale", or "quote".</summary>
+    public string HistoryFilter
+    {
+        get => _historyFilter;
+        set
+        {
+            if (SetProperty(ref _historyFilter, value))
+            {
+                RecomputeFilteredHistory();
+            }
+        }
+    }
+
+    /// <summary>Count of sale-type entries in the selected customer's history.</summary>
+    public int HistoryPurchaseCount => HistoryEntries.Count(entry => IsSaleKind(entry.Kind));
+
+    /// <summary>Formatted sum of sale-type entries in the selected customer's history.</summary>
+    public string HistoryTotalFormatted
+        => $"${HistoryEntries.Where(entry => IsSaleKind(entry.Kind)).Sum(entry => entry.Amount).ToString("N0", ColombianCulture)}";
+
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         var results = await _searchCustomers.ExecuteAsync(new CustomerSearchRequest(SearchText, IncludeInactive), cancellationToken).ConfigureAwait(true);
@@ -145,7 +235,37 @@ public sealed class CustomersViewModel : ViewModelBase
             await _saveCustomer.ExecuteAsync(new SaveCustomerRequest(customerId, FullName, Identification, Phone, Email, Address, IsActive), cancellationToken).ConfigureAwait(true);
             ClearForm();
             await LoadAsync(cancellationToken).ConfigureAwait(true);
-            Message = "Cliente guardado. Ya está disponible para búsquedas y ventas.";
+            Message = "Cliente guardado correctamente";
+        }
+        catch (ArgumentException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// "Eliminar" maps to a soft-delete (deactivate) via the existing save-customer use case: Domain has no
+    /// hard-delete operation for customers, since sales/quote history can reference them.
+    /// </summary>
+    public async Task DeleteAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedCustomer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _saveCustomer.ExecuteAsync(
+                new SaveCustomerRequest(SelectedCustomer.Id, FullName, Identification, Phone, Email, Address, IsActive: false),
+                cancellationToken).ConfigureAwait(true);
+            ClearForm();
+            await LoadAsync(cancellationToken).ConfigureAwait(true);
+            Message = "Cliente eliminado";
         }
         catch (ArgumentException ex)
         {
@@ -177,6 +297,58 @@ public sealed class CustomersViewModel : ViewModelBase
             : $"Historial cargado: {HistoryEntries.Count} movimiento(s).";
     }
 
+    private async Task LoadLoyaltyPointsAsync(Guid customerId, CancellationToken cancellationToken = default)
+    {
+        if (_getLoyaltyBalance is null)
+        {
+            LoyaltyPoints = 0;
+            return;
+        }
+
+        try
+        {
+            var balance = await _getLoyaltyBalance.ExecuteAsync(customerId, recentTransactionCount: 1, cancellationToken).ConfigureAwait(true);
+            LoyaltyPoints = balance?.Balance ?? 0;
+        }
+        catch
+        {
+            LoyaltyPoints = 0;
+        }
+    }
+
+    private static bool IsSaleKind(string kind) => string.Equals(kind, "Sale", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsQuoteKind(string kind) => string.Equals(kind, "Quote", StringComparison.OrdinalIgnoreCase);
+
+    private void OnCustomersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        TotalCustomersCount = Customers.Count;
+        ActiveCustomersCount = Customers.Count(customer => customer.IsActive);
+    }
+
+    private void OnHistoryEntriesCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    {
+        RecomputeFilteredHistory();
+        OnPropertyChanged(nameof(HistoryPurchaseCount));
+        OnPropertyChanged(nameof(HistoryTotalFormatted));
+    }
+
+    private void RecomputeFilteredHistory()
+    {
+        FilteredHistoryEntries.Clear();
+        IEnumerable<CustomerHistoryEntry> source = HistoryFilter switch
+        {
+            "sale" => HistoryEntries.Where(entry => IsSaleKind(entry.Kind)),
+            "quote" => HistoryEntries.Where(entry => IsQuoteKind(entry.Kind)),
+            _ => HistoryEntries
+        };
+
+        foreach (CustomerHistoryEntry entry in source)
+        {
+            FilteredHistoryEntries.Add(entry);
+        }
+    }
+
     private void ClearForm()
     {
         SelectedCustomer = null;
@@ -186,5 +358,6 @@ public sealed class CustomersViewModel : ViewModelBase
         Email = null;
         Address = null;
         IsActive = true;
+        HistoryFilter = "all";
     }
 }

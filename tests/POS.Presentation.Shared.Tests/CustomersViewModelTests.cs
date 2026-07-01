@@ -108,6 +108,60 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public async Task DeleteAsync_ForSelectedCustomer_DeactivatesInsteadOfHardDeleting()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+
+        await viewModel.DeleteAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(repository.Customers.Single().IsActive);
+        Assert.Contains("eliminado", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(viewModel.SelectedCustomer);
+    }
+
+    [Fact]
+    public async Task OpenHistoryAsync_WithSaleFilter_RestrictsFilteredEntriesButKeepsFullHistory()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var history = new StaticCustomerHistoryQueryService(new CustomerHistoryResult(customer.Id, [
+            new CustomerHistoryEntry(DateTimeOffset.UtcNow, "Sale", "POS-1", 12_000m, "Completed"),
+            new CustomerHistoryEntry(DateTimeOffset.UtcNow, "Quote", "COT-1", 8_000m, "Active")
+        ]));
+        var viewModel = new CustomersViewModel(new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()), new GetCustomerHistoryUseCase(history), new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)));
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+        await viewModel.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        viewModel.HistoryFilter = "sale";
+
+        Assert.Equal(2, viewModel.HistoryEntries.Count);
+        CustomerHistoryEntry filtered = Assert.Single(viewModel.FilteredHistoryEntries);
+        Assert.Equal("Sale", filtered.Kind);
+        Assert.Equal(1, viewModel.HistoryPurchaseCount);
+    }
+
+    [Fact]
+    public void NewCommand_ClearsSelectionAndResetsHistory()
+    {
+        var viewModel = CreateViewModel(new InMemoryCustomerRepository());
+        viewModel.FullName = "Should be cleared";
+
+        viewModel.NewCommand.Execute(null);
+
+        Assert.Null(viewModel.SelectedCustomer);
+        Assert.Equal(string.Empty, viewModel.FullName);
+        Assert.False(viewModel.HasSelectedCustomer);
+        Assert.Empty(viewModel.HistoryEntries);
+    }
+
+    [Fact]
     public void MainShell_ExposesCustomerModuleAsImplementedWithoutSelectingOtherModules()
     {
         var shell = new MainShellViewModel { Customers = CreateViewModel(new InMemoryCustomerRepository()) };
