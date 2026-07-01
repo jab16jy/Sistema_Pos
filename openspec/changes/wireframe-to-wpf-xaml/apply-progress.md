@@ -10,6 +10,10 @@
   - Delivery: PR 3, stacked-to-main, `size:exception` pre-approved (grouped with Phase 4)
 - Phase 4: `cotizaciones-view`
   - Delivery: PR 3, stacked-to-main, `size:exception` pre-approved (grouped with Phase 3)
+- Phase 5: `facturas-view`
+  - Delivery: PR 4, stacked-to-main, `size:exception` pre-approved (grouped with Phase 6)
+- Phase 6: `configuracion-admin-hub`
+  - Delivery: PR 4, stacked-to-main, `size:exception` pre-approved (grouped with Phase 5)
 - Mode: Standard Mode (`strict_tdd: false`)
 - Date: 2026-07-01
 
@@ -59,6 +63,31 @@
 - 4.9 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors.
 - 4.10 NOT run by the agent (manual visual QA requires the user's Windows desktop session).
 
+## Completed Phase 5 (facturas-view)
+
+- 5.1 `InvoicesView.xaml` rebuilt: free-text search, `From`/`To` date pickers, and a status `ComboBox` (Todo/Activa/Anulada/Devuelta) filter the invoice grid. Status filtering is presentation-only (client-side over the currently loaded page) because `SalesHistoryRequest` has no status parameter. A new `InvoiceSummaryRow` presentation record (`src/POS.Presentation.Shared/Invoices/InvoiceSummaryRow.cs`, mirroring the `QuoteSummaryRow` pattern from Phase 4) supplies formatted totals/dates and a `StatusChipKind`/`StatusLabel`/`StatusFilterKey` mapping the domain's 5-state `SaleStatus` onto the wireframe's 3-state chip set. Real pagination was wired using `SalesHistoryRequest`'s existing `Page`/`PageSize` fields (`CurrentPage`, `HasMorePages`, `NextPageCommand`/`PreviousPageCommand`) — `HasMorePages` is inferred from whether the last page returned a full `PageSize` batch, since the query has no total-count field.
+- 5.2 Added a "Factura seleccionada" panel bound to `SelectedInvoice` (backed by a `ListBox` `SelectedItem` over `FilteredInvoices`), showing number/client/total/date; a new `HasSelectedInvoice` computed bool drives the empty state.
+- 5.3 Reimprimir/PDF/Email/WhatsApp actions: Reimprimir reuses the existing `ReprintCommand`/`ReprintReceiptUseCase`, now blocking with the exact spec string "Selecciona una factura" when nothing is selected. Email/WhatsApp are new `SendByEmailCommand`/`SendByWhatsAppCommand` delegating to a newly-optional `SendDocumentUseCase` dependency (same DI/try-catch pattern as `QuoteViewModel` in Phase 4), using `DocumentType.Invoice` (already supported by `SendDocumentUseCase.GenerateInvoicePdfAsync`). PDF remains a visual-only, disabled button — same documented Phase 4 precedent (no file-save/print delegate exposed to Presentation).
+- 5.4–5.5 "Registrar devolución" panel: reason `ComboBox` (5 fixed wireframe options + blank placeholder), optional description `TextBox`, and a presentation-only refund-type `ComboBox` (Efectivo/Nota crédito/Cambio de producto — not persisted, see Deviations). Blocks with the exact spec string "Selecciona un motivo" when no reason is chosen; on success shows a toast referencing the invoice number and resets reason/description/refund-type.
+- 5.6 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors.
+- 5.7 NOT run by the agent (manual visual QA requires the user's Windows desktop session).
+
+## Completed Phase 6 (configuracion-admin-hub)
+
+- 6.1 `SettingsView.xaml` rebuilt into a 3-subtab hub ("Centro de control" default / "Negocio" / "Impresión y envíos") using three `RadioButton`s styled with the shared `SubtabItemStyle` (same documented `SubtabBar`-has-no-`SelectedItem` deviation as Phase 4's `QuoteView.xaml`).
+- 6.2 Added the 4-item KPI strip via `KpiCard`: "Usuarios activos"/"Turno actual" show an explicit "—" placeholder (no aggregate use case exposes these to Presentation — flagged rather than fabricated), "Último backup" reflects whether `BackupDirectory` is configured, and "Canales listos" is a real computed `{n} / 3` count of Impresora/SMTP/WhatsApp configured state.
+- 6.3 Quick-link grid wired to `SelectModuleCommand` via `AdminHubModules[0..6]` (Productos/Inventario/Compras/Reportes/Turnos/Lealtad/Barcode — unchanged 7-key contract) using the established `RelativeSource AncestorType=Window` cross-ViewModel binding pattern from Phase 3's "Reglas de lealtad" link (verified safe here too: `SettingsView.xaml` never rebinds its own root `DataContext`, so `AncestorType=Window` resolves cleanly to `MainShellViewModel` from every quick-link, including the ones nested inside the "Utilidades agrupadas" `UniformGrid`). Added a new `MainShellViewModel.AdminHubExtraModules` collection (`users` + `audit`, in that order) so Usuarios/Auditoría could be wired as real navigable `QuickLink`s without changing the existing 7-item `AdminHubModules` contract asserted by `MainShellViewModelTests`. Respaldos remains a static, non-navigable placeholder card (no dedicated backup view exists).
+- 6.4 Added the "Alertas" panel (2 static wireframe notes) and "Checklist de operación segura" (4 rows — Impresora/SMTP/WhatsApp/Backup — each a `ChipStyle`-based pill driven by new `SettingsViewModel` computed bools `IsPrinterConfigured`/`IsSmtpConfigured`/`IsWhatsAppReady`/`IsBackupConfigured`).
+- 6.5 "Negocio" subtab: editable business name/tax ID/address/currency fields reuse the existing `BusinessName`/`TaxId`/`BusinessAddress`/`CurrencyCode` properties and `SaveCommand` (`SaveSettingsUseCase`, unchanged); added a static read-only policies list (IVA por defecto 19%, Ventas a crédito Habilitadas, Devoluciones sin admin No permitido, Backup automático diario 06:10) matching the wireframe's own static mock values — no backing use case exists for these, documented as reference-only content consistent with the wireframe.
+- 6.6 "Impresión y envíos" subtab, 3 panels:
+  - **Impresión**: reuses the existing, persisted `PrinterCommand` field; added a presentation-only, non-persisted `ReceiptTemplate` `ComboBox` (no backend field for receipt template exists).
+  - **Email/SMTP**: added presentation-only, non-persisted `SmtpHost`/`SmtpSenderAddress`/`SmtpPort` fields (defaulted to the wireframe's own mock values so the panel isn't empty on first render) plus a real `TestEmailCommand` delegating to a newly-optional `IEmailService` dependency (the actual DI-configured `SmtpEmailService`), sending a test message to a separate `TestEmailRecipient` field.
+  - **WhatsApp/Script**: added presentation-only, non-persisted `WhatsAppScriptPath`/`WhatsAppWorkingDirectory`/`WhatsAppStatus` fields (same wireframe-mock-default rationale) plus a real `TestWhatsAppCommand` delegating to a newly-optional `IWhatsAppService` dependency, targeting a separate `TestWhatsAppNumber` field. Both test commands catch all exceptions and report success/failure via `Message` without crashing (matches the spec's "Testing the WhatsApp script surfaces status without blocking operation" scenario exactly).
+  - See Deviations for why these SMTP/WhatsApp/receipt-template fields are non-persisted.
+- Also replaced the Phase 1 stopgap hardcoded Admin-hub `Grid` in `NavigationShellView.xaml` (static KPI cards + inline `QuickLink`s) with `<local:SettingsView DataContext="{Binding Settings}" />` under `IsAdminHubSelected` — this is the fix that makes the `ADM` funcbar entry actually navigate to the real, rebuilt Configuración hub (task 6.8's wiring requirement), rather than the placeholder grid Phase 1 shipped before this slice existed.
+- 6.7 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors.
+- 6.8 NOT run by the agent (manual visual QA requires the user's Windows desktop session); wiring verified by code review (see above).
+
 ## Post-Verification Fixes (PR 3, applied 2026-07-01)
 
 An independent `sdd-verify` pass on the implemented Phase 3 (clientes-view) + Phase 4 (cotizaciones-view) slice found 2 CRITICAL undocumented functional regressions. Both were fixed before merge; build and full test suite remain green (43/68/112).
@@ -93,6 +122,11 @@ NuGet latest stable check on 2026-07-01 returned 5.3.2 for both packages. Prerel
   - `POS.Domain.Tests`: 43 passed
   - `POS.Presentation.Shared.Tests`: 68 passed (58 baseline + 7 new `QuoteViewModelTests` + 3 new `CustomersViewModelTests`)
   - `POS.Application.Tests`: 112 passed
+- Phase 5+6: `dotnet build POS.sln --no-restore` passed with 0 warnings and 0 errors.
+- Phase 5+6: `dotnet test POS.sln --no-restore` passed (no new unit tests added for Phase 5/6 — Standard Mode does not mandate new tests per task, and the existing suite was unaffected; recommend adding `InvoicesViewModelTests`/`SettingsViewModelTests` in a follow-up if `sdd-verify` flags a gap):
+  - `POS.Domain.Tests`: 43 passed
+  - `POS.Presentation.Shared.Tests`: 68 passed (unchanged from Phase 3+4)
+  - `POS.Application.Tests`: 112 passed
 
 ## Deviations / Open Items
 
@@ -110,6 +144,14 @@ NuGet latest stable check on 2026-07-01 returned 5.3.2 for both packages. Prerel
 - **Task 4.7/WhatsApp-Email create-then-send**: the wireframe's mock JS "sends" an unsaved draft quote directly. The real `SendDocumentUseCase` only sends persisted documents (requires a `QuoteId`). `SendByEmailAsync`/`SendByWhatsAppAsync` therefore validate, then create the quote via the existing `CreateQuoteUseCase` (same path as "Confirmar cotización"), then immediately send it — a deliberate, documented behavior change from the literal wireframe mock, necessary because there is no "send an unsaved draft" capability in the backend.
 - **Task 4.8/"aceptada" status mapping**: the wireframe models 5 quote statuses (borrador/enviada/aceptada/vencida/rechazada); the real `QuoteStatus` domain enum only has 4 (Draft/Active/Expired/Converted), with no "rejected" state at all. `QuoteSummaryRow.CanConvertToSale` maps `QuoteStatus.Active` ("Activa") to the wireframe's "aceptada" (ready-to-convert) semantics, matching `ConvertQuoteToSaleUseCase`'s own guard (blocks only Converted/Expired) as closely as the real status set allows.
 - **Task 4.9's "PDF" row action**: rendered as a visual-only icon button (no command wired) — no PDF-download-to-file flow exists in `QuoteHistoryViewModel` today (only `IPdfService.GenerateQuotePdfAsync` returning bytes, with no file-save/print delegate exposed to Presentation); wiring it would require inventing a new command, out of scope for this slice.
+- **Task 5.2/5.3 "PDF" button**: same rationale as 4.9 above — disabled, visual-only, no command. `IPdfService.GenerateInvoicePdfAsync` exists but only returns bytes with no file-save/print delegate exposed to Presentation.
+- **Task 5.3 recipient-contact gap**: the wireframe's Email/WhatsApp buttons send with zero destination input (mock JS just shows a toast). The real `SendDocumentUseCase` requires a `RecipientContact`, and `SaleHistoryResult` carries no stored customer email/phone (unlike a dedicated customer record). Added a `RecipientContact` text field to the "Factura seleccionada" panel so the operator can type a destination — a deliberate, documented deviation from the literal wireframe mock (same class of deviation as Phase 4's Cotizaciones "create-then-send" behavior).
+- **Task 5.4 refund-type field**: `RefundType` is presentation-only and NOT persisted — `ProcessReturnRequest` has no refund-type field in the Application layer. Kept in the UI (default "Efectivo", resets on success) to match the wireframe visually; adding backend persistence would require a new use case/DTO field, out of scope for a Presentation-only slice.
+- **Task 5.1 pagination**: implemented using `SalesHistoryRequest`'s existing `Page`/`PageSize` fields rather than fabricating pagination. Because the query has no total-row-count, `HasMorePages`/"Página N" do not show a definitive total page count (unlike the wireframe's "1/136" mock) — `NextPageCommand` is simply disabled once a page returns fewer than `PageSize` rows.
+- **Task 6.2 KPI gaps**: "Usuarios activos" and "Turno actual" show an explicit "—" placeholder rather than a fabricated number — no aggregate use case exposes an active-user count or current-shift status to `SettingsViewModel`, and adding one was judged out of scope for a Presentation-only slice. "Último backup" reflects configured/not-configured rather than an actual last-run timestamp (no query for that exists either).
+- **Task 6.6 SMTP/WhatsApp/receipt-template fields are non-persisted**: `SmtpHost`/`SmtpSenderAddress`/`SmtpPort`/`WhatsAppScriptPath`/`WhatsAppWorkingDirectory`/`WhatsAppStatus`/`ReceiptTemplate` are presentation-only session state, defaulted to the wireframe's own mock values. The actual runtime SMTP/WhatsApp/printer configuration is Infrastructure-only (`SmtpRuntimeOptions`/`WhatsAppScriptRuntimeOptions`/`PrinterRuntimeOptions` in `POS.Infrastructure.Services.RuntimeOptions`, wired once at app startup via `App.xaml.cs`'s `ConfigureRuntimeOptions`) with no Application-layer read/write contract — exposing one would require a new settings use case, explicitly out of scope for this slice. `TestEmailCommand`/`TestWhatsAppCommand` are real, however: they delegate to the actual DI-configured `IEmailService`/`IWhatsAppService` (not the local UI fields), so "Enviar prueba"/"Probar script" genuinely exercise the configured SMTP/WhatsApp integration against an operator-entered test destination — only the displayed host/port/sender/script-path fields are decorative in this slice.
+- **Task 6.3 Usuarios/Auditoría wiring**: added `MainShellViewModel.AdminHubExtraModules` (new `ObservableCollection<ModuleNavigationItem>` containing `users`+`audit`) rather than adding them to the existing 7-item `AdminHubModules`, to avoid touching the `AdminHubModules` 7-key contract asserted by `MainShellViewModelTests.Constructor_ExposesWireframeFuncbarAndAdminHubProjection`. Verified the cross-ViewModel `RelativeSource AncestorType=Window` binding path is safe here (per the PR3 postmortem lesson on DataContext scoping bugs) — `SettingsView.xaml` never rebinds its own root `DataContext`, so every quick-link (including ones nested in the "Utilidades agrupadas" grid) resolves `SelectModuleCommand`/`AdminHubModules`/`AdminHubExtraModules` through the Window's `MainShellViewModel`, not a local rebind.
+- **Task 6.8 "admin" vs. "settings" module keys**: the Phase 1 shell already had two separate, distinctly-keyed shell sections that both ultimately point at Configuración-like content: `admin` (the real `ADM` funcbar entry, `IsAdminHubSelected`, previously a Phase 1 stopgap hardcoded `Grid`) and `settings` (`IsSettingsSelected`, F10 shortcut, already bound to `SettingsView`/`Settings` since Phase 1, but never reachable — `settings` is not in `FuncbarModules` (first 5) nor `AdminHubModules` (7 keys), and no `Window.InputBindings` `KeyBinding` exists for F10). This slice replaces the `IsAdminHubSelected` block's content with `SettingsView`/`Settings` (making `ADM` the real, reachable entry point per the design's IA), and intentionally leaves the orphaned `IsSettingsSelected`/`settings` block untouched (same unreachable-but-harmless state it was already in) rather than removing it, to keep this slice's footprint minimal — flagged here as a pre-existing duplication, not introduced by this change.
 
 ## Remaining Phase 1 Checklist Items
 
@@ -128,6 +170,14 @@ NuGet latest stable check on 2026-07-01 returned 5.3.2 for both packages. Prerel
 
 - [ ] 4.10 Manual visual QA against `Wireframes/wireframe-cotizaciones.html`.
 
+## Remaining Phase 5 Checklist Items
+
+- [ ] 5.7 Manual visual QA against `Wireframes/wireframe-facturas.html`.
+
+## Remaining Phase 6 Checklist Items
+
+- [ ] 6.8 Manual visual QA against `Wireframes/wireframe-configuracion.html`; confirm the shell's `ADM` funcbar entry navigates here (wiring already verified by code review — the `IsAdminHubSelected` block now renders `SettingsView`).
+
 ## Next Recommended
 
-Run `sdd-verify` for the implemented Phase 3+4 slice (PR 3), with visual QA as the manual verification item for both modules. Continue to Phase 5 (PR 4: facturas-view + configuracion-admin-hub) only after PR 3 review/merge.
+Run `sdd-verify` for the implemented Phase 5+6 slice (PR 4), with visual QA as the manual verification item for both modules. Continue to Phase 7 (PR 5: productos-view + inventario-view + compras-view) only after PR 4 review/merge.

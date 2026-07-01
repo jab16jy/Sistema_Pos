@@ -312,7 +312,9 @@ public partial class App : System.Windows.Application
             var querySalesHistory = sp.GetRequiredService<QuerySalesHistoryUseCase>();
             var reprintReceipt = sp.GetRequiredService<ReprintReceiptUseCase>();
             var processReturn = sp.GetRequiredService<ProcessReturnUseCase>();
-            invoices = new InvoicesViewModel(querySalesHistory, reprintReceipt, processReturn)
+            Application.UseCases.Communication.SendDocumentUseCase? sendDocumentForInvoices = null;
+            try { sendDocumentForInvoices = sp.GetRequiredService<Application.UseCases.Communication.SendDocumentUseCase>(); } catch { }
+            invoices = new InvoicesViewModel(querySalesHistory, reprintReceipt, processReturn, sendDocumentForInvoices)
             {
                 OperatorUserId = cashier.CashierUserId
             };
@@ -327,7 +329,11 @@ public partial class App : System.Windows.Application
             var loadSettings = sp.GetRequiredService<LoadSettingsUseCase>();
             var saveSettings = sp.GetRequiredService<SaveSettingsUseCase>();
             var triggerBackup = sp.GetRequiredService<TriggerManualBackupUseCase>();
-            settings = new SettingsViewModel(loadSettings, saveSettings, triggerBackup);
+            Application.Interfaces.IEmailService? emailServiceForSettings = null;
+            try { emailServiceForSettings = sp.GetRequiredService<Application.Interfaces.IEmailService>(); } catch { }
+            Application.Interfaces.IWhatsAppService? whatsAppServiceForSettings = null;
+            try { whatsAppServiceForSettings = sp.GetRequiredService<Application.Interfaces.IWhatsAppService>(); } catch { }
+            settings = new SettingsViewModel(loadSettings, saveSettings, triggerBackup, emailServiceForSettings, whatsAppServiceForSettings);
         }
         catch
         {

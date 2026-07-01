@@ -65,6 +65,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
         FuncbarModules = new ObservableCollection<ModuleNavigationItem>(allModules.Take(5));
         AdminHubModules = new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => AdminHubModuleKeys.Contains(m.Key)));
+        AdminHubExtraModules = new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => m.Key is "users" or "audit"));
         Modules = FuncbarModules;
 
         Metrics = new ObservableCollection<DashboardMetric>
@@ -91,6 +92,14 @@ public sealed class MainShellViewModel : ViewModelBase
     public ObservableCollection<ModuleNavigationItem> FuncbarModules { get; }
 
     public ObservableCollection<ModuleNavigationItem> AdminHubModules { get; }
+
+    /// <summary>
+    /// Usuarios + Auditoría: already-implemented modules (UserManagementView/AuditLogView) that were
+    /// unreachable from any shell entry point after the Phase 1 IA rework (funcbar has 5 items,
+    /// <see cref="AdminHubModules"/> has 7, neither includes them). Exposed separately from
+    /// <see cref="AdminHubModules"/> so the 7-module hub-grid contract used by existing tests stays unchanged.
+    /// </summary>
+    public ObservableCollection<ModuleNavigationItem> AdminHubExtraModules { get; }
 
     public ObservableCollection<DashboardMetric> Metrics { get; }
 

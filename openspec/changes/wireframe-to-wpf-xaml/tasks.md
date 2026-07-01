@@ -145,26 +145,29 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ## Phase 5: facturas-view (PR 4, size:exception — grouped with Phase 6 configuracion-admin-hub)
 
-- [ ] 5.1 Modify `InvoicesView.xaml`: add free-text search, date-range inputs, status selector (Todo/Activa/Anulada/Devuelta) filtering the invoice grid (number, client, total, status chip, date)
-- [ ] 5.2 Add "Factura seleccionada" panel (number/client/total/date) populated on row click
-- [ ] 5.3 Wire Reimprimir/PDF/Email/WhatsApp actions to existing commands with confirmation toasts; block Reimprimir with no selection ("Selecciona una factura")
-- [ ] 5.4 Add "Registrar devolución" panel: required reason dropdown, optional description, refund type (Efectivo/Nota crédito/Cambio de producto); require a selected invoice
-- [ ] 5.5 Block "Procesar devolución" without a reason ("Selecciona un motivo"); success toast referencing invoice number + reset reason/description on success
-- [ ] 5.6 Run `dotnet build POS.sln --no-restore`
+- [x] 5.1 Modify `InvoicesView.xaml`: add free-text search, date-range inputs, status selector (Todo/Activa/Anulada/Devuelta) filtering the invoice grid (number, client, total, status chip, date)
+- [x] 5.2 Add "Factura seleccionada" panel (number/client/total/date) populated on row click
+- [x] 5.3 Wire Reimprimir/PDF/Email/WhatsApp actions to existing commands with confirmation toasts; block Reimprimir with no selection ("Selecciona una factura")
+- [x] 5.4 Add "Registrar devolución" panel: required reason dropdown, optional description, refund type (Efectivo/Nota crédito/Cambio de producto); require a selected invoice
+- [x] 5.5 Block "Procesar devolución" without a reason ("Selecciona un motivo"); success toast referencing invoice number + reset reason/description on success
+- [x] 5.6 Run `dotnet build POS.sln --no-restore`
 - [ ] 5.7 Manual visual QA against `Wireframes/wireframe-facturas.html`
+  - Apply note: not run by agent; requires user visual inspection on the Windows desktop app.
 
 ---
 
 ## Phase 6: configuracion-admin-hub (PR 4, size:exception — grouped with Phase 5 facturas-view)
 
-- [ ] 6.1 Rebuild `SettingsView.xaml` with shared `SubtabBar`: "Centro de control" (default), "Negocio", "Impresión y envíos"
-- [ ] 6.2 Add 4-item KPI strip (usuarios activos, turno actual, último backup, canales listos) using `KpiCard`
-- [ ] 6.3 Add quick-link grid (`QuickLink`) to Productos/Inventario/Compras/Reportes/Turnos/Lealtad/Barcode wired to `SelectModuleCommand`. Also add Usuarios ("users") and Auditoría ("audit") as real navigable `QuickLink` entries wired to `SelectModuleCommand` — both are already `IsImplemented: true` in `MainShellViewModel` with working views (`UserManagementView`, `AuditLogView`) and were left unreachable from any shell entry point after the Phase 1 shell rebuild (funcbar has 5 items, AdminHubModules has 7, neither includes users/audit); this closes that navigation gap. Render Respaldos as a static non-navigable placeholder only (no dedicated backup view exists yet)
-- [ ] 6.4 Add Alertas panel + Checklist de operación segura (pill-style status: printer/SMTP/WhatsApp script/backup)
-- [ ] 6.5 Add Negocio subtab: editable business name/tax ID/address/currency fields + "Guardar" wired to the existing `system-settings` business-information use case; add read-only policies list
-- [ ] 6.6 Add Impresión y envíos subtab: Impresión panel (command/port, receipt template), Email/SMTP panel (host/sender/port/test-send), WhatsApp/Script panel (script path/working dir/status/test-script) wired to existing `SettingsViewModel` commands
-- [ ] 6.7 Run `dotnet build POS.sln --no-restore`
+- [x] 6.1 Rebuild `SettingsView.xaml` with shared `SubtabBar`: "Centro de control" (default), "Negocio", "Impresión y envíos"
+  - Apply note: implemented as three `RadioButton`s styled with the shared `SubtabItemStyle` directly, following the same deviation already recorded in Phase 4 — the `SubtabBar` UserControl has no bindable `SelectedItem`/content-switching output, only `ItemsSource`+`GroupName` for rendering labels.
+- [x] 6.2 Add 4-item KPI strip (usuarios activos, turno actual, último backup, canales listos) using `KpiCard`
+- [x] 6.3 Add quick-link grid (`QuickLink`) to Productos/Inventario/Compras/Reportes/Turnos/Lealtad/Barcode wired to `SelectModuleCommand`. Also add Usuarios ("users") and Auditoría ("audit") as real navigable `QuickLink` entries wired to `SelectModuleCommand` — both are already `IsImplemented: true` in `MainShellViewModel` with working views (`UserManagementView`, `AuditLogView`) and were left unreachable from any shell entry point after the Phase 1 shell rebuild (funcbar has 5 items, AdminHubModules has 7, neither includes users/audit); this closes that navigation gap. Render Respaldos as a static non-navigable placeholder only (no dedicated backup view exists yet)
+- [x] 6.4 Add Alertas panel + Checklist de operación segura (pill-style status: printer/SMTP/WhatsApp script/backup)
+- [x] 6.5 Add Negocio subtab: editable business name/tax ID/address/currency fields + "Guardar" wired to the existing `system-settings` business-information use case; add read-only policies list
+- [x] 6.6 Add Impresión y envíos subtab: Impresión panel (command/port, receipt template), Email/SMTP panel (host/sender/port/test-send), WhatsApp/Script panel (script path/working dir/status/test-script) wired to existing `SettingsViewModel` commands
+- [x] 6.7 Run `dotnet build POS.sln --no-restore`
 - [ ] 6.8 Manual visual QA against `Wireframes/wireframe-configuracion.html`; confirm the shell's `ADM` funcbar entry navigates here
+  - Apply note: not run by agent; requires user visual inspection on the Windows desktop app. Wiring confirmed by code: `IsAdminHubSelected` (bound to the `ADM` funcbar entry) now renders `SettingsView`/`Settings` instead of the Phase 1 placeholder grid.
 
 ---
 
