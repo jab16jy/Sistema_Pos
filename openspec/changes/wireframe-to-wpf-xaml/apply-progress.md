@@ -20,6 +20,12 @@
   - Delivery: PR 5, stacked-to-main, `size:exception` pre-approved (grouped with Phase 7 and Phase 9)
 - Phase 9: `compras-view`
   - Delivery: PR 5, stacked-to-main, `size:exception` pre-approved (grouped with Phase 7 and Phase 8)
+- Phase 10: `turnos-view`
+  - Delivery: PR 6, stacked-to-main, `size:exception` pre-approved (grouped with Phase 11 and Phase 12)
+- Phase 11: `lealtad-view`
+  - Delivery: PR 6, stacked-to-main, `size:exception` pre-approved (grouped with Phase 10 and Phase 12)
+- Phase 12: `barcode-view`
+  - Delivery: PR 6, stacked-to-main, `size:exception` pre-approved (grouped with Phase 10 and Phase 11)
 - Mode: Standard Mode (`strict_tdd: false`)
 - Date: 2026-07-01
 
@@ -186,7 +192,9 @@ NuGet latest stable check on 2026-07-01 returned 5.3.2 for both packages. Prerel
 
 ## Next Recommended
 
-Run `sdd-verify` for the implemented Phase 7+8+9 slice (PR 5), with visual QA as the manual verification item for all three modules. Continue to Phase 10 (PR 6: turnos-view + lealtad-view + barcode-view) only after PR 5 review/merge.
+PR 5 (Phase 7+8+9) status unchanged from prior batch — see its own recommendation above.
+
+Run `sdd-verify` for the implemented Phase 10+11+12 slice (PR 6), with visual QA as the manual verification item for all three modules (10.7/11.6/12.6). Continue to Phase 13 (PR 7: reportes-view) only after PR 6 review/merge.
 
 ---
 
@@ -254,3 +262,67 @@ Run `sdd-verify` for the implemented Phase 7+8+9 slice (PR 5), with visual QA as
 ## Remaining Phase 9 Checklist Items
 
 - [ ] 9.8 Manual visual QA against `Wireframes/wireframe-compras.html`.
+
+---
+
+## Completed Phase 10+11+12 (PR 6)
+
+### Phase 10 (turnos-view) — verified already complete, not touched this slice
+
+Per the orchestrator's scope note, Phase 10 (`ShiftsViewModel.cs`/`ShiftsView.xaml`) was already fully implemented in a prior session and was explicitly out of scope for this apply batch — it was not edited. Verified against the current file state before checking off tasks:
+
+- 10.1 `HasActiveShift`-gated banner (cashier, open time, base cash, running sales total, "Abierto" chip) present in `ShiftsView.xaml`.
+- 10.2 `FilteredShifts` grid (cashier/status chip/open/close/base/sales/difference), `FromDate`/`ToDate` + `ApplyDateFilterCommand`, `ExportCommand` present (see deviation note below), difference color-coded via `DifferenceKind` DataTriggers (success/primary/error + neutral "Cuadra" default).
+- 10.3 "Abrir turno" panel with `SelectedCashierUsername`/`OpeningCash`/`OpenNotes` + `StartShiftCommand`; success message is the exact string `"Turno abierto exitosamente"` (`ShiftsViewModel.cs:340`).
+- 10.4 "Cerrar turno activo" panel with `ExpectedCashFormatted`/`ExpectedDigitalFormatted`, `CountedCash`, live `CloseDifferenceLabel`/`CloseDifferenceKind` coloring.
+- 10.5 `CloseShiftCommand` blocks with exact string `"Ingresa el efectivo contado"` (`ShiftsViewModel.cs:359`) and succeeds with `"Turno cerrado · Reporte generado"` (`ShiftsViewModel.cs:375`).
+- 10.6 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors (verified as part of this batch's build run, covering the unchanged Shifts files too).
+- 10.7 NOT run — manual visual QA requires the user's Windows desktop session (left unchecked per scope).
+- **Deviation (pre-existing, not introduced this slice)**: `ExportCommand` sets `Message = "Exportacion de turnos no disponible en este entorno."` rather than performing a real CSV/file export — no export/report-generation service is wired to `ShiftsViewModel`. Flagged for visibility since task 10.2 mentions "export action," but this is inherited from the already-completed Phase 10 work, not a new gap from this batch.
+
+### Phase 11 (lealtad-view)
+
+`LoyaltyView.xaml` was fully rebuilt into the wireframe's 3-column layout (`Wireframes/wireframe-lealtad.html`): "Estado del programa" + "Reglas de acumulación y canje" (column 1), "Tiers y beneficios" (column 2), "Historial y campañas" (column 3). No changes were made to `LoyaltyViewModel.cs` — it already exposed every binding target needed.
+
+- 11.1 Program status card: `Activo` static chip, `TotalPointsIssued` (big centered number), `EnrolledCustomers`/`CheckoutUsageRate`/`RedemptionsThisMonth` 3-column KPI strip — all bound to the existing placeholder string properties.
+- 11.2 Rules panel: `AccumulationRate`/`RedemptionRate` free-text `TextBox`es, `ExpirationPolicy`/`CheckoutUsageMode` `ComboBox`es (options mirrored 1:1 from the wireframe's `<select>` lists) bound `SelectedValue`/`SelectedValuePath=Content`; `SaveRulesCommand` wired to "Guardar reglas", inline success text shows `Message` ("Reglas guardadas") via `StringIsNotEmptyToVisibilityConverter` (same inline-message convention as `ProductsView.xaml`/`ShiftsView.xaml` — this codebase has no global toast overlay).
+- 11.3 Tier list: `ItemsControl` over `Tiers` (3 tiers: Bronze/Silver/Gold, ascending threshold order as ordered in the ViewModel's collection initializer), each row a bordered card with `Name` + `PointRange` chip (`ChipKind`-driven DataTrigger coloring: primary=Silver, warning=Gold, default/neutral=Bronze) + `BenefitDescription`. `EditBenefitsCommand` wired to "Editar beneficios".
+- 11.4 Campaigns/history panel: `ItemsControl` over `CampaignEntries` (3 entries: active campaign, upcoming expirations, sales-impact), each row an icon circle (colored/keyed off `Kind` "earn"/"redeem" and `IconKind` — new DataTriggers mapping `IconKind` string values "campaign"→`Bullhorn`, "event_upcoming"→`CalendarClock`, default→`ChartBox`), `Title`/`Meta`, and a `ValueLabel` colored success (earn) or warning (redeem). Static explanatory note at the bottom ("La operación diaria de puntos vive en Clientes y Caja...") matches the wireframe's own static text.
+- 11.5 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors.
+- 11.6 NOT run — manual visual QA requires the user's Windows desktop session.
+
+**Deviation — old balance-lookup/redeem/transaction-history UI removed from `LoyaltyView.xaml`:** The previous `LoyaltyView.xaml` (pre-wireframe) contained a customer picker + "Consultar saldo"/"Aplicar descuento" panel and a transaction-history `DataGrid`, backed by `LoadBalanceCommand`/`RedeemCommand`/`Transactions`/`Balance`/`SelectedCustomer`/`PointsToRedeem` on `LoyaltyViewModel`. This UI was **removed, not relocated into a supplementary section**, after confirming (unlike Phase 9's supplier panel, which had no other home) this functionality already lives elsewhere in the app:
+  - `Wireframes/wireframe-lealtad.html` has no balance-lookup/redeem/history UI at all, and explicitly states in its own static footer note: "La operación diaria de puntos vive en Clientes y Caja. Este módulo solo configura reglas, tiers y seguimiento del programa."
+  - `CustomersViewModel` (Phase 3) already loads a customer's loyalty balance via `GetLoyaltyBalanceUseCase` and shows a points badge + "Reglas de lealtad" link.
+  - `CashierViewModel` already has `RedeemLoyaltyPointsUseCase` wired for redeem-at-checkout (real, tested functionality, not touched by this slice).
+  - Given both the wireframe intent and the existing real functional homes in Clientes/Caja, duplicating a third balance-lookup/redeem surface inside Lealtad would contradict the wireframe's explicit design note.
+  `LoyaltyViewModel.LoadBalanceCommand`/`RedeemCommand`/`Transactions`/`Balance`/`SelectedCustomer`/`PointsToRedeem`/`LoadBalanceAsync`/`RedeemAsync` were left **untouched** in the ViewModel (not deleted) because `LoyaltyViewModelTests.cs` has 4 passing tests directly exercising them — removing them would be an unrelated, unrequested ViewModel behavior change. They are simply no longer bound from `LoyaltyView.xaml`. Flagging this as dead-from-the-UI-but-tested code in case a future slice wants to either delete it outright or repurpose it.
+
+### Phase 12 (barcode-view)
+
+`BarcodeView.xaml` was fully rebuilt into the wireframe's 2-panel layout (`Wireframes/wireframe-barcode.html`): fixed-width "Generador" panel (left) + flexible "Lote de impresión" panel (right).
+
+- 12.1 Generator panel: `BarcodeValue` `TextBox`, `SelectedFormat` `ComboBox` (CODE 128/EAN-13/CODE 39/QR Code, matching the wireframe's `<select>` options exactly), `LabelText`/`LabelPrice` two-column fields, `Copies` `TextBox` (clamped 1-100 by the existing property setter). Live preview border shows `PreviewLabel` (always-on computed text), the actual generated barcode `Image` (bound to `PreviewImageBytes` via `BytesToImageSourceConverter`, visible via `NullToVisibilityConverter` once `GenerateCommand` has run), the raw `BarcodeValue` in Consolas as a lightweight text placeholder for the wireframe's simulated bars (with a `HasPreview`-gated "Ingresa un valor para previsualizar" hint when empty), and `PreviewPriceFormatted` hidden via `HasPreviewPrice`/`BoolToVisibilityConverter` when there's no price (task 12.1's "hide price line when empty" requirement).
+- 12.2 `PrintSingleCommand` ("Imprimir") already blocked on empty `BarcodeValue` with the exact string "Ingresa el valor del codigo" (pre-existing `PrintSingleAsync` logic, untouched) and sets a success message with the copy count on success ("{Copies} etiqueta(s) enviada(s) a imprimir").
+- 12.3 Batch panel: `CatalogSearchText` `TextBox` + a search icon `Button` wired to `SearchCatalogCommand` (explicit-trigger pattern, same as `ShiftsView.xaml`'s date-filter button and `InventoryView.xaml`'s CSV-export button — this codebase has no auto-search-on-keystroke convention for backend-hitting searches), results rendered via `CatalogSearchResults` `ItemsControl` with a per-row "Agregar" button. `BatchItems` `ItemsControl` shows each row's `Name`/`MetaLine`, a copies +/- stepper, and a remove button. Duplicate-add-increments-copies and empty-batch prompt behavior were already correct in `BarcodeViewModel.AddCatalogProductToBatch`/`AddGeneratedToBatch` (untouched).
+- 12.4 `PrintBulkCommand` already blocked on an empty batch with the exact string "El lote esta vacio" (pre-existing `PrintBulkAsync` logic, untouched) and shows a total-label-count success message with batch reset on success (pre-existing, untouched).
+- 12.5 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors.
+- 12.6 NOT run — manual visual QA requires the user's Windows desktop session.
+
+**Deviation — added 4 minimal `ICommand` wrappers to `BarcodeViewModel.cs`:** `AddCatalogProductToBatch(ProductLookupResult)`, `ChangeBatchItemCopies(BarcodeBatchItem, int delta)`, and `RemoveBatchItem(BarcodeBatchItem)` are plain public methods (object-parameter-friendly for direct C# callers/tests), not `ICommand`s — there was no existing XAML binding target for per-row batch actions. Added `AddCatalogItemCommand`, `IncrementBatchItemCopiesCommand`, `DecrementBatchItemCopiesCommand`, and `RemoveBatchItemCommand` as thin `RelayCommand` wrappers in the constructor (pattern-matching the `CommandParameter` object, delegating straight to the existing methods — no new business logic). This follows the exact established convention from `InventoryView.xaml`'s `QuickAdjustCommand` and `PurchasesView.xaml`'s `RemoveDraftItemCommand` (`Command="{Binding DataContext.XCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"` + `CommandParameter="{Binding}"`). Added 3 focused unit tests (`AddCatalogItemCommand_AddsProductToBatch`, `IncrementAndDecrementBatchItemCopiesCommand_ChangeCopies`, `RemoveBatchItemCommand_RemovesItemFromBatch`) in `BarcodeViewModelTests.cs` covering the new wrappers.
+
+**Pre-existing test bug fixed (unrelated to Phase 12's XAML work, found while running the baseline test suite before this batch's changes):** `BarcodeViewModelTests.PrintBulkAsync_WithNoProducts_SetsErrorMessage` and `PrintBulkAsync_WithProducts_InvokesPrintLabelsUseCase` were failing on the baseline (pre-batch) `dotnet test` run — they added items to `vm.SelectedProducts` and asserted on a "Selecciona" message, but `BarcodeViewModel.PrintBulkAsync` (implemented before this batch, in the ViewModel-only slice) was already rewritten to check/iterate `vm.BatchItems` with the message "El lote esta vacio" instead. This is a stale-test/refactor mismatch, not a regression introduced by this batch. Fixed both tests to add items to `BatchItems` (via the public `BarcodeBatchItem` constructor) and assert the actual current message text, restoring the suite to green. No production ViewModel logic was changed to fix this — only the two test bodies.
+
+## Phase 10+11+12 Verification
+
+- `dotnet build POS.sln --no-restore` passed with 0 warnings and 0 errors.
+- `dotnet test POS.sln --no-restore` passed:
+  - `POS.Domain.Tests`: 43 passed
+  - `POS.Presentation.Shared.Tests`: 71 passed (68 baseline + 3 new `BarcodeViewModelTests` for the new row-action commands; the 2 pre-existing failing `PrintBulkAsync` tests were fixed as part of this batch, not net-new)
+  - `POS.Application.Tests`: 112 passed
+
+## Remaining Phase 10/11/12 Checklist Items
+
+- [ ] 10.7 Manual visual QA against `Wireframes/wireframe-turnos.html`.
+- [ ] 11.6 Manual visual QA against `Wireframes/wireframe-lealtad.html`.
+- [ ] 12.6 Manual visual QA against `Wireframes/wireframe-barcode.html`.

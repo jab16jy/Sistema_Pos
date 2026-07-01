@@ -9,7 +9,9 @@ namespace POS.Presentation.Shared.ViewModels;
 
 /// <summary>
 /// ViewModel for the Loyalty module.
-/// Manages balance display, transaction history, and point redemption at checkout.
+/// Manages program status display, rule editing, tier display, and campaign tracking.
+/// Per the wireframe, day-to-day point earning/redemption happens in Clientes and Caja —
+/// this module only configures rules, tiers, and program-wide tracking.
 /// </summary>
 public sealed class LoyaltyViewModel : ViewModelBase
 {
@@ -22,6 +24,12 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private bool _isLoading;
     private int _pointsToRedeem;
 
+    // ── Presentation-only: rule editing ──
+    private string _accumulationRate = "1 punto por cada $1.000 en compras";
+    private string _redemptionRate = "100 puntos = $1.000 de descuento";
+    private string _expirationPolicy = "12 meses sin compras";
+    private string _checkoutUsageMode = "Permitir ganar y canjear";
+
     public LoyaltyViewModel(
         GetLoyaltyBalanceUseCase getBalance,
         RedeemLoyaltyPointsUseCase redeemPoints)
@@ -30,15 +38,34 @@ public sealed class LoyaltyViewModel : ViewModelBase
         _redeemPoints = redeemPoints ?? throw new ArgumentNullException(nameof(redeemPoints));
 
         Transactions = [];
+        Tiers =
+        [
+            new LoyaltyTierPresentation("Bronze", "0-499 pts", "Acumula normal. Sin descuento automatico.", "neutral"),
+            new LoyaltyTierPresentation("Silver", "500-999 pts", "+10% de puntos en compras especiales.", "primary"),
+            new LoyaltyTierPresentation("Gold", "1000+ pts", "Canje prioritario y campanas exclusivas.", "warning"),
+        ];
+
+        CampaignEntries =
+        [
+            new LoyaltyCampaignEntry("campaign", "Campana \"Semana de la piel\"", "Multiplica x2 los puntos en cosmeticos hasta 2026-07-07", "Activa", "earn"),
+            new LoyaltyCampaignEntry("event_upcoming", "Puntos proximos a vencer", "18 clientes con vencimiento en los proximos 15 dias", "18", "redeem"),
+            new LoyaltyCampaignEntry("analytics", "Impacto en ventas", "38% de las ventas del mes tuvieron cliente identificado", "+12%", "earn"),
+        ];
+
         LoadBalanceCommand = new RelayCommand(async _ => await LoadBalanceAsync().ConfigureAwait(true));
         RedeemCommand = new RelayCommand(async _ => await RedeemAsync().ConfigureAwait(true));
+        SaveRulesCommand = new RelayCommand(_ => Message = "Reglas guardadas");
+        EditBenefitsCommand = new RelayCommand(_ => Message = "Editor de tiers no disponible en este entorno.");
     }
 
     public ObservableCollection<LoyaltyTransactionResult> Transactions { get; }
+    public ObservableCollection<LoyaltyTierPresentation> Tiers { get; }
+    public ObservableCollection<LoyaltyCampaignEntry> CampaignEntries { get; }
 
     public ICommand LoadBalanceCommand { get; }
-
     public ICommand RedeemCommand { get; }
+    public ICommand SaveRulesCommand { get; }
+    public ICommand EditBenefitsCommand { get; }
 
     public int Balance
     {
@@ -68,6 +95,41 @@ public sealed class LoyaltyViewModel : ViewModelBase
     {
         get => _isLoading;
         private set => SetProperty(ref _isLoading, value);
+    }
+
+    // ── Presentation-only: program status card ──
+    // These are static/placeholder values since no aggregate use case exposes program-wide metrics.
+    // Flagged as a gap consistent with Phase 6's KPI placeholder pattern.
+
+    public string TotalPointsIssued => "142.850";
+    public string EnrolledCustomers => "247";
+    public string CheckoutUsageRate => "38%";
+    public string RedemptionsThisMonth => "12";
+
+    // ── Presentation-only: rule editing ──
+
+    public string AccumulationRate
+    {
+        get => _accumulationRate;
+        set => SetProperty(ref _accumulationRate, value ?? string.Empty);
+    }
+
+    public string RedemptionRate
+    {
+        get => _redemptionRate;
+        set => SetProperty(ref _redemptionRate, value ?? string.Empty);
+    }
+
+    public string ExpirationPolicy
+    {
+        get => _expirationPolicy;
+        set => SetProperty(ref _expirationPolicy, value ?? string.Empty);
+    }
+
+    public string CheckoutUsageMode
+    {
+        get => _checkoutUsageMode;
+        set => SetProperty(ref _checkoutUsageMode, value ?? string.Empty);
     }
 
     public async Task LoadBalanceAsync(CancellationToken cancellationToken = default)
@@ -153,3 +215,18 @@ public sealed class LoyaltyViewModel : ViewModelBase
         }
     }
 }
+
+/// <summary>Presentation-only tier display record.</summary>
+public sealed record LoyaltyTierPresentation(
+    string Name,
+    string PointRange,
+    string BenefitDescription,
+    string ChipKind);
+
+/// <summary>Presentation-only campaign/history entry.</summary>
+public sealed record LoyaltyCampaignEntry(
+    string IconKind,
+    string Title,
+    string Meta,
+    string ValueLabel,
+    string Kind);

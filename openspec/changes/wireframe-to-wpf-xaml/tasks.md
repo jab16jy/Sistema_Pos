@@ -213,34 +213,34 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ## Phase 10: turnos-view (PR 6, size:exception — grouped with Phase 11 lealtad-view and Phase 12 barcode-view)
 
-- [ ] 10.1 Add persistent active-shift banner (cashier, open time, base cash, running sales total, "Abierto" chip)
-- [ ] 10.2 Add shift history grid (cashier/status/open/close/base/sales/difference) filterable by date range with export action; color-code difference (Cuadra=neutral, positive=primary, negative=error)
-- [ ] 10.3 Add "Abrir turno" panel: required cashier selector + base cash + optional notes; success toast ("Turno abierto exitosamente")
-- [ ] 10.4 Add "Cerrar turno activo" panel: expected cash/digital totals, counted-cash input, live difference calculation (success/primary/error coloring)
-- [ ] 10.5 Block "Cerrar turno" without counted cash ("Ingresa el efectivo contado"); success toast ("Turno cerrado · Reporte generado") on close
-- [ ] 10.6 Run `dotnet build POS.sln --no-restore`
+- [x] 10.1 Add persistent active-shift banner (cashier, open time, base cash, running sales total, "Abierto" chip)
+- [x] 10.2 Add shift history grid (cashier/status/open/close/base/sales/difference) filterable by date range with export action; color-code difference (Cuadra=neutral, positive=primary, negative=error)
+- [x] 10.3 Add "Abrir turno" panel: required cashier selector + base cash + optional notes; success toast ("Turno abierto exitosamente")
+- [x] 10.4 Add "Cerrar turno activo" panel: expected cash/digital totals, counted-cash input, live difference calculation (success/primary/error coloring)
+- [x] 10.5 Block "Cerrar turno" without counted cash ("Ingresa el efectivo contado"); success toast ("Turno cerrado · Reporte generado") on close
+- [x] 10.6 Run `dotnet build POS.sln --no-restore`
 - [ ] 10.7 Manual visual QA against `Wireframes/wireframe-turnos.html`
 
 ---
 
 ## Phase 11: lealtad-view (PR 6, size:exception — grouped with Phase 10 turnos-view and Phase 12 barcode-view)
 
-- [ ] 11.1 Add program status card (Activo chip, total points issued, enrolled customers, checkout usage rate, redemptions this month)
-- [ ] 11.2 Add rules panel: accumulation rate, redemption rate, expiration policy, checkout usage mode; "Guardar reglas" success toast ("Reglas guardadas")
-- [ ] 11.3 Add tier list (>=3 tiers, ascending threshold order) with point-range chip + benefit description; "Editar beneficios" action
-- [ ] 11.4 Add campaigns/history panel: active campaigns, upcoming expirations count, sales-impact metrics, explanatory note (daily operations live in Clientes/Caja)
-- [ ] 11.5 Run `dotnet build POS.sln --no-restore`
+- [x] 11.1 Add program status card (Activo chip, total points issued, enrolled customers, checkout usage rate, redemptions this month)
+- [x] 11.2 Add rules panel: accumulation rate, redemption rate, expiration policy, checkout usage mode; "Guardar reglas" success toast ("Reglas guardadas")
+- [x] 11.3 Add tier list (>=3 tiers, ascending threshold order) with point-range chip + benefit description; "Editar beneficios" action
+- [x] 11.4 Add campaigns/history panel: active campaigns, upcoming expirations count, sales-impact metrics, explanatory note (daily operations live in Clientes/Caja)
+- [x] 11.5 Run `dotnet build POS.sln --no-restore`
 - [ ] 11.6 Manual visual QA against `Wireframes/wireframe-lealtad.html`
 
 ---
 
 ## Phase 12: barcode-view (PR 6, size:exception — grouped with Phase 10 turnos-view and Phase 11 lealtad-view)
 
-- [ ] 12.1 Add generator panel: value, format (CODE 128/EAN-13/CODE 39/QR Code), label, optional price, copies (1-100), live preview; hide price line when empty
-- [ ] 12.2 Block "Imprimir" without a value ("Ingresa el valor del código"); success toast confirming copy count on valid print
-- [ ] 12.3 Add batch panel: catalog search (name/barcode) to add items; "Agregar" adds the generated code; duplicate catalog add increments copies (no duplicate row); copies stepper + remove per row; empty-batch prompt
-- [ ] 12.4 Block "Imprimir lote" on empty batch ("El lote está vacío"); success toast with total label count + batch reset on valid print
-- [ ] 12.5 Run `dotnet build POS.sln --no-restore`
+- [x] 12.1 Add generator panel: value, format (CODE 128/EAN-13/CODE 39/QR Code), label, optional price, copies (1-100), live preview; hide price line when empty
+- [x] 12.2 Block "Imprimir" without a value ("Ingresa el valor del código"); success toast confirming copy count on valid print
+- [x] 12.3 Add batch panel: catalog search (name/barcode) to add items; "Agregar" adds the generated code; duplicate catalog add increments copies (no duplicate row); copies stepper + remove per row; empty-batch prompt
+- [x] 12.4 Block "Imprimir lote" on empty batch ("El lote está vacío"); success toast with total label count + batch reset on valid print
+- [x] 12.5 Run `dotnet build POS.sln --no-restore`
 - [ ] 12.6 Manual visual QA against `Wireframes/wireframe-barcode.html`
 
 ---
