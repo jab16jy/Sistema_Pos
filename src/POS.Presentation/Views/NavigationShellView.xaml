@@ -111,44 +111,10 @@
         </Grid>
 
         <Grid Visibility="{Binding IsAdminHubSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-          </Grid.RowDefinitions>
-          <StackPanel Margin="0,0,0,16">
-            <TextBlock Text="Centro de control" FontSize="28" FontWeight="Bold" />
-            <TextBlock Text="{Binding OperatorMessage}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
-          </StackPanel>
-
-          <UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
-            <controls:KpiCard Label="Módulos activos" Value="7" Hint="Operación y administración" Margin="0,0,12,0" />
-            <controls:KpiCard Label="Shell" Value="5" Hint="Accesos directos en funcbar" Margin="0,0,12,0" />
-            <controls:KpiCard Label="Atajo Admin" Value="F12" Hint="Abre este centro" Margin="0,0,12,0" />
-            <controls:KpiCard Label="Cuentas por cobrar" Value="Oculto" Hint="Backend conservado" />
-          </UniformGrid>
-
-          <UniformGrid Grid.Row="2" Columns="3">
-            <controls:QuickLink TitleText="Productos" Subtitle="Catálogo, precios y stock mínimo" IconKind="PackageVariant" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding AdminHubModules[0]}" Margin="0,0,12,12" />
-            <controls:QuickLink TitleText="Inventario" Subtitle="Existencias y movimientos" IconKind="Warehouse" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding AdminHubModules[1]}" Margin="0,0,12,12" />
-            <controls:QuickLink TitleText="Compras" Subtitle="Proveedores y compras" IconKind="Cart" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding AdminHubModules[2]}" Margin="0,0,0,12" />
-            <controls:QuickLink TitleText="Reportes" Subtitle="Ventas, caja y utilidades" IconKind="ChartBox" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding AdminHubModules[3]}" Margin="0,0,12,12" />
-            <controls:QuickLink TitleText="Turnos" Subtitle="Apertura y cierre de caja" IconKind="ClockOutline" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding AdminHubModules[4]}" Margin="0,0,12,12" />
-            <controls:QuickLink TitleText="Puntos" Subtitle="Lealtad y redenciones" IconKind="StarCircle" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding AdminHubModules[5]}" Margin="0,0,0,12" />
-            <controls:QuickLink TitleText="Códigos de barras" Subtitle="Generador e impresión de etiquetas" IconKind="BarcodeScan" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding AdminHubModules[6]}" Margin="0,0,12,0" />
-            <Border Style="{StaticResource Card}" Background="{StaticResource BrushSurfaceContainer}" Margin="0,0,12,0">
-              <StackPanel>
-                <TextBlock Text="Usuarios y permisos" FontWeight="SemiBold" />
-                <TextBlock Text="Se mantiene fuera del wireframe; no es enlace de esta fase." Style="{StaticResource MutedText}" FontSize="12" Margin="0,4,0,0" />
-              </StackPanel>
-            </Border>
-            <Border Style="{StaticResource Card}" Background="{StaticResource BrushSurfaceContainer}">
-              <StackPanel>
-                <TextBlock Text="Auditoría operativa" FontWeight="SemiBold" />
-                <TextBlock Text="Placeholder administrativo sin navegación directa." Style="{StaticResource MutedText}" FontSize="12" Margin="0,4,0,0" />
-              </StackPanel>
-            </Border>
-          </UniformGrid>
+          <local:SettingsView DataContext="{Binding Settings}" Visibility="{Binding Settings, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}" Visibility="{Binding Settings, Converter={StaticResource InverseNullToVisibilityConverter}}">
+            <TextBlock Text="El centro de control no está disponible en este entorno." Style="{StaticResource MutedText}" />
+          </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsShiftsSelected, Converter={StaticResource BoolToVisibilityConverter}}">
