@@ -24,6 +24,10 @@ public sealed class PurchasesViewModel : ViewModelBase
     private decimal _draftQuantity = 1m;
     private decimal _draftTotalCost;
     private string _message = "Selecciona un proveedor o registra uno nuevo antes de confirmar una compra.";
+    private bool _isNewSupplierFormOpen;
+    private string _purchaseInvoiceNumber = string.Empty;
+    private DateTimeOffset _purchaseDate = DateTimeOffset.Now;
+    private string _paymentMethod = "Contado";
 
     public PurchasesViewModel(
         SaveSupplierUseCase saveSupplier,
@@ -40,6 +44,15 @@ public sealed class PurchasesViewModel : ViewModelBase
         RegisterPurchaseCommand = new RelayCommand(async _ => await RegisterPurchaseAsync().ConfigureAwait(true));
         _addDraftItemCommand = new RelayCommand(_ => AddDraftItem(), _ => CanAddDraftItem());
         AddDraftItemCommand = _addDraftItemCommand;
+        RemoveDraftItemCommand = new RelayCommand(param =>
+        {
+            if (param is PurchaseDraftItem item)
+            {
+                Items.Remove(item);
+                RecalculateTotals();
+            }
+        });
+        ToggleNewSupplierCommand = new RelayCommand(_ => IsNewSupplierFormOpen = !IsNewSupplierFormOpen);
     }
 
     public ObservableCollection<SupplierSearchResult> Suppliers { get; } = [];
@@ -54,11 +67,31 @@ public sealed class PurchasesViewModel : ViewModelBase
 
     public ICommand AddDraftItemCommand { get; }
 
+    public ICommand RemoveDraftItemCommand { get; }
+
+    public ICommand ToggleNewSupplierCommand { get; }
+
     public SupplierSearchResult? SelectedSupplier
     {
         get => _selectedSupplier;
-        set => SetProperty(ref _selectedSupplier, value);
+        set
+        {
+            if (SetProperty(ref _selectedSupplier, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedSupplier));
+                OnPropertyChanged(nameof(SelectedSupplierChipLabel));
+                OnPropertyChanged(nameof(SelectedSupplierChipKind));
+            }
+        }
     }
+
+    public bool HasSelectedSupplier => _selectedSupplier is not null;
+
+    public string SelectedSupplierChipLabel =>
+        _selectedSupplier is not null ? _selectedSupplier.Name : "Selecciona un proveedor";
+
+    public string SelectedSupplierChipKind =>
+        _selectedSupplier is not null ? "primary" : "neutral";
 
     public string SupplierName
     {
@@ -88,6 +121,32 @@ public sealed class PurchasesViewModel : ViewModelBase
     {
         get => _supplierSearchText;
         set => SetProperty(ref _supplierSearchText, value);
+    }
+
+    public bool IsNewSupplierFormOpen
+    {
+        get => _isNewSupplierFormOpen;
+        set => SetProperty(ref _isNewSupplierFormOpen, value);
+    }
+
+    // ── Purchase header (presentation-only) ──
+
+    public string PurchaseInvoiceNumber
+    {
+        get => _purchaseInvoiceNumber;
+        set => SetProperty(ref _purchaseInvoiceNumber, value);
+    }
+
+    public DateTimeOffset PurchaseDate
+    {
+        get => _purchaseDate;
+        set => SetProperty(ref _purchaseDate, value);
+    }
+
+    public string PaymentMethod
+    {
+        get => _paymentMethod;
+        set => SetProperty(ref _paymentMethod, value);
     }
 
     public string DraftProductId
@@ -126,6 +185,16 @@ public sealed class PurchasesViewModel : ViewModelBase
         }
     }
 
+    // ── Totals (presentation-only) ──
+
+    public decimal Subtotal => Items.Sum(i => i.TotalCost);
+
+    public decimal Iva => Math.Round(Subtotal * 0.19m);
+
+    public decimal Total => Subtotal + Iva;
+
+    public string ItemCountLabel => Items.Count == 0 ? "0 items" : $"{Items.Count} item{(Items.Count != 1 ? "s" : string.Empty)}";
+
     public string Message
     {
         get => _message;
@@ -155,8 +224,9 @@ public sealed class PurchasesViewModel : ViewModelBase
             SupplierTaxId = string.Empty;
             SupplierPhone = string.Empty;
             SupplierEmail = string.Empty;
+            IsNewSupplierFormOpen = false;
             await LoadAsync(cancellationToken).ConfigureAwait(true);
-            Message = "Proveedor guardado. Ya puedes seleccionarlo para una compra.";
+            Message = "Proveedor guardado";
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
@@ -168,13 +238,13 @@ public sealed class PurchasesViewModel : ViewModelBase
     {
         if (SelectedSupplier is null)
         {
-            Message = "Selecciona un proveedor antes de registrar la compra.";
+            Message = "Selecciona un proveedor";
             return;
         }
 
         if (Items.Count == 0)
         {
-            Message = "Agrega al menos un producto a la compra.";
+            Message = "Agrega al menos un producto";
             return;
         }
 
@@ -191,8 +261,14 @@ public sealed class PurchasesViewModel : ViewModelBase
                 SelectedSupplier.Id,
                 operatorId,
                 Items.Select(item => new RegisterPurchaseItemRequest(item.ProductId, item.Quantity, item.TotalCost)).ToList()), cancellationToken).ConfigureAwait(true);
+
+            var supplierName = SelectedSupplier.Name;
             Items.Clear();
-            Message = $"Compra registrada por {result.TotalCost.ToString("N0", CultureInfo.GetCultureInfo("es-CO"))}. Inventario actualizado automáticamente.";
+            RecalculateTotals();
+            PurchaseInvoiceNumber = string.Empty;
+            PurchaseDate = DateTimeOffset.Now;
+            PaymentMethod = "Contado";
+            Message = $"Compra registrada · Proveedor: {supplierName}";
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
@@ -212,10 +288,19 @@ public sealed class PurchasesViewModel : ViewModelBase
         DraftProductId = string.Empty;
         DraftQuantity = 1m;
         DraftTotalCost = 0m;
+        RecalculateTotals();
         Message = "Producto agregado a la compra.";
     }
 
     private bool CanAddDraftItem() => !string.IsNullOrWhiteSpace(DraftProductId) && DraftQuantity > 0m && DraftTotalCost >= 0m;
+
+    private void RecalculateTotals()
+    {
+        OnPropertyChanged(nameof(Subtotal));
+        OnPropertyChanged(nameof(Iva));
+        OnPropertyChanged(nameof(Total));
+        OnPropertyChanged(nameof(ItemCountLabel));
+    }
 
     private static string? Normalize(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

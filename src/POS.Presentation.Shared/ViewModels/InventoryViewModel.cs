@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Inventory;
 using POS.Application.UseCases.Inventory;
@@ -16,6 +17,12 @@ public sealed class InventoryViewModel : ViewModelBase
     private decimal _adjustmentDelta;
     private string _adjustmentReason = string.Empty;
     private string _message = "Consulta el stock de productos o revisa alertas de stock bajo.";
+    private string _searchText = string.Empty;
+    private string _statusFilter = string.Empty;
+    private bool _isAdjustmentPositive = true;
+    private decimal _adjustmentQuantity = 1m;
+    private string _adjustmentNote = string.Empty;
+    private string _movementTypeFilter = string.Empty;
 
     public InventoryViewModel(
         QueryStockUseCase queryStock,
@@ -31,6 +38,15 @@ public sealed class InventoryViewModel : ViewModelBase
         LoadLowStockCommand = new RelayCommand(_ => _ = LoadLowStockAsync());
         LoadMovementHistoryCommand = new RelayCommand(_ => _ = LoadMovementHistoryAsync(), _ => SelectedProduct is not null);
         AdjustStockCommand = new RelayCommand(_ => _ = AdjustStockAsync(), _ => SelectedProduct is not null && !string.IsNullOrWhiteSpace(AdjustmentReason));
+        ToggleSignCommand = new RelayCommand(_ => IsAdjustmentPositive = !IsAdjustmentPositive);
+        ClearAdjustmentCommand = new RelayCommand(_ => ClearAdjustment());
+        QuickAdjustCommand = new RelayCommand(param =>
+        {
+            if (param is StockLevelResult product)
+            {
+                SelectedProduct = product;
+            }
+        });
     }
 
     public ObservableCollection<StockLevelResult> StockLevels { get; } = [];
@@ -47,6 +63,76 @@ public sealed class InventoryViewModel : ViewModelBase
 
     public ICommand AdjustStockCommand { get; }
 
+    public ICommand ToggleSignCommand { get; }
+
+    public ICommand ClearAdjustmentCommand { get; }
+
+    public ICommand QuickAdjustCommand { get; }
+
+    // ── KPI properties (presentation-only) ──
+
+    public int TotalSkus => StockLevels.Count;
+
+    public int LowStockCount => StockLevels.Count(s => s.CurrentStock > 0 && s.CurrentStock < s.MinimumStock);
+
+    public int OutOfStockCount => StockLevels.Count(s => s.CurrentStock == 0);
+
+    // ── Search and filter ──
+
+    public string SearchText
+    {
+        get => _searchText;
+        set
+        {
+            if (SetProperty(ref _searchText, value))
+            {
+                OnPropertyChanged(nameof(FilteredStockLevels));
+            }
+        }
+    }
+
+    public string StatusFilter
+    {
+        get => _statusFilter;
+        set
+        {
+            if (SetProperty(ref _statusFilter, value))
+            {
+                OnPropertyChanged(nameof(FilteredStockLevels));
+            }
+        }
+    }
+
+    public IReadOnlyList<StockLevelResult> FilteredStockLevels
+    {
+        get
+        {
+            IEnumerable<StockLevelResult> query = StockLevels;
+
+            if (!string.IsNullOrWhiteSpace(_searchText))
+            {
+                query = query.Where(s =>
+                    s.ProductName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (s.Barcode?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false));
+            }
+
+            if (!string.IsNullOrWhiteSpace(_statusFilter))
+            {
+                query = _statusFilter switch
+                {
+                    "ok" => query.Where(s => s.CurrentStock >= s.MinimumStock && s.CurrentStock > 0),
+                    "low" => query.Where(s => s.CurrentStock > 0 && s.CurrentStock < s.MinimumStock),
+                    "out" => query.Where(s => s.CurrentStock == 0),
+                    _ => query
+                };
+            }
+
+            return query.ToList();
+        }
+    }
+
+    // ── Adjustment panel ──
+
     public StockLevelResult? SelectedProduct
     {
         get => _selectedProduct;
@@ -57,6 +143,9 @@ public sealed class InventoryViewModel : ViewModelBase
                 MovementHistory.Clear();
                 AdjustmentDelta = 0;
                 AdjustmentReason = string.Empty;
+                AdjustmentQuantity = 1m;
+                IsAdjustmentPositive = true;
+                AdjustmentNote = string.Empty;
 
                 if (LoadMovementHistoryCommand is RelayCommand historyCommand)
                 {
@@ -67,8 +156,47 @@ public sealed class InventoryViewModel : ViewModelBase
                 {
                     adjustCommand.RaiseCanExecuteChanged();
                 }
+
+                RecalculateAdjustmentPreview();
+                OnPropertyChanged(nameof(SelectedProductChipLabel));
+                OnPropertyChanged(nameof(HasSelectedProduct));
             }
         }
+    }
+
+    public bool HasSelectedProduct => _selectedProduct is not null;
+
+    public string SelectedProductChipLabel =>
+        _selectedProduct is not null ? _selectedProduct.ProductName : "Selecciona un producto";
+
+    public bool IsAdjustmentPositive
+    {
+        get => _isAdjustmentPositive;
+        set
+        {
+            if (SetProperty(ref _isAdjustmentPositive, value))
+            {
+                RecalculateAdjustmentPreview();
+            }
+        }
+    }
+
+    public decimal AdjustmentQuantity
+    {
+        get => _adjustmentQuantity;
+        set
+        {
+            if (SetProperty(ref _adjustmentQuantity, value))
+            {
+                RecalculateAdjustmentPreview();
+            }
+        }
+    }
+
+    public string AdjustmentNote
+    {
+        get => _adjustmentNote;
+        set => SetProperty(ref _adjustmentNote, value);
     }
 
     public decimal AdjustmentDelta
@@ -92,6 +220,53 @@ public sealed class InventoryViewModel : ViewModelBase
         }
     }
 
+    // ── Adjustment preview (presentation-only) ──
+
+    public bool HasAdjustmentPreview => _selectedProduct is not null;
+
+    public decimal AdjustmentPreviewCurrent => _selectedProduct?.CurrentStock ?? 0;
+
+    public decimal AdjustmentPreviewNew
+    {
+        get
+        {
+            if (_selectedProduct is null) return 0;
+            var delta = _isAdjustmentPositive ? _adjustmentQuantity : -_adjustmentQuantity;
+            return Math.Max(0, _selectedProduct.CurrentStock + delta);
+        }
+    }
+
+    public bool IsPreviewBelowMinimum =>
+        _selectedProduct is not null && AdjustmentPreviewNew < _selectedProduct.MinimumStock;
+
+    // ── Movements filter ──
+
+    public string MovementTypeFilter
+    {
+        get => _movementTypeFilter;
+        set
+        {
+            if (SetProperty(ref _movementTypeFilter, value))
+            {
+                OnPropertyChanged(nameof(FilteredMovements));
+            }
+        }
+    }
+
+    public IReadOnlyList<InventoryMovementResult> FilteredMovements
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(_movementTypeFilter))
+            {
+                return MovementHistory.ToList();
+            }
+
+            return MovementHistory.Where(m =>
+                m.Type.ToString().Equals(_movementTypeFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
     public string Message
     {
         get => _message;
@@ -110,6 +285,11 @@ public sealed class InventoryViewModel : ViewModelBase
         }
 
         LowStockProducts.Clear();
+        OnPropertyChanged(nameof(TotalSkus));
+        OnPropertyChanged(nameof(LowStockCount));
+        OnPropertyChanged(nameof(OutOfStockCount));
+        OnPropertyChanged(nameof(FilteredStockLevels));
+
         Message = StockLevels.Count == 0
             ? "No hay productos registrados en el sistema."
             : $"Mostrando {StockLevels.Count} producto(s). Selecciona uno para ver su historial de movimientos.";
@@ -145,6 +325,8 @@ public sealed class InventoryViewModel : ViewModelBase
             MovementHistory.Add(movement);
         }
 
+        OnPropertyChanged(nameof(FilteredMovements));
+
         Message = MovementHistory.Count == 0
             ? $"{SelectedProduct.ProductName} no tiene movimientos registrados."
             : $"Mostrando {MovementHistory.Count} movimiento(s) de {SelectedProduct.ProductName}.";
@@ -160,26 +342,27 @@ public sealed class InventoryViewModel : ViewModelBase
 
         if (string.IsNullOrWhiteSpace(AdjustmentReason))
         {
-            Message = "Debes ingresar una razón para el ajuste de stock.";
+            Message = "Selecciona un motivo";
             return;
         }
 
         try
         {
+            var delta = _isAdjustmentPositive ? _adjustmentQuantity : -_adjustmentQuantity;
+
             var request = new AdjustStockRequest(
                 SelectedProduct.ProductId,
-                AdjustmentDelta,
+                delta,
                 AdjustmentReason,
                 OperatorUserId);
 
             var result = await _adjustStock.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 
-            Message = $"Stock ajustado: {SelectedProduct.ProductName} ahora tiene {result.CurrentStock} unidad(es).";
+            Message = "Ajuste aplicado correctamente";
 
-            AdjustmentDelta = 0;
-            AdjustmentReason = string.Empty;
-
+            ClearAdjustment();
             await LoadStockAsync(cancellationToken).ConfigureAwait(true);
+            await LoadMovementHistoryAsync(cancellationToken).ConfigureAwait(true);
         }
         catch (ArgumentException ex)
         {
@@ -189,5 +372,37 @@ public sealed class InventoryViewModel : ViewModelBase
         {
             Message = ex.Message;
         }
+    }
+
+    private void ClearAdjustment()
+    {
+        _selectedProduct = null;
+        OnPropertyChanged(nameof(SelectedProduct));
+        AdjustmentDelta = 0;
+        AdjustmentReason = string.Empty;
+        AdjustmentQuantity = 1m;
+        IsAdjustmentPositive = true;
+        AdjustmentNote = string.Empty;
+        OnPropertyChanged(nameof(SelectedProductChipLabel));
+        OnPropertyChanged(nameof(HasSelectedProduct));
+        RecalculateAdjustmentPreview();
+
+        if (LoadMovementHistoryCommand is RelayCommand historyCommand)
+        {
+            historyCommand.RaiseCanExecuteChanged();
+        }
+
+        if (AdjustStockCommand is RelayCommand adjustCommand)
+        {
+            adjustCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    private void RecalculateAdjustmentPreview()
+    {
+        OnPropertyChanged(nameof(HasAdjustmentPreview));
+        OnPropertyChanged(nameof(AdjustmentPreviewCurrent));
+        OnPropertyChanged(nameof(AdjustmentPreviewNew));
+        OnPropertyChanged(nameof(IsPreviewBelowMinimum));
     }
 }

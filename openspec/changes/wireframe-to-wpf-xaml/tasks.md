@@ -173,40 +173,40 @@ Note on tasks-artifact size: per-slice file-level detail below intentionally exc
 
 ## Phase 7: productos-view (PR 5, size:exception — grouped with Phase 8 inventario-view and Phase 9 compras-view)
 
-- [ ] 7.1 Rebuild `ProductsView.xaml` with `SubtabBar`: "Productos" (list+form) and "Categorías" (grid+form)
-- [ ] 7.2 Add product list toolbar: search (name/barcode), "Etiquetas" link to Barcode module, "CSV" import trigger, "Nuevo" action; rows show name/code+category/price/stock-status chip; add "Sin resultados" empty state
-- [ ] 7.3 Add live margin preview (amount + %, negative styling) bound to cost/price changes
-- [ ] 7.4 Add live stock-status preview chip bound to stock/minimum-stock changes
-- [ ] 7.5 Add collapsible "Importar desde CSV" section (documented columns: name, categoryId, costPrice, salePrice, currentStock, minimumStock, description, barcode, taxRate) + file path field + "Importar productos" action wired to the existing import use case
-- [ ] 7.6 Add Categorías subtab: category grid (name, active/inactive) + edit form, wired to `CategoriesViewModel`
-- [ ] 7.7 Wire product/category delete to confirmation toast ("Producto eliminado") + list refresh
-- [ ] 7.8 Run `dotnet build POS.sln --no-restore`
+- [x] 7.1 Rebuild `ProductsView.xaml` with `SubtabBar`: "Productos" (list+form) and "Categorías" (grid+form)
+- [x] 7.2 Add product list toolbar: search (name/barcode), "Etiquetas" link to Barcode module, "CSV" import trigger, "Nuevo" action; rows show name/code+category/price/stock-status chip; add "Sin resultados" empty state
+- [x] 7.3 Add live margin preview (amount + %, negative styling) bound to cost/price changes
+- [x] 7.4 Add live stock-status preview chip bound to stock/minimum-stock changes
+- [x] 7.5 Add collapsible "Importar desde CSV" section (documented columns: name, categoryId, costPrice, salePrice, currentStock, minimumStock, description, barcode, taxRate) + file path field + "Importar productos" action wired to the existing import use case
+- [x] 7.6 Add Categorías subtab: category grid (name, active/inactive) + edit form, wired to `CategoriesViewModel`
+- [x] 7.7 Wire product/category delete to confirmation toast ("Producto eliminado") + list refresh
+- [x] 7.8 Run `dotnet build POS.sln --no-restore`
 - [ ] 7.9 Manual visual QA against `Wireframes/wireframe-productos.html`
 
 ---
 
 ## Phase 8: inventario-view (PR 5, size:exception — grouped with Phase 7 productos-view and Phase 9 compras-view)
 
-- [ ] 8.1 Add 3-item KPI strip (total SKUs, stock bajo, sin stock) via `KpiCard`, warning/error coloring
-- [ ] 8.2 Add stock grid: search + status filter (Todos/En stock/Stock bajo/Sin stock), stock-level bar per row colored by status
-- [ ] 8.3 Add row quick-adjust action opening the adjustment panel pre-selecting the product
-- [ ] 8.4 Add adjustment panel: product selector, sign toggle, quantity, required reason, optional note; live "Stock actual -> Nuevo stock" preview recomputing on sign/quantity change, error-color when below minimum
-- [ ] 8.5 Block "Aplicar ajuste" without a reason ("Selecciona un motivo"); success toast ("Ajuste aplicado correctamente") + panel reset on valid apply
-- [ ] 8.6 Add movements panel: entrada/salida/ajuste list (product/reason/user/time/resulting stock/signed delta) with type filter dropdown; "Sin movimientos" empty state
-- [ ] 8.7 Run `dotnet build POS.sln --no-restore`
+- [x] 8.1 Add 3-item KPI strip (total SKUs, stock bajo, sin stock) via `KpiCard`, warning/error coloring
+- [x] 8.2 Add stock grid: search + status filter (Todos/En stock/Stock bajo/Sin stock), stock-level bar per row colored by status
+- [x] 8.3 Add row quick-adjust action opening the adjustment panel pre-selecting the product
+- [x] 8.4 Add adjustment panel: product selector, sign toggle, quantity, required reason, optional note; live "Stock actual -> Nuevo stock" preview recomputing on sign/quantity change, error-color when below minimum
+- [x] 8.5 Block "Aplicar ajuste" without a reason ("Selecciona un motivo"); success toast ("Ajuste aplicado correctamente") + panel reset on valid apply
+- [x] 8.6 Add movements panel: entrada/salida/ajuste list (product/reason/user/time/resulting stock/signed delta) with type filter dropdown; "Sin movimientos" empty state
+- [x] 8.7 Run `dotnet build POS.sln --no-restore`
 - [ ] 8.8 Manual visual QA against `Wireframes/wireframe-inventario.html`
 
 ---
 
 ## Phase 9: compras-view (PR 5, size:exception — grouped with Phase 7 productos-view and Phase 8 inventario-view)
 
-- [ ] 9.1 Add supplier panel: searchable list (name/phone/product count) + collapsible "Nuevo proveedor" form (name required/phone/NIT/email) hidden until requested
-- [ ] 9.2 Wire supplier selection to purchase header chip (primary styling)
-- [ ] 9.3 Add purchase header: supplier invoice number, purchase date, payment method (default Contado; Crédito 30/60 días)
-- [ ] 9.4 Add item-entry row (product autocomplete, quantity, unit cost); "Agregar" appends to items list computing subtotal/IVA(19%)/total; support removal with recompute
-- [ ] 9.5 Block "Registrar compra" without a supplier ("Selecciona un proveedor") or without items ("Agrega al menos un producto")
-- [ ] 9.6 Success toast referencing supplier name + items list reset on valid registration
-- [ ] 9.7 Run `dotnet build POS.sln --no-restore`
+- [x] 9.1 Add supplier panel: searchable list (name/phone/product count) + collapsible "Nuevo proveedor" form (name required/phone/NIT/email) hidden until requested
+- [x] 9.2 Wire supplier selection to purchase header chip (primary styling)
+- [x] 9.3 Add purchase header: supplier invoice number, purchase date, payment method (default Contado; Crédito 30/60 días)
+- [x] 9.4 Add item-entry row (product autocomplete, quantity, unit cost); "Agregar" appends to items list computing subtotal/IVA(19%)/total; support removal with recompute
+- [x] 9.5 Block "Registrar compra" without a supplier ("Selecciona un proveedor") or without items ("Agrega al menos un producto")
+- [x] 9.6 Success toast referencing supplier name + items list reset on valid registration
+- [x] 9.7 Run `dotnet build POS.sln --no-restore`
 - [ ] 9.8 Manual visual QA against `Wireframes/wireframe-compras.html`
 
 ---
