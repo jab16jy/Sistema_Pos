@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F2 · Productos — Esthetic POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap">
+<style>
+:root {
+  --surface:            #FFFFFF;
+  --surface-container:  #F4F4F5;
+  --surface-variant:    #E8EAED;
+  --on-surface:         #18181B;
+  --on-surface-muted:   #71717A;
+  --outline:            #D4D4D8;
+  --primary:            #0369A1;
+  --on-primary:         #FFFFFF;
+  --primary-container:  #E0F2FE;
+  --secondary:          #0F766E;
+  --secondary-container:#CCFBF1;
+  --error:              #DC2626;
+  --error-container:    #FEE2E2;
+  --warning:            #D97706;
+  --warning-container:  #FEF3C7;
+  --success:            #16A34A;
+  --success-container:  #DCFCE7;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px;
+  --font:'Segoe UI','Inter',system-ui,sans-serif;
+  --font-mono:'Consolas','Courier New',monospace;
+  --topbar-h:48px; --funcbar-h:44px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--surface);color:var(--on-surface);font-size:13px;line-height:1.4;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+/* ── TopBar ── */
+.topbar{height:var(--topbar-h);min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--outline);display:flex;align-items:center;padding:0 var(--s6);position:relative;}
+.topbar-left{display:flex;align-items:center;gap:var(--s2);min-width:180px;}
+.app-icon{width:20px;height:20px;background:var(--primary);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;flex-shrink:0;}
+.app-name{font-size:13px;font-weight:500;}
+.topbar-center{position:absolute;left:50%;transform:translateX(-50%);font-size:15px;font-weight:600;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:var(--s4);}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--primary-container);color:var(--primary);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;}
+.clock{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--on-surface-muted);}
+
+/* ── FunctionBar ── */
+.funcbar{height:var(--funcbar-h);min-height:var(--funcbar-h);background:var(--surface-container);border-top:1px solid var(--outline);display:flex;align-items:stretch;padding:0 var(--s6);}
+.funcbar-item{display:flex;align-items:center;gap:var(--s1);padding:0 var(--s3);cursor:pointer;border-bottom:2px solid transparent;text-decoration:none;transition:background 120ms;}
+.funcbar-item:hover{background:var(--surface-variant);}
+.funcbar-item.active{border-bottom-color:var(--primary);}
+.funcbar-item.active .fkey,.funcbar-item.active .flabel{color:var(--primary);}
+.funcbar-item.active .flabel{font-weight:500;}
+.funcbar-sep{width:1px;background:var(--outline);margin:12px 0;flex-shrink:0;}
+.fkey{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--primary);}
+.fdot{font-size:11px;color:var(--outline);}
+.flabel{font-size:13px;color:var(--on-surface);}
+
+/* ── Content ── */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--surface-container);}
+
+/* ── Sub-tabs ── */
+.subtab-bar{display:flex;align-items:stretch;background:var(--surface);border-bottom:1px solid var(--outline);padding:0 var(--s5);gap:0;height:40px;flex-shrink:0;}
+.subtab{display:flex;align-items:center;gap:var(--s1);padding:0 var(--s4);font-size:13px;font-weight:500;color:var(--on-surface-muted);cursor:pointer;border-bottom:2px solid transparent;transition:color 120ms,border-color 120ms;white-space:nowrap;}
+.subtab:hover{color:var(--on-surface);}
+.subtab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600;}
+.subtab .material-symbols-outlined{font-size:16px;}
+
+.tab-content{flex:1;display:none;overflow:hidden;}
+.tab-content.active{display:flex;gap:var(--s4);padding:var(--s4);overflow:hidden;}
+
+/* ── Card ── */
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:6px;padding:var(--s4);}
+
+/* ── Buttons ── */
+.btn{height:36px;border-radius:4px;font-size:13px;font-weight:600;font-family:var(--font);padding:0 var(--s4);cursor:pointer;border:none;display:inline-flex;align-items:center;gap:var(--s1);transition:background 120ms;white-space:nowrap;flex-shrink:0;}
+.btn-primary{background:var(--primary);color:var(--on-primary);}
+.btn-primary:hover{background:#075985;}
+.btn-secondary{background:transparent;color:var(--primary);border:1px solid var(--primary);}
+.btn-secondary:hover{background:var(--primary-container);}
+.btn-ghost{background:transparent;color:var(--primary);border:none;}
+.btn-ghost:hover{background:var(--primary-container);}
+.btn-danger-ghost{background:transparent;color:var(--error);border:none;}
+.btn-danger-ghost:hover{background:var(--error-container);}
+.btn-icon{width:32px;height:32px;padding:0;background:transparent;border:none;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;color:var(--on-surface-muted);}
+.btn-icon:hover{background:var(--surface-variant);}
+.btn-icon.danger{color:var(--error);}
+.btn-icon .material-symbols-outlined{font-size:16px;}
+.btn .material-symbols-outlined{font-size:16px;}
+
+/* ── Inputs ── */
+.input,.select,.textarea{width:100%;height:36px;border:1px solid var(--outline);border-radius:4px;padding:0 var(--s3);font-size:13px;font-family:var(--font);color:var(--on-surface);background:var(--surface);outline:none;}
+.input:focus,.select:focus,.textarea:focus{border:2px solid var(--primary);}
+.textarea{height:64px;padding:var(--s2) var(--s3);resize:none;}
+.select{appearance:none;cursor:pointer;padding-right:28px;}
+.input-wrap{position:relative;}
+.input-wrap .material-symbols-outlined{position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--on-surface-muted);pointer-events:none;}
+.input-wrap .input{padding-left:34px;}
+.field-label{font-size:11px;font-weight:500;color:var(--on-surface-muted);display:block;margin-bottom:var(--s1);}
+.field-group{display:flex;flex-direction:column;gap:var(--s1);}
+.select-wrap{position:relative;}
+.select-wrap .material-symbols-outlined{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--on-surface-muted);pointer-events:none;}
+
+/* ── Chip ── */
+.chip{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:3px;font-size:11px;font-weight:500;white-space:nowrap;flex-shrink:0;}
+.chip-success{background:var(--success-container);color:var(--success);}
+.chip-warning{background:var(--warning-container);color:var(--warning);}
+.chip-error{background:var(--error-container);color:var(--error);}
+.chip-primary{background:var(--primary-container);color:var(--primary);}
+.chip-neutral{background:var(--surface-variant);color:var(--on-surface-muted);}
+
+/* ── DataGrid ── */
+.dg{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+.dg-head{display:flex;align-items:center;height:36px;background:var(--surface-container);border-bottom:1px solid var(--outline);padding:0 var(--s3);gap:0;flex-shrink:0;}
+.dg-th{font-size:11px;font-weight:500;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;padding:0 var(--s2);white-space:nowrap;}
+.dg-body{flex:1;overflow-y:auto;}
+.dg-row{display:flex;align-items:center;height:40px;padding:0 var(--s3);border-bottom:1px solid var(--outline);cursor:pointer;transition:background 100ms;position:relative;}
+.dg-row:hover{background:var(--primary-container);}
+.dg-row.alt{background:var(--surface-container);}
+.dg-row.alt:hover{background:var(--primary-container);}
+.dg-row.selected{background:var(--primary-container);outline:2px solid var(--primary);outline-offset:-2px;}
+.dg-row:hover .row-actions{opacity:1;}
+.dg-cell{font-size:13px;color:var(--on-surface);padding:0 var(--s2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dg-cell.bold{font-weight:600;}
+.dg-cell.muted{color:var(--on-surface-muted);font-size:11px;}
+.dg-cell.right{text-align:right;}
+.row-actions{display:flex;gap:2px;opacity:0;transition:opacity 120ms;margin-left:auto;flex-shrink:0;}
+
+/* ── Product list ── */
+.prod-list{flex:1;overflow-y:auto;}
+.prod-item{display:flex;align-items:center;gap:var(--s3);padding:10px var(--s3);border-bottom:1px solid var(--outline);cursor:pointer;transition:background 100ms;position:relative;}
+.prod-item:hover{background:var(--primary-container);}
+.prod-item.selected{background:var(--primary-container);outline:2px solid var(--primary);outline-offset:-2px;}
+.prod-item:hover .row-actions{opacity:1;}
+.prod-thumb{width:32px;height:32px;background:var(--surface-container);border-radius:4px;display:flex;align-items:center;justify-content:center;color:var(--on-surface-muted);flex-shrink:0;}
+.prod-thumb .material-symbols-outlined{font-size:18px;}
+.prod-info{flex:1;min-width:0;}
+.prod-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.prod-meta{font-size:11px;color:var(--on-surface-muted);}
+.prod-price{font-size:13px;font-weight:600;color:var(--on-surface);flex-shrink:0;}
+
+/* ── Form ── */
+.form-section{display:flex;flex-direction:column;gap:var(--s3);flex:1;overflow-y:auto;}
+.form-row{display:grid;gap:var(--s3);}
+.form-row.cols-2{grid-template-columns:1fr 1fr;}
+.form-row.cols-3{grid-template-columns:1fr 1fr 1fr;}
+.form-header{display:flex;align-items:center;gap:var(--s2);padding-bottom:var(--s3);border-bottom:1px solid var(--outline);flex-shrink:0;}
+.form-title{font-size:15px;font-weight:600;flex:1;}
+.form-actions{display:flex;align-items:center;gap:var(--s2);padding-top:var(--s3);border-top:1px solid var(--outline);flex-shrink:0;}
+
+/* ── Margin preview ── */
+.margin-preview{display:flex;align-items:center;gap:var(--s2);background:var(--success-container);border-radius:4px;padding:6px var(--s3);font-size:12px;color:var(--success);font-weight:500;}
+.margin-preview.negative{background:var(--error-container);color:var(--error);}
+
+/* ── Collapsible CSV ── */
+.collapsible-header{display:flex;align-items:center;gap:var(--s2);cursor:pointer;padding:var(--s2) 0;user-select:none;}
+.collapsible-header .material-symbols-outlined{font-size:18px;color:var(--on-surface-muted);transition:transform 200ms;}
+.collapsible-header.open .material-symbols-outlined{transform:rotate(180deg);}
+.collapsible-header span.label{font-size:13px;font-weight:500;color:var(--on-surface-muted);}
+.collapsible-body{display:none;padding-top:var(--s2);}
+.collapsible-body.open{display:flex;flex-direction:column;gap:var(--s2);}
+.csv-hint{font-size:11px;color:var(--on-surface-muted);background:var(--surface-container);border-radius:4px;padding:var(--s2) var(--s3);font-family:var(--font-mono);line-height:1.6;}
+
+/* ── Empty state ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s3);padding:var(--s6);flex:1;text-align:center;}
+.empty-icon{width:48px;height:48px;background:var(--surface-container);border-radius:8px;display:flex;align-items:center;justify-content:center;}
+.empty-icon .material-symbols-outlined{font-size:28px;color:var(--outline);}
+.empty-title{font-size:15px;font-weight:600;}
+.empty-sub{font-size:13px;color:var(--on-surface-muted);max-width:280px;}
+
+/* ── Toolbar ── */
+.toolbar{display:flex;align-items:center;gap:var(--s2);padding-bottom:var(--s3);border-bottom:1px solid var(--outline);flex-shrink:0;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--outline);border-radius:2px;}
+
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 20;user-select:none;}
+
+/* Panel col sizes */
+.col-left{width:40%;min-width:280px;display:flex;flex-direction:column;gap:var(--s3);}
+.col-right{flex:1;min-width:0;}
+.col-half{flex:1;min-width:0;}
+</style>
+</head>
+<body>
+
+<!-- TopBar -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="app-icon">PS</div>
+    <span class="app-name">Esthetic POS</span>
+  </div>
+  <div class="topbar-center">Productos</div>
+  <div class="topbar-right">
+    <div class="avatar">AD</div>
+    <span class="clock" id="clock">14:32</span>
+  </div>
+</header>
+
+<!-- Sub-tab bar -->
+<div class="subtab-bar">
+  <div class="subtab active" onclick="switchTab('productos')" id="tab-productos">
+    <span class="material-symbols-outlined">inventory_2</span>
+    Productos
+  </div>
+  <div class="subtab" onclick="switchTab('categorias')" id="tab-categorias">
+    <span class="material-symbols-outlined">category</span>
+    Categorías
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     TAB: PRODUCTOS
+════════════════════════════════════ -->
+<div class="tab-content active" id="content-productos">
+
+  <!-- Columna izquierda: Lista -->
+  <div class="col-left card">
+
+    <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="input-wrap" style="flex:1;">
+          <span class="material-symbols-outlined">search</span>
+          <input class="input" type="text" placeholder="Nombre o código de barras..." id="prod-search" oninput="filterProducts()">
+        </div>
+        <a class="btn btn-ghost" href="wireframe-barcode.html" title="Etiquetas y códigos" style="text-decoration:none;">
+          <span class="material-symbols-outlined">barcode</span>
+          Etiquetas
+        </a>
+        <button class="btn btn-ghost" onclick="showImportDialog()" title="Importar CSV">
+          <span class="material-symbols-outlined">upload_file</span>
+          CSV
+        </button>
+      <button class="btn btn-primary" onclick="newProduct()">
+        <span class="material-symbols-outlined">add</span>
+        Nuevo
+      </button>
+    </div>
+
+    <!-- Lista de productos -->
+    <div class="prod-list" id="prod-list">
+      <!-- items generados por JS -->
+    </div>
+
+  </div>
+
+  <!-- Columna derecha: Form -->
+  <div class="col-right card" style="display:flex;flex-direction:column;gap:var(--s3);overflow:hidden;">
+
+    <!-- Header del form -->
+    <div class="form-header">
+      <span class="material-symbols-outlined" style="color:var(--primary);font-size:20px;">inventory_2</span>
+      <span class="form-title" id="form-title">Nuevo producto</span>
+      <span class="chip" id="form-status-chip" style="display:none;"></span>
+    </div>
+
+    <div class="form-section" id="product-form">
+
+      <!-- Nombre + Descripción -->
+      <div class="form-row">
+        <div class="field-group">
+          <label class="field-label">Nombre del producto *</label>
+          <input class="input" type="text" id="f-name" placeholder="Ibuprofeno 400mg · Caja x10" oninput="updateFormPreview()">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field-group">
+          <label class="field-label">Descripción</label>
+          <textarea class="textarea" id="f-desc" placeholder="Descripción del producto (opcional)"></textarea>
+        </div>
+      </div>
+
+      <!-- Barcode + Categoría -->
+      <div class="form-row cols-2">
+        <div class="field-group">
+          <label class="field-label">Código de barras</label>
+          <div class="input-wrap">
+            <span class="material-symbols-outlined">barcode</span>
+            <input class="input" type="text" id="f-barcode" placeholder="7770001234567">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Categoría</label>
+          <div class="select-wrap">
+            <select class="select" id="f-category">
+              <option value="">Selecciona categoría</option>
+              <option value="1">Medicamentos</option>
+              <option value="2">Cosméticos</option>
+              <option value="3">Insumos médicos</option>
+              <option value="4">Cuidado personal</option>
+            </select>
+            <span class="material-symbols-outlined">expand_more</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Precios -->
+      <div class="form-row cols-2">
+        <div class="field-group">
+          <label class="field-label">Precio de costo</label>
+          <div class="input-wrap">
+            <span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-muted);">paid</span>
+            <input class="input" type="number" id="f-cost" placeholder="0" oninput="calcMargin()">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Precio de venta</label>
+          <div class="input-wrap">
+            <span class="material-symbols-outlined" style="font-size:16px;color:var(--on-surface-muted);">sell</span>
+            <input class="input" type="number" id="f-price" placeholder="0" oninput="calcMargin()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Margen calculado -->
+      <div class="margin-preview" id="margin-preview" style="display:none;">
+        <span class="material-symbols-outlined" style="font-size:16px;">trending_up</span>
+        <span id="margin-text">Margen: $ 0 (0%)</span>
+      </div>
+
+      <!-- Stock -->
+      <div class="form-row cols-3">
+        <div class="field-group">
+          <label class="field-label">Stock actual</label>
+          <input class="input" type="number" id="f-stock" placeholder="0" oninput="updateFormPreview()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Stock mínimo</label>
+          <input class="input" type="number" id="f-minstock" placeholder="5" oninput="updateFormPreview()">
+        </div>
+        <div class="field-group">
+          <label class="field-label">IVA %</label>
+          <input class="input" type="number" id="f-tax" placeholder="19" min="0" max="100">
+        </div>
+      </div>
+
+      <!-- Preview de estado -->
+      <div id="stock-preview" style="display:none;display:flex;align-items:center;gap:var(--s2);font-size:12px;color:var(--on-surface-muted);">
+        Estado calculado: <span id="stock-chip-preview" class="chip"></span>
+      </div>
+
+      <!-- CSV colapsable -->
+      <div style="border-top:1px solid var(--outline);padding-top:var(--s3);">
+        <div class="collapsible-header" id="csv-toggle" onclick="toggleCsv()">
+          <span class="material-symbols-outlined">upload_file</span>
+          <span class="label">Importar desde CSV</span>
+          <span class="material-symbols-outlined" style="margin-left:auto;font-size:18px;">expand_more</span>
+        </div>
+        <div class="collapsible-body" id="csv-body">
+          <div class="csv-hint">
+            Columnas esperadas:<br>
+            name, categoryId, costPrice, salePrice,<br>
+            currentStock, minimumStock, description,<br>
+            barcode, taxRate
+          </div>
+          <div class="field-group">
+            <label class="field-label">Ruta del archivo CSV</label>
+            <div class="input-wrap">
+              <span class="material-symbols-outlined">folder_open</span>
+              <input class="input" type="text" placeholder="C:\ruta\archivo.csv">
+            </div>
+          </div>
+          <button class="btn btn-secondary" style="align-self:flex-start;">
+            <span class="material-symbols-outlined">upload</span>
+            Importar productos
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /form-section -->
+
+    <!-- Acciones del form -->
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveProduct()">
+        <span class="material-symbols-outlined">save</span>
+        Guardar
+      </button>
+      <button class="btn btn-danger-ghost" id="btn-delete" onclick="deleteProduct()" style="display:none;">
+        <span class="material-symbols-outlined">delete</span>
+        Eliminar
+      </button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-ghost" onclick="clearForm()">
+        <span class="material-symbols-outlined">clear</span>
+        Limpiar
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════════════════
+     TAB: CATEGORÍAS
+════════════════════════════════════ -->
+<div class="tab-content" id="content-categorias" style="gap:var(--s4);padding:var(--s4);">
+
+  <!-- Izquierda: DataGrid categorías -->
+  <div class="col-half card" style="display:flex;flex-direction:column;gap:var(--s3);overflow:hidden;">
+    <div class="toolbar">
+      <span style="font-size:15px;font-weight:600;flex:1;">Categorías</span>
+      <button class="btn btn-primary" onclick="newCategory()">
+        <span class="material-symbols-outlined">add</span>
+        Nueva
+      </button>
+    </div>
+    <div class="dg">
+      <div class="dg-head">
+        <div class="dg-th" style="flex:1;">Nombre</div>
+        <div class="dg-th" style="width:90px;">Estado</div>
+        <div class="dg-th" style="width:72px;"></div>
+      </div>
+      <div class="dg-body" id="cat-list">
+        <!-- generado por JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Derecha: Form categoría -->
+  <div class="col-half card" style="display:flex;flex-direction:column;gap:var(--s3);">
+    <div class="form-header">
+      <span class="material-symbols-outlined" style="color:var(--primary);">category</span>
+      <span class="form-title" id="cat-form-title">Nueva categoría</span>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Nombre de la categoría *</label>
+      <input class="input" type="text" id="cat-name" placeholder="Ej: Cosméticos">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Estado</label>
+      <label style="display:flex;align-items:center;gap:var(--s2);cursor:pointer;font-size:13px;">
+        <input type="checkbox" id="cat-active" checked style="width:16px;height:16px;accent-color:var(--primary);">
+        Activa
+      </label>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="saveCat()">
+        <span class="material-symbols-outlined">save</span>
+        Guardar
+      </button>
+      <button class="btn btn-ghost" onclick="clearCat()">
+        <span class="material-symbols-outlined">clear</span>
+        Limpiar
+      </button>
+      <div style="flex:1;"></div>
+      <span id="cat-msg" style="font-size:12px;color:var(--success);display:none;">✓ Guardado</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- FunctionBar -->
+<nav class="funcbar">
+  <a class="funcbar-item" href="wireframe-caja.html"><span class="fkey">F1</span><span class="fdot">·</span><span class="flabel">Caja</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-clientes.html"><span class="fkey">F4</span><span class="fdot">·</span><span class="flabel">Clientes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cotizaciones.html"><span class="fkey">F6</span><span class="fdot">·</span><span class="flabel">Cotizaciones</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-facturas.html"><span class="fkey">F8</span><span class="fdot">·</span><span class="flabel">Facturas</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item active" href="wireframe-configuracion.html"><span class="fkey">ADM</span><span class="fdot">·</span><span class="flabel">Admin</span></a>
+</nav>
+
+<!-- Toast -->
+<div id="toast" style="position:fixed;bottom:68px;right:24px;background:#18181B;color:white;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;min-width:260px;opacity:0;transform:translateY(8px);transition:opacity 200ms,transform 200ms;pointer-events:none;z-index:999;">
+  <div id="toast-icon" style="width:18px;height:18px;border-radius:50%;background:var(--success);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">✓</div>
+  <span id="toast-msg" style="flex:1;"></span>
+</div>
+
+<script>
+/* ── Data ── */
+const PRODUCTS = [
+  { id:1, name:'Ibuprofeno 400mg · Caja x10', barcode:'7770001001', category:'Medicamentos', cost:5500, price:8500, stock:48, minStock:10, tax:0,  icon:'medication' },
+  { id:2, name:'Crema Cicatrizante 50g',       barcode:'7770001002', category:'Cosméticos',  cost:14000,price:22000,stock:4,  minStock:5,  tax:19, icon:'spa' },
+  { id:3, name:'Guantes Latex M (x100)',        barcode:'7770001003', category:'Insumos médicos',cost:10000,price:15000,stock:22, minStock:10, tax:19, icon:'healing' },
+  { id:4, name:'Suero Fisiológico 500ml',       barcode:'7770001004', category:'Medicamentos', cost:3000, price:4800, stock:0,  minStock:20, tax:0,  icon:'water_drop' },
+  { id:5, name:'Bisturí Desechable #22',        barcode:'7770001005', category:'Insumos médicos',cost:800,  price:1500, stock:150,minStock:50, tax:19, icon:'content_cut' },
+];
+
+const CATEGORIES = [
+  { id:1, name:'Medicamentos',   active:true  },
+  { id:2, name:'Cosméticos',     active:true  },
+  { id:3, name:'Insumos médicos',active:true  },
+  { id:4, name:'Cuidado personal',active:false },
+];
+
+let selectedProduct = null;
+let selectedCat = null;
+let isNew = true;
+
+/* ── Clock ── */
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;}
+updateClock(); setInterval(updateClock,1000);
+
+/* ── Sub-tabs ── */
+function switchTab(tab){
+  ['productos','categorias'].forEach(t=>{
+    document.getElementById(`tab-${t}`).classList.toggle('active',t===tab);
+    document.getElementById(`content-${t}`).classList.toggle('active',t===tab);
+  });
+  if(tab==='categorias') renderCats();
+}
+
+/* ── Chip helper ── */
+function stockChip(stock, min){
+  if(stock===0)       return '<span class="chip chip-error">Sin stock</span>';
+  if(stock<min)       return '<span class="chip chip-warning">Stock bajo</span>';
+  return '<span class="chip chip-success">En stock</span>';
+}
+
+/* ── Render product list ── */
+function renderProducts(filter=''){
+  const list = document.getElementById('prod-list');
+  const filtered = PRODUCTS.filter(p=>p.name.toLowerCase().includes(filter.toLowerCase())||p.barcode.includes(filter));
+  if(!filtered.length){
+    list.innerHTML=`<div class="empty-state"><div class="empty-icon"><span class="material-symbols-outlined">search_off</span></div><span class="empty-title">Sin resultados</span><span class="empty-sub">Intenta con otro nombre o código de barras.</span></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(p=>`
+    <div class="prod-item ${selectedProduct?.id===p.id?'selected':''}" onclick="selectProduct(${p.id})">
+      <div class="prod-thumb"><span class="material-symbols-outlined">${p.icon}</span></div>
+      <div class="prod-info">
+        <div class="prod-name">${p.name}</div>
+        <div class="prod-meta">${p.barcode} · ${p.category}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+        <span class="prod-price">$ ${p.price.toLocaleString('es-CO')}</span>
+        ${stockChip(p.stock,p.minStock)}
+      </div>
+      <div class="row-actions" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:var(--primary-container);border-radius:4px;padding:2px;">
+        <button class="btn-icon" onclick="event.stopPropagation();selectProduct(${p.id})" title="Editar"><span class="material-symbols-outlined">edit</span></button>
+        <button class="btn-icon danger" onclick="event.stopPropagation();deleteById(${p.id})" title="Eliminar"><span class="material-symbols-outlined">delete</span></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterProducts(){ renderProducts(document.getElementById('prod-search').value); }
+
+/* ── Select product → fill form ── */
+function selectProduct(id){
+  selectedProduct = PRODUCTS.find(p=>p.id===id);
+  isNew = false;
+  document.getElementById('form-title').textContent = 'Editando producto';
+  document.getElementById('btn-delete').style.display = '';
+  const p = selectedProduct;
+  document.getElementById('f-name').value    = p.name;
+  document.getElementById('f-desc').value    = '';
+  document.getElementById('f-barcode').value = p.barcode;
+  document.getElementById('f-category').value= p.category==='Medicamentos'?1:p.category==='Cosméticos'?2:p.category==='Insumos médicos'?3:4;
+  document.getElementById('f-cost').value    = p.cost;
+  document.getElementById('f-price').value   = p.price;
+  document.getElementById('f-stock').value   = p.stock;
+  document.getElementById('f-minstock').value= p.minStock;
+  document.getElementById('f-tax').value     = p.tax;
+  calcMargin(); updateFormPreview();
+  const chip = document.getElementById('form-status-chip');
+  chip.style.display='';
+  if(p.stock===0){chip.className='chip chip-error';chip.textContent='Sin stock';}
+  else if(p.stock<p.minStock){chip.className='chip chip-warning';chip.textContent='Stock bajo';}
+  else{chip.className='chip chip-success';chip.textContent='En stock';}
+  renderProducts(document.getElementById('prod-search').value);
+}
+
+function newProduct(){
+  selectedProduct=null; isNew=true;
+  document.getElementById('form-title').textContent='Nuevo producto';
+  document.getElementById('form-status-chip').style.display='none';
+  document.getElementById('btn-delete').style.display='none';
+  clearForm(false);
+}
+
+/* ── Margin calc ── */
+function calcMargin(){
+  const cost  = parseFloat(document.getElementById('f-cost').value)||0;
+  const price = parseFloat(document.getElementById('f-price').value)||0;
+  const el    = document.getElementById('margin-preview');
+  const txt   = document.getElementById('margin-text');
+  if(!cost||!price){ el.style.display='none'; return; }
+  const margin = price-cost;
+  const pct    = ((margin/cost)*100).toFixed(1);
+  el.style.display='flex';
+  el.className = margin>=0?'margin-preview':'margin-preview negative';
+  txt.textContent = `Margen: $ ${margin.toLocaleString('es-CO')} (${pct}%)`;
+}
+
+function updateFormPreview(){
+  const stock    = parseInt(document.getElementById('f-stock').value)||0;
+  const minStock = parseInt(document.getElementById('f-minstock').value)||0;
+  const preview  = document.getElementById('stock-preview');
+  const chip     = document.getElementById('stock-chip-preview');
+  if(!document.getElementById('f-name').value){ preview.style.display='none'; return; }
+  preview.style.display='flex';
+  if(stock===0){chip.className='chip chip-error';chip.textContent='Sin stock';}
+  else if(stock<minStock){chip.className='chip chip-warning';chip.textContent='Stock bajo';}
+  else{chip.className='chip chip-success';chip.textContent='En stock';}
+}
+
+function clearForm(resetSelection=true){
+  ['f-name','f-desc','f-barcode','f-cost','f-price','f-stock','f-minstock','f-tax'].forEach(id=>{
+    document.getElementById(id).value='';
+  });
+  document.getElementById('f-category').value='';
+  document.getElementById('margin-preview').style.display='none';
+  document.getElementById('stock-preview').style.display='none';
+  if(resetSelection){selectedProduct=null;isNew=true;document.getElementById('btn-delete').style.display='none';document.getElementById('form-status-chip').style.display='none';document.getElementById('form-title').textContent='Nuevo producto';}
+}
+
+function saveProduct(){ showToast('success','Producto guardado correctamente'); clearForm(); renderProducts(); }
+function deleteProduct(){ showToast('info','Producto eliminado'); clearForm(); renderProducts(); }
+function deleteById(id){ showToast('info','Producto eliminado'); renderProducts(); }
+
+/* ── CSV toggle ── */
+function toggleCsv(){
+  const h=document.getElementById('csv-toggle');
+  const b=document.getElementById('csv-body');
+  h.classList.toggle('open');
+  b.classList.toggle('open');
+}
+
+/* ── Categories ── */
+function renderCats(){
+  const list=document.getElementById('cat-list');
+  list.innerHTML=CATEGORIES.map(c=>`
+    <div class="dg-row ${c.id%2===0?'alt':''} ${selectedCat?.id===c.id?'selected':''}" onclick="selectCat(${c.id})">
+      <div class="dg-cell" style="flex:1;">${c.name}</div>
+      <div class="dg-cell" style="width:90px;">${c.active?'<span class="chip chip-primary">Activa</span>':'<span class="chip chip-neutral">Inactiva</span>'}</div>
+      <div class="dg-cell row-actions" style="width:72px;">
+        <button class="btn-icon" title="Editar" onclick="event.stopPropagation();selectCat(${c.id})"><span class="material-symbols-outlined">edit</span></button>
+        <button class="btn-icon danger" title="Eliminar"><span class="material-symbols-outlined">delete</span></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectCat(id){
+  selectedCat=CATEGORIES.find(c=>c.id===id);
+  document.getElementById('cat-name').value=selectedCat.name;
+  document.getElementById('cat-active').checked=selectedCat.active;
+  document.getElementById('cat-form-title').textContent='Editar categoría';
+  renderCats();
+}
+function newCategory(){ selectedCat=null; clearCat(); document.getElementById('cat-form-title').textContent='Nueva categoría'; }
+function clearCat(){ document.getElementById('cat-name').value=''; document.getElementById('cat-active').checked=true; selectedCat=null; document.getElementById('cat-form-title').textContent='Nueva categoría'; }
+function saveCat(){ const msg=document.getElementById('cat-msg'); msg.style.display=''; setTimeout(()=>msg.style.display='none',2000); showToast('success','Categoría guardada'); }
+
+/* ── Toast ── */
+function showToast(type,msg){
+  const t=document.getElementById('toast');
+  const i=document.getElementById('toast-icon');
+  const m=document.getElementById('toast-msg');
+  const cfg={success:{bg:'var(--success)',text:'✓'},error:{bg:'var(--error)',text:'✕'},info:{bg:'var(--primary)',text:'i'}};
+  const c=cfg[type]||cfg.info;
+  i.style.background=c.bg; i.textContent=c.text; m.textContent=msg;
+  t.style.opacity='1'; t.style.transform='translateY(0)';
+  clearTimeout(t._t); t._t=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},3000);
+}
+
+/* ── Init ── */
+renderProducts();
+</script>
+</body>
+</html>
+

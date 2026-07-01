@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F9 · Turnos — Esthetic POS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap">
+<style>
+:root{--surface:#FFFFFF;--surface-container:#F4F4F5;--surface-variant:#E8EAED;--on-surface:#18181B;--on-surface-muted:#71717A;--outline:#D4D4D8;--primary:#0369A1;--on-primary:#FFFFFF;--primary-container:#E0F2FE;--error:#DC2626;--error-container:#FEE2E2;--warning:#D97706;--warning-container:#FEF3C7;--success:#16A34A;--success-container:#DCFCE7;--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--font:'Segoe UI','Inter',system-ui,sans-serif;--font-mono:'Consolas','Courier New',monospace;--topbar-h:48px;--funcbar-h:44px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--surface);color:var(--on-surface);font-size:13px;line-height:1.4;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+.topbar{height:var(--topbar-h);min-height:var(--topbar-h);background:var(--surface);border-bottom:1px solid var(--outline);display:flex;align-items:center;padding:0 var(--s6);position:relative;}
+.app-icon{width:20px;height:20px;background:var(--primary);border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-size:11px;font-weight:700;}
+.topbar-center{position:absolute;left:50%;transform:translateX(-50%);font-size:15px;font-weight:600;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:var(--s4);}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--primary-container);color:var(--primary);font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;}
+.clock{font-family:var(--font-mono);font-size:12px;color:var(--on-surface-muted);}
+.funcbar{height:var(--funcbar-h);min-height:var(--funcbar-h);background:var(--surface-container);border-top:1px solid var(--outline);display:flex;align-items:stretch;padding:0 var(--s6);}
+.funcbar-item{display:flex;align-items:center;gap:var(--s1);padding:0 var(--s3);cursor:pointer;border-bottom:2px solid transparent;text-decoration:none;transition:background 120ms;}
+.funcbar-item:hover{background:var(--surface-variant);}
+.funcbar-item.active{border-bottom-color:var(--primary);}
+.funcbar-item.active .fkey,.funcbar-item.active .flabel{color:var(--primary);}
+.funcbar-item.active .flabel{font-weight:500;}
+.funcbar-sep{width:1px;background:var(--outline);margin:12px 0;}
+.fkey{font-family:var(--font-mono);font-size:11px;font-weight:500;color:var(--primary);}
+.fdot{font-size:11px;color:var(--outline);}
+.flabel{font-size:13px;color:var(--on-surface);}
+.content{flex:1;display:flex;gap:var(--s4);padding:var(--s4);overflow:hidden;background:var(--surface-container);}
+.card{background:var(--surface);border:1px solid var(--outline);border-radius:6px;display:flex;flex-direction:column;overflow:hidden;}
+.btn{height:36px;border-radius:4px;font-size:13px;font-weight:600;font-family:var(--font);padding:0 var(--s4);cursor:pointer;border:none;display:inline-flex;align-items:center;gap:var(--s1);transition:background 120ms;white-space:nowrap;flex-shrink:0;}
+.btn-primary{background:var(--primary);color:var(--on-primary);}
+.btn-primary:hover{background:#075985;}
+.btn-success{background:var(--success);color:#fff;}
+.btn-danger{background:var(--error);color:#fff;}
+.btn-ghost{background:transparent;color:var(--primary);}
+.btn-ghost:hover{background:var(--primary-container);}
+.btn-sm{height:28px;font-size:12px;padding:0 var(--s3);}
+.input,.select,.textarea{width:100%;height:36px;border:1px solid var(--outline);border-radius:4px;padding:0 var(--s3);font-size:13px;font-family:var(--font);color:var(--on-surface);background:var(--surface);outline:none;}
+.input:focus,.select:focus,.textarea:focus{border:2px solid var(--primary);}
+.textarea{height:56px;padding:var(--s2) var(--s3);resize:none;}
+.field-label{font-size:11px;font-weight:500;color:var(--on-surface-muted);display:block;margin-bottom:var(--s1);}
+.field-group{display:flex;flex-direction:column;gap:var(--s1);}
+.chip{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:3px;font-size:11px;font-weight:500;white-space:nowrap;}
+.chip-success{background:var(--success-container);color:var(--success);}
+.chip-error{background:var(--error-container);color:var(--error);}
+.chip-warning{background:var(--warning-container);color:var(--warning);}
+.chip-neutral{background:var(--surface-variant);color:var(--on-surface-muted);}
+.chip-primary{background:var(--primary-container);color:var(--primary);}
+.dg-head{display:flex;align-items:center;height:34px;background:var(--surface-container);border-bottom:1px solid var(--outline);padding:0 var(--s4);flex-shrink:0;}
+.dg-th{font-size:11px;font-weight:500;color:var(--on-surface-muted);text-transform:uppercase;letter-spacing:.04em;padding:0 var(--s2);}
+.dg-body{flex:1;overflow-y:auto;}
+.dg-row{display:flex;align-items:center;min-height:48px;padding:6px var(--s4);border-bottom:1px solid var(--outline);cursor:pointer;transition:background 100ms;position:relative;}
+.dg-row:hover{background:var(--primary-container);}
+.dg-row.alt{background:var(--surface-container);}
+.dg-row.alt:hover{background:var(--primary-container);}
+.dg-row.selected{background:var(--primary-container);outline:2px solid var(--primary);outline-offset:-2px;}
+.dg-cell{font-size:13px;color:var(--on-surface);padding:0 var(--s2);}
+.dg-cell.mono{font-family:var(--font-mono);}
+.dg-cell.muted{color:var(--on-surface-muted);font-size:12px;}
+.section-header{display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;}
+.section-title{font-size:13px;font-weight:600;flex:1;}
+.form-body{flex:1;overflow-y:auto;padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3);}
+.form-footer{display:flex;gap:var(--s2);padding:var(--s3) var(--s4);border-top:1px solid var(--outline);flex-shrink:0;}
+/* Active shift banner */
+.active-banner{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s4);background:var(--success-container);border-bottom:2px solid var(--success);flex-shrink:0;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:var(--outline);border-radius:2px;}
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:normal;font-style:normal;font-size:20px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;word-wrap:normal;direction:ltr;font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 20;user-select:none;}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div style="display:flex;align-items:center;gap:var(--s2);">
+    <div class="app-icon">PS</div>
+    <span style="font-size:13px;font-weight:500;">Esthetic POS</span>
+  </div>
+  <div class="topbar-center">Turnos y cierre operativo</div>
+  <div class="topbar-right"><div class="avatar">AD</div><span class="clock" id="clock">14:32</span></div>
+</header>
+
+<!-- Active shift banner -->
+<div class="active-banner">
+  <span class="material-symbols-outlined" style="color:var(--success);font-size:20px;">radio_button_checked</span>
+  <div style="flex:1;">
+    <div style="font-size:13px;font-weight:600;color:var(--success);">Turno activo — Admin</div>
+    <div style="font-size:11px;color:var(--on-surface-muted);">Abierto a las 08:00 · Base: $100.000 · Ventas: $1.842.000</div>
+    <div style="font-size:11px;color:var(--on-surface-muted);margin-top:2px;">El cierre del efectivo se ejecuta aquí. Reportes solo consulta cierres ya completados.</div>
+  </div>
+  <span class="chip chip-success">Abierto</span>
+</div>
+
+<div class="content">
+
+  <!-- ═══ Grid de turnos ═══ -->
+  <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+    <div class="card" style="flex:1;overflow:hidden;">
+      <div style="display:flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s4);border-bottom:1px solid var(--outline);flex-shrink:0;">
+        <span style="font-size:13px;font-weight:600;flex:1;">Historial de turnos</span>
+        <input class="input" type="date" style="width:140px;" value="2026-06-29">
+        <span style="color:var(--on-surface-muted);">→</span>
+        <input class="input" type="date" style="width:140px;" value="2026-06-29">
+        <button class="btn btn-ghost" onclick="showToast('success','Excel exportado')">
+          <span class="material-symbols-outlined">download</span>
+        </button>
+      </div>
+
+      <div class="dg-head">
+        <div class="dg-th" style="width:140px;">Cajero</div>
+        <div class="dg-th" style="width:80px;">Estado</div>
+        <div class="dg-th" style="width:150px;">Apertura</div>
+        <div class="dg-th" style="width:130px;">Cierre</div>
+        <div class="dg-th" style="width:120px;">Base</div>
+        <div class="dg-th" style="flex:1;">Ventas</div>
+        <div class="dg-th" style="width:80px;">Diferencia</div>
+        <div class="dg-th" style="width:80px;"></div>
+      </div>
+      <div class="dg-body" id="shifts-list"><!-- JS --></div>
+    </div>
+  </div>
+
+  <!-- ═══ Panel acción ═══ -->
+  <div style="width:300px;display:flex;flex-direction:column;gap:var(--s3);overflow:hidden;">
+
+    <!-- Abrir turno -->
+    <div class="card">
+      <div class="section-header">
+        <span class="material-symbols-outlined" style="color:var(--success);">lock_open</span>
+        <span class="section-title">Abrir turno</span>
+      </div>
+      <div class="form-body" style="max-height:none;overflow:visible;">
+        <div class="field-group">
+          <label class="field-label">Cajero</label>
+          <select class="select">
+            <option>Admin</option>
+            <option>María Cajera</option>
+            <option>Juan Auxiliar</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Efectivo de base</label>
+          <div style="position:relative;">
+            <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--on-surface-muted);">$</span>
+            <input class="input" type="number" placeholder="100000" style="padding-left:20px;">
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Notas de apertura</label>
+          <textarea class="textarea" placeholder="Observaciones..."></textarea>
+        </div>
+      </div>
+      <div class="form-footer">
+        <button class="btn btn-success" onclick="openShift()" style="flex:1;justify-content:center;">
+          <span class="material-symbols-outlined">lock_open</span>Abrir turno
+        </button>
+      </div>
+    </div>
+
+    <!-- Cerrar turno -->
+    <div class="card">
+      <div class="section-header">
+        <span class="material-symbols-outlined" style="color:var(--error);">lock</span>
+        <span class="section-title">Cerrar turno activo</span>
+      </div>
+      <div class="form-body" style="max-height:none;overflow:visible;">
+        <div style="background:var(--surface-container);border-radius:6px;padding:var(--s3);display:flex;flex-direction:column;gap:var(--s2);">
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><span>Efectivo esperado</span><span style="font-family:var(--font-mono);font-weight:700;">$942.000</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;"><span>Digital</span><span style="font-family:var(--font-mono);font-weight:700;">$780.000</span></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Efectivo contado</label>
+          <div style="position:relative;">
+            <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--on-surface-muted);">$</span>
+            <input class="input" type="number" placeholder="0" style="padding-left:20px;" id="close-counted" oninput="calcClose()">
+          </div>
+        </div>
+        <div id="close-diff" style="display:none;padding:var(--s2) var(--s3);border-radius:4px;font-size:12px;font-weight:500;"></div>
+        <div class="field-group">
+          <label class="field-label">Observaciones del cierre</label>
+          <textarea class="textarea" placeholder="Diferencias, novedades..."></textarea>
+        </div>
+      </div>
+      <div class="form-footer">
+        <button class="btn btn-danger" onclick="closeShift()" style="flex:1;justify-content:center;">
+          <span class="material-symbols-outlined">lock</span>Cerrar turno
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<nav class="funcbar">
+  <a class="funcbar-item" href="wireframe-caja.html"><span class="fkey">F1</span><span class="fdot">·</span><span class="flabel">Caja</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-clientes.html"><span class="fkey">F4</span><span class="fdot">·</span><span class="flabel">Clientes</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-cotizaciones.html"><span class="fkey">F6</span><span class="fdot">·</span><span class="flabel">Cotizaciones</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item" href="wireframe-facturas.html"><span class="fkey">F8</span><span class="fdot">·</span><span class="flabel">Facturas</span></a>
+  <div class="funcbar-sep"></div>
+  <a class="funcbar-item active" href="wireframe-configuracion.html"><span class="fkey">ADM</span><span class="fdot">·</span><span class="flabel">Admin</span></a>
+</nav>
+
+<div id="toast" style="position:fixed;bottom:68px;right:24px;background:#18181B;color:white;border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:10px;font-size:13px;min-width:260px;opacity:0;transform:translateY(8px);transition:opacity 200ms,transform 200ms;pointer-events:none;z-index:999;">
+  <div id="toast-icon" style="width:18px;height:18px;border-radius:50%;background:var(--success);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">✓</div>
+  <span id="toast-msg" style="flex:1;"></span>
+</div>
+
+<script>
+function updateClock(){const n=new Date();document.getElementById('clock').textContent=`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;}
+updateClock();setInterval(updateClock,1000);
+
+const SHIFTS=[
+  {cashier:'Admin',status:'abierto',open:'2026-06-29 08:00',close:'—',base:100000,sales:1842000,diff:0},
+  {cashier:'María Cajera',status:'cerrado',open:'2026-06-28 08:00',close:'2026-06-28 17:00',base:100000,sales:1520000,diff:0},
+  {cashier:'Admin',status:'cerrado',open:'2026-06-27 08:00',close:'2026-06-27 18:30',base:100000,sales:2100000,diff:-15000},
+  {cashier:'Juan Auxiliar',status:'cerrado',open:'2026-06-26 08:00',close:'2026-06-26 16:00',base:80000,sales:980000,diff:5000},
+];
+const STATUS_CHIP={abierto:'chip-success',cerrado:'chip-neutral'};
+
+function renderShifts(){
+  document.getElementById('shifts-list').innerHTML=SHIFTS.map((s,i)=>`
+    <div class="dg-row ${i%2===0?'alt':''} ${s.status==='abierto'?'selected':''}">
+      <div class="dg-cell" style="width:140px;font-weight:${s.status==='abierto'?700:400};">${s.cashier}</div>
+      <div class="dg-cell" style="width:80px;"><span class="chip ${STATUS_CHIP[s.status]}">${s.status==='abierto'?'Abierto':'Cerrado'}</span></div>
+      <div class="dg-cell mono" style="width:150px;font-size:12px;">${s.open}</div>
+      <div class="dg-cell mono muted" style="width:130px;">${s.close}</div>
+      <div class="dg-cell mono" style="width:120px;">$${s.base.toLocaleString()}</div>
+      <div class="dg-cell mono" style="flex:1;font-weight:600;color:var(--primary);">$${s.sales.toLocaleString()}</div>
+      <div class="dg-cell mono" style="width:80px;font-weight:700;color:${s.diff===0?'var(--success)':s.diff>0?'var(--primary)':'var(--error)'};">${s.diff===0?'Cuadra':s.diff>0?'+$'+Math.abs(s.diff).toLocaleString():'-$'+Math.abs(s.diff).toLocaleString()}</div>
+      <div class="dg-cell" style="width:80px;"><button class="btn-sm btn-ghost" style="padding:0 6px;display:flex;align-items:center;border:none;cursor:pointer;background:transparent;color:var(--primary);" onclick="showToast('info','Reporte del turno generado')"><span class="material-symbols-outlined" style="font-size:16px;">picture_as_pdf</span></button></div>
+    </div>
+  `).join('');
+}
+
+function calcClose(){
+  const c=parseFloat(document.getElementById('close-counted').value)||0;
+  const expected=942000;
+  const diff=c-expected;
+  const el=document.getElementById('close-diff');
+  el.style.display='block';
+  el.textContent=(diff>=0?'Sobrante: +':'Faltante: ')+'$'+Math.abs(diff).toLocaleString();
+  el.style.background=diff===0?'var(--success-container)':diff>0?'var(--primary-container)':'var(--error-container)';
+  el.style.color=diff===0?'var(--success)':diff>0?'var(--primary)':'var(--error)';
+}
+
+function openShift(){showToast('success','Turno abierto exitosamente');}
+function closeShift(){
+  const c=parseFloat(document.getElementById('close-counted').value)||0;
+  if(!c){showToast('error','Ingresa el efectivo contado');return;}
+  showToast('success','Turno cerrado · Reporte generado');
+}
+
+function showToast(type,msg){const t=document.getElementById('toast'),i=document.getElementById('toast-icon'),m=document.getElementById('toast-msg');const c={success:{bg:'var(--success)',text:'✓'},error:{bg:'var(--error)',text:'✕'},info:{bg:'var(--primary)',text:'i'}}[type];i.style.background=c.bg;i.textContent=c.text;m.textContent=msg;t.style.opacity='1';t.style.transform='translateY(0)';clearTimeout(t._t);t._t=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateY(8px)';},3000);}
+
+renderShifts();
+</script>
+</body>
+</html>
+

@@ -4,6 +4,7 @@ using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
+using POS.Presentation.Shared.Cashier;
 using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.ViewModels;
 using Xunit;
@@ -60,7 +61,7 @@ public sealed class CashierViewModelTests
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(sales.Sales);
-        Assert.Contains("agrega", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("El carrito está vacío", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -97,6 +98,65 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task SearchAsync_ExposesPresentationStockStatusForDropdown()
+    {
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(Guid.NewGuid(), "Low stock item", "LOW-1", 1_500m, 4m, 5m)))
+        {
+            SearchText = "low"
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+
+        var result = Assert.Single(viewModel.SearchResults);
+        Assert.Equal("Stock bajo", result.StockStatusLabel);
+        Assert.Equal("warning", result.StockStatusKind);
+        Assert.Equal("$1.500", result.UnitPriceText);
+    }
+
+    [Fact]
+    public async Task CartItemQuantityChange_RecomputesSubtotalSummaryAndPaymentBalance()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 2m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        viewModel.ReceivedAmount = 10_000m;
+        CashierCartItemViewModel item = Assert.Single(viewModel.CartItems);
+
+        item.Quantity = 3m;
+
+        Assert.Equal(7_500m, item.Subtotal);
+        Assert.Equal(7_500m, viewModel.TotalAmount);
+        Assert.Equal("1 productos · 3 unidades", viewModel.CartSummaryText);
+        Assert.Equal("$2.500", viewModel.PaymentBalanceText);
+    }
+
+    [Fact]
+    public async Task SecondaryActions_ArePresentationOnlyAndExposeRecoveryMessages()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        Assert.True(viewModel.AssociateCustomerCommand.CanExecute(null));
+        Assert.True(viewModel.HoldSaleCommand.CanExecute(null));
+
+        viewModel.AssociateCustomerCommand.Execute(null);
+        Assert.Contains("cliente", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+
+        viewModel.HoldSaleCommand.Execute(null);
+        Assert.Contains("Requiere un caso de uso", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ReceivedCash_WhenEnough_CalculatesChangeAndAllowsPrototypeConfirmation()
     {
         var viewModel = new CashierViewModel(new PrototypeProductLookupService())
@@ -130,6 +190,22 @@ public sealed class CashierViewModelTests
         Assert.False(viewModel.CanConfirm);
         Assert.Equal(0m, viewModel.ChangeAmount);
         Assert.Contains("no cubre", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(viewModel.IsPaymentShortfall);
+        Assert.Equal("Falta", viewModel.PaymentBalanceLabel);
+        Assert.Equal("$10.200", viewModel.PaymentBalanceText);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WhenCartIsEmpty_ShowsWireframeEmptyCartMessage()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            ReceivedAmount = 10_000m
+        };
+
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("El carrito está vacío", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

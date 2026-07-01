@@ -13,9 +13,9 @@ namespace POS.Presentation.Shared.ViewModels;
 public sealed class MainShellViewModel : ViewModelBase
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
-    private static readonly IReadOnlySet<string> CashierModuleKeys = new HashSet<string>
+    private static readonly IReadOnlySet<string> AdminHubModuleKeys = new HashSet<string>
     {
-        "cashier", "shifts", "customers", "quotes", "invoices"
+        "products", "inventory", "suppliers", "reports", "shifts", "loyalty", "barcode"
     };
 
     private readonly GetDashboardSummaryUseCase? _dashboardSummaryUseCase;
@@ -46,28 +46,26 @@ public sealed class MainShellViewModel : ViewModelBase
 
         var allModules = new[]
         {
-            new ModuleNavigationItem("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F2", true),
-            new ModuleNavigationItem("shifts", "Turnos", "Abre y cierra turnos de cajeros.", "Alt+T", true),
+            new ModuleNavigationItem("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F1", true),
+            new ModuleNavigationItem("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F4", true),
+            new ModuleNavigationItem("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes.", "F6", IsImplemented: true),
+            new ModuleNavigationItem("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", true),
+            new ModuleNavigationItem("admin", "Admin", "Abre el centro de control y módulos administrativos.", "ADM", true),
+            new ModuleNavigationItem("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "ADM", true),
+            new ModuleNavigationItem("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "ADM", true),
+            new ModuleNavigationItem("suppliers", "Compras", "Gestiona proveedores y compras.", "ADM", true),
+            new ModuleNavigationItem("reports", "Reportes", "Revisa ventas, caja y utilidades.", "ADM", true),
+            new ModuleNavigationItem("shifts", "Turnos", "Abre y cierra turnos de cajeros.", "ADM", true),
+            new ModuleNavigationItem("loyalty", "Puntos", "Consulta saldo y redime puntos de lealtad.", "ADM", true),
+            new ModuleNavigationItem("barcode", "Códigos de Barras", "Genera e imprime etiquetas con código de barras.", "ADM", true),
             new ModuleNavigationItem("users", "Usuarios", "Crea y gestiona usuarios del sistema.", "F1", true),
             new ModuleNavigationItem("audit", "Auditoría", "Consulta quién cambió qué y cuándo.", "Alt+A", true),
-            new ModuleNavigationItem("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "F3", true),
-            new ModuleNavigationItem("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "F4", true),
-            new ModuleNavigationItem("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F5", true),
-            new ModuleNavigationItem("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes", "Alt+Q", IsImplemented: true),
-            new ModuleNavigationItem("suppliers", "Proveedores", "Gestiona proveedores y compras.", "F6", true),
-            new ModuleNavigationItem("receivables", "Cuentas por Cobrar", "Consulta saldos pendientes y registra abonos.", "F7", true),
-            new ModuleNavigationItem("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", true),
-            new ModuleNavigationItem("reports", "Reportes", "Revisa ventas, caja y utilidades.", "F9", true),
-            new ModuleNavigationItem("loyalty", "Puntos", "Consulta saldo y redime puntos de lealtad.", "F11", true),
-            new ModuleNavigationItem("barcode", "Codigos de Barras", "Genera e imprime etiquetas con codigo de barras.", "F12", true),
             new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", true)
         };
 
-        var visible = role == UserRole.Cashier
-            ? allModules.Where(m => CashierModuleKeys.Contains(m.Key))
-            : allModules;
-
-        Modules = new ObservableCollection<ModuleNavigationItem>(visible);
+        FuncbarModules = new ObservableCollection<ModuleNavigationItem>(allModules.Take(5));
+        AdminHubModules = new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => AdminHubModuleKeys.Contains(m.Key)));
+        Modules = FuncbarModules;
 
         Metrics = new ObservableCollection<DashboardMetric>
         {
@@ -90,6 +88,10 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public ObservableCollection<ModuleNavigationItem> Modules { get; }
 
+    public ObservableCollection<ModuleNavigationItem> FuncbarModules { get; }
+
+    public ObservableCollection<ModuleNavigationItem> AdminHubModules { get; }
+
     public ObservableCollection<DashboardMetric> Metrics { get; }
 
     public CashierViewModel Cashier { get; }
@@ -101,8 +103,6 @@ public sealed class MainShellViewModel : ViewModelBase
     public CustomersViewModel? Customers { get; init; }
 
     public PurchasesViewModel? Purchases { get; init; }
-
-    public ReceivablesViewModel? Receivables { get; init; }
 
     public ReportsViewModel? Reports { get; init; }
 
@@ -150,12 +150,14 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsQuotesSelected));
                 OnPropertyChanged(nameof(IsCustomersSelected));
                 OnPropertyChanged(nameof(IsPurchasesSelected));
-                OnPropertyChanged(nameof(IsReceivablesSelected));
                 OnPropertyChanged(nameof(IsInvoicesSelected));
                 OnPropertyChanged(nameof(IsReportsSelected));
                 OnPropertyChanged(nameof(IsLoyaltySelected));
                 OnPropertyChanged(nameof(IsBarcodeSelected));
                 OnPropertyChanged(nameof(IsSettingsSelected));
+                OnPropertyChanged(nameof(IsAdminHubSelected));
+                OnPropertyChanged(nameof(IsAdminSectionSelected));
+                OnPropertyChanged(nameof(CurrentFuncbarModule));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
             }
         }
@@ -168,6 +170,26 @@ public sealed class MainShellViewModel : ViewModelBase
     }
 
     public string MainActionText => IsCashierSelected ? "Cobrar" : "Abrir módulo";
+
+    public ModuleNavigationItem CurrentFuncbarModule
+    {
+        get
+        {
+            if (IsAdminSectionSelected)
+            {
+                return FuncbarModules.Single(module => module.Key == "admin");
+            }
+
+            return FuncbarModules.FirstOrDefault(module => module.Key == SelectedModule.Key) ?? FuncbarModules[0];
+        }
+        set
+        {
+            if (value is not null)
+            {
+                SelectedModule = value;
+            }
+        }
+    }
 
     public bool IsCashierSelected => SelectedModule.Key == "cashier";
 
@@ -187,8 +209,6 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsPurchasesSelected => SelectedModule.Key == "suppliers";
 
-    public bool IsReceivablesSelected => SelectedModule.Key == "receivables";
-
     public bool IsInvoicesSelected => SelectedModule.Key == "invoices";
 
     public bool IsReportsSelected => SelectedModule.Key == "reports";
@@ -199,7 +219,11 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsSettingsSelected => SelectedModule.Key == "settings";
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsReceivablesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected;
+    public bool IsAdminHubSelected => SelectedModule.Key == "admin";
+
+    public bool IsAdminSectionSelected => IsAdminHubSelected || AdminHubModuleKeys.Contains(SelectedModule.Key);
+
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected && !IsAdminHubSelected;
 
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
@@ -249,13 +273,13 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "inventory", IsImplemented: true } => "Módulo Inventario activo. Consulta existencias, bajo stock y movimientos.",
             { Key: "customers", IsImplemented: true } => "Módulo Clientes activo. Gestiona datos operativos e historial.",
             { Key: "quotes", IsImplemented: true } => "Módulo Cotizaciones activo. Crear, consultar y convertir cotizaciones.",
-            { Key: "suppliers", IsImplemented: true } => "Módulo Proveedores activo. Registra proveedores y compras.",
-            { Key: "receivables", IsImplemented: true } => "Módulo Cuentas por Cobrar activo. Consulta saldos pendientes y registra abonos.",
+            { Key: "suppliers", IsImplemented: true } => "Módulo Compras activo. Registra proveedores y compras.",
             { Key: "invoices", IsImplemented: true } => "Módulo Facturas activo. Reimprime recibos y procesa devoluciones.",
             { Key: "reports", IsImplemented: true } => "Módulo Reportes activo. Consulta totales operativos separados por efectivo, digital y abonos.",
             { Key: "loyalty", IsImplemented: true } => "Módulo Puntos activo. Consulta saldo y redime puntos de lealtad.",
             { Key: "barcode", IsImplemented: true } => "Módulo Códigos de Barras activo. Genera e imprime etiquetas.",
             { Key: "settings", IsImplemented: true } => "Módulo Configuración activo. Negocio, impresora, backup y moneda.",
+            { Key: "admin", IsImplemented: true } => "Centro de control activo. Elige un módulo administrativo para continuar.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
         };
     }
