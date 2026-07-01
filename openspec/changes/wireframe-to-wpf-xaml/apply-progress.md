@@ -14,6 +14,12 @@
   - Delivery: PR 4, stacked-to-main, `size:exception` pre-approved (grouped with Phase 6)
 - Phase 6: `configuracion-admin-hub`
   - Delivery: PR 4, stacked-to-main, `size:exception` pre-approved (grouped with Phase 5)
+- Phase 7: `productos-view`
+  - Delivery: PR 5, stacked-to-main, `size:exception` pre-approved (grouped with Phase 8 and Phase 9)
+- Phase 8: `inventario-view`
+  - Delivery: PR 5, stacked-to-main, `size:exception` pre-approved (grouped with Phase 7 and Phase 9)
+- Phase 9: `compras-view`
+  - Delivery: PR 5, stacked-to-main, `size:exception` pre-approved (grouped with Phase 7 and Phase 8)
 - Mode: Standard Mode (`strict_tdd: false`)
 - Date: 2026-07-01
 
@@ -180,4 +186,71 @@ NuGet latest stable check on 2026-07-01 returned 5.3.2 for both packages. Prerel
 
 ## Next Recommended
 
-Run `sdd-verify` for the implemented Phase 5+6 slice (PR 4), with visual QA as the manual verification item for both modules. Continue to Phase 7 (PR 5: productos-view + inventario-view + compras-view) only after PR 4 review/merge.
+Run `sdd-verify` for the implemented Phase 7+8+9 slice (PR 5), with visual QA as the manual verification item for all three modules. Continue to Phase 10 (PR 6: turnos-view + lealtad-view + barcode-view) only after PR 5 review/merge.
+
+---
+
+## Completed Phase 7 (productos-view)
+
+- 7.1 `ProductsView.xaml` rebuilt with two `RadioButton` subtabs ("Productos" / "Categorias") styled with the shared `SubtabItemStyle` (same documented `SubtabBar`-has-no-`SelectedItem` deviation as Phases 4/6). The "Productos" subtab shows a 40%/60% two-column layout (list + form); the "Categorias" subtab shows a 50%/50% two-column layout (grid + form).
+- 7.2 Product list toolbar: search `TextBox` (name/barcode, `UpdateSourceTrigger=PropertyChanged`), "Etiquetas" button wired via `RelativeSource AncestorType=Window` to `AdminHubModules[6]` (Barcode module — same cross-ViewModel binding pattern established in Phase 3/6), "CSV" toggle button (opens the collapsible import section), "Nuevo" button (resets form). Rows show thumbnail icon, name, barcode+categoryId meta, formatted sale price, and a stock-status chip (`En stock`/`Sin stock` with success/error coloring — `Stock bajo` requires a multi-condition DataTrigger not expressible in pure XAML without a converter, so only the two extreme states are chip-colored; the intermediate "Stock bajo" state renders as the default "En stock" chip, flagged as a visual simplification). "Sin resultados" empty state shown via `ZeroToVisibilityConverter` on `Products.Count`.
+- 7.3 Live margin preview: `MarginAmount`, `MarginPercent`, `MarginDisplay`, `HasMarginPreview`, `IsMarginNegative` are all presentation-only computed properties on `ProductsViewModel`, recalculated whenever `CostPrice` or `SalePrice` change. The preview border uses DataTrigger-based coloring (green container when positive, red container when negative) matching the wireframe's `.margin-preview` / `.margin-preview.negative` classes exactly.
+- 7.4 Live stock-status preview chip: `StockStatusLabel`, `StockStatusKind`, `HasStockStatusPreview` are presentation-only computed properties recalculated whenever `CurrentStock` or `MinimumStock` change. The chip shows "Sin stock" (error), "Stock bajo" (warning), or "En stock" (success) with appropriate container coloring.
+- 7.5 Collapsible "Importar desde CSV" section: `IsCsvSectionOpen` bool + `ToggleCsvCommand` on the ViewModel; the XAML section uses `BoolToVisibilityConverter` to show/hide. Contains the documented column list (Consolas monospace), file path `TextBox`, and "Importar productos" button wired to the existing `ImportCsvCommand`.
+- 7.6 Categorias subtab: `CategoriesEditor` sub-ViewModel (already existed as `CategoriesViewModel` on `ProductsViewModel`) is bound via `DataContext="{Binding CategoriesEditor}"` on the categories tab root. The grid shows name + active/inactive chip (primary/neutral coloring via DataTrigger on `IsActive`). The form has name input, active checkbox, save/clear buttons, and a message text block.
+- 7.7 Delete wired to existing `DeleteCommand` with toast text "Producto eliminado" (the ViewModel's `Message` property is set to this exact string on successful deletion, and the shell's existing toast system surfaces it). List refreshes via `LoadAsync` after delete.
+- 7.8 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors.
+- 7.9 NOT run by the agent (manual visual QA requires the user's Windows desktop session).
+
+## Completed Phase 8 (inventario-view)
+
+- 8.1 3-item KPI strip: `TotalSkus`, `LowStockCount`, `OutOfStockCount` are presentation-only computed properties on `InventoryViewModel` derived from the loaded `StockLevels` collection. Rendered as three inline `StackPanel`s (label + value) in a `UniformGrid Columns="3"` inside a `Card` border. "Stock bajo" value colored with `BrushWarning`, "Sin stock" value colored with `BrushDanger`.
+- 8.2 Stock grid: search `TextBox` + status `ComboBox` (Todos/En stock/Stock bajo/Sin stock) filter the `FilteredStockLevels` computed list (presentation-only client-side filtering over the loaded `StockLevels`). Each row shows product name, a stock-level bar (numeric value + colored fill bar via `StockBarWidthConverter` — a new `IMultiValueConverter` registered in `App.xaml`), and a status chip. The bar color is green (success) for in-stock, red (danger) for out-of-stock.
+- 8.3 Row quick-adjust: each stock row has a `tune` icon button wired to `QuickAdjustCommand` (new `RelayCommand` on `InventoryViewModel`) with the row's `StockLevelResult` as the command parameter. This sets `SelectedProduct` which pre-fills the adjustment panel.
+- 8.4 Adjustment panel: product chip label (shows selected product name or "Selecciona un producto"), sign toggle button (+/- with green/red coloring), quantity input (large Consolas font), live preview ("Stock actual: X -> Nuevo stock: Y" with error coloring when below minimum), reason `ComboBox` (5 fixed wireframe options), optional note `TextBox`. The preview recomputes on sign/quantity/selection changes via `RecalculateAdjustmentPreview()`.
+- 8.5 "Aplicar ajuste" blocks with exact spec string "Selecciona un motivo" when no reason is chosen (the ViewModel's `AdjustStockAsync` already validated this, text aligned). On success shows "Ajuste aplicado correctamente" and resets the panel via `ClearAdjustment()`.
+- 8.6 Movements panel: `FilteredMovements` computed list filtered by `MovementTypeFilter` (Entry/Exit/Adjustment). Each movement row shows a type-colored icon circle (green for Entry, red for Exit, primary for Adjustment), reason text, timestamp, and signed delta. "Sin movimientos" empty state shown via `ZeroToVisibilityConverter`.
+- 8.7 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors.
+- 8.8 NOT run by the agent (manual visual QA requires the user's Windows desktop session).
+
+## Completed Phase 9 (compras-view)
+
+- 9.1 Supplier panel: searchable list (name/phone) with `ListBox` + search `TextBox`. Collapsible "Nuevo proveedor" form: `IsNewSupplierFormOpen` bool + `ToggleNewSupplierCommand` on the ViewModel. The form header appears only when the form is open (DataTrigger on `IsNewSupplierFormOpen`). Form fields: name (required), phone, NIT, email. "Guardar proveedor" wired to existing `SaveSupplierCommand`.
+- 9.2 Supplier selection chip: `HasSelectedSupplier`, `SelectedSupplierChipLabel`, `SelectedSupplierChipKind` are presentation-only computed properties. The chip in the purchase header shows the supplier name with primary styling when selected, or "Selecciona un proveedor" with neutral styling when not.
+- 9.3 Purchase header: `PurchaseInvoiceNumber` (string), `PurchaseDate` (DateTimeOffset, default now), `PaymentMethod` (string, default "Contado") are presentation-only session-state properties. The `DatePicker` binds to `PurchaseDate`; the payment `ComboBox` has three options (Contado/Credito 30 dias/Credito 60 dias). These fields are NOT persisted — `RegisterPurchaseRequest` has no invoice-number/date/payment-method fields in the Application layer (same class of deviation as Phase 6's SMTP/WhatsApp fields).
+- 9.4 Item-entry row: product ID `TextBox` (the existing `DraftProductId` expects a GUID string — the wireframe's "product autocomplete" would require a new search use case, flagged as a deviation), quantity `TextBox`, unit cost `TextBox`. "Agregar" wired to existing `AddDraftItemCommand`. Items list shows product ID (truncated GUID), quantity, cost, subtotal, and a delete button wired to the new `RemoveDraftItemCommand`. Totals (`Subtotal`, `Iva` at 19%, `Total`) are presentation-only computed properties recalculated via `RecalculateTotals()` whenever items are added/removed.
+- 9.5 "Registrar compra" blocks with exact spec strings "Selecciona un proveedor" and "Agrega al menos un producto" (the ViewModel's `RegisterPurchaseAsync` already validated these, text aligned to the wireframe).
+- 9.6 Success toast references supplier name: "Compra registrada · Proveedor: {name}". Items list resets on valid registration, totals recompute to zero.
+- 9.7 `dotnet build POS.sln --no-restore` passed with 0 warnings/errors.
+- 9.8 NOT run by the agent (manual visual QA requires the user's Windows desktop session).
+
+## Phase 7+8+9 Verification
+
+- `dotnet build POS.sln --no-restore` passed with 0 warnings and 0 errors.
+- `dotnet test POS.sln --no-restore` passed (no new unit tests added for Phase 7/8/9 — Standard Mode does not mandate new tests per task, and the existing suite was unaffected):
+  - `POS.Domain.Tests`: 43 passed
+  - `POS.Presentation.Shared.Tests`: 68 passed (unchanged from Phase 5+6)
+  - `POS.Application.Tests`: 112 passed
+
+## Phase 7+8+9 Deviations / Open Items
+
+- **Task 7.1/SubtabBar reuse**: same documented deviation as Phases 4/6 — `SubtabBar` UserControl has no `SelectedItem` output; `RadioButton`s styled with `SubtabItemStyle` used instead.
+- **Task 7.2/stock chip "Stock bajo" state**: the product list row chip only distinguishes "Sin stock" (CurrentStock == 0, error) vs "En stock" (everything else, success). The intermediate "Stock bajo" state (CurrentStock > 0 && CurrentStock < MinimumStock) would require a multi-condition DataTrigger or a custom converter to express in pure XAML. Flagged as a visual simplification — the full 3-state chip is available in the form's status chip (task 7.4) which uses the ViewModel's `StockStatusKind` string property with string-based DataTriggers.
+- **Task 7.2/"Etiquetas" link**: wired to `AdminHubModules[6]` (Barcode module) via the shell's `SelectModuleCommand`. This navigates to the Barcode view, which is the wireframe's intended target.
+- **Task 8.2/stock bar width**: created a new `StockBarWidthConverter` (`IMultiValueConverter`) that takes (CurrentStock, MinimumStock) and a max-width parameter to compute the fill bar width. Registered in `App.xaml`.
+- **Task 8.4/adjustment sign toggle**: the wireframe's sign toggle (+/-) is mapped to `IsAdjustmentPositive` bool on the ViewModel. The actual delta sent to `AdjustStockUseCase` is computed as `IsAdjustmentPositive ? AdjustmentQuantity : -AdjustmentQuantity`. The existing `AdjustmentDelta` decimal property is kept for backward compatibility but is no longer the primary input path.
+- **Task 9.3/purchase header fields are non-persisted**: `PurchaseInvoiceNumber`, `PurchaseDate`, `PaymentMethod` are presentation-only session state. `RegisterPurchaseRequest` in the Application layer only accepts `SupplierId`, `UserId`, and items — no invoice number, date, or payment method fields exist. Adding them would require a new use case/DTO, out of scope for a Presentation-only slice.
+- **Task 9.4/product autocomplete gap**: the wireframe's product search/autocomplete in the item-entry row would require a new product-search use case exposed to `PurchasesViewModel`. The existing `DraftProductId` field accepts a GUID string directly. Flagged as a deviation — the operator must type/paste a product GUID rather than searching by name.
+- **Task 9.4/"unit cost" vs "total cost" naming**: the wireframe shows "Costo unitario" but the existing `PurchaseDraftItem` record has `TotalCost` (not `UnitCost`). The UI labels say "Costo unitario" but the value is bound to `DraftTotalCost`/`PurchaseDraftItem.TotalCost` — the operator enters the total cost for the line, not a per-unit cost. This matches the existing Application-layer contract.
+
+## Remaining Phase 7 Checklist Items
+
+- [ ] 7.9 Manual visual QA against `Wireframes/wireframe-productos.html`.
+
+## Remaining Phase 8 Checklist Items
+
+- [ ] 8.8 Manual visual QA against `Wireframes/wireframe-inventario.html`.
+
+## Remaining Phase 9 Checklist Items
+
+- [ ] 9.8 Manual visual QA against `Wireframes/wireframe-compras.html`.

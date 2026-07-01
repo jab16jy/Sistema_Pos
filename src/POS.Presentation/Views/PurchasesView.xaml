@@ -1,79 +1,394 @@
 <UserControl x:Class="POS.Presentation.Views.PurchasesView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit">
-  <Grid Margin="0,8">
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+
+  <Grid>
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="*" />
-      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="34*" MinWidth="260" />
+      <ColumnDefinition Width="12" />
+      <ColumnDefinition Width="66*" />
     </Grid.ColumnDefinitions>
-    <Border Style="{StaticResource Card}" Margin="0,0,12,0">
-      <StackPanel>
-        <TextBlock Text="Proveedor" FontSize="22" FontWeight="Bold" Margin="0,0,0,12" />
+
+    <!-- ══ LEFT: Suppliers ══ -->
+    <Border Style="{StaticResource Card}">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Search toolbar -->
         <Grid Margin="0,0,0,8">
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <TextBox Text="{Binding SupplierSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar proveedor" />
-          <Button Grid.Column="1" Content="Buscar" Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" />
+          <TextBox Text="{Binding SupplierSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                   Tag="Buscar proveedor..." />
+          <Button Grid.Column="1" Command="{Binding ToggleNewSupplierCommand}"
+                  Style="{StaticResource PrimaryButton}" Padding="8,0" Margin="6,0,0,0">
+            <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" />
+          </Button>
         </Grid>
-        <ListBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}" MaxHeight="170" Margin="0,0,0,12">
+
+        <!-- Supplier list -->
+        <ListBox Grid.Row="1"
+                 ItemsSource="{Binding Suppliers}"
+                 SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}"
+                 BorderThickness="0"
+                 Background="Transparent">
+          <ListBox.ItemContainerStyle>
+            <Style TargetType="ListBoxItem">
+              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+              <Setter Property="Padding" Value="0" />
+              <Setter Property="Margin" Value="0,1" />
+            </Style>
+          </ListBox.ItemContainerStyle>
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <StackPanel Margin="0,5">
-                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding TaxId}" Style="{StaticResource MutedText}" FontSize="11" />
-              </StackPanel>
+              <Grid Margin="4,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="32" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Width="32" Height="32" CornerRadius="6" Background="{StaticResource BrushSurfaceContainer}">
+                  <materialDesign:PackIcon Kind="Store" Width="18" Height="18"
+                                            Foreground="{StaticResource BrushPrimary}"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+
+                <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Style="{StaticResource MutedText}" FontSize="11">
+                    <Run Text="{Binding Phone, Mode=OneWay, TargetNullValue='—'}" />
+                  </TextBlock>
+                </StackPanel>
+              </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-        <TextBlock Text="Registrar proveedor" FontWeight="SemiBold" Margin="0,0,0,8" />
-        <TextBox Text="{Binding SupplierName, Mode=TwoWay}" Tag="Nombre del proveedor" Margin="0,0,0,8" />
-        <TextBox Text="{Binding SupplierTaxId, Mode=TwoWay}" Tag="NIT / RUT" Margin="0,0,0,8" />
-        <TextBox Text="{Binding SupplierPhone, Mode=TwoWay}" Tag="Teléfono" Margin="0,0,0,8" />
-        <TextBox Text="{Binding SupplierEmail, Mode=TwoWay}" Tag="Correo electrónico" Margin="0,0,0,12" />
-        <Button Content="Guardar proveedor" Command="{Binding SaveSupplierCommand}" Style="{StaticResource PrimaryButton}" />
-      </StackPanel>
+
+        <!-- New supplier collapsible header -->
+        <Button Grid.Row="2" Command="{Binding ToggleNewSupplierCommand}"
+                Background="Transparent" BorderThickness="0,1,0,0"
+                HorizontalContentAlignment="Left" Padding="12,8">
+          <Button.Style>
+            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+              <Setter Property="Visibility" Value="Collapsed" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsNewSupplierFormOpen}" Value="True">
+                  <Setter Property="Visibility" Value="Visible" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Button.Style>
+          <StackPanel Orientation="Horizontal">
+            <materialDesign:PackIcon Kind="Store" Width="16" Height="16"
+                                      Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Text="Nuevo proveedor" FontWeight="SemiBold" FontSize="12"
+                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
+            <materialDesign:PackIcon Kind="ChevronDown" Width="16" Height="16"
+                                      Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="8,0,0,0" />
+          </StackPanel>
+        </Button>
+
+        <!-- New supplier form -->
+        <Border Grid.Row="3" Background="{StaticResource BrushSurfaceContainer}"
+                Visibility="{Binding IsNewSupplierFormOpen, Converter={StaticResource BoolToVisibilityConverter}}"
+                Padding="12">
+          <StackPanel>
+            <TextBlock Text="Nombre del proveedor *" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+            <TextBox Text="{Binding SupplierName, Mode=TwoWay}" Tag="Distribuidora XYZ" Margin="0,0,0,8" />
+
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="Telefono" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding SupplierPhone, Mode=TwoWay}" Tag="3001234567" />
+              </StackPanel>
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="NIT" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding SupplierTaxId, Mode=TwoWay}" Tag="900123456" />
+              </StackPanel>
+            </Grid>
+
+            <TextBlock Text="Email" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+            <TextBox Text="{Binding SupplierEmail, Mode=TwoWay}" Tag="ventas@dist.com" Margin="0,0,0,8" />
+
+            <Button Command="{Binding SaveSupplierCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                <TextBlock Text="Guardar proveedor" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Border>
+      </Grid>
     </Border>
 
-    <Border Grid.Column="1" Style="{StaticResource Card}">
-      <StackPanel>
-        <TextBlock Text="Registrar compra" FontSize="22" FontWeight="Bold" />
-        <TextBlock Text="Agrega productos comprados y confirma para actualizar inventario." Style="{StaticResource MutedText}" Margin="0,4,0,12" />
-        <TextBox Text="{Binding DraftProductId, Mode=TwoWay}" Tag="ID de producto" Margin="0,0,0,8" />
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-          <TextBlock Text="Cantidad:" VerticalAlignment="Center" Margin="0,0,8,0" />
-          <xctk:IntegerUpDown Value="{Binding DraftQuantity, Mode=TwoWay}" Minimum="1" Width="110" />
+    <!-- ══ RIGHT: Purchase ══ -->
+    <Grid Grid.Column="2">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
+
+      <!-- Purchase header -->
+      <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <Grid Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <materialDesign:PackIcon Kind="TruckDelivery" Width="20" Height="20"
+                                      Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Grid.Column="1" Text="Nueva compra" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <!-- Supplier chip -->
+            <Border Grid.Column="2" Padding="6,2" CornerRadius="3">
+              <Border.Style>
+                <Style TargetType="Border">
+                  <Setter Property="Background" Value="{StaticResource BrushSurfaceContainer}" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding HasSelectedSupplier}" Value="True">
+                      <Setter Property="Background" Value="{StaticResource BrushPrimaryContainer}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </Border.Style>
+              <TextBlock Text="{Binding SelectedSupplierChipLabel}" FontSize="11" FontWeight="SemiBold">
+                <TextBlock.Style>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding HasSelectedSupplier}" Value="True">
+                        <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </TextBlock.Style>
+              </TextBlock>
+            </Border>
+          </Grid>
+
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="Numero de factura proveedor" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding PurchaseInvoiceNumber, Mode=TwoWay}" Tag="FAC-2026-001" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Fecha de compra" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <DatePicker SelectedDate="{Binding PurchaseDate, Mode=TwoWay}" />
+            </StackPanel>
+            <StackPanel Grid.Column="4">
+              <TextBlock Text="Forma de pago" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <ComboBox SelectedValue="{Binding PaymentMethod, Mode=TwoWay}" SelectedValuePath="Content">
+                <ComboBoxItem Content="Contado" IsSelected="True" />
+                <ComboBoxItem Content="Credito 30 dias" />
+                <ComboBoxItem Content="Credito 60 dias" />
+              </ComboBox>
+            </StackPanel>
+          </Grid>
         </StackPanel>
-        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-          <TextBlock Text="Costo total:" VerticalAlignment="Center" Margin="0,0,8,0" />
-          <xctk:DecimalUpDown Value="{Binding DraftTotalCost, Mode=TwoWay}" Minimum="0" Width="160" />
+      </Border>
+
+      <!-- Add item -->
+      <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,12">
+        <StackPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <materialDesign:PackIcon Kind="PlusBox" Width="20" Height="20"
+                                      Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Text="Agregar producto" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="2*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="Producto (nombre o barcode)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding DraftProductId, Mode=TwoWay}" Tag="Buscar..." />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Text="Cantidad" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding DraftQuantity, Mode=TwoWay}" Tag="1" />
+            </StackPanel>
+            <StackPanel Grid.Column="4">
+              <TextBlock Text="Costo unitario" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding DraftTotalCost, Mode=TwoWay}" Tag="0" />
+            </StackPanel>
+            <Button Grid.Column="6" Command="{Binding AddDraftItemCommand}"
+                    Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                <TextBlock Text="Agregar" />
+              </StackPanel>
+            </Button>
+          </Grid>
         </StackPanel>
-        <Button Content="Agregar ítem" Command="{Binding AddDraftItemCommand}" HorizontalAlignment="Left" Margin="0,0,0,12" />
-        <ScrollViewer MaxHeight="220">
-          <ItemsControl ItemsSource="{Binding Items}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <Border Padding="0,6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
-                  <Grid>
+      </Border>
+
+      <!-- Items list + totals -->
+      <Border Grid.Row="2" Style="{StaticResource Card}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <!-- Header -->
+          <Grid Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <materialDesign:PackIcon Kind="FormatListBulleted" Width="20" Height="20"
+                                      Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Grid.Column="1" Text="Items de la compra" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Border Grid.Column="2" Style="{StaticResource ChipStyle}" Padding="6,2">
+              <TextBlock Text="{Binding ItemCountLabel}" FontSize="11" FontWeight="SemiBold"
+                         Foreground="{StaticResource BrushMuted}" />
+            </Border>
+          </Grid>
+
+          <!-- Column headers -->
+          <Border Grid.Row="1" Background="{StaticResource BrushSurfaceContainer}" Padding="12,6" CornerRadius="4,4,0,0">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="80" />
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="40" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="PRODUCTO" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="1" Text="QTY" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Center" />
+              <TextBlock Grid.Column="2" Text="COSTO UNIT." FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Right" />
+              <TextBlock Grid.Column="3" Text="SUBTOTAL" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Right" />
+            </Grid>
+          </Border>
+
+          <!-- Items -->
+          <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Items}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Grid Margin="12,8">
                     <Grid.ColumnDefinitions>
-                      <ColumnDefinition Width="*" />
-                      <ColumnDefinition Width="90" />
+                      <ColumnDefinition Width="2*" />
+                      <ColumnDefinition Width="80" />
                       <ColumnDefinition Width="120" />
+                      <ColumnDefinition Width="120" />
+                      <ColumnDefinition Width="40" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding ProductId}" />
-                    <TextBlock Grid.Column="1" Text="{Binding Quantity}" />
-                    <TextBlock Grid.Column="2" Text="{Binding TotalCost, StringFormat={}{0:C}}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding ProductId, StringFormat='{}{0:D8}'}" FontWeight="SemiBold" FontSize="13"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Quantity}" FontFamily="Consolas" FontWeight="SemiBold"
+                               TextAlignment="Center" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" FontFamily="Consolas" TextAlignment="Right" VerticalAlignment="Center">
+                      <Run Text="$" />
+                      <Run Text="{Binding TotalCost, Mode=OneWay, StringFormat='N0'}" />
+                    </TextBlock>
+                    <TextBlock Grid.Column="3" FontFamily="Consolas" FontWeight="SemiBold" TextAlignment="Right" VerticalAlignment="Center">
+                      <Run Text="$" />
+                      <Run Text="{Binding TotalCost, Mode=OneWay, StringFormat='N0'}" />
+                    </TextBlock>
+                    <Button Grid.Column="4"
+                            Command="{Binding DataContext.RemoveDraftItemCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}"
+                            Background="Transparent" BorderThickness="0" Padding="4"
+                            ToolTip="Eliminar">
+                      <materialDesign:PackIcon Kind="Delete" Width="16" Height="16"
+                                                Foreground="{StaticResource BrushDanger}" />
+                    </Button>
                   </Grid>
-                </Border>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
-        <Button Content="Registrar compra" Command="{Binding RegisterPurchaseCommand}" Style="{StaticResource PrimaryButton}" Margin="0,12,0,8" />
-        <TextBlock Text="{Binding Message}" Visibility="{Binding Message, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" Style="{StaticResource MutedText}" />
-      </StackPanel>
-    </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+
+          <!-- Empty state -->
+          <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                      Visibility="{Binding Items.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
+            <materialDesign:PackIcon Kind="CartPlus" Width="36" Height="36"
+                                      Foreground="{StaticResource BrushBorder}" HorizontalAlignment="Center" />
+            <TextBlock Text="Agrega productos a la compra" Style="{StaticResource MutedText}"
+                       HorizontalAlignment="Center" Margin="0,8,0,0" />
+          </StackPanel>
+
+          <!-- Footer totals + CTA -->
+          <Border Grid.Row="3" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,4,0,0">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+
+              <StackPanel Orientation="Horizontal">
+                <!-- Subtotal -->
+                <StackPanel Margin="0,0,24,0">
+                  <TextBlock Text="Subtotal" Style="{StaticResource MutedText}" FontSize="11" />
+                  <TextBlock FontSize="15" FontWeight="SemiBold" FontFamily="Consolas">
+                    <Run Text="$ " />
+                    <Run Text="{Binding Subtotal, Mode=OneWay, StringFormat='N0'}" />
+                  </TextBlock>
+                </StackPanel>
+                <!-- IVA -->
+                <StackPanel Margin="0,0,24,0">
+                  <TextBlock Text="IVA" Style="{StaticResource MutedText}" FontSize="11" />
+                  <TextBlock FontSize="15" FontWeight="SemiBold" FontFamily="Consolas">
+                    <Run Text="$ " />
+                    <Run Text="{Binding Iva, Mode=OneWay, StringFormat='N0'}" />
+                  </TextBlock>
+                </StackPanel>
+                <!-- Total -->
+                <StackPanel>
+                  <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11" />
+                  <TextBlock FontSize="20" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}">
+                    <Run Text="$ " />
+                    <Run Text="{Binding Total, Mode=OneWay, StringFormat='N0'}" />
+                  </TextBlock>
+                </StackPanel>
+              </StackPanel>
+
+              <!-- Register button -->
+              <Button Grid.Column="1" Command="{Binding RegisterPurchaseCommand}"
+                      Style="{StaticResource PrimaryButton}" Height="44" Padding="24,0" FontSize="15">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="CheckCircle" Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Registrar compra" />
+                </StackPanel>
+              </Button>
+            </Grid>
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
   </Grid>
 </UserControl>

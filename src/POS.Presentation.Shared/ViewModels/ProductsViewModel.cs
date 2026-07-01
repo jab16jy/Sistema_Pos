@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Products;
 using POS.Application.UseCases.Categories;
@@ -28,6 +29,8 @@ public sealed class ProductsViewModel : ViewModelBase
     private string? _barcode;
     private Guid _categoryId;
     private string _message = "Busca productos por nombre o código de barras.";
+    private bool _isCsvSectionOpen;
+    private bool _isProductsSubtabActive = true;
 
     public ProductsViewModel(
         CreateProductUseCase createProduct,
@@ -56,8 +59,10 @@ public sealed class ProductsViewModel : ViewModelBase
         LoadCommand = new RelayCommand(_ => _ = LoadAsync());
         SaveCommand = new RelayCommand(_ => _ = SaveAsync());
         DeleteCommand = new RelayCommand(_ => _ = DeleteAsync(), _ => SelectedProduct is not null);
-        ClearCommand = new RelayCommand(_ => ClearForm());
+        ClearCommand = new RelayCommand(_ => NewProduct());
         ImportCsvCommand = new RelayCommand(_ => _ = ImportCsvAsync(), _ => _importProductsCsv is not null);
+        NewCommand = new RelayCommand(_ => NewProduct());
+        ToggleCsvCommand = new RelayCommand(_ => IsCsvSectionOpen = !IsCsvSectionOpen);
     }
 
     public ObservableCollection<ProductSearchResult> Products { get; } = [];
@@ -80,6 +85,10 @@ public sealed class ProductsViewModel : ViewModelBase
 
     public ICommand ImportCsvCommand { get; }
 
+    public ICommand NewCommand { get; }
+
+    public ICommand ToggleCsvCommand { get; }
+
     public ProductSearchResult? SelectedProduct
     {
         get => _selectedProduct;
@@ -91,6 +100,7 @@ public sealed class ProductsViewModel : ViewModelBase
                 {
                     Name = value.Name;
                     Description = value.Description ?? string.Empty;
+                    CostPrice = 0; // ProductSearchResult does not carry CostPrice
                     SalePrice = value.SalePrice;
                     CurrentStock = value.CurrentStock;
                     MinimumStock = value.MinimumStock;
@@ -99,10 +109,65 @@ public sealed class ProductsViewModel : ViewModelBase
                     CategoryId = value.CategoryId;
                 }
 
+                OnPropertyChanged(nameof(HasSelectedProduct));
+                OnPropertyChanged(nameof(FormTitle));
+                OnPropertyChanged(nameof(ShowFormStatusChip));
+                OnPropertyChanged(nameof(FormStatusChipLabel));
+                OnPropertyChanged(nameof(FormStatusChipKind));
+
                 if (DeleteCommand is RelayCommand command)
                 {
                     command.RaiseCanExecuteChanged();
                 }
+
+                RecalculateMarginPreview();
+                RecalculateStockStatusPreview();
+            }
+        }
+    }
+
+    public bool HasSelectedProduct => _selectedProduct is not null;
+
+    public string FormTitle => _selectedProduct is not null ? "Editando producto" : "Nuevo producto";
+
+    public bool ShowFormStatusChip => _selectedProduct is not null;
+
+    public string FormStatusChipLabel
+    {
+        get
+        {
+            if (_selectedProduct is null) return string.Empty;
+            if (_selectedProduct.CurrentStock == 0) return "Sin stock";
+            if (_selectedProduct.CurrentStock < _selectedProduct.MinimumStock) return "Stock bajo";
+            return "En stock";
+        }
+    }
+
+    public string FormStatusChipKind
+    {
+        get
+        {
+            if (_selectedProduct is null) return "neutral";
+            if (_selectedProduct.CurrentStock == 0) return "error";
+            if (_selectedProduct.CurrentStock < _selectedProduct.MinimumStock) return "warning";
+            return "success";
+        }
+    }
+
+    public bool IsProductsSubtabActive
+    {
+        get => _isProductsSubtabActive;
+        set => SetProperty(ref _isProductsSubtabActive, value);
+    }
+
+    public bool IsCategoriesSubtabActive
+    {
+        get => !_isProductsSubtabActive;
+        set
+        {
+            if (value)
+            {
+                IsProductsSubtabActive = false;
             }
         }
     }
@@ -128,25 +193,49 @@ public sealed class ProductsViewModel : ViewModelBase
     public decimal CostPrice
     {
         get => _costPrice;
-        set => SetProperty(ref _costPrice, value);
+        set
+        {
+            if (SetProperty(ref _costPrice, value))
+            {
+                RecalculateMarginPreview();
+            }
+        }
     }
 
     public decimal SalePrice
     {
         get => _salePrice;
-        set => SetProperty(ref _salePrice, value);
+        set
+        {
+            if (SetProperty(ref _salePrice, value))
+            {
+                RecalculateMarginPreview();
+            }
+        }
     }
 
     public decimal CurrentStock
     {
         get => _currentStock;
-        set => SetProperty(ref _currentStock, value);
+        set
+        {
+            if (SetProperty(ref _currentStock, value))
+            {
+                RecalculateStockStatusPreview();
+            }
+        }
     }
 
     public decimal MinimumStock
     {
         get => _minimumStock;
-        set => SetProperty(ref _minimumStock, value);
+        set
+        {
+            if (SetProperty(ref _minimumStock, value))
+            {
+                RecalculateStockStatusPreview();
+            }
+        }
     }
 
     public decimal TaxRate
@@ -171,6 +260,55 @@ public sealed class ProductsViewModel : ViewModelBase
     {
         get => _categoryId;
         set => SetProperty(ref _categoryId, value);
+    }
+
+    public bool IsCsvSectionOpen
+    {
+        get => _isCsvSectionOpen;
+        set => SetProperty(ref _isCsvSectionOpen, value);
+    }
+
+    // ── Margin preview (presentation-only) ──
+
+    public decimal MarginAmount => _salePrice - _costPrice;
+
+    public string MarginPercent
+    {
+        get
+        {
+            if (_costPrice == 0) return "0";
+            return ((_salePrice - _costPrice) / _costPrice * 100m).ToString("F1", CultureInfo.InvariantCulture);
+        }
+    }
+
+    public bool HasMarginPreview => _costPrice > 0 && _salePrice > 0;
+
+    public bool IsMarginNegative => MarginAmount < 0;
+
+    public string MarginDisplay => $"Margen: $ {MarginAmount.ToString("N0", CultureInfo.GetCultureInfo("es-CO"))} ({MarginPercent}%)";
+
+    // ── Stock status preview (presentation-only) ──
+
+    public bool HasStockStatusPreview => !string.IsNullOrWhiteSpace(_name);
+
+    public string StockStatusLabel
+    {
+        get
+        {
+            if (_currentStock == 0) return "Sin stock";
+            if (_currentStock < _minimumStock) return "Stock bajo";
+            return "En stock";
+        }
+    }
+
+    public string StockStatusKind
+    {
+        get
+        {
+            if (_currentStock == 0) return "error";
+            if (_currentStock < _minimumStock) return "warning";
+            return "success";
+        }
     }
 
     public string Message
@@ -228,7 +366,7 @@ public sealed class ProductsViewModel : ViewModelBase
                     Barcode,
                     TaxRate);
                 await _createProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-                Message = "Producto creado exitosamente.";
+                Message = "Producto guardado correctamente";
             }
             else
             {
@@ -243,10 +381,10 @@ public sealed class ProductsViewModel : ViewModelBase
                     Barcode,
                     TaxRate);
                 await _updateProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-                Message = "Producto actualizado exitosamente.";
+                Message = "Producto guardado correctamente";
             }
 
-            ClearForm();
+            NewProduct();
             await LoadAsync(cancellationToken).ConfigureAwait(true);
         }
         catch (ArgumentException ex)
@@ -270,8 +408,8 @@ public sealed class ProductsViewModel : ViewModelBase
         try
         {
             await _deleteProduct.ExecuteAsync(SelectedProduct.Id, cancellationToken).ConfigureAwait(true);
-            Message = "Producto desactivado. Ya no aparecerá en búsquedas activas.";
-            ClearForm();
+            Message = "Producto eliminado";
+            NewProduct();
             await LoadAsync(cancellationToken).ConfigureAwait(true);
         }
         catch (InvalidOperationException ex)
@@ -309,9 +447,10 @@ public sealed class ProductsViewModel : ViewModelBase
         }
     }
 
-    private void ClearForm()
+    private void NewProduct()
     {
-        SelectedProduct = null;
+        _selectedProduct = null;
+        OnPropertyChanged(nameof(SelectedProduct));
         Name = string.Empty;
         Description = string.Empty;
         CostPrice = 0;
@@ -321,5 +460,33 @@ public sealed class ProductsViewModel : ViewModelBase
         TaxRate = 19m;
         Barcode = null;
         CategoryId = Guid.Empty;
+        OnPropertyChanged(nameof(HasSelectedProduct));
+        OnPropertyChanged(nameof(FormTitle));
+        OnPropertyChanged(nameof(ShowFormStatusChip));
+        OnPropertyChanged(nameof(FormStatusChipLabel));
+        OnPropertyChanged(nameof(FormStatusChipKind));
+        RecalculateMarginPreview();
+        RecalculateStockStatusPreview();
+
+        if (DeleteCommand is RelayCommand command)
+        {
+            command.RaiseCanExecuteChanged();
+        }
+    }
+
+    private void RecalculateMarginPreview()
+    {
+        OnPropertyChanged(nameof(MarginAmount));
+        OnPropertyChanged(nameof(MarginPercent));
+        OnPropertyChanged(nameof(HasMarginPreview));
+        OnPropertyChanged(nameof(IsMarginNegative));
+        OnPropertyChanged(nameof(MarginDisplay));
+    }
+
+    private void RecalculateStockStatusPreview()
+    {
+        OnPropertyChanged(nameof(HasStockStatusPreview));
+        OnPropertyChanged(nameof(StockStatusLabel));
+        OnPropertyChanged(nameof(StockStatusKind));
     }
 }

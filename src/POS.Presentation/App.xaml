@@ -23,6 +23,7 @@
       <converters:BytesToImageSourceConverter x:Key="BytesToImageSourceConverter" />
       <converters:IntGreaterThanZeroToVisibilityConverter x:Key="IntGreaterThanZeroToVisibilityConverter" />
       <converters:InitialsConverter x:Key="InitialsConverter" />
+      <converters:StockBarWidthConverter x:Key="StockBarWidthConverter" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>
