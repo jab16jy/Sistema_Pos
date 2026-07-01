@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.15.0...v0.16.0) (2026-07-01)
+
+
+### Features
+
+* **wpf:** translate turnos, lealtad, and barcode view wireframes ([#56](https://github.com/jab16jy/Sistema_Pos/issues/56)) ([c1c8da8](https://github.com/jab16jy/Sistema_Pos/commit/c1c8da833bf149d72775887e005f7fc7f94a7b1f)), closes [#55](https://github.com/jab16jy/Sistema_Pos/issues/55)
+
 ## [0.15.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.14.0...v0.15.0) (2026-07-01)
 
 
