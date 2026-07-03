@@ -167,7 +167,7 @@
             </Button>
             <Button Grid.Column="4" Command="{Binding ClearBatchCommand}" Background="Transparent" BorderThickness="0"
                     Padding="4" ToolTip="Vaciar lote">
-              <materialDesign:PackIcon Kind="ClearAll" Width="16" Height="16" Foreground="{StaticResource BrushMuted}" />
+              <materialDesign:PackIcon Kind="DeleteSweep" Width="16" Height="16" Foreground="{StaticResource BrushMuted}" />
             </Button>
           </Grid>
         </Border>

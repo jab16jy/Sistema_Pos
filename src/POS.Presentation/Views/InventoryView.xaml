@@ -274,9 +274,9 @@
           <!-- Preview -->
           <TextBlock Margin="0,0,0,8" HorizontalAlignment="Center"
                      Visibility="{Binding HasAdjustmentPreview, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Run Text="Stock actual: " Style="{StaticResource MutedText}" />
+            <Run Text="Stock actual: " />
             <Run Text="{Binding AdjustmentPreviewCurrent, Mode=OneWay}" FontWeight="Bold" />
-            <Run Text=" -> Nuevo stock: " Style="{StaticResource MutedText}" />
+            <Run Text=" -> Nuevo stock: " />
             <Run FontWeight="Bold">
               <Run.Text>
                 <Binding Path="AdjustmentPreviewNew" Mode="OneWay" />

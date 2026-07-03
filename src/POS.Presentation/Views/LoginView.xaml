@@ -20,19 +20,20 @@
             Effect="{StaticResource CardShadow}">
       <StackPanel>
         <StackPanel HorizontalAlignment="Center" Margin="0,0,0,28">
-          <Border Width="58"
-                  Height="58"
-                  CornerRadius="16"
-                  Background="{StaticResource BrushSurfaceAlt}"
-                  HorizontalAlignment="Center"
-                  Margin="0,0,0,14">
-            <TextBlock Text="+"
-                       Foreground="{StaticResource BrushAccent}"
-                       FontSize="34"
-                       FontWeight="Bold"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center" />
-          </Border>
+          <Image Width="132"
+                 Height="132"
+                 Stretch="Uniform"
+                 RenderOptions.BitmapScalingMode="HighQuality"
+                 SnapsToDevicePixels="True"
+                 HorizontalAlignment="Center"
+                 Margin="0,0,0,14"
+                 UseLayoutRounding="True">
+            <Image.Source>
+              <BitmapImage UriSource="pack://application:,,,/Resources/Newlogo.png"
+                           DecodePixelWidth="264"
+                           DecodePixelHeight="264" />
+            </Image.Source>
+          </Image>
           <TextBlock Text="Esthetic Medical Store"
                      FontSize="27"
                      FontWeight="SemiBold"

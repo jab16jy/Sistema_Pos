@@ -9,7 +9,7 @@
         Height="780"
         MinWidth="1280"
         MinHeight="700"
-        Icon="Resources/logo.jpeg"
+        Icon="pack://application:,,,/Resources/Newlogo.png"
         WindowStartupLocation="CenterScreen"
         PreviewMouseWheel="OnPreviewMouseWheel">
   <Window.InputBindings>
@@ -30,9 +30,17 @@
         </Grid.ColumnDefinitions>
 
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <Image Width="22" Height="22" Stretch="Uniform" Margin="0,0,8,0">
+          <Image Width="44"
+                 Height="44"
+                 Stretch="Uniform"
+                 RenderOptions.BitmapScalingMode="HighQuality"
+                 SnapsToDevicePixels="True"
+                 Margin="0,0,10,0"
+                 UseLayoutRounding="True">
             <Image.Source>
-              <BitmapImage UriSource="Resources/logo.jpeg" DecodePixelWidth="44" DecodePixelHeight="44" />
+              <BitmapImage UriSource="pack://application:,,,/Resources/Newlogo.png"
+                           DecodePixelWidth="176"
+                           DecodePixelHeight="176" />
             </Image.Source>
           </Image>
           <TextBlock Text="Esthetic POS" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" />
