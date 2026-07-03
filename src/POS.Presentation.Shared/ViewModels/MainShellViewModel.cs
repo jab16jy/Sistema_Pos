@@ -47,10 +47,10 @@ public sealed class MainShellViewModel : ViewModelBase
         var allModules = new[]
         {
             new ModuleNavigationItem("cashier", "Caja", "Escanea productos, cobra y confirma ventas.", "F1", true),
-            new ModuleNavigationItem("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F4", true),
-            new ModuleNavigationItem("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes.", "F6", IsImplemented: true),
-            new ModuleNavigationItem("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F8", true),
-            new ModuleNavigationItem("admin", "Admin", "Abre el centro de control y módulos administrativos.", "ADM", true),
+            new ModuleNavigationItem("customers", "Clientes", "Busca clientes, historial y estado operativo.", "F2", true),
+            new ModuleNavigationItem("quotes", "Cotizaciones", "Crear y gestionar cotizaciones de clientes.", "F3", IsImplemented: true),
+            new ModuleNavigationItem("invoices", "Facturas", "Reimprime recibos y consulta devoluciones.", "F4", true),
+            new ModuleNavigationItem("admin", "Admin", "Abre el centro de control y módulos administrativos.", "F5", true),
             new ModuleNavigationItem("products", "Productos", "Registra catálogo, precios, stock mínimo y códigos.", "ADM", true),
             new ModuleNavigationItem("inventory", "Inventario", "Consulta existencias, bajo stock y movimientos.", "ADM", true),
             new ModuleNavigationItem("suppliers", "Compras", "Gestiona proveedores y compras.", "ADM", true),
@@ -60,7 +60,7 @@ public sealed class MainShellViewModel : ViewModelBase
             new ModuleNavigationItem("barcode", "Códigos de Barras", "Genera e imprime etiquetas con código de barras.", "ADM", true),
             new ModuleNavigationItem("users", "Usuarios", "Crea y gestiona usuarios del sistema.", "F1", true),
             new ModuleNavigationItem("audit", "Auditoría", "Consulta quién cambió qué y cuándo.", "Alt+A", true),
-            new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F10", true)
+            new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true)
         };
 
         FuncbarModules = new ObservableCollection<ModuleNavigationItem>(allModules.Take(5));

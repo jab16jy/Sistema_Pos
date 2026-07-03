@@ -9,13 +9,15 @@
         Height="780"
         MinWidth="1280"
         MinHeight="700"
-        WindowStartupLocation="CenterScreen">
+        Icon="Resources/logo.jpeg"
+        WindowStartupLocation="CenterScreen"
+        PreviewMouseWheel="OnPreviewMouseWheel">
   <Window.InputBindings>
     <KeyBinding Key="F1" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[0]}" />
-    <KeyBinding Key="F4" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[1]}" />
-    <KeyBinding Key="F6" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[2]}" />
-    <KeyBinding Key="F8" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[3]}" />
-    <KeyBinding Key="F12" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[4]}" />
+    <KeyBinding Key="F2" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[1]}" />
+    <KeyBinding Key="F3" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[2]}" />
+    <KeyBinding Key="F4" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[3]}" />
+    <KeyBinding Key="F5" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[4]}" />
   </Window.InputBindings>
 
   <DockPanel Background="{StaticResource BrushBackground}">
@@ -28,7 +30,11 @@
         </Grid.ColumnDefinitions>
 
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <Border Width="20" Height="20" CornerRadius="4" Background="{StaticResource BrushPrimary}" Margin="0,0,8,0" />
+          <Image Width="22" Height="22" Stretch="Uniform" Margin="0,0,8,0">
+            <Image.Source>
+              <BitmapImage UriSource="Resources/logo.jpeg" DecodePixelWidth="44" DecodePixelHeight="44" />
+            </Image.Source>
+          </Image>
           <TextBlock Text="Esthetic POS" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" />
         </StackPanel>
 

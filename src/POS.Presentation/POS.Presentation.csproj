@@ -18,4 +18,8 @@
     <PackageReference Include="MaterialDesignColors" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\logo.jpeg" />
+  </ItemGroup>
 </Project>
