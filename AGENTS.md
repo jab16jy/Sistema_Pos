@@ -1,17 +1,22 @@
 # Agent Instructions — Sistema POS Local
 
-Reglas universales para todos los agentes (Claude Code, OpenCode, Codex, y cualquier agente futuro) que trabajen en este repositorio.
+Reglas universales para todos los agentes (Hermes, Claude Code, OpenCode, Codex, y cualquier agente futuro) que trabajen en este repositorio.
 
 ---
 
-## 1. Memoria persistente: Engram
+## 1. Memoria persistente del agente
 
-La fuente de memoria del agente es **Engram**. No uses Obsidian como base de conocimiento del agente ni como fuente principal del proyecto.
+La memoria principal de trabajo para este proyecto es la **memoria persistente del agente**, no Obsidian.
 
-- Llama `mem_save` proactivamente tras decisiones, bugs corregidos, descubrimientos y convenciones.
-- Llama `mem_search` al comenzar trabajo que puede haberse hecho antes.
-- Llama `mem_context` al inicio de sesión para recuperar contexto.
-- Llama `mem_session_summary` antes de cerrar sesión.
+- En sesiones de **Hermes**, la fuente de memoria es `memory()` + `session_search()`.
+- En agentes que todavía tengan Engram configurado, usa su backend de memoria **solo como compatibilidad local**, no como fuente canónica del proyecto.
+- No uses el vault `docs md/` como memoria operativa del agente ni como sustituto de contexto persistente.
+
+Reglas prácticas:
+- Guarda de forma proactiva decisiones duraderas, convenciones, restricciones del usuario, bugs con causa raíz y hallazgos no obvios.
+- Recupera contexto previo antes de pedir al usuario que repita decisiones ya tomadas.
+- No guardes progreso temporal, logs de ejecución, PRs, commits ni estado efímero como si fueran memoria duradera.
+- Cuando una decisión de proyecto deba ser visible para todos los agentes, refléjala también en `AGENTS.md` o en `openspec/`.
 
 ---
 
@@ -52,8 +57,59 @@ Las skills locales del proyecto están en `.skills/`. Lee `.skills/README.md` pa
 
 Para la skill `jornada` (resumen de jornada de trabajo), ve `.skills/jornada/SKILL.md`.
 
+Si existe `.atl/skill-registry.md`, úsalo como caché local de resolución de skills para delegación y SDD. Ese archivo es auxiliar/local, no fuente de verdad del dominio.
+
 ---
 
 ## 5. Stack y convenciones
 
-Ver skills del proyecto y specs en `openspec/specs/` para reglas de arquitectura, dominio e implementación. Stack principal: C# / .NET 9 / WPF / MVVM / Clean Architecture / EF Core / SQLite / ESC-POS.
+Ver skills del proyecto y specs en `openspec/specs/` para reglas de arquitectura, dominio e implementación.
+
+Stack principal:
+- C# / .NET 9
+- WPF + MVVM
+- Clean Architecture
+- EF Core + SQLite
+- ESC-POS
+
+---
+
+## 6. OpenSpec + SDD delegable
+
+Este repositorio usa **OpenSpec** como artifact store de SDD.
+
+- La configuración base vive en `openspec/config.yaml`.
+- Las especificaciones vigentes viven en `openspec/specs/`.
+- El trabajo activo vive en `openspec/changes/<change-name>/`.
+- Los cambios archivados en `openspec/changes/archive/` son historial de auditoría y **no deben borrarse**.
+
+Cuando un cambio sea no trivial:
+- Sigue el flujo `explore → propose → spec → design → tasks → apply → verify → archive`.
+- Mantén los artefactos SDD en **inglés**, alineados con `openspec/config.yaml`.
+- Usa delegación para exploración amplia, implementaciones multiarchivo, pruebas, builds y revisiones adversariales.
+- Antes de ejecutar `apply` o `verify`, revisa `openspec/config.yaml` para detectar reglas activas de testing, build y calidad.
+- Respeta los límites de arquitectura del proyecto: la lógica de negocio no va en WPF y WPF no consulta SQLite directamente.
+
+---
+
+## 7. Cachés locales de sesión para agentes
+
+Para reducir fricción entre sesiones y agentes, se permite mantener cachés locales en `.atl/` (directorio ignorado por git).
+
+Usos esperados:
+- `.atl/skill-registry.md` — índice local de skills de proyecto y skills compartidas para subagentes.
+- `.atl/project-context.md` — contexto operativo local del repo (por ejemplo, rama base por defecto, artifact store SDD, comandos de verificación).
+
+Reglas:
+- Trata `.atl/` como caché regenerable, no como fuente canónica.
+- Si una caché contradice `git`, `openspec/`, `AGENTS.md` o el código real, prevalece la fuente real.
+- Actualiza la caché cuando cambien skills, rama base o convenciones operativas importantes.
+
+### Caché de rama principal
+
+Cuando un agente necesite planear PRs encadenados, comparar cambios, rebasear o definir una baseline de revisión:
+
+- Detecta la rama principal desde git (`origin/HEAD`) y **cáchala para la sesión**.
+- En este repositorio, la baseline actual esperada es **`main`**, salvo que git indique otra cosa.
+- Reutiliza esa rama cacheada durante la sesión en vez de volver a preguntarla al usuario.
+- Si el remoto cambia o el usuario lo corrige, invalida la caché y vuelve a detectarla.
