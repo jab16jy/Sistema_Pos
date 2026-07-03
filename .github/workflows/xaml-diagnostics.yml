@@ -1,0 +1,135 @@
+name: XAML Diagnostics
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/POS.Presentation/**/*.xaml'
+      - 'src/POS.Presentation/**/*.xaml.cs'
+      - 'src/POS.Presentation/**/*.csproj'
+      - 'src/POS.Application/**/*.csproj'
+      - 'src/POS.Presentation.Shared/**/*.csproj'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - '.github/workflows/xaml-diagnostics.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  xaml-diagnostics:
+    name: Build WPF app and upload XAML diagnostics
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Prepare artifact folders
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/msbuild | Out-Null
+          New-Item -ItemType Directory -Force -Path artifacts/reports | Out-Null
+
+      - name: Restore solution
+        shell: pwsh
+        run: |
+          dotnet restore POS.sln --verbosity minimal 2>&1 | Tee-Object -FilePath artifacts/msbuild/restore.log
+
+      - name: Build presentation project with diagnostic logging
+        id: build
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $buildLog = "artifacts/msbuild/presentation-build.log"
+          $buildArgs = @(
+            'build',
+            'src/POS.Presentation/POS.Presentation.csproj',
+            '--configuration', 'Release',
+            '--no-restore',
+            '--verbosity', 'diagnostic',
+            '/bl:artifacts/msbuild/presentation-build.binlog',
+            '/flp:logfile=artifacts/msbuild/presentation-build.diag.log;verbosity=diagnostic'
+          )
+
+          & dotnet @buildArgs 2>&1 | Tee-Object -FilePath $buildLog
+          $exitCode = $LASTEXITCODE
+
+          "exit_code=$exitCode" >> $env:GITHUB_OUTPUT
+
+      - name: Collect generated XAML and intermediate files
+        if: always()
+        shell: pwsh
+        run: |
+          $paths = @(
+            'src/POS.Presentation/obj',
+            'src/POS.Presentation/bin',
+            'src/POS.Application/obj',
+            'src/POS.Presentation.Shared/obj'
+          )
+
+          foreach ($path in $paths) {
+            if (Test-Path $path) {
+              $parentName = Split-Path (Split-Path $path -Parent) -Leaf
+              $leafName = Split-Path $path -Leaf
+              Get-ChildItem $path -Recurse -File |
+                Where-Object {
+                  $_.Extension -in '.xaml', '.baml', '.cache', '.dll', '.pdb', '.json', '.tmp', '.cs' -or
+                  $_.Name -like '*.g.cs' -or
+                  $_.Name -like '*.g.i.cs' -or
+                  $_.Name -like '*.AssemblyInfo.cs' -or
+                  $_.Name -like '*.AssemblyAttributes.cs'
+                } |
+                Sort-Object FullName |
+                Select-Object FullName, Length, LastWriteTimeUtc |
+                Out-File -FilePath "artifacts/reports/generated-files-$($parentName.ToLowerInvariant())-$($leafName.ToLowerInvariant()).txt"
+            }
+          }
+
+          Get-ChildItem src/POS.Presentation -Recurse -File -Filter *.xaml |
+            Sort-Object FullName |
+            Select-Object FullName, Length, LastWriteTimeUtc |
+            Out-File -FilePath artifacts/reports/source-xaml-files.txt
+
+      - name: Extract likely XAML-related errors
+        if: always()
+        shell: pwsh
+        run: |
+          $diagLog = 'artifacts/msbuild/presentation-build.diag.log'
+          $summaryFile = 'artifacts/reports/xaml-error-summary.txt'
+          if (Test-Path $diagLog) {
+            Select-String -Path $diagLog -Pattern 'error ', 'MC[0-9]{4}', 'XDG[0-9]{4}', '\.xaml\(' |
+              Select-Object -First 300 |
+              ForEach-Object { $_.Line } |
+              Set-Content -Path $summaryFile
+          }
+          elseif (-not (Test-Path $summaryFile)) {
+            'No diagnostic log was generated.' | Set-Content -Path $summaryFile
+          }
+
+      - name: Upload XAML diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xaml-diagnostics-${{ github.run_number }}
+          if-no-files-found: warn
+          path: |
+            artifacts/**
+            src/POS.Presentation/obj/**
+            src/POS.Presentation/bin/**
+            src/POS.Application/obj/**
+            src/POS.Presentation.Shared/obj/**
+
+      - name: Fail workflow if build failed
+        if: steps.build.outputs.exit_code != '0'
+        shell: pwsh
+        run: |
+          Write-Host "The diagnostic build failed. Review the uploaded artifact xaml-diagnostics-${{ github.run_number }}."
+          exit 1
