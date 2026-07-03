@@ -1,0 +1,223 @@
+name: WPF Debugger
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/POS.Presentation/**/*.xaml'
+      - 'src/POS.Presentation/**/*.xaml.cs'
+      - 'src/POS.Presentation/**/*.cs'
+      - 'src/POS.Presentation/**/*.csproj'
+      - 'src/POS.Presentation.Shared/**/*.cs'
+      - 'src/POS.Presentation.Shared/**/*.csproj'
+      - 'src/POS.Application/**/*.cs'
+      - 'src/POS.Application/**/*.csproj'
+      - 'src/POS.Domain/**/*.cs'
+      - 'src/POS.Domain/**/*.csproj'
+      - 'src/POS.Infrastructure/**/*.cs'
+      - 'src/POS.Infrastructure/**/*.csproj'
+      - 'tests/POS.Domain.Tests/**/*.cs'
+      - 'tests/POS.Domain.Tests/**/*.csproj'
+      - 'tests/POS.Application.Tests/**/*.cs'
+      - 'tests/POS.Application.Tests/**/*.csproj'
+      - 'tests/POS.Presentation.Shared.Tests/**/*.cs'
+      - 'tests/POS.Presentation.Shared.Tests/**/*.csproj'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'POS.sln'
+      - '.github/workflows/wpf-debugger.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  wpf-debugger:
+    name: Build solution, test layers, and capture WPF diagnostics
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Prepare artifact folders
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/environment | Out-Null
+          New-Item -ItemType Directory -Force -Path artifacts/msbuild | Out-Null
+          New-Item -ItemType Directory -Force -Path artifacts/test-results | Out-Null
+          New-Item -ItemType Directory -Force -Path artifacts/reports | Out-Null
+
+      - name: Capture .NET environment
+        shell: pwsh
+        run: |
+          dotnet --info | Tee-Object -FilePath artifacts/environment/dotnet-info.txt
+          dotnet workload list | Tee-Object -FilePath artifacts/environment/dotnet-workloads.txt
+
+      - name: Restore solution
+        id: restore
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          dotnet restore POS.sln --verbosity minimal 2>&1 | Tee-Object -FilePath artifacts/msbuild/restore.log
+          "exit_code=$LASTEXITCODE" >> $env:GITHUB_OUTPUT
+
+      - name: Build solution (Release)
+        id: solution_build
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $buildArgs = @(
+            'build',
+            'POS.sln',
+            '--configuration', 'Release',
+            '--no-restore',
+            '--verbosity', 'minimal',
+            '/bl:artifacts/msbuild/solution-release.binlog',
+            '/flp:logfile=artifacts/msbuild/solution-release.log;verbosity=diagnostic'
+          )
+
+          & dotnet @buildArgs 2>&1 | Tee-Object -FilePath artifacts/msbuild/solution-release.console.log
+          "exit_code=$LASTEXITCODE" >> $env:GITHUB_OUTPUT
+
+      - name: Build WPF presentation project (Debug diagnostics)
+        id: wpf_build
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          $buildArgs = @(
+            'build',
+            'src/POS.Presentation/POS.Presentation.csproj',
+            '--configuration', 'Debug',
+            '--no-restore',
+            '--verbosity', 'diagnostic',
+            '/bl:artifacts/msbuild/wpf-debug.binlog',
+            '/flp:logfile=artifacts/msbuild/wpf-debug.diag.log;verbosity=diagnostic'
+          )
+
+          & dotnet @buildArgs 2>&1 | Tee-Object -FilePath artifacts/msbuild/wpf-debug.console.log
+          "exit_code=$LASTEXITCODE" >> $env:GITHUB_OUTPUT
+
+      - name: Run Domain tests
+        id: domain_tests
+        if: steps.solution_build.outputs.exit_code == '0'
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          dotnet test tests/POS.Domain.Tests/POS.Domain.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=domain-tests.trx" --results-directory artifacts/test-results 2>&1 |
+            Tee-Object -FilePath artifacts/test-results/domain-tests.log
+          "exit_code=$LASTEXITCODE" >> $env:GITHUB_OUTPUT
+
+      - name: Run Application tests
+        id: application_tests
+        if: steps.solution_build.outputs.exit_code == '0'
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=application-tests.trx" --results-directory artifacts/test-results 2>&1 |
+            Tee-Object -FilePath artifacts/test-results/application-tests.log
+          "exit_code=$LASTEXITCODE" >> $env:GITHUB_OUTPUT
+
+      - name: Run Presentation.Shared tests
+        id: presentation_shared_tests
+        if: steps.solution_build.outputs.exit_code == '0'
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          dotnet test tests/POS.Presentation.Shared.Tests/POS.Presentation.Shared.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=presentation-shared-tests.trx" --results-directory artifacts/test-results 2>&1 |
+            Tee-Object -FilePath artifacts/test-results/presentation-shared-tests.log
+          "exit_code=$LASTEXITCODE" >> $env:GITHUB_OUTPUT
+
+      - name: Collect WPF intermediate files
+        if: always()
+        shell: pwsh
+        run: |
+          $paths = @(
+            'src/POS.Presentation/obj',
+            'src/POS.Presentation/bin',
+            'src/POS.Presentation.Shared/obj',
+            'src/POS.Presentation.Shared/bin'
+          )
+
+          foreach ($path in $paths) {
+            if (Test-Path $path) {
+              $parentName = Split-Path (Split-Path $path -Parent) -Leaf
+              $leafName = Split-Path $path -Leaf
+              Get-ChildItem $path -Recurse -File |
+                Where-Object {
+                  $_.Extension -in '.xaml', '.baml', '.cache', '.dll', '.pdb', '.json', '.tmp', '.cs' -or
+                  $_.Name -like '*.g.cs' -or
+                  $_.Name -like '*.g.i.cs' -or
+                  $_.Name -like '*.AssemblyInfo.cs' -or
+                  $_.Name -like '*.AssemblyAttributes.cs'
+                } |
+                Sort-Object FullName |
+                Select-Object FullName, Length, LastWriteTimeUtc |
+                Out-File -FilePath "artifacts/reports/generated-files-$($parentName.ToLowerInvariant())-$($leafName.ToLowerInvariant()).txt"
+            }
+          }
+
+      - name: Extract failure summaries
+        if: always()
+        shell: pwsh
+        run: |
+          $reportFiles = @(
+            @{ Source = 'artifacts/msbuild/solution-release.log'; Target = 'artifacts/reports/solution-error-summary.txt' },
+            @{ Source = 'artifacts/msbuild/wpf-debug.diag.log'; Target = 'artifacts/reports/wpf-error-summary.txt' },
+            @{ Source = 'artifacts/test-results/domain-tests.log'; Target = 'artifacts/reports/domain-test-summary.txt' },
+            @{ Source = 'artifacts/test-results/application-tests.log'; Target = 'artifacts/reports/application-test-summary.txt' },
+            @{ Source = 'artifacts/test-results/presentation-shared-tests.log'; Target = 'artifacts/reports/presentation-shared-test-summary.txt' }
+          )
+
+          foreach ($report in $reportFiles) {
+            if (Test-Path $report.Source) {
+              Select-String -Path $report.Source -Pattern 'error ', 'failed', 'exception', 'MC[0-9]{4}', 'XDG[0-9]{4}', '\.xaml\(' |
+                Select-Object -First 300 |
+                ForEach-Object { $_.Line } |
+                Set-Content -Path $report.Target
+            }
+            elseif (-not (Test-Path $report.Target)) {
+              'No se generó el log esperado o la etapa fue omitida por un fallo previo.' | Set-Content -Path $report.Target
+            }
+          }
+
+          @(
+            "restore=${{ steps.restore.outputs.exit_code }}",
+            "solution_build=${{ steps.solution_build.outputs.exit_code }}",
+            "wpf_build=${{ steps.wpf_build.outputs.exit_code }}",
+            "domain_tests=${{ steps.domain_tests.outputs.exit_code }}",
+            "application_tests=${{ steps.application_tests.outputs.exit_code }}",
+            "presentation_shared_tests=${{ steps.presentation_shared_tests.outputs.exit_code }}"
+          ) | Set-Content -Path artifacts/reports/exit-codes.txt
+
+      - name: Upload debugger artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wpf-debugger-${{ github.run_number }}
+          if-no-files-found: warn
+          path: |
+            artifacts/**
+            src/POS.Presentation/obj/**
+            src/POS.Presentation/bin/**
+            src/POS.Presentation.Shared/obj/**
+            src/POS.Presentation.Shared/bin/**
+
+      - name: Fail workflow if diagnostics found build or test failures
+        if: >-
+          steps.restore.outputs.exit_code != '0' ||
+          steps.solution_build.outputs.exit_code != '0' ||
+          steps.wpf_build.outputs.exit_code != '0' ||
+          steps.domain_tests.outputs.exit_code != '0' ||
+          steps.application_tests.outputs.exit_code != '0' ||
+          steps.presentation_shared_tests.outputs.exit_code != '0'
+        shell: pwsh
+        run: |
+          Write-Host 'El depurador WPF detectó errores. Revisa el artefacto wpf-debugger-${{ github.run_number }}.'
+          exit 1
