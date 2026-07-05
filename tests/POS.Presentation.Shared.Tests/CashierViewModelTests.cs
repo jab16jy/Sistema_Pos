@@ -1,4 +1,5 @@
 using POS.Application.DTOs.Products;
+using POS.Application.Interfaces;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -19,9 +20,13 @@ public sealed class CashierViewModelTests
         var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
         var sales = new InMemorySaleRepository();
         var unitOfWork = new InMemoryUnitOfWork();
+        var printService = new StubPrintService();
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork))
+            new PreviewPaymentUseCase(),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork),
+            null,
+            printService)
         {
             SearchText = "rice",
             Quantity = 2m,
@@ -37,12 +42,92 @@ public sealed class CashierViewModelTests
         Assert.Empty(viewModel.CartItems);
         Assert.Equal(0m, viewModel.TotalAmount);
         Assert.Equal(0m, viewModel.ReceivedAmount);
-        Assert.Contains("guardada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("compra realizada exitosamente", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("impresa", viewModel.Message, StringComparison.OrdinalIgnoreCase);
         Sale sale = Assert.Single(sales.Sales);
+        Assert.Equal(sale.Id, printService.LastSaleId);
         Assert.Equal(5_000m, sale.Total().Amount);
         Assert.Equal(5_000m, sale.CashInDrawer().Amount);
         Assert.Equal(8m, product.CurrentStock);
         Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task HandleScannerInputAsync_WhenBarcodeMatches_AddsProductAndClearsSearch()
+    {
+        var product = new ProductLookupResult(Guid.NewGuid(), "Rice", "7701", 2_500m, 10m);
+        var viewModel = new CashierViewModel(new StaticProductLookupService(product))
+        {
+            SearchText = "7701"
+        };
+
+        await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+
+        CashierCartItemViewModel item = Assert.Single(viewModel.CartItems);
+        Assert.Equal("Rice", item.ProductName);
+        Assert.Equal(string.Empty, viewModel.SearchText);
+        Assert.Empty(viewModel.SearchResults);
+        Assert.Contains("escáner", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WhenPrintingFails_StillShowsSuccessfulPurchaseMessage()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            null,
+            new StubPrintService { ErrorToThrow = new InvalidOperationException("Printer offline") })
+        {
+            SearchText = "rice",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        viewModel.ReceivedAmount = 3_000m;
+
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("compra realizada exitosamente", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("no se pudo imprimir", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Single(sales.Sales);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WhenPrintReceiptIsDisabled_SkipsPrintingAndShowsSuccessMessage()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var printService = new StubPrintService();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            null,
+            printService)
+        {
+            SearchText = "rice",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid(),
+            ShouldPrintReceipt = false
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        viewModel.ReceivedAmount = 3_000m;
+
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("compra realizada exitosamente", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sin imprimir recibo", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(printService.LastSaleId);
+        Assert.True(viewModel.ShouldPrintReceipt);
+        Assert.Single(sales.Sales);
     }
 
     [Fact]
@@ -338,6 +423,23 @@ public sealed class CashierViewModelTests
         {
             SaveCount++;
             return Task.FromResult(1);
+        }
+    }
+
+    private sealed class StubPrintService : IPrintService
+    {
+        public Guid? LastSaleId { get; private set; }
+        public Exception? ErrorToThrow { get; init; }
+
+        public Task PrintReceiptAsync(Guid saleId, CancellationToken cancellationToken = default)
+        {
+            if (ErrorToThrow is not null)
+            {
+                throw ErrorToThrow;
+            }
+
+            LastSaleId = saleId;
+            return Task.CompletedTask;
         }
     }
 }

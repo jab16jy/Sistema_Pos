@@ -49,6 +49,8 @@ public static class DependencyInjection
         services.AddSingleton(runtimeOptions.WhatsAppScript);
         services.AddSingleton(runtimeOptions.Printer);
         services.AddSingleton<IManualBackupService>(_ => new ManualBackupService(connectionString));
+        services.AddScoped<IPrinterSettingsResolver, PrinterSettingsResolver>();
+        services.AddScoped<IThermalPrinterTransport, ThermalPrinterTransport>();
 
         // Repositories
         services.AddScoped<IProductRepository, ProductRepository>();

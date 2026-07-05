@@ -1,9 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.IO.Ports;
-using System.Net.Sockets;
 using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Interfaces;
 using POS.Domain.Entities;
@@ -34,25 +31,22 @@ public sealed partial class EscPosPrinterService : IPrintService
 
     private static readonly CultureInfo CopCulture = CultureInfo.GetCultureInfo("es-CO");
 
-    private readonly PrinterRuntimeOptions _options;
+    private readonly IPrinterSettingsResolver _printerSettingsResolver;
+    private readonly IThermalPrinterTransport _transport;
     private readonly AppDbContext _dbContext;
 
-    public EscPosPrinterService(PrinterRuntimeOptions options, AppDbContext dbContext)
+    public EscPosPrinterService(
+        IPrinterSettingsResolver printerSettingsResolver,
+        IThermalPrinterTransport transport,
+        AppDbContext dbContext)
     {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _printerSettingsResolver = printerSettingsResolver ?? throw new ArgumentNullException(nameof(printerSettingsResolver));
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_options.Command);
-
     public async Task PrintReceiptAsync(Guid saleId, CancellationToken cancellationToken = default)
     {
-        if (!IsConfigured)
-        {
-            throw new InvalidOperationException(
-                "La impresora no está configurada. La venta queda guardada y podrás imprimir el recibo cuando configures la impresora.");
-        }
-
         var sale = await _dbContext.Sales
             .AsNoTracking()
             .Include(s => s.Items)
@@ -69,24 +63,11 @@ public sealed partial class EscPosPrinterService : IPrintService
             .ConfigureAwait(false);
 
         var receiptBytes = BuildReceiptBytes(sale, settings);
-        var target = _options.Command!.Trim();
+        ThermalPrinterTarget target = await _printerSettingsResolver.ResolveRequiredAsync(cancellationToken).ConfigureAwait(false);
 
-        if (SerialPortRegex().IsMatch(target))
+        if (target.SupportsDirectEscPos)
         {
-            await PrintViaSerialAsync(target, receiptBytes, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (TcpAddressRegex().IsMatch(target))
-        {
-            await PrintViaTcpAsync(target, receiptBytes, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-
-        if (target.StartsWith("USB", StringComparison.OrdinalIgnoreCase) ||
-            target.StartsWith(@"\\.\USB", StringComparison.OrdinalIgnoreCase))
-        {
-            await PrintViaFileStreamAsync(@"\\.\USB001", receiptBytes, cancellationToken).ConfigureAwait(false);
+            await _transport.SendAsync(target, receiptBytes, cancellationToken).ConfigureAwait(false);
             return;
         }
 
@@ -189,37 +170,9 @@ public sealed partial class EscPosPrinterService : IPrintService
     private static string FormatCurrency(decimal amount) =>
         $"${amount.ToString("N0", CopCulture)}";
 
-    private static async Task PrintViaSerialAsync(string port, byte[] data, CancellationToken ct)
+    private static async Task PrintViaProcessAsync(ThermalPrinterTarget target, Guid saleId, CancellationToken ct)
     {
-        using var serial = new SerialPort(port, 9600, Parity.None, 8, StopBits.One)
-        {
-            WriteTimeout = 5000,
-            ReadTimeout = 2000
-        };
-        serial.Open();
-        await serial.BaseStream.WriteAsync(data, ct).ConfigureAwait(false);
-        await serial.BaseStream.FlushAsync(ct).ConfigureAwait(false);
-    }
-
-    private static async Task PrintViaTcpAsync(string address, byte[] data, CancellationToken ct)
-    {
-        var parts = address.Split(':');
-        var host  = parts[0];
-        var port  = int.Parse(parts[1]);
-
-        using var tcp = new TcpClient();
-        await tcp.ConnectAsync(host, port, ct).ConfigureAwait(false);
-        await tcp.GetStream().WriteAsync(data, ct).ConfigureAwait(false);
-        await tcp.GetStream().FlushAsync(ct).ConfigureAwait(false);
-    }
-
-    private static async Task PrintViaFileStreamAsync(string path, byte[] data, CancellationToken ct)
-    {
-        await File.WriteAllBytesAsync(path, data, ct).ConfigureAwait(false);
-    }
-
-    private async Task PrintViaProcessAsync(string command, Guid saleId, CancellationToken ct)
-    {
+        string command = target.Command;
         if (Path.IsPathRooted(command) && !File.Exists(command))
         {
             throw new InvalidOperationException(
@@ -234,8 +187,8 @@ public sealed partial class EscPosPrinterService : IPrintService
             RedirectStandardError = true
         };
 
-        if (!string.IsNullOrWhiteSpace(_options.WorkingDirectory))
-            psi.WorkingDirectory = _options.WorkingDirectory;
+        if (!string.IsNullOrWhiteSpace(target.WorkingDirectory))
+            psi.WorkingDirectory = target.WorkingDirectory;
 
         psi.ArgumentList.Add(saleId.ToString());
 
@@ -250,10 +203,4 @@ public sealed partial class EscPosPrinterService : IPrintService
                 "La impresora reportó un error. La venta queda guardada y puedes reintentar la impresión.");
         }
     }
-
-    [GeneratedRegex(@"^COM\d+$", RegexOptions.IgnoreCase)]
-    private static partial Regex SerialPortRegex();
-
-    [GeneratedRegex(@"^\d{1,3}(\.\d{1,3}){3}:\d{2,5}$")]
-    private static partial Regex TcpAddressRegex();
 }
