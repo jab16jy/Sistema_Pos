@@ -60,8 +60,12 @@ public sealed class Sale
             throw new InvalidOperationException("Only draft sales can be modified.");
         }
 
-        product.DecreaseStock(quantity);
-        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.SalePrice, discount, product.CostPrice, product.TaxRate));
+        if (product.TracksInventory)
+        {
+            product.DecreaseStock(quantity);
+        }
+
+        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.SalePrice, discount, product.CostPrice ?? Money.Zero, product.TaxRate));
     }
 
     public void AddPayment(Payment payment)

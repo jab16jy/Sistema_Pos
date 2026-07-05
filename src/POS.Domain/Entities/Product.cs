@@ -1,3 +1,4 @@
+using POS.Domain.Enums;
 using POS.Domain.Exceptions;
 using POS.Domain.ValueObjects;
 
@@ -9,6 +10,7 @@ public sealed class Product
     {
         Name = string.Empty;
         Description = string.Empty;
+        SourceCode = string.Empty;
     }
 
     public Product(
@@ -30,27 +32,80 @@ public sealed class Product
         Id = Guid.NewGuid();
         Name = name.Trim();
         Description = description?.Trim() ?? string.Empty;
+        SourceCode = barcode?.Value ?? $"MANUAL-{Id:N}";
         CategoryId = categoryId;
         CostPrice = costPrice;
         SalePrice = salePrice;
         CurrentStock = currentStock.Value;
         MinimumStock = minimumStock.Value;
         Barcode = barcode?.Value;
+        ItemType = CatalogItemType.Product;
+        TracksInventory = true;
         TaxRate = ValidateTaxRate(taxRate);
         IsActive = true;
     }
 
+    public static Product CreateImportedCatalogItem(
+        string sourceCode,
+        string name,
+        Guid categoryId,
+        Money salePrice,
+        StockQuantity currentStock,
+        StockQuantity minimumStock,
+        CatalogItemType itemType,
+        bool tracksInventory,
+        Guid? unitOfMeasureId,
+        Guid? taxProfileId,
+        string? description = null,
+        Barcode? barcode = null,
+        Money? costPrice = null,
+        Guid? subCategoryId = null,
+        decimal taxRate = 19m,
+        bool isActive = true)
+    {
+        if (string.IsNullOrWhiteSpace(sourceCode))
+            throw new ArgumentException("Source code is required.", nameof(sourceCode));
+
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Product name is required.", nameof(name));
+
+        return new Product
+        {
+            Id = Guid.NewGuid(),
+            SourceCode = sourceCode.Trim(),
+            Name = name.Trim(),
+            Description = description?.Trim() ?? string.Empty,
+            CategoryId = categoryId,
+            SubCategoryId = subCategoryId,
+            UnitOfMeasureId = unitOfMeasureId,
+            TaxProfileId = taxProfileId,
+            CostPrice = costPrice,
+            SalePrice = salePrice,
+            CurrentStock = tracksInventory ? currentStock.Value : 0m,
+            MinimumStock = minimumStock.Value,
+            Barcode = barcode?.Value,
+            ItemType = itemType,
+            TracksInventory = tracksInventory,
+            TaxRate = ValidateTaxRate(taxRate),
+            IsActive = isActive
+        };
+    }
+
     public Guid Id { get; private set; }
+    public string SourceCode { get; private set; }
     public string? Barcode { get; private set; }
     public string Name { get; private set; }
     public string Description { get; private set; }
     public Guid CategoryId { get; private set; }
     public Guid? SubCategoryId { get; private set; }
     public Guid? UnitOfMeasureId { get; private set; }
-    public Money CostPrice { get; private set; }
+    public Guid? TaxProfileId { get; private set; }
+    public Money? CostPrice { get; private set; }
     public Money SalePrice { get; private set; }
     public decimal CurrentStock { get; private set; }
     public decimal MinimumStock { get; private set; }
+    public CatalogItemType ItemType { get; private set; }
+    public bool TracksInventory { get; private set; }
     public decimal TaxRate { get; private set; }
     public bool IsActive { get; private set; }
 
@@ -110,6 +165,11 @@ public sealed class Product
 
     public void DecreaseStock(Quantity quantity)
     {
+        if (!TracksInventory)
+        {
+            return;
+        }
+
         if (CurrentStock < quantity.Value)
         {
             throw new InsufficientStockException(Name, CurrentStock, quantity.Value);

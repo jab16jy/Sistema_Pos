@@ -29,13 +29,14 @@ public sealed class ProductLookupService : IProductLookupService
             .AsNoTracking()
             .Where(product => product.IsActive &&
                 (EF.Functions.Like(product.Name, pattern) ||
+                 product.SourceCode == normalized ||
                  (product.Barcode != null && product.Barcode == normalized)))
             .OrderBy(product => product.Name)
             .Take(20)
             .Select(product => new ProductLookupResult(
                 product.Id,
                 product.Name,
-                product.Barcode ?? string.Empty,
+                product.Barcode ?? product.SourceCode,
                 product.SalePrice.Amount,
                 product.CurrentStock,
                 product.MinimumStock))

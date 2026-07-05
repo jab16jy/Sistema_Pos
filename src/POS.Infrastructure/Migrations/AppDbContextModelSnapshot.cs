@@ -487,7 +487,7 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal>("CostPrice")
+                    b.Property<decimal?>("CostPrice")
                         .HasColumnType("TEXT")
                         .HasColumnName("cost_price");
 
@@ -502,6 +502,13 @@ namespace POS.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ItemType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Product");
+
                     b.Property<decimal>("MinimumStock")
                         .HasColumnType("TEXT");
 
@@ -514,25 +521,150 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("sale_price");
 
+                    b.Property<string>("SourceCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SubCategoryId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TaxProfileId")
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("TaxRate")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
-                        .HasDefaultValue(19m)
                         .HasColumnName("tax_rate");
+
+                    b.Property<bool>("TracksInventory")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
 
                     b.Property<string>("UnitOfMeasureId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Barcode");
+
+                    b.HasIndex("Name");
+
+                    b.HasIndex("SourceCode")
+                        .IsUnique();
+
                     b.HasIndex("SubCategoryId");
+
+                    b.HasIndex("TaxProfileId");
 
                     b.HasIndex("UnitOfMeasureId");
 
                     b.ToTable("PRODUCTS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ProductImportBatch", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ImportedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ImportedRows")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("SkippedRows")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceFileName")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TotalRows")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceFileName")
+                        .IsUnique();
+
+                    b.ToTable("PRODUCT_IMPORT_BATCHES", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ProductImportLine", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BatchId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ImportedProductId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("NormalizedStock")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RowNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourcePrice")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceStock")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceTax")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceUnit")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportedProductId");
+
+                    b.HasIndex("SourceCode");
+
+                    b.HasIndex("BatchId", "RowNumber")
+                        .IsUnique();
+
+                    b.ToTable("PRODUCT_IMPORT_LINES", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.ProductSupplier", b =>
@@ -942,6 +1074,37 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("Suppliers", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.TaxProfile", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Rate")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("rate");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("TAX_PROFILES", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.UnitOfMeasure", b =>
                 {
                     b.Property<string>("Id")
@@ -1036,9 +1199,28 @@ namespace POS.Infrastructure.Migrations
                         .HasForeignKey("SubCategoryId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("POS.Domain.Entities.TaxProfile", null)
+                        .WithMany()
+                        .HasForeignKey("TaxProfileId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("POS.Domain.Entities.UnitOfMeasure", null)
                         .WithMany()
                         .HasForeignKey("UnitOfMeasureId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ProductImportLine", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.ProductImportBatch", null)
+                        .WithMany()
+                        .HasForeignKey("BatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("POS.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ImportedProductId")
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
