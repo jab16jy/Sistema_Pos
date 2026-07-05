@@ -49,7 +49,7 @@ public sealed class UpdateProductUseCase
         product.Id,
         product.Name,
         product.CategoryId,
-        product.CostPrice.Amount,
+        product.CostPrice?.Amount ?? 0m,
         product.SalePrice.Amount,
         product.CurrentStock,
         product.MinimumStock,

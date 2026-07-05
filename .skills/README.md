@@ -33,6 +33,12 @@ Use them as implementation guidance when building the POS. They are intentionall
 9. [`jornada`](./jornada/SKILL.md)
     - Use when the user asks for a work session summary: "jornada", "jornada de hoy", "qué cambios hicimos", "resumen de cambios", "bitácora de la app", "jornada del módulo X", "qué cambios hicimos ayer".
 
+10. [`pos-catalog-source-analysis`](./pos-catalog-source-analysis/SKILL.md)
+    - Use when analyzing Excel/CSV/catalog exports to infer normalized columns, defaults, import rules, and source-safe mappings for products and services.
+
+11. [`pos-sqlite-schema-design`](./pos-sqlite-schema-design/SKILL.md)
+    - Use when designing or changing SQLite/EF Core tables, columns, nullability, keys, indexes, and relationships for the POS catalog and import flows.
+
 ## Non-negotiable project principles
 
 - The application is a local desktop POS for small businesses.

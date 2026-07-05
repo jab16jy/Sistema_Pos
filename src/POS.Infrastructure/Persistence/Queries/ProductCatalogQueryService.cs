@@ -38,6 +38,7 @@ public sealed class ProductCatalogQueryService : IProductCatalogQueryService
             string pattern = $"%{searchText}%";
             query = query.Where(product =>
                 EF.Functions.Like(product.Name, pattern) ||
+                product.SourceCode == searchText ||
                 (product.Barcode != null && product.Barcode == searchText));
         }
 

@@ -139,6 +139,32 @@ public sealed class SaleTests
         Assert.Equal(1_500m, item.Profit().Amount);
     }
 
+    [Fact]
+    public void AddItem_WhenCatalogItemDoesNotTrackInventory_PreservesStockAndUsesZeroCostSnapshot()
+    {
+        Product service = Product.CreateImportedCatalogItem(
+            sourceCode: "SERV001",
+            name: "Consultation",
+            categoryId: Guid.NewGuid(),
+            salePrice: new Money(50_000m),
+            currentStock: new StockQuantity(0m),
+            minimumStock: new StockQuantity(0m),
+            itemType: CatalogItemType.Service,
+            tracksInventory: false,
+            unitOfMeasureId: null,
+            taxProfileId: null,
+            costPrice: null,
+            taxRate: 0m);
+
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(service, new Quantity(1m), Money.Zero);
+
+        SaleItem item = Assert.Single(sale.Items);
+        Assert.Equal(0m, service.CurrentStock);
+        Assert.Equal(0m, item.UnitCost.Amount);
+        Assert.Equal(0m, item.TaxRate);
+    }
+
     private static Product MakeProduct(decimal salePrice, decimal stock = 10m) =>
         new Product("Item", Guid.NewGuid(), new Money(salePrice / 2), new Money(salePrice),
             new StockQuantity(stock), new StockQuantity(1m));

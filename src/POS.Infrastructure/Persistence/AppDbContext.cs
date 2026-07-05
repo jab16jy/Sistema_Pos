@@ -21,6 +21,7 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
 
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<TaxProfile> TaxProfiles => Set<TaxProfile>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<User> Users => Set<User>();
     public DbSet<Customer> Customers => Set<Customer>();
@@ -45,6 +46,8 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
     public DbSet<ProductSupplier> ProductSuppliers => Set<ProductSupplier>();
     public DbSet<LoyaltyTier> LoyaltyTiers => Set<LoyaltyTier>();
+    public DbSet<ProductImportBatch> ProductImportBatches => Set<ProductImportBatch>();
+    public DbSet<ProductImportLine> ProductImportLines => Set<ProductImportLine>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Infrastructure.Catalog;
 using POS.Infrastructure.Persistence;
 
 namespace POS.Infrastructure;
@@ -15,6 +16,7 @@ public static class DatabaseSchemaRollout
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await dbContext.Database.MigrateAsync(cancellationToken);
         await SeedDefaultAdminAsync(scope.ServiceProvider, dbContext, cancellationToken);
+        await CatalogWorkbookBootstrapper.SeedAsync(dbContext, cancellationToken);
     }
 
     private static async Task SeedDefaultAdminAsync(IServiceProvider sp, AppDbContext dbContext, CancellationToken ct)
