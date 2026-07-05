@@ -473,6 +473,31 @@
                 Height="44"
                 FontSize="15" />
 
+        <Border Background="{StaticResource BrushPrimaryContainer}"
+                BorderBrush="{StaticResource BrushPrimary}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,10,0,0"
+                Visibility="{Binding IsAwaitingPrintChoice, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock Text="¿Imprimir recibo en la impresora térmica?"
+                       FontWeight="SemiBold"
+                       TextWrapping="Wrap"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,8" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Button Content="Sí, imprimir" Command="{Binding PrintReceiptYesCommand}" Style="{StaticResource PrimaryButton}" />
+              <Button Grid.Column="2" Content="No" Command="{Binding PrintReceiptNoCommand}" Style="{StaticResource GhostButton}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
         <StackPanel Orientation="Horizontal"
                     HorizontalAlignment="Center"
                     Margin="0,10,0,0">

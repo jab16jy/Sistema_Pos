@@ -10,8 +10,7 @@
         MinWidth="1280"
         MinHeight="700"
         Icon="pack://application:,,,/Resources/Newlogo.png"
-        WindowStartupLocation="CenterScreen"
-        PreviewMouseWheel="OnPreviewMouseWheel">
+        WindowStartupLocation="CenterScreen">
   <Window.InputBindings>
     <KeyBinding Key="F1" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[0]}" />
     <KeyBinding Key="F2" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[1]}" />
@@ -124,7 +123,7 @@
           <local:CashierView Grid.Row="1" DataContext="{Binding Cashier}" />
         </Grid>
 
-        <Grid Visibility="{Binding IsAdminHubSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <Grid Visibility="{Binding IsSettingsViewSelected, Converter={StaticResource BoolToVisibilityConverter}}">
           <local:SettingsView DataContext="{Binding Settings}" Visibility="{Binding Settings, Converter={StaticResource NullToVisibilityConverter}}" />
           <Border Style="{StaticResource Card}" Visibility="{Binding Settings, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="El centro de control no está disponible en este entorno." Style="{StaticResource MutedText}" />
@@ -200,13 +199,6 @@
           <local:InvoicesView DataContext="{Binding Invoices}" Visibility="{Binding Invoices, Converter={StaticResource NullToVisibilityConverter}}" />
           <Border Style="{StaticResource Card}" Visibility="{Binding Invoices, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Invoices are not available in this environment." Style="{StaticResource MutedText}" />
-          </Border>
-        </Grid>
-
-        <Grid Visibility="{Binding IsSettingsSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:SettingsView DataContext="{Binding Settings}" Visibility="{Binding Settings, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Settings, Converter={StaticResource InverseNullToVisibilityConverter}}">
-            <TextBlock Text="Settings are not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 

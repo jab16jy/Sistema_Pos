@@ -8,6 +8,7 @@ using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Sales;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Invoices;
 using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Enums;
@@ -23,6 +24,10 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly PreviewPaymentUseCase _previewPaymentUseCase;
     private readonly CreateSaleUseCase? _createSaleUseCase;
     private readonly RedeemLoyaltyPointsUseCase? _redeemLoyaltyPointsUseCase;
+    private readonly ReprintReceiptUseCase? _printReceiptUseCase;
+    private readonly RelayCommand _printReceiptYesCommand;
+    private readonly RelayCommand _printReceiptNoCommand;
+    private Guid? _pendingPrintSaleId;
     private readonly RelayCommand _addSelectedProductCommand;
     private readonly RelayCommand _appendReceivedAmountCommand;
     private readonly RelayCommand _backspaceReceivedAmountCommand;
@@ -75,11 +80,22 @@ public sealed class CashierViewModel : ViewModelBase
         PreviewPaymentUseCase previewPaymentUseCase,
         CreateSaleUseCase? createSaleUseCase,
         RedeemLoyaltyPointsUseCase? redeemLoyaltyPointsUseCase)
+        : this(productLookupService, previewPaymentUseCase, createSaleUseCase, redeemLoyaltyPointsUseCase, null)
+    {
+    }
+
+    public CashierViewModel(
+        IProductLookupService productLookupService,
+        PreviewPaymentUseCase previewPaymentUseCase,
+        CreateSaleUseCase? createSaleUseCase,
+        RedeemLoyaltyPointsUseCase? redeemLoyaltyPointsUseCase,
+        ReprintReceiptUseCase? printReceiptUseCase)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _previewPaymentUseCase = previewPaymentUseCase ?? throw new ArgumentNullException(nameof(previewPaymentUseCase));
         _createSaleUseCase = createSaleUseCase;
         _redeemLoyaltyPointsUseCase = redeemLoyaltyPointsUseCase;
+        _printReceiptUseCase = printReceiptUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -105,6 +121,8 @@ public sealed class CashierViewModel : ViewModelBase
         _associateCustomerCommand = new RelayCommand(_ => AssociateCustomer());
         _holdSaleCommand = new RelayCommand(_ => HoldSale(), _ => HasCartItems);
         _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale());
+        _printReceiptYesCommand = new RelayCommand(async _ => await PrintPendingReceiptAsync().ConfigureAwait(true), _ => IsAwaitingPrintChoice);
+        _printReceiptNoCommand = new RelayCommand(_ => DeclinePendingReceipt(), _ => IsAwaitingPrintChoice);
         AddSelectedProductCommand = _addSelectedProductCommand;
         AppendReceivedAmountCommand = _appendReceivedAmountCommand;
         BackspaceReceivedAmountCommand = _backspaceReceivedAmountCommand;
@@ -116,6 +134,8 @@ public sealed class CashierViewModel : ViewModelBase
         HoldSaleCommand = _holdSaleCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
         ApplyRedemptionCommand = new RelayCommand(async _ => await ApplyRedemptionAsync().ConfigureAwait(true));
+        PrintReceiptYesCommand = _printReceiptYesCommand;
+        PrintReceiptNoCommand = _printReceiptNoCommand;
     }
 
     public ObservableCollection<CashierProductSearchResultViewModel> SearchResults { get; }
@@ -181,6 +201,13 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     public ICommand ApplyRedemptionCommand { get; }
+
+    public ICommand PrintReceiptYesCommand { get; }
+
+    public ICommand PrintReceiptNoCommand { get; }
+
+    /// <summary>True right after a sale is confirmed, while the cashier decides whether to print the thermal receipt.</summary>
+    public bool IsAwaitingPrintChoice => _pendingPrintSaleId is not null;
 
     public string SearchText
     {
@@ -408,6 +435,14 @@ public sealed class CashierViewModel : ViewModelBase
             DeferredAmount = 0m;
             RefreshTotals(updateMessage: false);
             Message = $"Venta guardada con factura {result.InvoiceNumber}.";
+
+            if (_printReceiptUseCase is not null)
+            {
+                _pendingPrintSaleId = result.SaleId;
+                OnPropertyChanged(nameof(IsAwaitingPrintChoice));
+                _printReceiptYesCommand.RaiseCanExecuteChanged();
+                _printReceiptNoCommand.RaiseCanExecuteChanged();
+            }
         }
         catch (InvalidOperationException ex)
         {
@@ -418,6 +453,42 @@ public sealed class CashierViewModel : ViewModelBase
     private void ConfirmPrototypeSale()
     {
         _ = ConfirmSaleAsync();
+    }
+
+    private async Task PrintPendingReceiptAsync()
+    {
+        if (_pendingPrintSaleId is not { } saleId || _printReceiptUseCase is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _printReceiptUseCase.ExecuteAsync(saleId).ConfigureAwait(true);
+            Message = "Recibo enviado a la impresora.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+        finally
+        {
+            ClearPendingPrintChoice();
+        }
+    }
+
+    private void DeclinePendingReceipt()
+    {
+        Message = "Recibo no impreso. Puedes reimprimirlo luego desde Facturas.";
+        ClearPendingPrintChoice();
+    }
+
+    private void ClearPendingPrintChoice()
+    {
+        _pendingPrintSaleId = null;
+        OnPropertyChanged(nameof(IsAwaitingPrintChoice));
+        _printReceiptYesCommand.RaiseCanExecuteChanged();
+        _printReceiptNoCommand.RaiseCanExecuteChanged();
     }
 
     private void EditCartItem(object? parameter)

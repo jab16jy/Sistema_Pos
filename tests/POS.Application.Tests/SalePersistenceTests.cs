@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using POS.Application.DTOs.Invoices;
 using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
@@ -8,6 +9,7 @@ using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 using POS.Infrastructure;
 using POS.Infrastructure.Persistence;
+using POS.Infrastructure.Persistence.Queries;
 using POS.Infrastructure.Persistence.Repositories;
 using Xunit;
 
@@ -165,6 +167,36 @@ public sealed class SalePersistenceTests
             .SingleAsync(r => r.SaleId == result.SaleId, TestContext.Current.CancellationToken);
         Assert.Equal(customerId, receivable.CustomerId);
         Assert.Equal(150_000m, receivable.OutstandingBalance.Amount);
+    }
+
+    [Fact]
+    public async Task SalesHistoryQueryService_AfterCompletedSale_ReturnsItWithCorrectTotal()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m));
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        await saleUseCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 2m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 3_000m, null)]),
+            TestContext.Current.CancellationToken);
+
+        var historyService = new SalesHistoryQueryService(dbContext);
+
+        IReadOnlyList<SaleHistoryResult> results = await historyService.SearchAsync(
+            new SalesHistoryRequest(null, null, null),
+            TestContext.Current.CancellationToken);
+
+        SaleHistoryResult result = Assert.Single(results);
+        Assert.Equal(2_800m, result.Total);
     }
 
     private static AppDbContext CreateDbContext(SqliteConnection connection)

@@ -8,8 +8,8 @@ Reglas universales para todos los agentes (Hermes, Claude Code, OpenCode, Codex,
 
 La memoria principal de trabajo para este proyecto es la **memoria persistente del agente**, no Obsidian.
 
-- En sesiones de **Hermes**, la fuente de memoria es `memory()` + `session_search()`.
-- En agentes que todavía tengan Engram configurado, usa su backend de memoria **solo como compatibilidad local**, no como fuente canónica del proyecto.
+- **Engram es la fuente canónica** de memoria para este proyecto (`mem_save`, `mem_search`, `mem_context`).
+- Si trabajás en sesión de Hermes, usa `memory()` + `session_search()` como equivalente — mismo rol, backend distinto.
 - No uses el vault `docs md/` como memoria operativa del agente ni como sustituto de contexto persistente.
 
 Reglas prácticas:

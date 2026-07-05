@@ -33,23 +33,17 @@
           <Grid Margin="14,10">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="140" />
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="140" />
               <ColumnDefinition Width="120" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="N° factura o cliente..." />
-            <DatePicker Grid.Column="1" SelectedDate="{Binding FromDate, Mode=TwoWay, Converter={StaticResource DateOnlyToDateTimeConverter}}" Margin="8,0,0,0" />
-            <TextBlock Grid.Column="2" Text="→" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="8,0" />
-            <DatePicker Grid.Column="3" SelectedDate="{Binding ToDate, Mode=TwoWay, Converter={StaticResource DateOnlyToDateTimeConverter}}" />
-            <ComboBox Grid.Column="4" SelectedValuePath="Tag" SelectedValue="{Binding StatusFilter, Mode=TwoWay}" Margin="8,0,0,0">
+            <ComboBox Grid.Column="1" SelectedValuePath="Tag" SelectedValue="{Binding StatusFilter, Mode=TwoWay}" Margin="8,0,0,0">
               <ComboBoxItem Content="Todo" Tag="" IsSelected="True" />
               <ComboBoxItem Content="Activa" Tag="activa" />
               <ComboBoxItem Content="Anulada" Tag="anulada" />
               <ComboBoxItem Content="Devuelta" Tag="devuelta" />
             </ComboBox>
-            <Button Grid.Column="5" Content="Buscar" Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" />
+            <Button Grid.Column="2" Content="Buscar" Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" />
           </Grid>
 
           <!-- Encabezado -->

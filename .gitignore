@@ -38,3 +38,4 @@ logs/
 .atl/
 .claude/
 build_output/
+.worktrees/
