@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.18.0...v0.19.0) (2026-07-05)
+
+
+### Features
+
+* **cashier:** align barcode and receipt checkout flow ([#66](https://github.com/jab16jy/Sistema_Pos/issues/66)) ([1a446fe](https://github.com/jab16jy/Sistema_Pos/commit/1a446fef24b01c845d750fdc925aa4cd096dadd3))
+
 ## [0.18.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.17.0...v0.18.0) (2026-07-03)
 
 
