@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.20.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.19.0...v0.20.0) (2026-07-05)
+
+
+### Features
+
+* **catalog:** import excel catalog into sqlite ([#68](https://github.com/jab16jy/Sistema_Pos/issues/68)) ([43548e9](https://github.com/jab16jy/Sistema_Pos/commit/43548e9d4e306aa012662878128eb98393ee17f0))
+
+## [0.19.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.18.0...v0.19.0) (2026-07-05)
+
+
+### Features
+
+* **cashier:** align barcode and receipt checkout flow ([#66](https://github.com/jab16jy/Sistema_Pos/issues/66)) ([1a446fe](https://github.com/jab16jy/Sistema_Pos/commit/1a446fef24b01c845d750fdc925aa4cd096dadd3))
+
+## [0.18.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.17.0...v0.18.0) (2026-07-03)
+
+
+### Features
+
+* implement desktop logo, sequential F1-F5 shortcuts, mouse wheel navigation and remove wireframe files ([#64](https://github.com/jab16jy/Sistema_Pos/issues/64)) ([ca88963](https://github.com/jab16jy/Sistema_Pos/commit/ca889632d812f11c81a5035698c4669b716072e9))
+
+
+### Bug Fixes
+
+* **wpf:** update branding assets and XAML parsing ([f4c50d0](https://github.com/jab16jy/Sistema_Pos/commit/f4c50d083904d6cb5c0945b0b5dab5242cdf74c3))
+
 ## [0.17.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.16.0...v0.17.0) (2026-07-01)
 
 

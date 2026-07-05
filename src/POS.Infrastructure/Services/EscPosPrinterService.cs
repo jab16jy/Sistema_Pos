@@ -4,7 +4,6 @@ using System.IO.Ports;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Interfaces;
 using POS.Domain.Entities;
@@ -36,12 +35,17 @@ public sealed partial class EscPosPrinterService : IPrintService
 
     private static readonly CultureInfo CopCulture = CultureInfo.GetCultureInfo("es-CO");
 
-    private readonly PrinterRuntimeOptions _options;
+    private readonly IPrinterSettingsResolver _printerSettingsResolver;
+    private readonly IThermalPrinterTransport _transport;
     private readonly AppDbContext _dbContext;
 
-    public EscPosPrinterService(PrinterRuntimeOptions options, AppDbContext dbContext)
+    public EscPosPrinterService(
+        IPrinterSettingsResolver printerSettingsResolver,
+        IThermalPrinterTransport transport,
+        AppDbContext dbContext)
     {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _printerSettingsResolver = printerSettingsResolver ?? throw new ArgumentNullException(nameof(printerSettingsResolver));
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
         _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
     }
 
@@ -92,7 +96,7 @@ public sealed partial class EscPosPrinterService : IPrintService
             return;
         }
 
-        if (SerialPortRegex().IsMatch(target))
+        if (target.SupportsDirectEscPos)
         {
             await PrintViaSerialAsync(target, receiptBytes, cancellationToken).ConfigureAwait(false);
             return;
@@ -331,6 +335,7 @@ public sealed partial class EscPosPrinterService : IPrintService
 
     private async Task PrintViaProcessAsync(string command, Guid saleId, CancellationToken ct)
     {
+        string command = target.Command;
         if (Path.IsPathRooted(command) && !File.Exists(command))
         {
             throw new InvalidOperationException(
@@ -345,8 +350,8 @@ public sealed partial class EscPosPrinterService : IPrintService
             RedirectStandardError = true
         };
 
-        if (!string.IsNullOrWhiteSpace(_options.WorkingDirectory))
-            psi.WorkingDirectory = _options.WorkingDirectory;
+        if (!string.IsNullOrWhiteSpace(target.WorkingDirectory))
+            psi.WorkingDirectory = target.WorkingDirectory;
 
         psi.ArgumentList.Add(saleId.ToString());
 
@@ -361,10 +366,4 @@ public sealed partial class EscPosPrinterService : IPrintService
                 "La impresora reportó un error. La venta queda guardada y puedes reintentar la impresión.");
         }
     }
-
-    [GeneratedRegex(@"^COM\d+$", RegexOptions.IgnoreCase)]
-    private static partial Regex SerialPortRegex();
-
-    [GeneratedRegex(@"^\d{1,3}(\.\d{1,3}){3}:\d{2,5}$")]
-    private static partial Regex TcpAddressRegex();
 }

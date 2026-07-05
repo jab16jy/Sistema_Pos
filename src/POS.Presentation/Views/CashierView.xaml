@@ -86,12 +86,14 @@
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
 
-          <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                   Tag="Escanear código o escribir nombre..."
-                   FontSize="15"
-                   Height="44"
-                   BorderBrush="{StaticResource BrushPrimary}"
-                   BorderThickness="2" />
+          <TextBox x:Name="SearchTextBox"
+                   Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    Tag="Escanear código o escribir nombre..."
+                    FontSize="15"
+                    Height="44"
+                    KeyDown="SearchTextBox_OnKeyDown"
+                    BorderBrush="{StaticResource BrushPrimary}"
+                    BorderThickness="2" />
 
           <xctk:IntegerUpDown Grid.Column="1"
                               Value="{Binding Quantity, Mode=TwoWay}"
@@ -465,6 +467,20 @@
               </TextBlock.Style>
             </TextBlock>
           </Grid>
+        </Border>
+
+        <Border Background="#F8FAFC"
+                BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="1"
+                CornerRadius="6"
+                Padding="12"
+                Margin="0,0,0,14">
+          <StackPanel>
+            <TextBlock Text="Recibo" Style="{StaticResource CashHint}" FontWeight="Medium" />
+            <CheckBox IsChecked="{Binding ShouldPrintReceipt, Mode=TwoWay}"
+                      Content="Imprimir recibo al finalizar la venta"
+                      Margin="0,6,0,0" />
+          </StackPanel>
         </Border>
 
         <Button Content="F5 · Finalizar venta"

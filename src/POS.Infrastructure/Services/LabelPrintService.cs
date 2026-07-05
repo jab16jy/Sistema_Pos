@@ -1,20 +1,29 @@
 using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.Interfaces;
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
+using ZXing;
+using ZXing.Common;
+using ZXing.Rendering;
 
 namespace POS.Infrastructure.Services;
 
 public sealed class LabelPrintService : ILabelPrintService
 {
-    private readonly IBarcodeGenerationService _barcodeService;
-    private readonly IPrintService _printService;
+    private static readonly byte[] CmdInit = [0x1B, 0x40];
+    private static readonly byte[] CmdCenterAlign = [0x1B, 0x61, 0x01];
+    private static readonly byte[] CmdLeftAlign = [0x1B, 0x61, 0x00];
+    private static readonly byte[] CmdBoldOn = [0x1B, 0x45, 0x01];
+    private static readonly byte[] CmdBoldOff = [0x1B, 0x45, 0x00];
+    private static readonly byte[] CmdFullCut = [0x1D, 0x56, 0x00];
 
-    public LabelPrintService(IBarcodeGenerationService barcodeService, IPrintService printService)
+    private readonly IPrinterSettingsResolver _printerSettingsResolver;
+    private readonly IThermalPrinterTransport _transport;
+
+    public LabelPrintService(
+        IPrinterSettingsResolver printerSettingsResolver,
+        IThermalPrinterTransport transport)
     {
-        _barcodeService = barcodeService ?? throw new ArgumentNullException(nameof(barcodeService));
-        _printService = printService ?? throw new ArgumentNullException(nameof(printService));
+        _printerSettingsResolver = printerSettingsResolver ?? throw new ArgumentNullException(nameof(printerSettingsResolver));
+        _transport = transport ?? throw new ArgumentNullException(nameof(transport));
     }
 
     public async Task PrintAsync(IEnumerable<LabelRequest> labels, int copies = 1, CancellationToken cancellationToken = default)
@@ -28,38 +37,15 @@ public sealed class LabelPrintService : ILabelPrintService
 
         try
         {
-            var pdfBytes = await BuildLabelsAsync(labelList, copies, cancellationToken).ConfigureAwait(false);
-
-            // Write PDF to temp file and print via existing print service pattern
-            var tempPath = Path.Combine(Path.GetTempPath(), $"labels_{Guid.NewGuid():N}.pdf");
-            await File.WriteAllBytesAsync(tempPath, pdfBytes, cancellationToken).ConfigureAwait(false);
-
-            try
+            ThermalPrinterTarget target = await _printerSettingsResolver.ResolveRequiredAsync(cancellationToken).ConfigureAwait(false);
+            if (!target.SupportsDirectEscPos)
             {
-                // Use system default printer to print the PDF
-                var psi = new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = tempPath,
-                    UseShellExecute = true,
-                    Verb = "print"
-                };
+                throw new InvalidOperationException(
+                    "La configuración actual de impresora no admite impresión térmica directa de etiquetas. Usa COM, IP:PUERTO o USB.");
+            }
 
-                using var process = System.Diagnostics.Process.Start(psi);
-                if (process is not null)
-                {
-                    // Give the print spooler time to pick up the file
-                    await Task.Delay(2000, cancellationToken).ConfigureAwait(false);
-                }
-            }
-            finally
-            {
-                // Clean up temp file after a delay
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(10_000).ConfigureAwait(false);
-                    try { File.Delete(tempPath); } catch { /* best effort */ }
-                });
-            }
+            byte[] payload = BuildLabels(labelList, copies);
+            await _transport.SendAsync(target, payload, cancellationToken).ConfigureAwait(false);
         }
         catch (ApplicationException)
         {
@@ -71,69 +57,128 @@ public sealed class LabelPrintService : ILabelPrintService
         }
     }
 
-    private async Task<byte[]> BuildLabelsAsync(
-        IReadOnlyList<LabelRequest> labels, int copies, CancellationToken cancellationToken)
+    private static byte[] BuildLabels(IReadOnlyList<LabelRequest> labels, int copies)
     {
-        // Pre-generate all barcode images
-        var barcodeImages = new Dictionary<string, byte[]>();
-        foreach (var label in labels)
+        List<byte> buffer = [];
+        void Write(params byte[] bytes) => buffer.AddRange(bytes);
+        void WriteText(string text) => buffer.AddRange(System.Text.Encoding.UTF8.GetBytes(text));
+        void WriteLine(string text = "") => WriteText(text + "\n");
+
+        Write(CmdInit);
+        Write([0x1B, 0x32]);
+
+        foreach (LabelRequest label in labels)
         {
-            if (!string.IsNullOrWhiteSpace(label.BarcodeValue) && !barcodeImages.ContainsKey(label.BarcodeValue))
+            for (int copyIndex = 0; copyIndex < copies; copyIndex++)
             {
-                var png = await _barcodeService.GenerateAutoAsync(label.BarcodeValue, cancellationToken).ConfigureAwait(false);
-                barcodeImages[label.BarcodeValue] = png;
+                Write(CmdCenterAlign);
+                Write(CmdBoldOn);
+                foreach (string line in WrapText(label.ProductName, 24).Take(2))
+                {
+                    WriteLine(line.ToUpperInvariant());
+                }
+                Write(CmdBoldOff);
+
+                byte[] raster = BuildBarcodeRaster(label.BarcodeValue, label.Symbology);
+                Write(raster);
+
+                Write(CmdCenterAlign);
+                WriteLine(label.BarcodeValue);
+                if (label.Price > 0)
+                {
+                    Write(CmdBoldOn);
+                    WriteLine($"${label.Price:N0}");
+                    Write(CmdBoldOff);
+                }
+
+                Write(CmdLeftAlign);
+                WriteLine();
+                WriteLine();
             }
         }
 
-        var document = Document.Create(container =>
+        Write(CmdFullCut);
+        return [.. buffer];
+    }
+
+    private static byte[] BuildBarcodeRaster(string value, BarcodeSymbology symbology)
+    {
+        BarcodeFormat format = symbology == BarcodeSymbology.Ean13
+            ? BarcodeFormat.EAN_13
+            : BarcodeFormat.CODE_128;
+
+        var writer = new BarcodeWriterPixelData
         {
-            container.Page(page =>
+            Format = format,
+            Options = new EncodingOptions
             {
-                // 57x32mm label size (1mm ≈ 2.83465 points)
-                page.Size(new PageSize(
-                    57 * 2.83465f,
-                    32 * 2.83465f));
-                page.MarginHorizontal(2);
-                page.MarginVertical(1);
-                page.DefaultTextStyle(x => x.FontSize(7));
+                Width = 280,
+                Height = 90,
+                Margin = 0,
+                PureBarcode = true
+            }
+        };
 
-                page.Content().Column(column =>
+        PixelData pixelData = writer.Write(value);
+        int widthBytes = (pixelData.Width + 7) / 8;
+        byte[] rasterBytes = new byte[widthBytes * pixelData.Height];
+
+        for (int y = 0; y < pixelData.Height; y++)
+        {
+            for (int x = 0; x < pixelData.Width; x++)
+            {
+                int pixelIndex = (y * pixelData.Width + x) * 4;
+                byte blue = pixelData.Pixels[pixelIndex];
+                byte green = pixelData.Pixels[pixelIndex + 1];
+                byte red = pixelData.Pixels[pixelIndex + 2];
+                byte alpha = pixelData.Pixels[pixelIndex + 3];
+                bool isBlack = alpha > 0 && ((red + green + blue) / 3) < 180;
+
+                if (!isBlack)
                 {
-                    foreach (var label in labels)
-                    {
-                        for (int i = 0; i < copies; i++)
-                        {
-                            column.Item().Row(row =>
-                            {
-                                row.RelativeItem().Column(col =>
-                                {
-                                    col.Item().Text(label.ProductName)
-                                        .FontSize(8).Bold();
+                    continue;
+                }
 
-                                    col.Item().AlignCenter().Element(e =>
-                                    {
-                                        if (barcodeImages.TryGetValue(label.BarcodeValue, out var png))
-                                        {
-                                            e.Image(png);
-                                        }
-                                        else
-                                        {
-                                            e.Text(label.BarcodeValue).FontSize(6);
-                                        }
-                                    });
+                int byteIndex = y * widthBytes + (x / 8);
+                rasterBytes[byteIndex] |= (byte)(0x80 >> (x % 8));
+            }
+        }
 
-                                    col.Item().AlignCenter().Text($"${label.Price:N0}")
-                                        .FontSize(9).Bold();
-                                });
-                            });
-                        }
-                    }
-                });
-            });
-        });
+        List<byte> command =
+        [
+            0x1D, 0x76, 0x30, 0x00,
+            (byte)(widthBytes & 0xFF), (byte)((widthBytes >> 8) & 0xFF),
+            (byte)(pixelData.Height & 0xFF), (byte)((pixelData.Height >> 8) & 0xFF)
+        ];
+        command.AddRange(rasterBytes);
+        command.Add(0x0A);
+        return [.. command];
+    }
 
-        using var ms = new MemoryStream();
-        document.GeneratePdf(ms);
-        return ms.ToArray();
+    private static IEnumerable<string> WrapText(string value, int maxLineLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            yield return "PRODUCTO";
+            yield break;
+        }
+
+        string remaining = value.Trim();
+        while (remaining.Length > maxLineLength)
+        {
+            int splitAt = remaining.LastIndexOf(' ', maxLineLength);
+            if (splitAt <= 0)
+            {
+                splitAt = maxLineLength;
+            }
+
+            yield return remaining[..splitAt].Trim();
+            remaining = remaining[splitAt..].TrimStart();
+        }
+
+        if (remaining.Length > 0)
+        {
+            yield return remaining;
+        }
     }
 }

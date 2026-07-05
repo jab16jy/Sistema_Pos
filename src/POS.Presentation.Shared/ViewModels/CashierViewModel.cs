@@ -51,6 +51,7 @@ public sealed class CashierViewModel : ViewModelBase
     private decimal _loyaltyDiscount;
     private string _bankOrPlatform = string.Empty;
     private int _loyaltyPointsToRedeem;
+    private bool _shouldPrintReceipt = true;
 
     public CashierViewModel(IProductLookupService productLookupService)
         : this(productLookupService, new PreviewPaymentUseCase())
@@ -58,12 +59,12 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     public CashierViewModel(IProductLookupService productLookupService, PreviewPaymentUseCase previewPaymentUseCase)
-        : this(productLookupService, previewPaymentUseCase, null, null)
+        : this(productLookupService, previewPaymentUseCase, null, null, null)
     {
     }
 
     public CashierViewModel(IProductLookupService productLookupService, CreateSaleUseCase createSaleUseCase)
-        : this(productLookupService, new PreviewPaymentUseCase(), createSaleUseCase, null)
+        : this(productLookupService, new PreviewPaymentUseCase(), createSaleUseCase, null, null)
     {
     }
 
@@ -71,7 +72,7 @@ public sealed class CashierViewModel : ViewModelBase
         IProductLookupService productLookupService,
         PreviewPaymentUseCase previewPaymentUseCase,
         CreateSaleUseCase? createSaleUseCase)
-        : this(productLookupService, previewPaymentUseCase, createSaleUseCase, null)
+        : this(productLookupService, previewPaymentUseCase, createSaleUseCase, null, null)
     {
     }
 
@@ -361,6 +362,35 @@ public sealed class CashierViewModel : ViewModelBase
             : "Selecciona un producto y presiona Agregar.";
     }
 
+    public async Task HandleScannerInputAsync(CancellationToken cancellationToken = default)
+    {
+        string normalized = SearchText.Trim();
+        if (normalized.Length == 0)
+        {
+            Message = "Escanea un código o escribe un producto para buscar.";
+            return;
+        }
+
+        await SearchAsync(cancellationToken).ConfigureAwait(true);
+
+        CashierProductSearchResultViewModel? exactBarcodeMatch = SearchResults.FirstOrDefault(result =>
+            !string.IsNullOrWhiteSpace(result.Barcode) &&
+            string.Equals(result.Barcode, normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (exactBarcodeMatch is null)
+        {
+            return;
+        }
+
+        SelectedProduct = exactBarcodeMatch;
+        AddSelectedProduct();
+
+        SearchText = string.Empty;
+        SearchResults.Clear();
+        SelectedProduct = null;
+        Message = $"Producto {exactBarcodeMatch.Name} agregado correctamente desde el escáner.";
+    }
+
     private void AddSelectedProduct()
     {
         if (SelectedProduct is null)
@@ -430,9 +460,27 @@ public sealed class CashierViewModel : ViewModelBase
         try
         {
             CreateSaleResult result = await _createSaleUseCase.ExecuteAsync(BuildCreateSaleRequest(), cancellationToken).ConfigureAwait(true);
+            string? receiptError = null;
+            bool receiptWasPrinted = false;
+
+            if (ShouldPrintReceipt && _printService is not null)
+            {
+                try
+                {
+                    await _printService.PrintReceiptAsync(result.SaleId, cancellationToken).ConfigureAwait(true);
+                    receiptWasPrinted = true;
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    receiptError = ex.Message;
+                }
+            }
+
             CartItems.Clear();
             ReceivedAmount = 0m;
             DeferredAmount = 0m;
+            bool shouldPrintReceipt = ShouldPrintReceipt;
+            ShouldPrintReceipt = true;
             RefreshTotals(updateMessage: false);
             Message = $"Venta guardada con factura {result.InvoiceNumber}.";
 
