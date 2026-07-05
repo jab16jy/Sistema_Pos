@@ -170,7 +170,9 @@ public partial class App : System.Windows.Application
             var createSale = sp.GetRequiredService<CreateSaleUseCase>();
             RedeemLoyaltyPointsUseCase? redeemLoyalty = null;
             try { redeemLoyalty = sp.GetRequiredService<RedeemLoyaltyPointsUseCase>(); } catch { }
-            cashier = new CashierViewModel(productLookup, new PreviewPaymentUseCase(), createSale, redeemLoyalty);
+            POS.Application.Interfaces.IPrintService? printService = null;
+            try { printService = sp.GetRequiredService<POS.Application.Interfaces.IPrintService>(); } catch { }
+            cashier = new CashierViewModel(productLookup, new PreviewPaymentUseCase(), createSale, redeemLoyalty, printService);
         }
         catch
         {

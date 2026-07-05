@@ -384,8 +384,11 @@ public sealed class BarcodeViewModel : ViewModelBase
             foreach (var item in BatchItems)
             {
                 var symbology = GenerateBarcodeUseCase.ResolveSymbology(item.BarcodeValue);
-                labels.Add(new LabelRequest(item.Name, item.Price, item.BarcodeValue, symbology));
-                totalCopies += item.Copies;
+                for (int copyIndex = 0; copyIndex < item.Copies; copyIndex++)
+                {
+                    labels.Add(new LabelRequest(item.Name, item.Price, item.BarcodeValue, symbology));
+                    totalCopies++;
+                }
             }
 
             await _printLabels.ExecuteAsync(labels, 1, cancellationToken).ConfigureAwait(true);

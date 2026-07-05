@@ -87,6 +87,27 @@ public sealed class BarcodeViewModelTests
     }
 
     [Fact]
+    public async Task PrintBulkAsync_ExpandsPerItemCopiesBeforeSending()
+    {
+        var barcodeService = new FakeBarcodeGenerationService([]);
+        var printService = new FakeLabelPrintService();
+        var productLookup = new FakeProductLookupService();
+        var generate = new GenerateBarcodeUseCase(barcodeService);
+        var print = new PrintLabelsUseCase(printService);
+        var vm = new BarcodeViewModel(generate, print, productLookup);
+
+        vm.BatchItems.Add(new BarcodeBatchItem(Guid.NewGuid().ToString(), "Product A", "BAR001", 5000m, 2));
+        vm.BatchItems.Add(new BarcodeBatchItem(Guid.NewGuid().ToString(), "Product B", "BAR002", 3000m, 3));
+
+        await vm.PrintBulkAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(printService.WasCalled);
+        Assert.Equal(5, printService.LastLabels?.Count ?? 0);
+        Assert.All(printService.LastLabels!, label => Assert.Contains(label.ProductName, new[] { "Product A", "Product B" }));
+        Assert.Contains("5 etiqueta", vm.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void AddCatalogItemCommand_AddsProductToBatch()
     {
         var barcodeService = new FakeBarcodeGenerationService([]);
