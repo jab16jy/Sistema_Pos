@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.19.0...v0.20.0) (2026-07-05)
+
+
+### Features
+
+* **catalog:** import excel catalog into sqlite ([#68](https://github.com/jab16jy/Sistema_Pos/issues/68)) ([43548e9](https://github.com/jab16jy/Sistema_Pos/commit/43548e9d4e306aa012662878128eb98393ee17f0))
+
 ## [0.19.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.18.0...v0.19.0) (2026-07-05)
 
 
