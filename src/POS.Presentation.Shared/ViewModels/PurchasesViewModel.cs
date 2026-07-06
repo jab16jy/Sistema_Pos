@@ -26,7 +26,7 @@ public sealed class PurchasesViewModel : ViewModelBase
     private string _message = "Selecciona un proveedor o registra uno nuevo antes de confirmar una compra.";
     private bool _isNewSupplierFormOpen;
     private string _purchaseInvoiceNumber = string.Empty;
-    private DateTimeOffset _purchaseDate = DateTimeOffset.Now;
+    private DateTime? _purchaseDate = DateTime.Today;
     private string _paymentMethod = "Contado";
 
     public PurchasesViewModel(
@@ -39,9 +39,9 @@ public sealed class PurchasesViewModel : ViewModelBase
         _searchSuppliers = searchSuppliers;
         _registerPurchase = registerPurchase;
         _currentOperatorIdProvider = currentOperatorIdProvider;
-        LoadCommand = new RelayCommand(async _ => await LoadAsync().ConfigureAwait(true));
-        SaveSupplierCommand = new RelayCommand(async _ => await SaveSupplierAsync().ConfigureAwait(true));
-        RegisterPurchaseCommand = new RelayCommand(async _ => await RegisterPurchaseAsync().ConfigureAwait(true));
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar proveedores: {ex.Message}"));
+        SaveSupplierCommand = new RelayCommand(_ => RunSafe(SaveSupplierAsync(), ex => Message = $"Error al guardar proveedor: {ex.Message}"));
+        RegisterPurchaseCommand = new RelayCommand(_ => RunSafe(RegisterPurchaseAsync(), ex => Message = $"Error al registrar compra: {ex.Message}"));
         _addDraftItemCommand = new RelayCommand(_ => AddDraftItem(), _ => CanAddDraftItem());
         AddDraftItemCommand = _addDraftItemCommand;
         RemoveDraftItemCommand = new RelayCommand(param =>
@@ -137,7 +137,7 @@ public sealed class PurchasesViewModel : ViewModelBase
         set => SetProperty(ref _purchaseInvoiceNumber, value);
     }
 
-    public DateTimeOffset PurchaseDate
+    public DateTime? PurchaseDate
     {
         get => _purchaseDate;
         set => SetProperty(ref _purchaseDate, value);
@@ -203,16 +203,26 @@ public sealed class PurchasesViewModel : ViewModelBase
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<SupplierSearchResult> suppliers = await _searchSuppliers.ExecuteAsync(new SupplierSearchRequest(SupplierSearchText), cancellationToken).ConfigureAwait(true);
-        Suppliers.Clear();
-        foreach (SupplierSearchResult supplier in suppliers)
+        try
         {
-            Suppliers.Add(supplier);
-        }
+            IReadOnlyList<SupplierSearchResult> suppliers = await _searchSuppliers.ExecuteAsync(new SupplierSearchRequest(SupplierSearchText), cancellationToken).ConfigureAwait(true);
+            Suppliers.Clear();
+            foreach (SupplierSearchResult supplier in suppliers)
+            {
+                Suppliers.Add(supplier);
+            }
 
-        Message = Suppliers.Count == 0
-            ? "No hay proveedores activos para la búsqueda. Registra uno para continuar."
-            : "Selecciona un proveedor activo para registrar la compra.";
+            Message = Suppliers.Count == 0
+                ? "No hay proveedores activos para la búsqueda. Registra uno para continuar."
+                : "Selecciona un proveedor activo para registrar la compra.";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar proveedores: {ex.Message}";
+        }
     }
 
     public async Task SaveSupplierAsync(CancellationToken cancellationToken = default)
@@ -231,6 +241,10 @@ public sealed class PurchasesViewModel : ViewModelBase
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al guardar proveedor: {ex.Message}";
         }
     }
 
@@ -266,13 +280,17 @@ public sealed class PurchasesViewModel : ViewModelBase
             Items.Clear();
             RecalculateTotals();
             PurchaseInvoiceNumber = string.Empty;
-            PurchaseDate = DateTimeOffset.Now;
+            PurchaseDate = DateTime.Today;
             PaymentMethod = "Contado";
             Message = $"Compra registrada · Proveedor: {supplierName}";
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
         {
             Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al registrar compra: {ex.Message}";
         }
     }
 

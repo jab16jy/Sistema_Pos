@@ -124,29 +124,37 @@
         </Grid>
 
         <Grid Visibility="{Binding IsSettingsViewSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:SettingsView DataContext="{Binding Settings}" Visibility="{Binding Settings, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Settings, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:SettingsView DataContext="{Binding Settings}"
+                              Visibility="{Binding DataContext.Settings, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Settings, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="El centro de control no está disponible en este entorno." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsShiftsSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:ShiftsView DataContext="{Binding Shifts}" Visibility="{Binding Shifts, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Shifts, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:ShiftsView DataContext="{Binding Shifts}"
+                            Visibility="{Binding DataContext.Shifts, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Shifts, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Gestión de turnos no disponible en este entorno." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsUsersSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:UserManagementView DataContext="{Binding UserManagement}" Visibility="{Binding UserManagement, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding UserManagement, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:UserManagementView DataContext="{Binding UserManagement}"
+                                    Visibility="{Binding DataContext.UserManagement, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.UserManagement, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Gestión de usuarios no disponible en este entorno." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsAuditSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:AuditLogView DataContext="{Binding AuditLog}" Visibility="{Binding AuditLog, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding AuditLog, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:AuditLogView DataContext="{Binding AuditLog}"
+                              Visibility="{Binding DataContext.AuditLog, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.AuditLog, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Auditoría no disponible en este entorno." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
@@ -154,64 +162,81 @@
         <Grid Visibility="{Binding IsQuotesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
           <local:QuoteView DataContext="{Binding Quote}"
                             HistoryViewModel="{Binding DataContext.QuoteHistory, ElementName=ShellContent}"
-                            Visibility="{Binding Quote, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Quote, Converter={StaticResource InverseNullToVisibilityConverter}}">
+                            Visibility="{Binding DataContext.Quote, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Quote, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Quote creation is not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsCustomersSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:CustomersView DataContext="{Binding Customers}" Visibility="{Binding Customers, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Customers, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:CustomersView DataContext="{Binding Customers}"
+                               Visibility="{Binding DataContext.Customers, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Customers, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Customer management is not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsPurchasesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:PurchasesView DataContext="{Binding Purchases}" Visibility="{Binding Purchases, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Purchases, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:PurchasesView DataContext="{Binding Purchases}"
+                               Visibility="{Binding DataContext.Purchases, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Purchases, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Purchases are not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsReportsSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:ReportsView DataContext="{Binding Reports}" Visibility="{Binding Reports, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Reports, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:ReportsView DataContext="{Binding Reports}"
+                             Visibility="{Binding DataContext.Reports, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Reports, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Reports are not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsProductsSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:ProductsView DataContext="{Binding Products}" Visibility="{Binding Products, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Products, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:ProductsView DataContext="{Binding Products}"
+                              Visibility="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Products, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Products are not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsInventorySelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:InventoryView DataContext="{Binding Inventory}" Visibility="{Binding Inventory, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Inventory, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:InventoryView DataContext="{Binding Inventory}"
+                               Visibility="{Binding DataContext.Inventory, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Inventory, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Inventory is not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsInvoicesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:InvoicesView DataContext="{Binding Invoices}" Visibility="{Binding Invoices, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Invoices, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:InvoicesView DataContext="{Binding Invoices}"
+                              Visibility="{Binding DataContext.Invoices, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Invoices, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Invoices are not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsLoyaltySelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:LoyaltyView DataContext="{Binding Loyalty}" Visibility="{Binding Loyalty, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Loyalty, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:LoyaltyView DataContext="{Binding Loyalty}"
+                             Visibility="{Binding DataContext.Loyalty, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Loyalty, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Loyalty module is not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>
 
         <Grid Visibility="{Binding IsBarcodeSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-          <local:BarcodeView DataContext="{Binding Barcode}" Visibility="{Binding Barcode, Converter={StaticResource NullToVisibilityConverter}}" />
-          <Border Style="{StaticResource Card}" Visibility="{Binding Barcode, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <local:BarcodeView DataContext="{Binding Barcode}"
+                             Visibility="{Binding DataContext.Barcode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+          <Border Style="{StaticResource Card}"
+                  Visibility="{Binding DataContext.Barcode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
             <TextBlock Text="Barcode module is not available in this environment." Style="{StaticResource MutedText}" />
           </Border>
         </Grid>

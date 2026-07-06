@@ -70,16 +70,16 @@ public sealed class InvoicesViewModel : ViewModelBase
         _pdfService = pdfService;
         _cancelSale = cancelSale;
 
-        LoadCommand = new RelayCommand(_ => _ = LoadFirstPageAsync());
-        ReprintCommand = new RelayCommand(_ => _ = ReprintAsync(), _ => SelectedInvoice is not null && SelectedInvoice.Status == SaleStatus.Completed);
-        ExportPdfCommand = new RelayCommand(_ => _ = ExportPdfAsync(), _ => SelectedInvoice is not null && _pdfService is not null);
-        ProcessReturnCommand = new RelayCommand(_ => _ = ProcessReturnAsync(), _ => SelectedInvoice is not null && SelectedInvoice.Status == SaleStatus.Completed && !string.IsNullOrWhiteSpace(ReturnReason));
-        CancelSaleCommand = new RelayCommand(_ => _ = CancelSaleAsync(), _ => CanCancelSelectedInvoice());
-        SendByEmailCommand = new RelayCommand(_ => _ = SendByEmailAsync());
-        SendByWhatsAppCommand = new RelayCommand(_ => _ = SendByWhatsAppAsync());
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadFirstPageAsync(), ex => Message = $"Error al cargar facturas: {ex.Message}"));
+        ReprintCommand = new RelayCommand(_ => RunSafe(ReprintAsync(), ex => Message = $"Error al reimprimir factura: {ex.Message}"), _ => SelectedInvoice is not null && SelectedInvoice.Status == SaleStatus.Completed);
+        ExportPdfCommand = new RelayCommand(_ => RunSafe(ExportPdfAsync(), ex => Message = $"Error al generar el PDF: {ex.Message}"), _ => SelectedInvoice is not null && _pdfService is not null);
+        ProcessReturnCommand = new RelayCommand(_ => RunSafe(ProcessReturnAsync(), ex => Message = $"Error al procesar la devolución: {ex.Message}"), _ => SelectedInvoice is not null && SelectedInvoice.Status == SaleStatus.Completed && !string.IsNullOrWhiteSpace(ReturnReason));
+        CancelSaleCommand = new RelayCommand(_ => RunSafe(CancelSaleAsync(), ex => Message = $"Error al anular la factura: {ex.Message}"), _ => CanCancelSelectedInvoice());
+        SendByEmailCommand = new RelayCommand(_ => RunSafe(SendByEmailAsync(), ex => Message = $"Error al enviar la factura: {ex.Message}"));
+        SendByWhatsAppCommand = new RelayCommand(_ => RunSafe(SendByWhatsAppAsync(), ex => Message = $"Error al enviar la factura: {ex.Message}"));
         SelectInvoiceCommand = new RelayCommand(p => SelectedInvoice = p as InvoiceSummaryRow);
-        NextPageCommand = new RelayCommand(_ => _ = NextPageAsync(), _ => HasMorePages);
-        PreviousPageCommand = new RelayCommand(_ => _ = PreviousPageAsync(), _ => CurrentPage > 1);
+        NextPageCommand = new RelayCommand(_ => RunSafe(NextPageAsync(), ex => Message = $"Error al cambiar de página: {ex.Message}"), _ => HasMorePages);
+        PreviousPageCommand = new RelayCommand(_ => RunSafe(PreviousPageAsync(), ex => Message = $"Error al cambiar de página: {ex.Message}"), _ => CurrentPage > 1);
     }
 
     /// <summary>Filtered, presentation-ready rows bound to the invoice grid.</summary>
@@ -250,23 +250,33 @@ public sealed class InvoicesViewModel : ViewModelBase
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        var request = new SalesHistoryRequest(
-            From: null,
-            To: null,
-            string.IsNullOrWhiteSpace(SearchText) ? null : SearchText,
-            CurrentPage,
-            PageSize);
+        try
+        {
+            var request = new SalesHistoryRequest(
+                From: null,
+                To: null,
+                string.IsNullOrWhiteSpace(SearchText) ? null : SearchText,
+                CurrentPage,
+                PageSize);
 
-        IReadOnlyList<SaleHistoryResult> results = await _querySalesHistory.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+            IReadOnlyList<SaleHistoryResult> results = await _querySalesHistory.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 
-        _allInvoices.Clear();
-        _allInvoices.AddRange(results.Select(InvoiceSummaryRow.FromSale));
-        HasMorePages = results.Count == PageSize;
-        ApplyStatusFilter();
+            _allInvoices.Clear();
+            _allInvoices.AddRange(results.Select(InvoiceSummaryRow.FromSale));
+            HasMorePages = results.Count == PageSize;
+            ApplyStatusFilter();
 
-        Message = FilteredInvoices.Count == 0
-            ? "No encontramos facturas con ese criterio."
-            : $"Mostrando {FilteredInvoices.Count} factura(s). Selecciona una para ver acciones disponibles.";
+            Message = FilteredInvoices.Count == 0
+                ? "No encontramos facturas con ese criterio."
+                : $"Mostrando {FilteredInvoices.Count} factura(s). Selecciona una para ver acciones disponibles.";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar facturas: {ex.Message}";
+        }
     }
 
     public async Task NextPageAsync(CancellationToken cancellationToken = default)

@@ -57,11 +57,11 @@ public sealed class SettingsViewModel : ViewModelBase
         _whatsAppService = whatsAppService;
         _printerProvider = printerProvider;
 
-        LoadCommand = new RelayCommand(_ => _ = LoadAsync());
-        SaveCommand = new RelayCommand(_ => _ = SaveAsync());
-        BackupCommand = new RelayCommand(_ => _ = BackupAsync());
-        TestEmailCommand = new RelayCommand(_ => _ = TestEmailAsync());
-        TestWhatsAppCommand = new RelayCommand(_ => _ = TestWhatsAppAsync());
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar configuración: {ex.Message}"));
+        SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar configuración: {ex.Message}"));
+        BackupCommand = new RelayCommand(_ => RunSafe(BackupAsync(), ex => Message = $"Error inesperado al crear backup: {ex.Message}"));
+        TestEmailCommand = new RelayCommand(_ => RunSafe(TestEmailAsync(), ex => Message = $"Error al enviar el correo de prueba: {GetSafeEmailErrorMessage(ex)}"));
+        TestWhatsAppCommand = new RelayCommand(_ => RunSafe(TestWhatsAppAsync(), ex => Message = $"No se pudo abrir WhatsApp: {ex.Message}"));
         RefreshPrintersCommand = new RelayCommand(_ => RefreshPrinters());
 
         RefreshPrinters();
@@ -158,6 +158,8 @@ public sealed class SettingsViewModel : ViewModelBase
         get => _message;
         private set => SetProperty(ref _message, value);
     }
+
+    public void ShowError(string message) => Message = message;
 
     /// <summary>Presentation-only, not persisted — see class remarks.</summary>
     public string ReceiptTemplate
@@ -294,45 +296,55 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        SettingsResult? settings = await _loadSettings.ExecuteAsync(cancellationToken).ConfigureAwait(true);
-        if (settings is null)
+        try
         {
-            Message = "No hay configuración guardada. Ingresa los datos del negocio y guarda.";
-            return;
-        }
-
-        BusinessName = settings.BusinessName;
-        BusinessAddress = settings.BusinessAddress;
-        TaxId = settings.TaxId;
-        SmtpHost = settings.SmtpHost ?? string.Empty;
-        SmtpPort = settings.SmtpPort?.ToString() ?? "587";
-        SmtpUser = settings.SmtpUser ?? string.Empty;
-        SmtpPassword = settings.SmtpPassword ?? string.Empty;
-        SmtpUseSsl = settings.SmtpUseSsl;
-        SmtpSenderAddress = settings.SmtpSenderAddress ?? string.Empty;
-        PrinterCommand = settings.PrinterCommand;
-        PrinterWorkingDirectory = settings.PrinterWorkingDirectory;
-
-        // No printer saved yet → auto-detect one from the OS so the caja works out of the box.
-        if (string.IsNullOrWhiteSpace(PrinterCommand))
-        {
-            RefreshPrinters();
-        }
-        BackupDirectory = settings.BackupDirectory;
-        CurrencyCode = settings.CurrencyCode;
-
-        Warnings.Clear();
-        if (settings.Warnings is not null)
-        {
-            foreach (var warning in settings.Warnings)
+            SettingsResult? settings = await _loadSettings.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+            if (settings is null)
             {
-                Warnings.Add(warning);
+                Message = "No hay configuración guardada. Ingresa los datos del negocio y guarda.";
+                return;
             }
-        }
 
-        Message = Warnings.Count == 0
-            ? "Configuración cargada exitosamente."
-            : $"Configuración cargada con {Warnings.Count} advertencia(s).";
+            BusinessName = settings.BusinessName;
+            BusinessAddress = settings.BusinessAddress;
+            TaxId = settings.TaxId;
+            SmtpHost = settings.SmtpHost ?? string.Empty;
+            SmtpPort = settings.SmtpPort?.ToString() ?? "587";
+            SmtpUser = settings.SmtpUser ?? string.Empty;
+            SmtpPassword = settings.SmtpPassword ?? string.Empty;
+            SmtpUseSsl = settings.SmtpUseSsl;
+            SmtpSenderAddress = settings.SmtpSenderAddress ?? string.Empty;
+            PrinterCommand = settings.PrinterCommand;
+            PrinterWorkingDirectory = settings.PrinterWorkingDirectory;
+
+            // No printer saved yet → auto-detect one from the OS so the caja works out of the box.
+            if (string.IsNullOrWhiteSpace(PrinterCommand))
+            {
+                RefreshPrinters();
+            }
+            BackupDirectory = settings.BackupDirectory;
+            CurrencyCode = settings.CurrencyCode;
+
+            Warnings.Clear();
+            if (settings.Warnings is not null)
+            {
+                foreach (var warning in settings.Warnings)
+                {
+                    Warnings.Add(warning);
+                }
+            }
+
+            Message = Warnings.Count == 0
+                ? "Configuración cargada exitosamente."
+                : $"Configuración cargada con {Warnings.Count} advertencia(s).";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar configuración: {ex.Message}";
+        }
     }
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)

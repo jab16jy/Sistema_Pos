@@ -38,10 +38,10 @@ public sealed class UserManagementViewModel : ViewModelBase
         _deactivateUser = deactivateUser;
         _session = session;
 
-        LoadUsersCommand = new RelayCommand(_ => LoadAsync().ConfigureAwait(false));
-        CreateUserCommand = new RelayCommand(_ => CreateAsync().ConfigureAwait(false));
-        SaveEditCommand = new RelayCommand(_ => SaveEditAsync().ConfigureAwait(false), _ => SelectedUser is not null);
-        DeactivateCommand = new RelayCommand(_ => DeactivateAsync().ConfigureAwait(false), _ => SelectedUser is not null);
+        LoadUsersCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => SetUnexpectedError($"Error al cargar usuarios: {ex.Message}")));
+        CreateUserCommand = new RelayCommand(_ => RunSafe(CreateAsync(), ex => SetUnexpectedError($"Error al crear usuario: {ex.Message}")));
+        SaveEditCommand = new RelayCommand(_ => RunSafe(SaveEditAsync(), ex => SetUnexpectedError($"Error al actualizar usuario: {ex.Message}")), _ => SelectedUser is not null);
+        DeactivateCommand = new RelayCommand(_ => RunSafe(DeactivateAsync(), ex => SetUnexpectedError($"Error al desactivar usuario: {ex.Message}")), _ => SelectedUser is not null);
     }
 
     public ObservableCollection<UserSummary> Users { get; } = new();
@@ -141,53 +141,82 @@ public sealed class UserManagementViewModel : ViewModelBase
 
     private async Task CreateAsync()
     {
-        HasError = false;
-        StatusMessage = string.Empty;
-        var (ok, error) = await _createUser.ExecuteAsync(NewUsername, NewPassword, NewRole);
-        if (!ok)
+        try
         {
-            HasError = true;
-            StatusMessage = error ?? "Error al crear usuario.";
-            return;
+            HasError = false;
+            StatusMessage = string.Empty;
+            var (ok, error) = await _createUser.ExecuteAsync(NewUsername, NewPassword, NewRole);
+            if (!ok)
+            {
+                HasError = true;
+                StatusMessage = error ?? "Error al crear usuario.";
+                return;
+            }
+            NewUsername = string.Empty;
+            NewPassword = string.Empty;
+            NewRole = UserRole.Cashier;
+            StatusMessage = "Usuario creado correctamente.";
+            await LoadAsync();
         }
-        NewUsername = string.Empty;
-        NewPassword = string.Empty;
-        NewRole = UserRole.Cashier;
-        StatusMessage = "Usuario creado correctamente.";
-        await LoadAsync();
+        catch (Exception ex)
+        {
+            SetUnexpectedError($"Error al crear usuario: {ex.Message}");
+        }
     }
 
     private async Task SaveEditAsync()
     {
         if (SelectedUser is null) return;
-        HasError = false;
-        StatusMessage = string.Empty;
-        var (ok, error) = await _updateUser.ExecuteAsync(SelectedUser.Id, EditPassword, EditRole);
-        if (!ok)
+
+        try
         {
-            HasError = true;
-            StatusMessage = error ?? "Error al actualizar usuario.";
-            return;
+            HasError = false;
+            StatusMessage = string.Empty;
+            var (ok, error) = await _updateUser.ExecuteAsync(SelectedUser.Id, EditPassword, EditRole);
+            if (!ok)
+            {
+                HasError = true;
+                StatusMessage = error ?? "Error al actualizar usuario.";
+                return;
+            }
+            EditPassword = string.Empty;
+            StatusMessage = "Usuario actualizado correctamente.";
+            await LoadAsync();
         }
-        EditPassword = string.Empty;
-        StatusMessage = "Usuario actualizado correctamente.";
-        await LoadAsync();
+        catch (Exception ex)
+        {
+            SetUnexpectedError($"Error al actualizar usuario: {ex.Message}");
+        }
     }
 
     private async Task DeactivateAsync()
     {
         if (SelectedUser is null) return;
-        HasError = false;
-        StatusMessage = string.Empty;
-        var (ok, error) = await _deactivateUser.ExecuteAsync(SelectedUser.Id, _session.OperatorId);
-        if (!ok)
+
+        try
         {
-            HasError = true;
-            StatusMessage = error ?? "Error al desactivar usuario.";
-            return;
+            HasError = false;
+            StatusMessage = string.Empty;
+            var (ok, error) = await _deactivateUser.ExecuteAsync(SelectedUser.Id, _session.OperatorId);
+            if (!ok)
+            {
+                HasError = true;
+                StatusMessage = error ?? "Error al desactivar usuario.";
+                return;
+            }
+            SelectedUser = null;
+            StatusMessage = "Usuario desactivado.";
+            await LoadAsync();
         }
-        SelectedUser = null;
-        StatusMessage = "Usuario desactivado.";
-        await LoadAsync();
+        catch (Exception ex)
+        {
+            SetUnexpectedError($"Error al desactivar usuario: {ex.Message}");
+        }
+    }
+
+    private void SetUnexpectedError(string message)
+    {
+        HasError = true;
+        StatusMessage = message;
     }
 }

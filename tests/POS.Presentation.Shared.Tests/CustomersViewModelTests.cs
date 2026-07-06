@@ -1,6 +1,8 @@
 using POS.Application.DTOs.Customers;
+using POS.Application.DTOs.Loyalty;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
+using POS.Application.UseCases.Loyalty;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 using POS.Presentation.Shared.ViewModels;
@@ -148,6 +150,43 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public async Task OpenHistoryAsync_WhenHistoryQueryFails_SetsRecoverableMessage()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var viewModel = new CustomersViewModel(
+            new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()),
+            new GetCustomerHistoryUseCase(new ThrowingCustomerHistoryQueryService()),
+            new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)));
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+
+        await viewModel.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("Error al cargar historial", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SelectingCustomer_WhenLoyaltyLookupFails_ResetsPointsWithoutThrowing()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var viewModel = new CustomersViewModel(
+            new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()),
+            new GetCustomerHistoryUseCase(new StaticCustomerHistoryQueryService(new CustomerHistoryResult(customer.Id, []))),
+            new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)),
+            new GetLoyaltyBalanceUseCase(new ThrowingLoyaltyQueryService()));
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, viewModel.LoyaltyPoints);
+    }
+
+    [Fact]
     public void NewCommand_ClearsSelectionAndResetsHistory()
     {
         var viewModel = CreateViewModel(new InMemoryCustomerRepository());
@@ -255,5 +294,38 @@ public sealed class CustomersViewModelTests
     private sealed class InMemoryUnitOfWork : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(1);
+    }
+
+    private sealed class ThrowingCustomerHistoryQueryService : ICustomerHistoryQueryService
+    {
+        public Task<CustomerHistoryResult> GetHistoryAsync(Guid customerId, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("falló historial");
+    }
+
+    private sealed class ThrowingLoyaltyQueryService : ILoyaltyRepository
+    {
+        public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("falló loyalty");
+
+        public Task AddAccountAsync(LoyaltyAccount account, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
+
+        public Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<LoyaltyRule?>(null);
+
+        public Task AddRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task UpdateRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
     }
 }

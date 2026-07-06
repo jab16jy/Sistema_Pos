@@ -85,14 +85,15 @@ public sealed class ReportsViewModel : ViewModelBase
         ProductMargins = [];
         RecentClosings = [];
 
-        LoadReportCommand = new RelayCommand(
-            async _ => await LoadReportAsync(
+        LoadReportCommand = new RelayCommand(_ => RunSafe(
+            LoadReportAsync(
                 new DateTimeOffset(_reportFromDate, TimeZoneInfo.Local.GetUtcOffset(_reportFromDate)),
-                new DateTimeOffset(_reportToDate, TimeZoneInfo.Local.GetUtcOffset(_reportToDate)).AddDays(1).AddTicks(-1))
-            .ConfigureAwait(true));
+                new DateTimeOffset(_reportToDate, TimeZoneInfo.Local.GetUtcOffset(_reportToDate)).AddDays(1).AddTicks(-1)),
+            ex => SetUnhandledError($"Error inesperado al cargar el reporte: {ex.Message}")));
 
-        LoadAnalyticsCommand = new RelayCommand(
-            async _ => await LoadAnalyticsAsync(_analyticsFromDate, _analyticsToDate).ConfigureAwait(true));
+        LoadAnalyticsCommand = new RelayCommand(_ => RunSafe(
+            LoadAnalyticsAsync(_analyticsFromDate, _analyticsToDate),
+            ex => SetUnhandledError($"Error al cargar analisis: {ex.Message}")));
 
         SetTodayCommand = new RelayCommand(_ =>
         {
@@ -116,23 +117,23 @@ public sealed class ReportsViewModel : ViewModelBase
         });
 
         ExportOperationalPdfCommand = new RelayCommand(
-            async _ => await ExportOperationalAsync(pdf: true).ConfigureAwait(true),
+            _ => RunSafe(ExportOperationalAsync(pdf: true), ex => SetUnhandledError($"Error al exportar: {ex.Message}")),
             _ => _exportService is not null && _lastOperationalReport is not null);
 
         ExportOperationalExcelCommand = new RelayCommand(
-            async _ => await ExportOperationalAsync(pdf: false).ConfigureAwait(true),
+            _ => RunSafe(ExportOperationalAsync(pdf: false), ex => SetUnhandledError($"Error al exportar: {ex.Message}")),
             _ => _exportService is not null && _lastOperationalReport is not null);
 
         ExportProfitPdfCommand = new RelayCommand(
-            async _ => await ExportProfitAsync(pdf: true).ConfigureAwait(true),
+            _ => RunSafe(ExportProfitAsync(pdf: true), ex => SetUnhandledError($"Error al exportar: {ex.Message}")),
             _ => _exportService is not null && _periodComparison is not null);
 
         ExportProfitExcelCommand = new RelayCommand(
-            async _ => await ExportProfitAsync(pdf: false).ConfigureAwait(true),
+            _ => RunSafe(ExportProfitAsync(pdf: false), ex => SetUnhandledError($"Error al exportar: {ex.Message}")),
             _ => _exportService is not null && _periodComparison is not null);
 
         LoadClosingsCommand = new RelayCommand(
-            async _ => await LoadClosingsAsync().ConfigureAwait(true),
+            _ => RunSafe(LoadClosingsAsync(), ex => SetUnhandledError($"Error al cargar cierres: {ex.Message}")),
             _ => _getShiftsUseCase is not null);
     }
 
@@ -222,7 +223,7 @@ public sealed class ReportsViewModel : ViewModelBase
                 if (!_closingsLoaded)
                 {
                     _closingsLoaded = true;
-                    _ = LoadClosingsAsync();
+                    RunSafe(LoadClosingsAsync(), ex => SetUnhandledError($"Error al cargar cierres: {ex.Message}"));
                 }
             }
         }
@@ -694,6 +695,12 @@ public sealed class ReportsViewModel : ViewModelBase
 
     private static string FormatCurrency(decimal amount) =>
         $"${amount.ToString("N0", ColombianCulture)}";
+
+    private void SetUnhandledError(string message)
+    {
+        HasError = true;
+        ErrorMessage = message;
+    }
 }
 
 /// <summary>Presentation row for the Top-10 best-selling products list (13.5).</summary>

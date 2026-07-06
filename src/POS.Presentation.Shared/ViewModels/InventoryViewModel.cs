@@ -34,10 +34,10 @@ public sealed class InventoryViewModel : ViewModelBase
         _queryLowStock = queryLowStock;
         _queryMovementHistory = queryMovementHistory;
         _adjustStock = adjustStock;
-        LoadStockCommand = new RelayCommand(_ => _ = LoadStockAsync());
-        LoadLowStockCommand = new RelayCommand(_ => _ = LoadLowStockAsync());
-        LoadMovementHistoryCommand = new RelayCommand(_ => _ = LoadMovementHistoryAsync(), _ => SelectedProduct is not null);
-        AdjustStockCommand = new RelayCommand(_ => _ = AdjustStockAsync(), _ => SelectedProduct is not null && !string.IsNullOrWhiteSpace(AdjustmentReason));
+        LoadStockCommand = new RelayCommand(_ => RunSafe(LoadStockAsync(), ex => Message = $"Error al cargar inventario: {ex.Message}"));
+        LoadLowStockCommand = new RelayCommand(_ => RunSafe(LoadLowStockAsync(), ex => Message = $"Error al cargar stock bajo: {ex.Message}"));
+        LoadMovementHistoryCommand = new RelayCommand(_ => RunSafe(LoadMovementHistoryAsync(), ex => Message = $"Error al cargar movimientos: {ex.Message}"), _ => SelectedProduct is not null);
+        AdjustStockCommand = new RelayCommand(_ => RunSafe(AdjustStockAsync(), ex => Message = $"Error al ajustar stock: {ex.Message}"), _ => SelectedProduct is not null && !string.IsNullOrWhiteSpace(AdjustmentReason));
         ToggleSignCommand = new RelayCommand(_ => IsAdjustmentPositive = !IsAdjustmentPositive);
         ClearAdjustmentCommand = new RelayCommand(_ => ClearAdjustment());
         QuickAdjustCommand = new RelayCommand(param =>
@@ -277,37 +277,57 @@ public sealed class InventoryViewModel : ViewModelBase
 
     public async Task LoadStockAsync(CancellationToken cancellationToken = default)
     {
-        var results = await _queryStock.ExecuteAsync(cancellationToken).ConfigureAwait(true);
-        StockLevels.Clear();
-        foreach (var stock in results)
+        try
         {
-            StockLevels.Add(stock);
+            var results = await _queryStock.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+            StockLevels.Clear();
+            foreach (var stock in results)
+            {
+                StockLevels.Add(stock);
+            }
+
+            LowStockProducts.Clear();
+            OnPropertyChanged(nameof(TotalSkus));
+            OnPropertyChanged(nameof(LowStockCount));
+            OnPropertyChanged(nameof(OutOfStockCount));
+            OnPropertyChanged(nameof(FilteredStockLevels));
+
+            Message = StockLevels.Count == 0
+                ? "No hay productos registrados en el sistema."
+                : $"Mostrando {StockLevels.Count} producto(s). Selecciona uno para ver su historial de movimientos.";
         }
-
-        LowStockProducts.Clear();
-        OnPropertyChanged(nameof(TotalSkus));
-        OnPropertyChanged(nameof(LowStockCount));
-        OnPropertyChanged(nameof(OutOfStockCount));
-        OnPropertyChanged(nameof(FilteredStockLevels));
-
-        Message = StockLevels.Count == 0
-            ? "No hay productos registrados en el sistema."
-            : $"Mostrando {StockLevels.Count} producto(s). Selecciona uno para ver su historial de movimientos.";
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar inventario: {ex.Message}";
+        }
     }
 
     public async Task LoadLowStockAsync(CancellationToken cancellationToken = default)
     {
-        var results = await _queryLowStock.ExecuteAsync(cancellationToken).ConfigureAwait(true);
-        LowStockProducts.Clear();
-        foreach (var product in results)
+        try
         {
-            LowStockProducts.Add(product);
-        }
+            var results = await _queryLowStock.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+            LowStockProducts.Clear();
+            foreach (var product in results)
+            {
+                LowStockProducts.Add(product);
+            }
 
-        StockLevels.Clear();
-        Message = LowStockProducts.Count == 0
-            ? "No hay productos con stock bajo. ¡Excelente!"
-            : $"Hay {LowStockProducts.Count} producto(s) con stock bajo o agotado.";
+            StockLevels.Clear();
+            Message = LowStockProducts.Count == 0
+                ? "No hay productos con stock bajo. ¡Excelente!"
+                : $"Hay {LowStockProducts.Count} producto(s) con stock bajo o agotado.";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar stock bajo: {ex.Message}";
+        }
     }
 
     public async Task LoadMovementHistoryAsync(CancellationToken cancellationToken = default)
@@ -318,18 +338,28 @@ public sealed class InventoryViewModel : ViewModelBase
             return;
         }
 
-        var results = await _queryMovementHistory.ExecuteAsync(SelectedProduct.ProductId, cancellationToken).ConfigureAwait(true);
-        MovementHistory.Clear();
-        foreach (var movement in results)
+        try
         {
-            MovementHistory.Add(movement);
+            var results = await _queryMovementHistory.ExecuteAsync(SelectedProduct.ProductId, cancellationToken).ConfigureAwait(true);
+            MovementHistory.Clear();
+            foreach (var movement in results)
+            {
+                MovementHistory.Add(movement);
+            }
+
+            OnPropertyChanged(nameof(FilteredMovements));
+
+            Message = MovementHistory.Count == 0
+                ? $"{SelectedProduct.ProductName} no tiene movimientos registrados."
+                : $"Mostrando {MovementHistory.Count} movimiento(s) de {SelectedProduct.ProductName}.";
         }
-
-        OnPropertyChanged(nameof(FilteredMovements));
-
-        Message = MovementHistory.Count == 0
-            ? $"{SelectedProduct.ProductName} no tiene movimientos registrados."
-            : $"Mostrando {MovementHistory.Count} movimiento(s) de {SelectedProduct.ProductName}.";
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar movimientos: {ex.Message}";
+        }
     }
 
     public async Task AdjustStockAsync(CancellationToken cancellationToken = default)
@@ -371,6 +401,10 @@ public sealed class InventoryViewModel : ViewModelBase
         catch (InvalidOperationException ex)
         {
             Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al ajustar stock: {ex.Message}";
         }
     }
 

@@ -19,7 +19,9 @@ using POS.Application.UseCases.Shifts;
 using POS.Domain.Enums;
 using POS.Infrastructure;
 using POS.Infrastructure.Services;
+using POS.Presentation.Shared.Shell;
 using POS.Presentation.Shared.ViewModels;
+using System.Text;
 
 namespace POS.Presentation;
 
@@ -28,7 +30,7 @@ public partial class App : System.Windows.Application
     private ServiceProvider? _services;
     private IServiceScope? _scope;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -39,10 +41,26 @@ public partial class App : System.Windows.Application
             Shutdown(1);
         };
 
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) =>
+        {
+            if (ex.ExceptionObject is Exception exception)
+            {
+                System.Windows.MessageBox.Show(exception.ToString(), "Error no controlado");
+            }
+
+            Shutdown(1);
+        };
+
+        TaskScheduler.UnobservedTaskException += (_, ex) =>
+        {
+            System.Windows.MessageBox.Show(ex.Exception.ToString(), "Error en tarea no observada");
+            ex.SetObserved();
+        };
+
         try
         {
             _services = BuildServiceProvider();
-            DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
+            await DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).ConfigureAwait(true);
             _scope = _services.CreateScope();
 
             if (!ShowLoginAndLaunchShell())
@@ -96,13 +114,12 @@ public partial class App : System.Windows.Application
 
         shellVm.LogoutRequested += () =>
         {
-            // Clear session and close current shell
-            _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>().ClearSession();
-            shell.Close();
-
-            // Re-enter login flow
-            if (!ShowLoginAndLaunchShell())
-                Shutdown(0);
+            ShellLogoutCoordinator.Execute(
+                () => ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown,
+                () => _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>().ClearSession(),
+                shell.Close,
+                ShowLoginAndLaunchShell,
+                () => Shutdown(0));
         };
 
         MainWindow = shell;
@@ -150,248 +167,177 @@ public partial class App : System.Windows.Application
         var session = sp.GetRequiredService<ICurrentOperatorSession>();
         var role = session.Role;
         var username = session.Username;
+        List<string> moduleWarnings = [];
 
         IProductLookupService productLookup = sp.GetRequiredService<IProductLookupService>();
 
-        CashierViewModel cashier;
-        try
-        {
-            var createSale = sp.GetRequiredService<CreateSaleUseCase>();
-            RedeemLoyaltyPointsUseCase? redeemLoyalty = null;
-            try { redeemLoyalty = sp.GetRequiredService<RedeemLoyaltyPointsUseCase>(); } catch { }
-            ReprintReceiptUseCase? printReceipt = null;
-            try { printReceipt = sp.GetRequiredService<ReprintReceiptUseCase>(); } catch { }
-            cashier = new CashierViewModel(productLookup, new PreviewPaymentUseCase(), createSale, redeemLoyalty, printReceipt);
-        }
-        catch
-        {
-            cashier = new CashierViewModel(productLookup);
-        }
+        CashierViewModel cashier = TryCreateRequiredModule(
+            "Caja",
+            () => new CashierViewModel(
+                productLookup,
+                new PreviewPaymentUseCase(),
+                sp.GetRequiredService<CreateSaleUseCase>(),
+                TryResolveOptional<RedeemLoyaltyPointsUseCase>(sp),
+                TryResolveOptional<ReprintReceiptUseCase>(sp)),
+            () => new CashierViewModel(productLookup),
+            moduleWarnings);
 
         cashier.CashierUserId = session.OperatorId;
 
-        CustomersViewModel? customers = null;
-        try
-        {
-            var saveCustomer = sp.GetRequiredService<SaveCustomerUseCase>();
-            var getCustomerHistory = sp.GetRequiredService<GetCustomerHistoryUseCase>();
-            var searchCustomers = sp.GetRequiredService<SearchCustomersUseCase>();
-            GetLoyaltyBalanceUseCase? getLoyaltyBalanceForCustomers = null;
-            try { getLoyaltyBalanceForCustomers = sp.GetRequiredService<GetLoyaltyBalanceUseCase>(); } catch { }
-            customers = new CustomersViewModel(saveCustomer, getCustomerHistory, searchCustomers, getLoyaltyBalanceForCustomers);
-        }
-        catch
-        {
-        }
+        CustomersViewModel? customers = TryCreateOptionalModule(
+            "Clientes",
+            () => new CustomersViewModel(
+                sp.GetRequiredService<SaveCustomerUseCase>(),
+                sp.GetRequiredService<GetCustomerHistoryUseCase>(),
+                sp.GetRequiredService<SearchCustomersUseCase>(),
+                TryResolveOptional<GetLoyaltyBalanceUseCase>(sp)),
+            moduleWarnings);
 
-        PurchasesViewModel? purchases = null;
-        try
-        {
-            var saveSupplier = sp.GetRequiredService<SaveSupplierUseCase>();
-            var searchSuppliers = sp.GetRequiredService<SearchSuppliersUseCase>();
-            var registerPurchase = sp.GetRequiredService<RegisterPurchaseUseCase>();
-            purchases = new PurchasesViewModel(saveSupplier, searchSuppliers, registerPurchase, () => cashier.CashierUserId);
-        }
-        catch
-        {
-        }
+        PurchasesViewModel? purchases = TryCreateOptionalModule(
+            "Compras",
+            () => new PurchasesViewModel(
+                sp.GetRequiredService<SaveSupplierUseCase>(),
+                sp.GetRequiredService<SearchSuppliersUseCase>(),
+                sp.GetRequiredService<RegisterPurchaseUseCase>(),
+                () => cashier.CashierUserId),
+            moduleWarnings);
 
-        QuoteHistoryViewModel? quoteHistory = null;
-        try
-        {
-            var getHistory = sp.GetRequiredService<GetQuoteHistoryUseCase>();
-            var convertQuote = sp.GetRequiredService<ConvertQuoteToSaleUseCase>();
-            var sendDocument = sp.GetRequiredService<Application.UseCases.Communication.SendDocumentUseCase>();
-            quoteHistory = new QuoteHistoryViewModel(getHistory, convertQuote, sendDocument);
-        }
-        catch
-        {
-        }
+        QuoteHistoryViewModel? quoteHistory = TryCreateOptionalModule(
+            "Historial de cotizaciones",
+            () => new QuoteHistoryViewModel(
+                sp.GetRequiredService<GetQuoteHistoryUseCase>(),
+                sp.GetRequiredService<ConvertQuoteToSaleUseCase>(),
+                sp.GetRequiredService<Application.UseCases.Communication.SendDocumentUseCase>()),
+            moduleWarnings);
 
-        QuoteViewModel? quote = null;
-        try
-        {
-            var createQuote = sp.GetRequiredService<CreateQuoteUseCase>();
-            Application.UseCases.Communication.SendDocumentUseCase? sendDocumentForQuote = null;
-            try { sendDocumentForQuote = sp.GetRequiredService<Application.UseCases.Communication.SendDocumentUseCase>(); } catch { }
-            quote = new QuoteViewModel(productLookup, createQuote, sendDocumentForQuote);
-        }
-        catch
-        {
-        }
+        QuoteViewModel? quote = TryCreateOptionalModule(
+            "Cotizaciones",
+            () => new QuoteViewModel(
+                productLookup,
+                sp.GetRequiredService<CreateQuoteUseCase>(),
+                TryResolveOptional<Application.UseCases.Communication.SendDocumentUseCase>(sp)),
+            moduleWarnings);
 
-        GetDashboardSummaryUseCase? dashboardUseCase = null;
-        try
-        {
-            dashboardUseCase = sp.GetRequiredService<GetDashboardSummaryUseCase>();
-        }
-        catch
-        {
-        }
+        GetDashboardSummaryUseCase? dashboardUseCase = TryResolveOptional<GetDashboardSummaryUseCase>(sp);
 
-        ReportsViewModel? reports = null;
-        try
-        {
-            var getReport = sp.GetRequiredService<IGetOperationalReportUseCase>();
-            IProfitQueryService? profitQuery = null;
-            try { profitQuery = sp.GetRequiredService<IProfitQueryService>(); } catch { }
-            IReportExportService? exportService = null;
-            try { exportService = sp.GetRequiredService<IReportExportService>(); } catch { }
-            GetShiftsUseCase? getShiftsForReports = null;
-            try { getShiftsForReports = sp.GetRequiredService<GetShiftsUseCase>(); } catch { }
-            reports = new ReportsViewModel(getReport, profitQuery, exportService, getShiftsForReports);
-        }
-        catch
-        {
-        }
+        ReportsViewModel? reports = TryCreateOptionalModule(
+            "Reportes",
+            () => new ReportsViewModel(
+                sp.GetRequiredService<IGetOperationalReportUseCase>(),
+                TryResolveOptional<IProfitQueryService>(sp),
+                TryResolveOptional<IReportExportService>(sp),
+                TryResolveOptional<GetShiftsUseCase>(sp)),
+            moduleWarnings);
 
-        ProductsViewModel? products = null;
-        try
-        {
-            var createProduct = sp.GetRequiredService<CreateProductUseCase>();
-            var updateProduct = sp.GetRequiredService<UpdateProductUseCase>();
-            var deleteProduct = sp.GetRequiredService<DeleteProductUseCase>();
-            var searchProducts = sp.GetRequiredService<SearchProductsUseCase>();
-            var importProductsCsv = sp.GetRequiredService<ImportProductsCsvUseCase>();
-            SearchCategoriesUseCase? searchCategories = null;
-            try { searchCategories = sp.GetRequiredService<SearchCategoriesUseCase>(); } catch { }
-            products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv);
-
-            CategoriesViewModel? categoriesEditor = null;
-            try
+        ProductsViewModel? products = TryCreateOptionalModule(
+            "Productos",
+            () =>
             {
-                var searchCat = sp.GetRequiredService<SearchCategoriesUseCase>();
-                var createCat = sp.GetRequiredService<CreateCategoryUseCase>();
-                var updateCat = sp.GetRequiredService<UpdateCategoryUseCase>();
-                categoriesEditor = new CategoriesViewModel(searchCat, createCat, updateCat);
-            }
-            catch { }
+                var createProduct = sp.GetRequiredService<CreateProductUseCase>();
+                var updateProduct = sp.GetRequiredService<UpdateProductUseCase>();
+                var deleteProduct = sp.GetRequiredService<DeleteProductUseCase>();
+                var searchProducts = sp.GetRequiredService<SearchProductsUseCase>();
+                var importProductsCsv = sp.GetRequiredService<ImportProductsCsvUseCase>();
+                SearchCategoriesUseCase? searchCategories = TryResolveOptional<SearchCategoriesUseCase>(sp);
 
-            if (categoriesEditor is not null)
-            {
-                products = new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv)
+                CategoriesViewModel? categoriesEditor = TryCreateOptionalModule(
+                    "Editor de categorías",
+                    () => new CategoriesViewModel(
+                        sp.GetRequiredService<SearchCategoriesUseCase>(),
+                        sp.GetRequiredService<CreateCategoryUseCase>(),
+                        sp.GetRequiredService<UpdateCategoryUseCase>()),
+                    moduleWarnings);
+
+                if (categoriesEditor is not null)
                 {
-                    CategoriesEditor = categoriesEditor
-                };
-            }
-        }
-        catch
-        {
-        }
+                    return new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv)
+                    {
+                        CategoriesEditor = categoriesEditor
+                    };
+                }
 
-        InventoryViewModel? inventory = null;
-        try
-        {
-            var queryStock = sp.GetRequiredService<QueryStockUseCase>();
-            var queryLowStock = sp.GetRequiredService<QueryLowStockUseCase>();
-            var queryMovementHistory = sp.GetRequiredService<QueryMovementHistoryUseCase>();
-            var adjustStock = sp.GetRequiredService<AdjustStockUseCase>();
-            inventory = new InventoryViewModel(queryStock, queryLowStock, queryMovementHistory, adjustStock)
+                return new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv);
+            },
+            moduleWarnings);
+
+        InventoryViewModel? inventory = TryCreateOptionalModule(
+            "Inventario",
+            () => new InventoryViewModel(
+                sp.GetRequiredService<QueryStockUseCase>(),
+                sp.GetRequiredService<QueryLowStockUseCase>(),
+                sp.GetRequiredService<QueryMovementHistoryUseCase>(),
+                sp.GetRequiredService<AdjustStockUseCase>())
             {
                 OperatorUserId = cashier.CashierUserId
-            };
-        }
-        catch
-        {
-        }
+            },
+            moduleWarnings);
 
-        InvoicesViewModel? invoices = null;
-        try
-        {
-            var querySalesHistory = sp.GetRequiredService<QuerySalesHistoryUseCase>();
-            var reprintReceipt = sp.GetRequiredService<ReprintReceiptUseCase>();
-            var processReturn = sp.GetRequiredService<ProcessReturnUseCase>();
-            Application.UseCases.Invoices.CancelSaleUseCase? cancelSaleForInvoices = null;
-            try { cancelSaleForInvoices = sp.GetRequiredService<Application.UseCases.Invoices.CancelSaleUseCase>(); } catch { }
-            Application.UseCases.Communication.SendDocumentUseCase? sendDocumentForInvoices = null;
-            try { sendDocumentForInvoices = sp.GetRequiredService<Application.UseCases.Communication.SendDocumentUseCase>(); } catch { }
-            Application.Interfaces.IPdfService? pdfServiceForInvoices = null;
-            try { pdfServiceForInvoices = sp.GetRequiredService<Application.Interfaces.IPdfService>(); } catch { }
-            invoices = new InvoicesViewModel(querySalesHistory, reprintReceipt, processReturn, sendDocumentForInvoices, pdfServiceForInvoices, cancelSaleForInvoices)
+        InvoicesViewModel? invoices = TryCreateOptionalModule(
+            "Facturas",
+            () => new InvoicesViewModel(
+                sp.GetRequiredService<QuerySalesHistoryUseCase>(),
+                sp.GetRequiredService<ReprintReceiptUseCase>(),
+                sp.GetRequiredService<ProcessReturnUseCase>(),
+                TryResolveOptional<Application.UseCases.Communication.SendDocumentUseCase>(sp),
+                TryResolveOptional<Application.Interfaces.IPdfService>(sp),
+                TryResolveOptional<Application.UseCases.Invoices.CancelSaleUseCase>(sp))
             {
                 OperatorUserId = cashier.CashierUserId,
                 CurrentUserRole = session.Role
-            };
-        }
-        catch
-        {
-        }
+            },
+            moduleWarnings);
 
-        SettingsViewModel? settings = null;
-        try
-        {
-            var loadSettings = sp.GetRequiredService<LoadSettingsUseCase>();
-            var saveSettings = sp.GetRequiredService<SaveSettingsUseCase>();
-            var triggerBackup = sp.GetRequiredService<TriggerManualBackupUseCase>();
-            Application.Interfaces.IEmailService? emailServiceForSettings = null;
-            try { emailServiceForSettings = sp.GetRequiredService<Application.Interfaces.IEmailService>(); } catch { }
-            Application.Interfaces.IWhatsAppService? whatsAppServiceForSettings = null;
-            try { whatsAppServiceForSettings = sp.GetRequiredService<Application.Interfaces.IWhatsAppService>(); } catch { }
-            Application.Interfaces.IInstalledPrinterProvider? printerProviderForSettings = null;
-            try { printerProviderForSettings = sp.GetRequiredService<Application.Interfaces.IInstalledPrinterProvider>(); } catch { }
-            settings = new SettingsViewModel(loadSettings, saveSettings, triggerBackup, emailServiceForSettings, whatsAppServiceForSettings, printerProviderForSettings);
-        }
-        catch
-        {
-        }
+        SettingsViewModel? settings = TryCreateOptionalModule(
+            "Configuración",
+            () => new SettingsViewModel(
+                sp.GetRequiredService<LoadSettingsUseCase>(),
+                sp.GetRequiredService<SaveSettingsUseCase>(),
+                sp.GetRequiredService<TriggerManualBackupUseCase>(),
+                TryResolveOptional<Application.Interfaces.IEmailService>(sp),
+                TryResolveOptional<Application.Interfaces.IWhatsAppService>(sp),
+                TryResolveOptional<Application.Interfaces.IInstalledPrinterProvider>(sp)),
+            moduleWarnings);
 
-        LoyaltyViewModel? loyalty = null;
-        try
-        {
-            var getBalance = sp.GetRequiredService<GetLoyaltyBalanceUseCase>();
-            var redeemPoints = sp.GetRequiredService<RedeemLoyaltyPointsUseCase>();
-            loyalty = new LoyaltyViewModel(getBalance, redeemPoints);
-        }
-        catch
-        {
-        }
+        LoyaltyViewModel? loyalty = TryCreateOptionalModule(
+            "Puntos",
+            () => new LoyaltyViewModel(
+                sp.GetRequiredService<GetLoyaltyBalanceUseCase>(),
+                sp.GetRequiredService<RedeemLoyaltyPointsUseCase>()),
+            moduleWarnings);
 
-        BarcodeViewModel? barcode = null;
-        try
-        {
-            var generateBarcode = sp.GetRequiredService<GenerateBarcodeUseCase>();
-            var printLabels = sp.GetRequiredService<PrintLabelsUseCase>();
-            barcode = new BarcodeViewModel(generateBarcode, printLabels, productLookup);
-        }
-        catch
-        {
-        }
+        BarcodeViewModel? barcode = TryCreateOptionalModule(
+            "Códigos de barras",
+            () => new BarcodeViewModel(
+                sp.GetRequiredService<GenerateBarcodeUseCase>(),
+                sp.GetRequiredService<PrintLabelsUseCase>(),
+                productLookup),
+            moduleWarnings);
 
-        UserManagementViewModel? userManagement = null;
-        try
-        {
-            var getAllUsers = sp.GetRequiredService<GetAllUsersUseCase>();
-            var createUser = sp.GetRequiredService<CreateUserUseCase>();
-            var updateUser = sp.GetRequiredService<UpdateUserUseCase>();
-            var deactivateUser = sp.GetRequiredService<DeactivateUserUseCase>();
-            userManagement = new UserManagementViewModel(getAllUsers, createUser, updateUser, deactivateUser, session);
-        }
-        catch
-        {
-        }
+        UserManagementViewModel? userManagement = TryCreateOptionalModule(
+            "Usuarios",
+            () => new UserManagementViewModel(
+                sp.GetRequiredService<GetAllUsersUseCase>(),
+                sp.GetRequiredService<CreateUserUseCase>(),
+                sp.GetRequiredService<UpdateUserUseCase>(),
+                sp.GetRequiredService<DeactivateUserUseCase>(),
+                session),
+            moduleWarnings);
 
-        ShiftsViewModel? shifts = null;
-        try
-        {
-            var startShift = sp.GetRequiredService<StartShiftUseCase>();
-            var closeShift = sp.GetRequiredService<CloseShiftUseCase>();
-            var getShifts = sp.GetRequiredService<GetShiftsUseCase>();
-            shifts = new ShiftsViewModel(startShift, closeShift, getShifts, session);
-        }
-        catch
-        {
-        }
+        ShiftsViewModel? shifts = TryCreateOptionalModule(
+            "Turnos",
+            () => new ShiftsViewModel(
+                sp.GetRequiredService<StartShiftUseCase>(),
+                sp.GetRequiredService<CloseShiftUseCase>(),
+                sp.GetRequiredService<GetShiftsUseCase>(),
+                session),
+            moduleWarnings);
 
-        AuditLogViewModel? auditLog = null;
-        try
-        {
-            auditLog = new AuditLogViewModel(sp.GetRequiredService<GetAuditLogsUseCase>());
-        }
-        catch
-        {
-        }
+        AuditLogViewModel? auditLog = TryCreateOptionalModule(
+            "Auditoría",
+            () => new AuditLogViewModel(sp.GetRequiredService<GetAuditLogsUseCase>()),
+            moduleWarnings);
 
-        return new MainShellViewModel(cashier, dashboardUseCase, role, username)
+        var shellViewModel = new MainShellViewModel(cashier, dashboardUseCase, role, username)
         {
             Quote = quote,
             QuoteHistory = quoteHistory,
@@ -408,5 +354,69 @@ public partial class App : System.Windows.Application
             Shifts = shifts,
             AuditLog = auditLog
         };
+
+        if (moduleWarnings.Count > 0)
+        {
+            shellViewModel.ShowOperatorWarning(BuildModuleWarningMessage(moduleWarnings));
+        }
+
+        return shellViewModel;
+    }
+
+    private static TService? TryResolveOptional<TService>(IServiceProvider serviceProvider)
+        where TService : class
+        => serviceProvider.GetService<TService>();
+
+    private static TModule? TryCreateOptionalModule<TModule>(
+        string moduleName,
+        Func<TModule> factory,
+        ICollection<string> warnings)
+        where TModule : class
+    {
+        try
+        {
+            return factory();
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"{moduleName}: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static TModule TryCreateRequiredModule<TModule>(
+        string moduleName,
+        Func<TModule> factory,
+        Func<TModule> fallbackFactory,
+        ICollection<string> warnings)
+        where TModule : class
+    {
+        try
+        {
+            return factory();
+        }
+        catch (Exception ex)
+        {
+            warnings.Add($"{moduleName}: {ex.Message}");
+            return fallbackFactory();
+        }
+    }
+
+    private static string BuildModuleWarningMessage(IReadOnlyCollection<string> warnings)
+    {
+        if (warnings.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        string modules = string.Join(", ", warnings.Select(warning => warning.Split(':', 2)[0]).Distinct().Take(4));
+        string suffix = warnings.Count > 4 ? " y otros." : ".";
+
+        var builder = new StringBuilder();
+        builder.Append("Algunos módulos se iniciaron con capacidad reducida: ");
+        builder.Append(modules);
+        builder.Append(suffix);
+        builder.Append(" Revisa dependencias opcionales o errores de inicialización.");
+        return builder.ToString();
     }
 }

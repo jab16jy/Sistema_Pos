@@ -30,8 +30,8 @@ public sealed class CategoriesViewModel : ViewModelBase
         _updateCategory = updateCategory ?? throw new ArgumentNullException(nameof(updateCategory));
 
         Categories = [];
-        LoadCommand = new RelayCommand(async _ => await LoadAsync().ConfigureAwait(true));
-        SaveCommand = new RelayCommand(async _ => await SaveAsync().ConfigureAwait(true));
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar categorias: {ex.Message}"));
+        SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar categoria: {ex.Message}"));
         ClearCommand = new RelayCommand(_ => ClearForm());
     }
 
@@ -115,6 +115,10 @@ public sealed class CategoriesViewModel : ViewModelBase
         catch (InvalidOperationException ex)
         {
             Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al guardar categoria: {ex.Message}";
         }
     }
 

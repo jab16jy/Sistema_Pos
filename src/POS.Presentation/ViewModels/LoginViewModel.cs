@@ -21,7 +21,7 @@ public sealed class LoginViewModel : ViewModelBase
         _loginUseCase = loginUseCase;
         _session = session;
         LoginCommand = new RelayCommand(
-            execute: _ => ExecuteLogin(),
+            execute: _ => RunSafe(ExecuteLoginAsync(), ex => Message = $"Error inesperado: {ex.Message}"),
             canExecute: _ => !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password) && !IsLoading);
     }
 
@@ -51,13 +51,13 @@ public sealed class LoginViewModel : ViewModelBase
 
     public RelayCommand LoginCommand { get; }
 
-    private void ExecuteLogin()
+    private async Task ExecuteLoginAsync()
     {
         IsLoading = true;
         Message = "Verificando credenciales...";
         try
         {
-            var result = _loginUseCase.ExecuteAsync(new LoginRequest(Username, Password)).GetAwaiter().GetResult();
+            var result = await _loginUseCase.ExecuteAsync(new LoginRequest(Username, Password)).ConfigureAwait(true);
             if (result.Success)
             {
                 _session.SetUser(result.UserId, result.Username, result.Role);
@@ -68,10 +68,10 @@ public sealed class LoginViewModel : ViewModelBase
                 Message = result.ErrorMessage ?? "Error de acceso.";
             }
         }
-    catch (Exception ex)
-    {
-        Message = $"Error inesperado: {ex.Message}";
-    }
+        catch (Exception ex)
+        {
+            Message = $"Error inesperado: {ex.Message}";
+        }
         finally
         {
             IsLoading = false;

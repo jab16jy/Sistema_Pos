@@ -32,9 +32,9 @@ public sealed class ShiftsViewModel : ViewModelBase
         _closeShift = closeShift;
         _getShifts = getShifts;
         _session = session;
-        LoadCommand = new RelayCommand(_ => _ = LoadAsync());
-        StartShiftCommand = new RelayCommand(_ => _ = StartAsync());
-        CloseShiftCommand = new RelayCommand(_ => _ = CloseAsync(), _ => HasActiveShift);
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar turnos: {ex.Message}"));
+        StartShiftCommand = new RelayCommand(_ => RunSafe(StartAsync(), ex => Message = $"Error al abrir turno: {ex.Message}"));
+        CloseShiftCommand = new RelayCommand(_ => RunSafe(CloseAsync(), ex => Message = $"Error al cerrar turno: {ex.Message}"), _ => HasActiveShift);
         ExportCommand = new RelayCommand(_ => Message = "Exportacion de turnos no disponible en este entorno.");
         ApplyDateFilterCommand = new RelayCommand(_ => ApplyDateFilter());
 
@@ -218,21 +218,31 @@ public sealed class ShiftsViewModel : ViewModelBase
 
     public async Task LoadAsync(CancellationToken ct = default)
     {
-        var shifts = await _getShifts.ExecuteAsync(50, ct).ConfigureAwait(true);
-        Shifts.Clear();
-        foreach (var shift in shifts)
+        try
         {
-            Shifts.Add(shift);
+            var shifts = await _getShifts.ExecuteAsync(50, ct).ConfigureAwait(true);
+            Shifts.Clear();
+            foreach (var shift in shifts)
+            {
+                Shifts.Add(shift);
+            }
+
+            ApplyDateFilter();
+            RefreshActiveShiftProperties();
+
+            Message = Shifts.Count == 0 ? "Aun no hay turnos registrados." : $"Mostrando {Shifts.Count} turno(s).";
+
+            if (CloseShiftCommand is RelayCommand cmd)
+            {
+                cmd.RaiseCanExecuteChanged();
+            }
         }
-
-        ApplyDateFilter();
-        RefreshActiveShiftProperties();
-
-        Message = Shifts.Count == 0 ? "Aun no hay turnos registrados." : $"Mostrando {Shifts.Count} turno(s).";
-
-        if (CloseShiftCommand is RelayCommand cmd)
+        catch (OperationCanceledException)
         {
-            cmd.RaiseCanExecuteChanged();
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar turnos: {ex.Message}";
         }
     }
 
@@ -349,6 +359,10 @@ public sealed class ShiftsViewModel : ViewModelBase
         {
             Message = ex.Message;
         }
+        catch (Exception ex)
+        {
+            Message = $"Error al abrir turno: {ex.Message}";
+        }
     }
 
     private async Task CloseAsync()
@@ -383,6 +397,10 @@ public sealed class ShiftsViewModel : ViewModelBase
         catch (InvalidOperationException ex)
         {
             Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cerrar turno: {ex.Message}";
         }
     }
 }

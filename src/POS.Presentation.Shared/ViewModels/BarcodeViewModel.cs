@@ -43,11 +43,11 @@ public sealed class BarcodeViewModel : ViewModelBase
         BatchItems = [];
         CatalogSearchResults = [];
 
-        GenerateCommand = new RelayCommand(_ => Generate());
-        PrintSingleCommand = new RelayCommand(async _ => await PrintSingleAsync().ConfigureAwait(true));
-        PrintBulkCommand = new RelayCommand(async _ => await PrintBulkAsync().ConfigureAwait(true));
+        GenerateCommand = new RelayCommand(_ => RunSafe(GenerateAsync(), ex => Message = $"Error al generar el código: {ex.Message}"));
+        PrintSingleCommand = new RelayCommand(_ => RunSafe(PrintSingleAsync(), ex => Message = $"Error al imprimir la etiqueta: {ex.Message}"));
+        PrintBulkCommand = new RelayCommand(_ => RunSafe(PrintBulkAsync(), ex => Message = $"Error al imprimir etiquetas: {ex.Message}"));
         AddToBatchCommand = new RelayCommand(_ => AddGeneratedToBatch());
-        SearchCatalogCommand = new RelayCommand(_ => _ = SearchCatalogAsync());
+        SearchCatalogCommand = new RelayCommand(_ => RunSafe(SearchCatalogAsync(), ex => Message = $"Error buscando productos: {ex.Message}"));
         ClearBatchCommand = new RelayCommand(_ => ClearBatch());
 
         // ── Row-action command wrappers ──
@@ -197,7 +197,7 @@ public sealed class BarcodeViewModel : ViewModelBase
 
     public bool HasBatchItems => BatchItems.Count > 0;
 
-    private void Generate()
+    private async Task GenerateAsync()
     {
         if (string.IsNullOrWhiteSpace(BarcodeValue))
         {
@@ -208,7 +208,7 @@ public sealed class BarcodeViewModel : ViewModelBase
 
         try
         {
-            var result = _generateBarcode.ExecuteAsync(BarcodeValue).GetAwaiter().GetResult();
+            var result = await _generateBarcode.ExecuteAsync(BarcodeValue).ConfigureAwait(true);
             PreviewImageBytes = result.PngBytes;
             Message = $"Codigo generado ({result.Symbology}).";
         }

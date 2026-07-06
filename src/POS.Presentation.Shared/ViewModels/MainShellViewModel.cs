@@ -172,17 +172,26 @@ public sealed class MainShellViewModel : ViewModelBase
 
                 if (IsInvoicesSelected)
                 {
-                    _ = Invoices?.LoadFirstPageAsync();
+                    if (Invoices is not null)
+                    {
+                        RunSafe(Invoices.LoadFirstPageAsync(), ex => OperatorMessage = $"Error al cargar Facturas: {ex.Message}");
+                    }
                 }
 
                 if (IsProductsSelected)
                 {
-                    _ = Products?.LoadAsync();
+                    if (Products is not null)
+                    {
+                        RunSafe(Products.LoadAsync(), ex => OperatorMessage = $"Error al cargar Productos: {ex.Message}");
+                    }
                 }
 
                 if (IsInventorySelected)
                 {
-                    _ = Inventory?.LoadStockAsync();
+                    if (Inventory is not null)
+                    {
+                        RunSafe(Inventory.LoadStockAsync(), ex => OperatorMessage = $"Error al cargar Inventario: {ex.Message}");
+                    }
                 }
             }
         }
@@ -193,6 +202,8 @@ public sealed class MainShellViewModel : ViewModelBase
         get => _operatorMessage;
         private set => SetProperty(ref _operatorMessage, value);
     }
+
+    public void ShowOperatorWarning(string message) => OperatorMessage = message;
 
     public string MainActionText => IsCashierSelected ? "Cobrar" : "Abrir módulo";
 

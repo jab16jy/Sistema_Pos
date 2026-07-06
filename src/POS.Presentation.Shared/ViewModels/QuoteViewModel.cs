@@ -40,12 +40,12 @@ public sealed class QuoteViewModel : ViewModelBase
         SearchResults = [];
         CartItems = [];
 
-        SearchCommand = new RelayCommand(async _ => await SearchAsync().ConfigureAwait(true));
+        SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => ValidationMessage = $"Error al buscar productos: {ex.Message}"));
         AddToCartCommand = new RelayCommand(p => AddToCart(p as ProductLookupResult));
         RemoveFromCartCommand = new RelayCommand(p => RemoveFromCart(p as QuoteCartItemViewModel));
-        ConfirmCommand = new RelayCommand(async _ => await ConfirmAsync().ConfigureAwait(true));
-        SendByEmailCommand = new RelayCommand(async _ => await SendByEmailAsync().ConfigureAwait(true));
-        SendByWhatsAppCommand = new RelayCommand(async _ => await SendByWhatsAppAsync().ConfigureAwait(true));
+        ConfirmCommand = new RelayCommand(_ => RunSafe(ConfirmAsync(), ex => ValidationMessage = $"Error al crear la cotización: {ex.Message}"));
+        SendByEmailCommand = new RelayCommand(_ => RunSafe(SendByEmailAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
+        SendByWhatsAppCommand = new RelayCommand(_ => RunSafe(SendByWhatsAppAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
     }
 
     public ObservableCollection<ProductLookupResult> SearchResults { get; }
@@ -132,14 +132,24 @@ public sealed class QuoteViewModel : ViewModelBase
 
     private async Task SearchAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<ProductLookupResult> results = await _productLookupService
-            .SearchAsync(SearchQuery, cancellationToken)
-            .ConfigureAwait(true);
-
-        SearchResults.Clear();
-        foreach (ProductLookupResult result in results)
+        try
         {
-            SearchResults.Add(result);
+            IReadOnlyList<ProductLookupResult> results = await _productLookupService
+                .SearchAsync(SearchQuery, cancellationToken)
+                .ConfigureAwait(true);
+
+            SearchResults.Clear();
+            foreach (ProductLookupResult result in results)
+            {
+                SearchResults.Add(result);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            ValidationMessage = $"Error al buscar productos: {ex.Message}";
         }
     }
 

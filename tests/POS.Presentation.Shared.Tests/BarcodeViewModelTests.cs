@@ -10,7 +10,7 @@ namespace POS.Presentation.Shared.Tests;
 public sealed class BarcodeViewModelTests
 {
     [Fact]
-    public void GenerateCommand_WithValidValue_SetsPreviewImage()
+    public async Task GenerateCommand_WithValidValue_SetsPreviewImage()
     {
         // Minimal valid PNG bytes (1x1 transparent pixel)
         byte[] fakePng = CreateMinimalPng();
@@ -25,13 +25,14 @@ public sealed class BarcodeViewModelTests
         };
 
         vm.GenerateCommand.Execute(null);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         Assert.NotNull(vm.PreviewImageBytes);
         Assert.Contains("generado", vm.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void GenerateCommand_WithEmptyValue_SetsErrorMessageAndPreviewIsNull()
+    public async Task GenerateCommand_WithEmptyValue_SetsErrorMessageAndPreviewIsNull()
     {
         var barcodeService = new FakeBarcodeGenerationService([]);
         var printService = new FakeLabelPrintService();
@@ -44,6 +45,7 @@ public sealed class BarcodeViewModelTests
         };
 
         vm.GenerateCommand.Execute(null);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
 
         Assert.Null(vm.PreviewImageBytes);
         Assert.False(string.IsNullOrWhiteSpace(vm.Message));

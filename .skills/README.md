@@ -37,7 +37,10 @@ Use them as implementation guidance when building the POS. They are intentionall
     - Use when analyzing Excel/CSV/catalog exports to infer normalized columns, defaults, import rules, and source-safe mappings for products and services.
 
 11. [`pos-sqlite-schema-design`](./pos-sqlite-schema-design/SKILL.md)
-    - Use when designing or changing SQLite/EF Core tables, columns, nullability, keys, indexes, and relationships for the POS catalog and import flows.
+     - Use when designing or changing SQLite/EF Core tables, columns, nullability, keys, indexes, and relationships for the POS catalog and import flows.
+
+12. [`exception-hardening`](./exception-hardening/SKILL.md)
+    - Use when auditing unhandled exceptions, fire-and-forget tasks, async UI handlers, startup composition failures, and logout/shutdown flows.
 
 ## Non-negotiable project principles
 

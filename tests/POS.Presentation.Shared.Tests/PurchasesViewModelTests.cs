@@ -42,6 +42,16 @@ public sealed class PurchasesViewModelTests
     }
 
     [Fact]
+    public async Task LoadAsync_WhenSupplierLookupFails_SetsRecoverableMessage()
+    {
+        var viewModel = CreateViewModel(new ThrowingSupplierLookupQueryService());
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("Error al cargar proveedores", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task RegisterPurchaseAsync_WithSelectedSupplierAndLine_ShowsPersistedPurchaseMessage()
     {
         var supplierId = Guid.NewGuid();
@@ -193,6 +203,12 @@ public sealed class PurchasesViewModelTests
 
         public Task<IReadOnlyList<SupplierSearchResult>> SearchAsync(SupplierSearchRequest request, CancellationToken cancellationToken = default)
             => Task.FromResult(request.IncludeInactive ? _suppliers : _suppliers.Where(supplier => supplier.IsActive).ToList());
+    }
+
+    private sealed class ThrowingSupplierLookupQueryService : ISupplierLookupQueryService
+    {
+        public Task<IReadOnlyList<SupplierSearchResult>> SearchAsync(SupplierSearchRequest request, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("falló proveedores");
     }
 
     private sealed class StaticRegisterPurchaseUseCase : RegisterPurchaseUseCase
