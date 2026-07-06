@@ -21,7 +21,6 @@ public partial class SettingsView
         _hasLoadedSettings = true;
         await viewModel.LoadAsync().ConfigureAwait(true);
     }
-
     private void SmtpPasswordBox_OnPasswordChanged(object sender, System.Windows.RoutedEventArgs e)
     {
         if (DataContext is SettingsViewModel viewModel && sender is System.Windows.Controls.PasswordBox passwordBox)

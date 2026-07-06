@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.22.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.21.0...v0.22.0) (2026-07-06)
+
+
+### Features
+
+* persisted SMTP, WhatsApp Desktop/Web, admin invoice cancellation, cashier autocomplete ([#72](https://github.com/jab16jy/Sistema_Pos/issues/72)) ([ab84a42](https://github.com/jab16jy/Sistema_Pos/commit/ab84a42583934d28b9d98f5ebd100df1f2388e8e))
+
+## [0.21.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.20.0...v0.21.0) (2026-07-06)
+
+
+### Features
+
+* **printer:** auto-detect printer and print by installed name ([#70](https://github.com/jab16jy/Sistema_Pos/issues/70)) ([2433a7f](https://github.com/jab16jy/Sistema_Pos/commit/2433a7f16c50f7ea64c82982242371f8a616a282))
+
 ## [0.20.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.19.0...v0.20.0) (2026-07-05)
 
 
