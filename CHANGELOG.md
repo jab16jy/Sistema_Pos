@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.2](https://github.com/jab16jy/Sistema_Pos/compare/v0.22.1...v0.22.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* exception hardening across app shell, ViewModels and audit tooling ([#76](https://github.com/jab16jy/Sistema_Pos/issues/76)) ([adec34a](https://github.com/jab16jy/Sistema_Pos/commit/adec34a73851f0e1d05589ccd9de3250130812a5))
+
 ## [0.22.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.22.0...v0.22.1) (2026-07-06)
 
 
