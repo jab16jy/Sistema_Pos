@@ -48,6 +48,11 @@ public sealed class ProductCatalogQueryService : IProductCatalogQueryService
                 product.Id,
                 product.Name,
                 product.CategoryId,
+                _dbContext.Categories
+                    .Where(category => category.Id == product.CategoryId)
+                    .Select(category => category.Name)
+                    .FirstOrDefault() ?? "Sin categoría",
+                product.CostPrice.HasValue ? product.CostPrice.Value.Amount : null,
                 product.SalePrice.Amount,
                 product.CurrentStock,
                 product.MinimumStock,

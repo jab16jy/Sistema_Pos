@@ -12,13 +12,16 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task LoadSettingsAsync_WhenSettingsExist_ReturnsSettings()
     {
-        var settings = new BusinessSettings("Store", "Address", "Tax", "print", "C:/POS", "C:/Backups", "COP");
+        var settings = new BusinessSettings("Store", "Address", "Tax", "smtp.host", 587, "mailer", "secret", true, "ventas@store.com", "print", "C:/POS", "C:/Backups", "COP");
         var useCase = new LoadSettingsUseCase(new InMemorySettingsRepository(settings));
 
         SettingsResult? result = await useCase.ExecuteAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Equal(settings.Id, result.Id);
+        Assert.Equal("smtp.host", result.SmtpHost);
+        Assert.Equal(587, result.SmtpPort);
+        Assert.Equal("ventas@store.com", result.SmtpSenderAddress);
         Assert.Equal("COP", result.CurrencyCode);
         Assert.Empty(result.Warnings ?? []);
     }
@@ -34,12 +37,20 @@ public sealed class SettingsUseCaseTests
             "Esthetic Medical Store",
             "Main Street 1",
             "900123",
+            "smtp.office365.com",
+            587,
+            "ventas@esthetic.com",
+            "app-password",
+            true,
+            "ventas@esthetic.com",
             "print-receipt",
             "C:/POS",
             "C:/Backups",
             "cop"), TestContext.Current.CancellationToken);
 
         Assert.Equal("Esthetic Medical Store", result.BusinessName);
+        Assert.Equal("smtp.office365.com", result.SmtpHost);
+        Assert.Equal("app-password", result.SmtpPassword);
         Assert.Equal("COP", result.CurrencyCode);
         Assert.NotNull(repository.Settings);
         Assert.Equal(1, repository.SaveCount);
@@ -50,7 +61,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task SaveSettingsAsync_WhenSettingsExist_UpdatesSameSettings()
     {
-        var existing = new BusinessSettings("Old", null, null, null, null, null, "COP");
+        var existing = new BusinessSettings("Old", null, null, null, null, null, null, false, null, null, null, null, "COP");
         var repository = new InMemorySettingsRepository(existing);
         var useCase = new SaveSettingsUseCase(repository, new CountingUnitOfWork());
 
@@ -58,6 +69,12 @@ public sealed class SettingsUseCaseTests
             "New",
             null,
             null,
+            "smtp.gmail.com",
+            465,
+            "new-user",
+            "new-secret",
+            true,
+            "new@store.com",
             null,
             null,
             null,
@@ -65,6 +82,9 @@ public sealed class SettingsUseCaseTests
 
         Assert.Equal(existing.Id, result.Id);
         Assert.Equal("New", existing.BusinessName);
+        Assert.Equal("smtp.gmail.com", existing.SmtpHost);
+        Assert.Equal(465, existing.SmtpPort);
+        Assert.Equal("new@store.com", existing.SmtpSenderAddress);
         Assert.Equal("USD", existing.CurrencyCode);
     }
 
@@ -82,6 +102,12 @@ public sealed class SettingsUseCaseTests
             "Store",
             null,
             null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            null,
             "/missing/print-receipt",
             null,
             null,
@@ -97,7 +123,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task TriggerManualBackupAsync_WithConfiguredDirectory_CreatesBackup()
     {
-        var settings = new BusinessSettings("Store", null, null, null, null, "C:/Backups", "COP");
+        var settings = new BusinessSettings("Store", null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
         var backupService = new StubManualBackupService("C:/Backups/backup-20260627.sqlite");
         var useCase = new TriggerManualBackupUseCase(new InMemorySettingsRepository(settings), backupService);
 
@@ -114,7 +140,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task TriggerManualBackupAsync_WhenNoDirectoryConfigured_ReturnsError()
     {
-        var settings = new BusinessSettings("Store", null, null, null, null, null, "COP");
+        var settings = new BusinessSettings("Store", null, null, null, null, null, null, false, null, null, null, null, "COP");
         var backupService = new StubManualBackupService("unused");
         var useCase = new TriggerManualBackupUseCase(new InMemorySettingsRepository(settings), backupService);
 

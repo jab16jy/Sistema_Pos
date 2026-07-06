@@ -44,19 +44,24 @@
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                      Tag="Nombre o codigo de barras..." />
-            <Button Grid.Column="1" Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                    CommandParameter="{Binding DataContext.AdminHubModules[6], RelativeSource={RelativeSource AncestorType=Window}}"
-                    Style="{StaticResource PrimaryButton}" Padding="8,0" Margin="6,0,0,0" ToolTip="Etiquetas y codigos">
+            <Button Grid.Column="1" Command="{Binding LoadCommand}"
+                    Padding="8,0" Margin="6,0,0,0" ToolTip="Buscar productos">
+              <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" />
+            </Button>
+            <Button Grid.Column="2" Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                     CommandParameter="{Binding DataContext.AdminHubModules[6], RelativeSource={RelativeSource AncestorType=Window}}"
+                     Style="{StaticResource PrimaryButton}" Padding="8,0" Margin="6,0,0,0" ToolTip="Etiquetas y codigos">
               <materialDesign:PackIcon Kind="BarcodeScan" Width="16" Height="16" />
             </Button>
-            <Button Grid.Column="2" Command="{Binding ToggleCsvCommand}"
+            <Button Grid.Column="3" Command="{Binding ToggleCsvCommand}"
                     Padding="8,0" Margin="6,0,0,0" ToolTip="Importar CSV">
               <materialDesign:PackIcon Kind="FileUpload" Width="16" Height="16" />
             </Button>
-            <Button Grid.Column="3" Command="{Binding NewCommand}"
+            <Button Grid.Column="4" Command="{Binding NewCommand}"
                     Style="{StaticResource PrimaryButton}" Padding="10,0" Margin="6,0,0,0">
               <StackPanel Orientation="Horizontal">
                 <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" />
@@ -101,7 +106,7 @@
                     <TextBlock Style="{StaticResource MutedText}" FontSize="11">
                       <Run Text="{Binding Barcode, Mode=OneWay, TargetNullValue='—'}" />
                       <Run Text=" · " />
-                      <Run Text="{Binding CategoryId, Mode=OneWay, StringFormat='{}{0:D8}'}" />
+                      <Run Text="{Binding CategoryName, Mode=OneWay, TargetNullValue='Sin categoría'}" />
                     </TextBlock>
                   </StackPanel>
 

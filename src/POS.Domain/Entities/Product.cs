@@ -16,7 +16,7 @@ public sealed class Product
     public Product(
         string name,
         Guid categoryId,
-        Money costPrice,
+        Money? costPrice,
         Money salePrice,
         StockQuantity currentStock,
         StockQuantity minimumStock,
@@ -120,7 +120,7 @@ public sealed class Product
     public void UpdateDetails(
         string name,
         Guid categoryId,
-        Money costPrice,
+        Money? costPrice,
         Money salePrice,
         StockQuantity minimumStock,
         string? description = null,

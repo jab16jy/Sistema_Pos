@@ -12,6 +12,12 @@ public sealed class BusinessSettings
         string businessName,
         string? businessAddress,
         string? taxId,
+        string? smtpHost,
+        int? smtpPort,
+        string? smtpUser,
+        string? smtpPassword,
+        bool smtpUseSsl,
+        string? smtpSenderAddress,
         string? printerCommand,
         string? printerWorkingDirectory,
         string? backupDirectory,
@@ -22,6 +28,12 @@ public sealed class BusinessSettings
             businessName,
             businessAddress,
             taxId,
+            smtpHost,
+            smtpPort,
+            smtpUser,
+            smtpPassword,
+            smtpUseSsl,
+            smtpSenderAddress,
             printerCommand,
             printerWorkingDirectory,
             backupDirectory,
@@ -32,6 +44,12 @@ public sealed class BusinessSettings
     public string BusinessName { get; private set; } = string.Empty;
     public string? BusinessAddress { get; private set; }
     public string? TaxId { get; private set; }
+    public string? SmtpHost { get; private set; }
+    public int? SmtpPort { get; private set; }
+    public string? SmtpUser { get; private set; }
+    public string? SmtpPassword { get; private set; }
+    public bool SmtpUseSsl { get; private set; }
+    public string? SmtpSenderAddress { get; private set; }
     public string? PrinterCommand { get; private set; }
     public string? PrinterWorkingDirectory { get; private set; }
     public string? BackupDirectory { get; private set; }
@@ -41,6 +59,12 @@ public sealed class BusinessSettings
         string businessName,
         string? businessAddress,
         string? taxId,
+        string? smtpHost,
+        int? smtpPort,
+        string? smtpUser,
+        string? smtpPassword,
+        bool smtpUseSsl,
+        string? smtpSenderAddress,
         string? printerCommand,
         string? printerWorkingDirectory,
         string? backupDirectory,
@@ -50,6 +74,12 @@ public sealed class BusinessSettings
             businessName,
             businessAddress,
             taxId,
+            smtpHost,
+            smtpPort,
+            smtpUser,
+            smtpPassword,
+            smtpUseSsl,
+            smtpSenderAddress,
             printerCommand,
             printerWorkingDirectory,
             backupDirectory,
@@ -60,6 +90,12 @@ public sealed class BusinessSettings
         string businessName,
         string? businessAddress,
         string? taxId,
+        string? smtpHost,
+        int? smtpPort,
+        string? smtpUser,
+        string? smtpPassword,
+        bool smtpUseSsl,
+        string? smtpSenderAddress,
         string? printerCommand,
         string? printerWorkingDirectory,
         string? backupDirectory,
@@ -81,9 +117,20 @@ public sealed class BusinessSettings
             throw new ArgumentException("Currency code must be a 3-letter ISO code.", nameof(currencyCode));
         }
 
+        if (smtpPort is <= 0)
+        {
+            throw new ArgumentException("SMTP port must be greater than zero when provided.", nameof(smtpPort));
+        }
+
         BusinessName = businessName.Trim();
         BusinessAddress = TrimToNull(businessAddress);
         TaxId = TrimToNull(taxId);
+        SmtpHost = TrimToNull(smtpHost);
+        SmtpPort = smtpPort;
+        SmtpUser = TrimToNull(smtpUser);
+        SmtpPassword = TrimToNull(smtpPassword);
+        SmtpUseSsl = smtpUseSsl;
+        SmtpSenderAddress = TrimToNull(smtpSenderAddress);
         PrinterCommand = TrimToNull(printerCommand);
         PrinterWorkingDirectory = TrimToNull(printerWorkingDirectory);
         BackupDirectory = TrimToNull(backupDirectory);

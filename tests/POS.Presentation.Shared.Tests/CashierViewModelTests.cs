@@ -80,6 +80,27 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task SearchText_WhenTyped_AutocompletesProductsWithoutPressingSearch()
+    {
+        var lookup = new StaticProductLookupService(new ProductLookupResult(
+            Guid.NewGuid(),
+            "Exfoliante facial",
+            "EXF-001",
+            25_000m,
+            8m));
+        var viewModel = new CashierViewModel(lookup)
+        {
+            SearchText = "exfoliante"
+        };
+
+        await Task.Delay(350, TestContext.Current.CancellationToken);
+
+        var result = Assert.Single(viewModel.SearchResults);
+        Assert.Equal("Exfoliante facial", result.Name);
+        Assert.Equal(result, viewModel.SelectedProduct);
+    }
+
+    [Fact]
     public async Task AddSelectedProduct_AddsItemAndCalculatesTotal()
     {
         var viewModel = new CashierViewModel(new PrototypeProductLookupService())

@@ -14,6 +14,12 @@ internal sealed class BusinessSettingsConfiguration : IEntityTypeConfiguration<B
         builder.Property(settings => settings.BusinessName).IsRequired().HasMaxLength(200);
         builder.Property(settings => settings.BusinessAddress).HasMaxLength(500);
         builder.Property(settings => settings.TaxId).HasMaxLength(100);
+        builder.Property(settings => settings.SmtpHost).HasMaxLength(200);
+        builder.Property(settings => settings.SmtpPort);
+        builder.Property(settings => settings.SmtpUser).HasMaxLength(200);
+        builder.Property(settings => settings.SmtpPassword).HasMaxLength(500);
+        builder.Property(settings => settings.SmtpUseSsl);
+        builder.Property(settings => settings.SmtpSenderAddress).HasMaxLength(200);
         builder.Property(settings => settings.PrinterCommand).HasMaxLength(500);
         builder.Property(settings => settings.PrinterWorkingDirectory).HasMaxLength(500);
         builder.Property(settings => settings.BackupDirectory).HasMaxLength(500);

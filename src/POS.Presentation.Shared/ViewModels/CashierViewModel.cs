@@ -19,6 +19,7 @@ namespace POS.Presentation.Shared.ViewModels;
 
 public sealed class CashierViewModel : ViewModelBase
 {
+    private const int AutocompleteDelayMilliseconds = 180;
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private readonly IProductLookupService _productLookupService;
     private readonly PreviewPaymentUseCase _previewPaymentUseCase;
@@ -38,6 +39,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _associateCustomerCommand;
     private readonly RelayCommand _holdSaleCommand;
     private readonly RelayCommand _confirmPrototypeSaleCommand;
+    private CancellationTokenSource? _autocompleteSearchCts;
     private string _searchText = string.Empty;
     private CashierProductSearchResultViewModel? _selectedProduct;
     private decimal _quantity = 1m;
@@ -212,7 +214,13 @@ public sealed class CashierViewModel : ViewModelBase
     public string SearchText
     {
         get => _searchText;
-        set => SetProperty(ref _searchText, value ?? string.Empty);
+        set
+        {
+            if (SetProperty(ref _searchText, value ?? string.Empty))
+            {
+                StartAutocompleteSearch();
+            }
+        }
     }
 
     public CashierProductSearchResultViewModel? SelectedProduct
@@ -347,18 +355,8 @@ public sealed class CashierViewModel : ViewModelBase
 
     public async Task SearchAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<ProductLookupResult> results = await _productLookupService.SearchAsync(SearchText, cancellationToken).ConfigureAwait(true);
-
-        SearchResults.Clear();
-        foreach (ProductLookupResult result in results)
-        {
-            SearchResults.Add(new CashierProductSearchResultViewModel(result));
-        }
-
-        SelectedProduct = SearchResults.FirstOrDefault();
-        Message = SearchResults.Count == 0
-            ? "No encontramos productos con ese texto. Revisa el código o el nombre."
-            : "Selecciona un producto y presiona Agregar.";
+        CancelAutocompleteSearch();
+        await SearchProductsAsync(SearchText, updateMessage: true, cancellationToken).ConfigureAwait(true);
     }
 
     public async Task HandleScannerInputAsync(CancellationToken cancellationToken = default)
@@ -388,6 +386,72 @@ public sealed class CashierViewModel : ViewModelBase
         SearchResults.Clear();
         SelectedProduct = null;
         Message = $"Producto {exactBarcodeMatch.Name} agregado correctamente desde el escáner.";
+    }
+
+    private void StartAutocompleteSearch()
+    {
+        CancelAutocompleteSearch();
+
+        string query = SearchText.Trim();
+        if (query.Length < 2)
+        {
+            SearchResults.Clear();
+            SelectedProduct = null;
+            return;
+        }
+
+        _autocompleteSearchCts = new CancellationTokenSource();
+        CancellationToken token = _autocompleteSearchCts.Token;
+        _ = RunAutocompleteSearchAsync(query, token);
+    }
+
+    private async Task RunAutocompleteSearchAsync(string query, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(AutocompleteDelayMilliseconds, cancellationToken).ConfigureAwait(true);
+            await SearchProductsAsync(query, updateMessage: false, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task SearchProductsAsync(string query, bool updateMessage, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ProductLookupResult> results = await _productLookupService.SearchAsync(query, cancellationToken).ConfigureAwait(true);
+
+        if (cancellationToken.IsCancellationRequested || !string.Equals(SearchText.Trim(), query.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        SearchResults.Clear();
+        foreach (ProductLookupResult result in results)
+        {
+            SearchResults.Add(new CashierProductSearchResultViewModel(result));
+        }
+
+        SelectedProduct = SearchResults.FirstOrDefault();
+
+        if (updateMessage)
+        {
+            Message = SearchResults.Count == 0
+                ? "No encontramos productos con ese texto. Revisa el código o el nombre."
+                : "Selecciona un producto y presiona Agregar.";
+        }
+    }
+
+    private void CancelAutocompleteSearch()
+    {
+        if (_autocompleteSearchCts is null)
+        {
+            return;
+        }
+
+        _autocompleteSearchCts.Cancel();
+        _autocompleteSearchCts.Dispose();
+        _autocompleteSearchCts = null;
     }
 
     private void AddSelectedProduct()

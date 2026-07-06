@@ -38,3 +38,8 @@ public sealed record ProcessReturnRequest(
     Guid ProcessedByUserId,
     string Reason,
     IReadOnlyList<ReturnLineRequest>? Items = null);
+
+public sealed record CancelSaleRequest(
+    Guid SaleId,
+    Guid CancelledByUserId,
+    string Reason);

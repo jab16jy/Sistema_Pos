@@ -28,24 +28,11 @@ public sealed class WhatsAppScriptService : IWhatsAppService
             throw new InvalidOperationException("El script de WhatsApp configurado no existe. Revisa la ruta en Ajustes.");
         }
 
-        var psi = new ProcessStartInfo
-        {
-            FileName = _options.FileName,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
+        ProcessStartInfo psi = CreateStartInfo(_options.FileName, phoneNumber, message, attachmentPath);
 
         if (!string.IsNullOrWhiteSpace(_options.WorkingDirectory))
         {
             psi.WorkingDirectory = _options.WorkingDirectory;
-        }
-
-        psi.ArgumentList.Add(phoneNumber);
-        psi.ArgumentList.Add(message);
-        if (!string.IsNullOrWhiteSpace(attachmentPath))
-        {
-            psi.ArgumentList.Add(attachmentPath);
         }
 
         using var process = Process.Start(psi);
@@ -56,5 +43,56 @@ public sealed class WhatsAppScriptService : IWhatsAppService
 
         await process.WaitForExitAsync(ct);
         return process.ExitCode == 0;
+    }
+
+    private static ProcessStartInfo CreateStartInfo(
+        string scriptPathOrCommand,
+        string phoneNumber,
+        string message,
+        string? attachmentPath)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = scriptPathOrCommand,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        string extension = Path.GetExtension(scriptPathOrCommand);
+        if (Path.IsPathRooted(scriptPathOrCommand) && File.Exists(scriptPathOrCommand))
+        {
+            if (extension.Equals(".cmd", StringComparison.OrdinalIgnoreCase) ||
+                extension.Equals(".bat", StringComparison.OrdinalIgnoreCase))
+            {
+                psi.FileName = "cmd.exe";
+                psi.ArgumentList.Add("/c");
+                psi.ArgumentList.Add("call");
+                psi.ArgumentList.Add(scriptPathOrCommand);
+            }
+            else if (extension.Equals(".ps1", StringComparison.OrdinalIgnoreCase))
+            {
+                psi.FileName = "powershell.exe";
+                psi.ArgumentList.Add("-NoProfile");
+                psi.ArgumentList.Add("-ExecutionPolicy");
+                psi.ArgumentList.Add("Bypass");
+                psi.ArgumentList.Add("-File");
+                psi.ArgumentList.Add(scriptPathOrCommand);
+            }
+            else if (extension.Equals(".py", StringComparison.OrdinalIgnoreCase))
+            {
+                psi.FileName = "python";
+                psi.ArgumentList.Add(scriptPathOrCommand);
+            }
+        }
+
+        psi.ArgumentList.Add(phoneNumber);
+        if (!string.IsNullOrWhiteSpace(attachmentPath))
+        {
+            psi.ArgumentList.Add(attachmentPath);
+        }
+        psi.ArgumentList.Add(message);
+
+        return psi;
     }
 }

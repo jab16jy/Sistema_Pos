@@ -20,7 +20,7 @@ public sealed class ProductsViewModel : ViewModelBase
     private string _searchText = string.Empty;
     private string _name = string.Empty;
     private string _description = string.Empty;
-    private decimal _costPrice;
+    private decimal? _costPrice;
     private decimal _salePrice;
     private decimal _currentStock;
     private decimal _minimumStock;
@@ -31,6 +31,7 @@ public sealed class ProductsViewModel : ViewModelBase
     private string _message = "Busca productos por nombre o código de barras.";
     private bool _isCsvSectionOpen;
     private bool _isProductsSubtabActive = true;
+    private CancellationTokenSource? _searchCancellationTokenSource;
 
     public ProductsViewModel(
         CreateProductUseCase createProduct,
@@ -100,7 +101,7 @@ public sealed class ProductsViewModel : ViewModelBase
                 {
                     Name = value.Name;
                     Description = value.Description ?? string.Empty;
-                    CostPrice = 0; // ProductSearchResult does not carry CostPrice
+                    CostPrice = value.CostPrice;
                     SalePrice = value.SalePrice;
                     CurrentStock = value.CurrentStock;
                     MinimumStock = value.MinimumStock;
@@ -175,7 +176,13 @@ public sealed class ProductsViewModel : ViewModelBase
     public string SearchText
     {
         get => _searchText;
-        set => SetProperty(ref _searchText, value);
+        set
+        {
+            if (SetProperty(ref _searchText, value))
+            {
+                ReloadProductsForSearch();
+            }
+        }
     }
 
     public string Name
@@ -190,7 +197,7 @@ public sealed class ProductsViewModel : ViewModelBase
         set => SetProperty(ref _description, value);
     }
 
-    public decimal CostPrice
+    public decimal? CostPrice
     {
         get => _costPrice;
         set
@@ -270,18 +277,18 @@ public sealed class ProductsViewModel : ViewModelBase
 
     // ── Margin preview (presentation-only) ──
 
-    public decimal MarginAmount => _salePrice - _costPrice;
+    public decimal MarginAmount => _salePrice - (_costPrice ?? 0m);
 
     public string MarginPercent
     {
         get
         {
-            if (_costPrice == 0) return "0";
-            return ((_salePrice - _costPrice) / _costPrice * 100m).ToString("F1", CultureInfo.InvariantCulture);
+            if (!_costPrice.HasValue || _costPrice.Value == 0) return "0";
+            return ((_salePrice - _costPrice.Value) / _costPrice.Value * 100m).ToString("F1", CultureInfo.InvariantCulture);
         }
     }
 
-    public bool HasMarginPreview => _costPrice > 0 && _salePrice > 0;
+    public bool HasMarginPreview => _costPrice.HasValue && _costPrice.Value > 0 && _salePrice > 0;
 
     public bool IsMarginNegative => MarginAmount < 0;
 
@@ -319,33 +326,31 @@ public sealed class ProductsViewModel : ViewModelBase
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        var results = await _searchProducts.ExecuteAsync(new SearchProductsRequest(SearchText), cancellationToken).ConfigureAwait(true);
-        Products.Clear();
-        foreach (var product in results)
+        try
         {
-            Products.Add(product);
+            var results = await _searchProducts.ExecuteAsync(new SearchProductsRequest(SearchText), cancellationToken).ConfigureAwait(true);
+            Products.Clear();
+            foreach (var product in results)
+            {
+                Products.Add(product);
+            }
+
+            Message = Products.Count == 0
+                ? "No encontramos productos con ese criterio. Puedes registrar uno nuevo."
+                : $"Mostrando {Products.Count} producto(s). Selecciona uno para editar.";
+
+            if (_searchCategories is not null)
+            {
+                await LoadCategoriesAsync(cancellationToken).ConfigureAwait(true);
+            }
+
+            if (CategoriesEditor is not null && CategoriesEditor.Categories.Count == 0)
+            {
+                await CategoriesEditor.LoadAsync(cancellationToken).ConfigureAwait(true);
+            }
         }
-
-        Message = Products.Count == 0
-            ? "No encontramos productos con ese criterio. Puedes registrar uno nuevo."
-            : $"Mostrando {Products.Count} producto(s). Selecciona uno para editar.";
-
-        // Load categories if the use case is available
-        if (_searchCategories is not null)
+        catch (OperationCanceledException)
         {
-            try
-            {
-                var categories = await _searchCategories.ExecuteAsync(cancellationToken).ConfigureAwait(true);
-                Categories.Clear();
-                foreach (var category in categories)
-                {
-                    Categories.Add(category);
-                }
-            }
-            catch
-            {
-                // Category loading is best-effort; do not block product loading
-            }
         }
     }
 
@@ -453,13 +458,13 @@ public sealed class ProductsViewModel : ViewModelBase
         OnPropertyChanged(nameof(SelectedProduct));
         Name = string.Empty;
         Description = string.Empty;
-        CostPrice = 0;
+        CostPrice = null;
         SalePrice = 0;
         CurrentStock = 0;
         MinimumStock = 0;
         TaxRate = 19m;
         Barcode = null;
-        CategoryId = Guid.Empty;
+        CategoryId = ResolveDefaultCategoryId();
         OnPropertyChanged(nameof(HasSelectedProduct));
         OnPropertyChanged(nameof(FormTitle));
         OnPropertyChanged(nameof(ShowFormStatusChip));
@@ -488,5 +493,43 @@ public sealed class ProductsViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasStockStatusPreview));
         OnPropertyChanged(nameof(StockStatusLabel));
         OnPropertyChanged(nameof(StockStatusKind));
+    }
+
+    private void ReloadProductsForSearch()
+    {
+        _searchCancellationTokenSource?.Cancel();
+        _searchCancellationTokenSource?.Dispose();
+        _searchCancellationTokenSource = new CancellationTokenSource();
+        _ = LoadAsync(_searchCancellationTokenSource.Token);
+    }
+
+    private async Task LoadCategoriesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var categories = await _searchCategories!.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+            Categories.Clear();
+            foreach (var category in categories)
+            {
+                Categories.Add(category);
+            }
+
+            if (SelectedProduct is null)
+            {
+                CategoryId = ResolveDefaultCategoryId();
+            }
+        }
+        catch
+        {
+            // Category loading is best-effort; do not block product loading.
+        }
+    }
+
+    private Guid ResolveDefaultCategoryId()
+    {
+        CategoryResult? preferredCategory = Categories.FirstOrDefault(category =>
+            string.Equals(category.Name, "Sin categoría", StringComparison.OrdinalIgnoreCase));
+
+        return preferredCategory?.Id ?? Categories.FirstOrDefault()?.Id ?? Guid.Empty;
     }
 }

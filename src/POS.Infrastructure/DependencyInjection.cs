@@ -77,7 +77,8 @@ public static class DependencyInjection
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IPdfService, PdfService>();
         services.AddScoped<IEmailService, SmtpEmailService>();
-        services.AddScoped<IWhatsAppService, WhatsAppScriptService>();
+        services.AddSingleton<IExternalLinkLauncher, ExternalLinkLauncher>();
+        services.AddScoped<IWhatsAppService, WhatsAppDesktopWebService>();
         services.AddScoped<IProductLookupService, ProductLookupService>();
         services.AddScoped<IProductCatalogQueryService, ProductCatalogQueryService>();
         services.AddScoped<ISalesHistoryQueryService, SalesHistoryQueryService>();
@@ -108,6 +109,7 @@ public static class DependencyInjection
         services.AddScoped<QuerySalesHistoryUseCase>();
         services.AddScoped<ReprintReceiptUseCase>();
         services.AddScoped<ProcessReturnUseCase>();
+        services.AddScoped<CancelSaleUseCase>();
         services.AddScoped<LoadSettingsUseCase>();
         services.AddScoped<SaveSettingsUseCase>();
         services.AddScoped<TriggerManualBackupUseCase>();

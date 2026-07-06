@@ -183,7 +183,7 @@
                 </Border>
                 <Border Background="{StaticResource BrushWarningContainer}" CornerRadius="6" Padding="10">
                   <TextBlock Foreground="{StaticResource BrushWarning}" FontSize="12" TextWrapping="Wrap">
-                    El envío por WhatsApp depende del script configurado. Si la ruta cambia, el sistema debe mostrar recuperación clara y no bloquear la operación.
+                    WhatsApp debe abrir primero la app de escritorio y, si no está disponible, caer automáticamente a WhatsApp Web sin bloquear la operación.
                   </TextBlock>
                 </Border>
               </StackPanel>
@@ -266,7 +266,7 @@
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="Script WhatsApp" VerticalAlignment="Center" />
+                  <TextBlock Text="WhatsApp Desktop / Web" VerticalAlignment="Center" />
                   <Border Grid.Column="1" VerticalAlignment="Center">
                     <Border.Style>
                       <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
@@ -453,45 +453,61 @@
             </StackPanel>
             <TextBlock Text="Host" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
             <TextBox Text="{Binding SmtpHost, Mode=TwoWay}" Margin="0,0,0,8" />
-            <TextBlock Text="Cuenta remitente" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding SmtpSenderAddress, Mode=TwoWay}" Margin="0,0,0,8" />
-            <TextBlock Text="Puerto" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding SmtpPort, Mode=TwoWay}" Margin="0,0,0,8" />
-            <TextBlock Text="Destino de prueba" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding TestEmailRecipient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="destino@email.com" Margin="0,0,0,8" />
-            <Button Style="{StaticResource PrimaryButton}" Command="{Binding TestEmailCommand}">
-              <StackPanel Orientation="Horizontal">
-                <materialDesign:PackIcon Kind="Send" Width="16" Height="16" Margin="0,0,4,0" />
-                <TextBlock Text="Enviar prueba" />
-              </StackPanel>
-            </Button>
-          </StackPanel>
-        </Border>
+              <TextBlock Text="Cuenta remitente" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding SmtpSenderAddress, Mode=TwoWay}" Margin="0,0,0,8" />
+              <TextBlock Text="Usuario SMTP" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding SmtpUser, Mode=TwoWay}" Margin="0,0,0,8" />
+              <TextBlock Text="Contraseña / app password" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <PasswordBox Tag="Usa una app password cuando el proveedor lo exija"
+                           PasswordChanged="SmtpPasswordBox_OnPasswordChanged"
+                           Margin="0,0,0,8" />
+              <TextBlock Text="Puerto" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding SmtpPort, Mode=TwoWay}" Margin="0,0,0,8" />
+              <CheckBox Content="Usar SSL / TLS" IsChecked="{Binding SmtpUseSsl, Mode=TwoWay}" Margin="0,0,0,8" />
+              <TextBlock Text="Destino de prueba" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding TestEmailRecipient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="destino@email.com" Margin="0,0,0,8" />
+             <Grid>
+               <Grid.ColumnDefinitions>
+                 <ColumnDefinition Width="*" />
+                 <ColumnDefinition Width="8" />
+                 <ColumnDefinition Width="*" />
+               </Grid.ColumnDefinitions>
+               <Button Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}">
+                 <StackPanel Orientation="Horizontal">
+                   <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" Margin="0,0,4,0" />
+                   <TextBlock Text="Guardar SMTP" />
+                 </StackPanel>
+               </Button>
+               <Button Grid.Column="2" Command="{Binding TestEmailCommand}">
+                 <StackPanel Orientation="Horizontal">
+                   <materialDesign:PackIcon Kind="Send" Width="16" Height="16" Margin="0,0,4,0" />
+                   <TextBlock Text="Enviar prueba" />
+                 </StackPanel>
+               </Button>
+             </Grid>
+           </StackPanel>
+         </Border>
 
-        <Border Style="{StaticResource Card}">
-          <StackPanel Margin="14">
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-              <materialDesign:PackIcon Kind="WhatsApp" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
-              <TextBlock Text="WhatsApp / Script" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
-            </StackPanel>
-            <TextBlock Text="Ruta del script" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding WhatsAppScriptPath, Mode=TwoWay}" Margin="0,0,0,8" />
-            <TextBlock Text="Directorio de trabajo" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding WhatsAppWorkingDirectory, Mode=TwoWay}" Margin="0,0,0,8" />
-            <TextBlock Text="Estado" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <ComboBox SelectedValuePath="Content" SelectedValue="{Binding WhatsAppStatus, Mode=TwoWay}" Margin="0,0,0,8">
-              <ComboBoxItem Content="Listo" IsSelected="True" />
-              <ComboBoxItem Content="Requiere revisión" />
-            </ComboBox>
-            <TextBlock Text="Número de prueba" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding TestWhatsAppNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="3001234567" Margin="0,0,0,8" />
-            <Button Command="{Binding TestWhatsAppCommand}">
-              <StackPanel Orientation="Horizontal">
-                <materialDesign:PackIcon Kind="Terminal" Width="16" Height="16" Margin="0,0,4,0" />
-                <TextBlock Text="Probar script" />
-              </StackPanel>
-            </Button>
-          </StackPanel>
+         <Border Style="{StaticResource Card}">
+           <StackPanel Margin="14">
+             <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+               <materialDesign:PackIcon Kind="WhatsApp" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
+               <TextBlock Text="WhatsApp Desktop / Web" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+             </StackPanel>
+             <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,0,0,8">
+               El sistema intentará abrir primero WhatsApp Desktop. Si no está disponible, abrirá WhatsApp Web automáticamente.
+             </TextBlock>
+             <TextBlock Text="Estado" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+             <TextBox Text="{Binding WhatsAppStatus}" IsReadOnly="True" Margin="0,0,0,8" />
+             <TextBlock Text="Número de prueba" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+             <TextBox Text="{Binding TestWhatsAppNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="3001234567" Margin="0,0,0,8" />
+             <Button Command="{Binding TestWhatsAppCommand}">
+               <StackPanel Orientation="Horizontal">
+                 <materialDesign:PackIcon Kind="OpenInNew" Width="16" Height="16" Margin="0,0,4,0" />
+                 <TextBlock Text="Abrir WhatsApp" />
+               </StackPanel>
+             </Button>
+           </StackPanel>
         </Border>
       </UniformGrid>
     </ScrollViewer>

@@ -15,11 +15,12 @@ public sealed class ProductUseCaseTests
     {
         var existing = CreateProduct("Rice", "A100");
         var products = new InMemoryProductRepository(existing);
-        var useCase = new CreateProductUseCase(products, new CountingUnitOfWork());
+        var category = new Category("Abarrotes");
+        var useCase = new CreateProductUseCase(products, new InMemoryCategoryRepository(category), new CountingUnitOfWork());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(new CreateProductRequest(
             "Beans",
-            Guid.NewGuid(),
+            category.Id,
             1_000m,
             1_500m,
             0m,
@@ -33,11 +34,12 @@ public sealed class ProductUseCaseTests
     {
         var products = new InMemoryProductRepository();
         var unitOfWork = new CountingUnitOfWork();
-        var useCase = new CreateProductUseCase(products, unitOfWork);
+        var category = new Category("Abarrotes");
+        var useCase = new CreateProductUseCase(products, new InMemoryCategoryRepository(category), unitOfWork);
 
         Guid productId = await useCase.ExecuteAsync(new CreateProductRequest(
             "Beans",
-            Guid.NewGuid(),
+            category.Id,
             1_000m,
             1_500m,
             0m,
@@ -57,12 +59,13 @@ public sealed class ProductUseCaseTests
         var product = CreateProduct("Rice", "A100");
         var products = new InMemoryProductRepository(product);
         var unitOfWork = new CountingUnitOfWork();
-        var useCase = new UpdateProductUseCase(products, unitOfWork);
+        var category = new Category("Premium");
+        var useCase = new UpdateProductUseCase(products, new InMemoryCategoryRepository(category), unitOfWork);
 
         ProductResult result = await useCase.ExecuteAsync(new UpdateProductRequest(
             product.Id,
             "Premium Rice",
-            Guid.NewGuid(),
+            category.Id,
             1_100m,
             1_700m,
             4m,
@@ -80,7 +83,9 @@ public sealed class ProductUseCaseTests
     {
         var product = CreateProduct("Rice", "A100");
         var other = CreateProduct("Beans", "B200");
-        var useCase = new UpdateProductUseCase(new InMemoryProductRepository(product, other), new CountingUnitOfWork());
+        var category = new Category("Abarrotes");
+        product.UpdateDetails(product.Name, category.Id, product.CostPrice, product.SalePrice, new StockQuantity(product.MinimumStock), product.Description, product.Barcode is null ? null : new Barcode(product.Barcode), product.TaxRate);
+        var useCase = new UpdateProductUseCase(new InMemoryProductRepository(product, other), new InMemoryCategoryRepository(category), new CountingUnitOfWork());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(new UpdateProductRequest(
             product.Id,
@@ -110,7 +115,7 @@ public sealed class ProductUseCaseTests
     public async Task SearchProductsAsync_DelegatesToCatalogQuery()
     {
         Guid categoryId = Guid.NewGuid();
-        var expected = new ProductSearchResult(Guid.NewGuid(), "Aspirina", categoryId, 10m, 5m, 2m, 19m, null, "ABC", true);
+        var expected = new ProductSearchResult(Guid.NewGuid(), "Aspirina", categoryId, "Sin categoría", null, 10m, 5m, 2m, 19m, null, "ABC", true);
         var query = new StubProductCatalogQueryService([expected]);
         var useCase = new SearchProductsUseCase(query);
 
@@ -195,6 +200,29 @@ public sealed class ProductUseCaseTests
             LastRequest = request;
             return Task.FromResult(_results);
         }
+    }
+
+    private sealed class InMemoryCategoryRepository : ICategoryRepository
+    {
+        private readonly Dictionary<Guid, Category> _categories;
+
+        public InMemoryCategoryRepository(params Category[] categories)
+        {
+            _categories = categories.ToDictionary(category => category.Id);
+        }
+
+        public Task<IReadOnlyList<Category>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Category>>(_categories.Values.ToList());
+
+        public Task<Category?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(_categories.GetValueOrDefault(id));
+
+        public Task AddAsync(Category category, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task UpdateAsync(Category category, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<bool> HasProductsAsync(Guid categoryId, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
     }
 
     private sealed class CountingUnitOfWork : IUnitOfWork

@@ -3,7 +3,7 @@ namespace POS.Application.DTOs.Products;
 public sealed record CreateProductRequest(
     string Name,
     Guid CategoryId,
-    decimal CostPrice,
+    decimal? CostPrice,
     decimal SalePrice,
     decimal CurrentStock,
     decimal MinimumStock,

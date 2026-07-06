@@ -3,8 +3,10 @@ using System.Linq;
 using System.Windows.Input;
 using POS.Application.DTOs.Communication;
 using POS.Application.DTOs.Invoices;
+using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Invoices;
+using POS.Domain.Exceptions;
 using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
 using POS.Presentation.Shared.Invoices;
@@ -35,6 +37,8 @@ public sealed class InvoicesViewModel : ViewModelBase
     private readonly ReprintReceiptUseCase _reprintReceipt;
     private readonly ProcessReturnUseCase _processReturn;
     private readonly SendDocumentUseCase? _sendDocument;
+    private readonly IPdfService? _pdfService;
+    private readonly CancelSaleUseCase? _cancelSale;
     private readonly List<InvoiceSummaryRow> _allInvoices = [];
 
     private InvoiceSummaryRow? _selectedInvoice;
@@ -47,21 +51,30 @@ public sealed class InvoicesViewModel : ViewModelBase
     private string _message = "Busca facturas por fecha, cliente o número.";
     private int _currentPage = 1;
     private bool _hasMorePages;
+    private UserRole _currentUserRole = UserRole.Cashier;
+
+    public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
 
     public InvoicesViewModel(
         QuerySalesHistoryUseCase querySalesHistory,
         ReprintReceiptUseCase reprintReceipt,
         ProcessReturnUseCase processReturn,
-        SendDocumentUseCase? sendDocument = null)
+        SendDocumentUseCase? sendDocument = null,
+        IPdfService? pdfService = null,
+        CancelSaleUseCase? cancelSale = null)
     {
         _querySalesHistory = querySalesHistory;
         _reprintReceipt = reprintReceipt;
         _processReturn = processReturn;
         _sendDocument = sendDocument;
+        _pdfService = pdfService;
+        _cancelSale = cancelSale;
 
         LoadCommand = new RelayCommand(_ => _ = LoadFirstPageAsync());
         ReprintCommand = new RelayCommand(_ => _ = ReprintAsync(), _ => SelectedInvoice is not null && SelectedInvoice.Status == SaleStatus.Completed);
+        ExportPdfCommand = new RelayCommand(_ => _ = ExportPdfAsync(), _ => SelectedInvoice is not null && _pdfService is not null);
         ProcessReturnCommand = new RelayCommand(_ => _ = ProcessReturnAsync(), _ => SelectedInvoice is not null && SelectedInvoice.Status == SaleStatus.Completed && !string.IsNullOrWhiteSpace(ReturnReason));
+        CancelSaleCommand = new RelayCommand(_ => _ = CancelSaleAsync(), _ => CanCancelSelectedInvoice());
         SendByEmailCommand = new RelayCommand(_ => _ = SendByEmailAsync());
         SendByWhatsAppCommand = new RelayCommand(_ => _ = SendByWhatsAppAsync());
         SelectInvoiceCommand = new RelayCommand(p => SelectedInvoice = p as InvoiceSummaryRow);
@@ -76,7 +89,11 @@ public sealed class InvoicesViewModel : ViewModelBase
 
     public ICommand ReprintCommand { get; }
 
+    public ICommand ExportPdfCommand { get; }
+
     public ICommand ProcessReturnCommand { get; }
+
+    public ICommand CancelSaleCommand { get; }
 
     public ICommand SendByEmailCommand { get; }
 
@@ -141,6 +158,11 @@ public sealed class InvoicesViewModel : ViewModelBase
                 {
                     command.RaiseCanExecuteChanged();
                 }
+
+                if (CancelSaleCommand is RelayCommand cancelCommand)
+                {
+                    cancelCommand.RaiseCanExecuteChanged();
+                }
             }
         }
     }
@@ -204,6 +226,21 @@ public sealed class InvoicesViewModel : ViewModelBase
     }
 
     public Guid OperatorUserId { get; set; }
+
+    public UserRole CurrentUserRole
+    {
+        get => _currentUserRole;
+        set
+        {
+            if (SetProperty(ref _currentUserRole, value))
+            {
+                OnPropertyChanged(nameof(IsAdministrator));
+                RaiseSelectionDependentCommands();
+            }
+        }
+    }
+
+    public bool IsAdministrator => CurrentUserRole == UserRole.Administrator;
 
     public Task LoadFirstPageAsync(CancellationToken cancellationToken = default)
     {
@@ -270,6 +307,33 @@ public sealed class InvoicesViewModel : ViewModelBase
         catch (InvalidOperationException ex)
         {
             Message = ex.Message;
+        }
+    }
+
+    public async Task ExportPdfAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedInvoice is null)
+        {
+            Message = "Selecciona una factura";
+            return;
+        }
+
+        if (_pdfService is null)
+        {
+            Message = "La exportación PDF no está disponible en este entorno.";
+            return;
+        }
+
+        try
+        {
+            byte[] pdfBytes = await _pdfService.GenerateInvoicePdfAsync(SelectedInvoice.SaleId, cancellationToken).ConfigureAwait(true);
+            string fileName = $"Factura_{SanitizeFileName(SelectedInvoice.InvoiceNumber)}.pdf";
+            FileExportRequested?.Invoke(this, (fileName, pdfBytes));
+            Message = $"PDF de {SelectedInvoice.InvoiceNumber} listo para guardar.";
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al generar el PDF: {ex.Message}";
         }
     }
 
@@ -354,6 +418,61 @@ public sealed class InvoicesViewModel : ViewModelBase
         }
     }
 
+    public async Task CancelSaleAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedInvoice is null)
+        {
+            Message = "Selecciona una factura";
+            return;
+        }
+
+        if (!IsAdministrator)
+        {
+            Message = "Solo un administrador puede anular facturas.";
+            return;
+        }
+
+        if (_cancelSale is null)
+        {
+            Message = "La anulación de facturas no está disponible en este entorno.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(ReturnReason))
+        {
+            Message = "Selecciona un motivo";
+            return;
+        }
+
+        try
+        {
+            string reason = string.IsNullOrWhiteSpace(ReturnDescription)
+                ? ReturnReason
+                : $"{ReturnReason}: {ReturnDescription}";
+
+            await _cancelSale.ExecuteAsync(new CancelSaleRequest(SelectedInvoice.SaleId, OperatorUserId, reason), cancellationToken).ConfigureAwait(true);
+            string invoiceNumber = SelectedInvoice.InvoiceNumber;
+
+            ReturnReason = string.Empty;
+            ReturnDescription = string.Empty;
+            RefundType = "Efectivo";
+            await LoadAsync(cancellationToken).ConfigureAwait(true);
+            Message = $"Factura {invoiceNumber} anulada correctamente. El stock ha sido restaurado.";
+        }
+        catch (UnauthorizedActionException)
+        {
+            Message = "Solo un administrador puede anular facturas.";
+        }
+        catch (ArgumentException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+    }
+
     private void ApplyStatusFilter()
     {
         IEnumerable<InvoiceSummaryRow> filtered = string.IsNullOrEmpty(StatusFilter)
@@ -374,9 +493,39 @@ public sealed class InvoicesViewModel : ViewModelBase
             reprintCommand.RaiseCanExecuteChanged();
         }
 
+        if (ExportPdfCommand is RelayCommand exportPdfCommand)
+        {
+            exportPdfCommand.RaiseCanExecuteChanged();
+        }
+
         if (ProcessReturnCommand is RelayCommand returnCommand)
         {
             returnCommand.RaiseCanExecuteChanged();
         }
+
+        if (CancelSaleCommand is RelayCommand cancelCommand)
+        {
+            cancelCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    private bool CanCancelSelectedInvoice() =>
+        _cancelSale is not null &&
+        IsAdministrator &&
+        SelectedInvoice is not null &&
+        SelectedInvoice.Status == SaleStatus.Completed &&
+        !string.IsNullOrWhiteSpace(ReturnReason);
+
+    private static string SanitizeFileName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "Factura";
+        }
+
+        char[] invalidChars = Path.GetInvalidFileNameChars();
+        var chars = value.Select(ch => invalidChars.Contains(ch) ? '-' : ch).ToArray();
+        string sanitized = new(chars);
+        return string.IsNullOrWhiteSpace(sanitized) ? "Factura" : sanitized;
     }
 }
