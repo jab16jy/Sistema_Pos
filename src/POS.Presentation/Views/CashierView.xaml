@@ -469,20 +469,6 @@
           </Grid>
         </Border>
 
-        <Border Background="#F8FAFC"
-                BorderBrush="{StaticResource BrushBorder}"
-                BorderThickness="1"
-                CornerRadius="6"
-                Padding="12"
-                Margin="0,0,0,14">
-          <StackPanel>
-            <TextBlock Text="Recibo" Style="{StaticResource CashHint}" FontWeight="Medium" />
-            <CheckBox IsChecked="{Binding ShouldPrintReceipt, Mode=TwoWay}"
-                      Content="Imprimir recibo al finalizar la venta"
-                      Margin="0,6,0,0" />
-          </StackPanel>
-        </Border>
-
         <Button Content="F5 · Finalizar venta"
                 Command="{Binding ConfirmPrototypeSaleCommand}"
                 Style="{StaticResource AccentButton}"

@@ -51,7 +51,6 @@ public sealed class CashierViewModel : ViewModelBase
     private decimal _loyaltyDiscount;
     private string _bankOrPlatform = string.Empty;
     private int _loyaltyPointsToRedeem;
-    private bool _shouldPrintReceipt = true;
 
     public CashierViewModel(IProductLookupService productLookupService)
         : this(productLookupService, new PreviewPaymentUseCase())
@@ -460,27 +459,9 @@ public sealed class CashierViewModel : ViewModelBase
         try
         {
             CreateSaleResult result = await _createSaleUseCase.ExecuteAsync(BuildCreateSaleRequest(), cancellationToken).ConfigureAwait(true);
-            string? receiptError = null;
-            bool receiptWasPrinted = false;
-
-            if (ShouldPrintReceipt && _printService is not null)
-            {
-                try
-                {
-                    await _printService.PrintReceiptAsync(result.SaleId, cancellationToken).ConfigureAwait(true);
-                    receiptWasPrinted = true;
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    receiptError = ex.Message;
-                }
-            }
-
             CartItems.Clear();
             ReceivedAmount = 0m;
             DeferredAmount = 0m;
-            bool shouldPrintReceipt = ShouldPrintReceipt;
-            ShouldPrintReceipt = true;
             RefreshTotals(updateMessage: false);
             Message = $"Venta guardada con factura {result.InvoiceNumber}.";
 
