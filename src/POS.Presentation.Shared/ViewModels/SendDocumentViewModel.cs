@@ -19,7 +19,7 @@ public sealed class SendDocumentViewModel : ViewModelBase
     public SendDocumentViewModel(SendDocumentUseCase sendUseCase)
     {
         _sendUseCase = sendUseCase ?? throw new ArgumentNullException(nameof(sendUseCase));
-        SendCommand = new RelayCommand(async _ => await SendAsync().ConfigureAwait(true));
+        SendCommand = new RelayCommand(_ => RunSafe(SendAsync(), ex => ResultMessage = $"Error inesperado: {ex.Message}"));
     }
 
     public ICommand SendCommand { get; }

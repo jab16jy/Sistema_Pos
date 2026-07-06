@@ -52,8 +52,8 @@ public sealed class LoyaltyViewModel : ViewModelBase
             new LoyaltyCampaignEntry("analytics", "Impacto en ventas", "38% de las ventas del mes tuvieron cliente identificado", "+12%", "earn"),
         ];
 
-        LoadBalanceCommand = new RelayCommand(async _ => await LoadBalanceAsync().ConfigureAwait(true));
-        RedeemCommand = new RelayCommand(async _ => await RedeemAsync().ConfigureAwait(true));
+        LoadBalanceCommand = new RelayCommand(_ => RunSafe(LoadBalanceAsync(), ex => Message = $"Error al consultar saldo: {ex.Message}"));
+        RedeemCommand = new RelayCommand(_ => RunSafe(RedeemAsync(), ex => Message = $"Error al redimir puntos: {ex.Message}"));
         SaveRulesCommand = new RelayCommand(_ => Message = "Reglas guardadas");
         EditBenefitsCommand = new RelayCommand(_ => Message = "Editor de tiers no disponible en este entorno.");
     }
@@ -208,6 +208,10 @@ public sealed class LoyaltyViewModel : ViewModelBase
         catch (ArgumentException ex)
         {
             Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al redimir puntos: {ex.Message}";
         }
         finally
         {

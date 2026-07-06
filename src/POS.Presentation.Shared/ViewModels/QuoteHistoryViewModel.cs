@@ -39,12 +39,12 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
 
         Quotes = [];
 
-        LoadCommand = new RelayCommand(async _ => await LoadAsync().ConfigureAwait(true));
-        NextPageCommand = new RelayCommand(async _ => await NextPageAsync().ConfigureAwait(true));
-        PreviousPageCommand = new RelayCommand(async _ => await PreviousPageAsync().ConfigureAwait(true));
-        ConvertToSaleCommand = new RelayCommand(async p => await ConvertToSaleAsync(p as QuoteSummaryRow, Guid.Empty).ConfigureAwait(true));
-        SendByEmailCommand = new RelayCommand(async p => await SendByEmailAsync(p as QuoteSummaryRow).ConfigureAwait(true));
-        SendByWhatsAppCommand = new RelayCommand(async p => await SendByWhatsAppAsync(p as QuoteSummaryRow).ConfigureAwait(true));
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => StatusMessage = $"Error al cargar cotizaciones: {ex.Message}"));
+        NextPageCommand = new RelayCommand(_ => RunSafe(NextPageAsync(), ex => StatusMessage = $"Error al paginar cotizaciones: {ex.Message}"));
+        PreviousPageCommand = new RelayCommand(_ => RunSafe(PreviousPageAsync(), ex => StatusMessage = $"Error al paginar cotizaciones: {ex.Message}"));
+        ConvertToSaleCommand = new RelayCommand(p => RunSafe(ConvertToSaleAsync(p as QuoteSummaryRow, Guid.Empty), ex => StatusMessage = $"Error al convertir la cotización: {ex.Message}"));
+        SendByEmailCommand = new RelayCommand(p => RunSafe(SendByEmailAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
+        SendByWhatsAppCommand = new RelayCommand(p => RunSafe(SendByWhatsAppAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
     }
 
     public ObservableCollection<QuoteSummaryRow> Quotes { get; }

@@ -30,7 +30,7 @@ public partial class App : System.Windows.Application
     private ServiceProvider? _services;
     private IServiceScope? _scope;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -60,7 +60,7 @@ public partial class App : System.Windows.Application
         try
         {
             _services = BuildServiceProvider();
-            DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).GetAwaiter().GetResult();
+            await DatabaseSchemaRollout.EnsureLatestSchemaAsync(_services).ConfigureAwait(true);
             _scope = _services.CreateScope();
 
             if (!ShowLoginAndLaunchShell())

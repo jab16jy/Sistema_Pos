@@ -75,6 +75,18 @@ public sealed class QuoteViewModelTests
     }
 
     [Fact]
+    public async Task SearchCommand_WhenLookupFails_SetsRecoverableValidationMessage()
+    {
+        var createQuote = new CreateQuoteUseCase(new InMemoryQuoteRepository(), new StaticProductRepository(null), new InMemoryUnitOfWork());
+        var vm = new QuoteViewModel(new ThrowingProductLookupService(), createQuote);
+
+        vm.SearchCommand.Execute(null);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Contains("Error al buscar productos", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void QuoteSummaryRow_ActiveStatus_CanConvertToSaleAndHasSuccessChip()
     {
         var summary = new Application.DTOs.Quotes.QuoteSummary(
@@ -134,6 +146,12 @@ public sealed class QuoteViewModelTests
     {
         public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ProductLookupResult>>([]);
+    }
+
+    private sealed class ThrowingProductLookupService : IProductLookupService
+    {
+        public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("falló búsqueda");
     }
 
     private sealed class InMemoryQuoteRepository : IQuoteRepository

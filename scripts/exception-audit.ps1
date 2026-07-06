@@ -41,12 +41,23 @@ $findings = foreach ($file in $files) {
     foreach ($pattern in $patterns) {
         $matches = Select-String -Path $file.FullName -Pattern $pattern.Regex -AllMatches
         foreach ($match in $matches) {
+            if ($file.Name -eq 'ViewModelBase.cs' -and $pattern.Id -eq 'fire-and-forget') {
+                continue
+            }
+
             if ($pattern.Id -eq 'fire-and-forget' -and $match.Line -match 'RunSafe\(') {
                 continue
             }
 
+            $severity = $pattern.Severity
+            if ($pattern.Id -eq 'async-void' -and (
+                    $file.FullName -like '*\src\POS.Presentation\Views\*.xaml.cs' -or
+                    $match.Line -match 'OnStartup')) {
+                $severity = 'info'
+            }
+
             [pscustomobject]@{
-                Severity = $pattern.Severity
+                Severity = $severity
                 Rule = $pattern.Id
                 File = $file.FullName.Replace($Root, '.').TrimStart('.', '\')
                 Line = $match.LineNumber

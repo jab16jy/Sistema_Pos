@@ -113,7 +113,7 @@ public sealed class CashierViewModel : ViewModelBase
         CartItems = [];
         CartItems.CollectionChanged += OnCartItemsChanged;
 
-        SearchCommand = new RelayCommand(async _ => await SearchAsync().ConfigureAwait(true));
+        SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => Message = $"Error al buscar productos: {ex.Message}"));
         _addSelectedProductCommand = new RelayCommand(_ => TryAddSelectedProduct(), _ => CanAddSelectedProduct);
         _appendReceivedAmountCommand = new RelayCommand(AppendReceivedAmount);
         _backspaceReceivedAmountCommand = new RelayCommand(_ => BackspaceReceivedAmount());
@@ -124,7 +124,7 @@ public sealed class CashierViewModel : ViewModelBase
         _associateCustomerCommand = new RelayCommand(_ => AssociateCustomer());
         _holdSaleCommand = new RelayCommand(_ => HoldSale(), _ => HasCartItems);
         _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale());
-        _printReceiptYesCommand = new RelayCommand(async _ => await PrintPendingReceiptAsync().ConfigureAwait(true), _ => IsAwaitingPrintChoice);
+        _printReceiptYesCommand = new RelayCommand(_ => RunSafe(PrintPendingReceiptAsync(), ex => Message = $"Error al imprimir el recibo: {ex.Message}"), _ => IsAwaitingPrintChoice);
         _printReceiptNoCommand = new RelayCommand(_ => DeclinePendingReceipt(), _ => IsAwaitingPrintChoice);
         AddSelectedProductCommand = _addSelectedProductCommand;
         AppendReceivedAmountCommand = _appendReceivedAmountCommand;
@@ -136,7 +136,7 @@ public sealed class CashierViewModel : ViewModelBase
         AssociateCustomerCommand = _associateCustomerCommand;
         HoldSaleCommand = _holdSaleCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
-        ApplyRedemptionCommand = new RelayCommand(async _ => await ApplyRedemptionAsync().ConfigureAwait(true));
+        ApplyRedemptionCommand = new RelayCommand(_ => RunSafe(ApplyRedemptionAsync(), ex => Message = $"Error al aplicar puntos: {ex.Message}"));
         PrintReceiptYesCommand = _printReceiptYesCommand;
         PrintReceiptNoCommand = _printReceiptNoCommand;
     }
@@ -450,7 +450,7 @@ public sealed class CashierViewModel : ViewModelBase
 
         _autocompleteSearchCts = new CancellationTokenSource();
         CancellationToken token = _autocompleteSearchCts.Token;
-        _ = RunAutocompleteSearchAsync(query, token);
+        RunSafe(RunAutocompleteSearchAsync(query, token), ex => Message = $"Error al buscar productos: {ex.Message}");
     }
 
     private async Task RunAutocompleteSearchAsync(string query, CancellationToken cancellationToken)
