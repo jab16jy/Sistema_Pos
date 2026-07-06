@@ -82,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<IProductCatalogQueryService, ProductCatalogQueryService>();
         services.AddScoped<ISalesHistoryQueryService, SalesHistoryQueryService>();
         services.AddScoped<IPrinterCommandValidator, PrinterCommandValidator>();
+        services.AddSingleton<IInstalledPrinterProvider, InstalledPrinterProvider>();
         services.AddScoped<ICustomerHistoryQueryService, CustomerHistoryQueryService>();
         services.AddScoped<ICustomerLookupQueryService, CustomerLookupQueryService>();
         services.AddScoped<ISupplierLookupQueryService, SupplierLookupQueryService>();

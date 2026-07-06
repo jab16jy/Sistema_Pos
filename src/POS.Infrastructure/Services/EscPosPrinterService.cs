@@ -10,13 +10,10 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Services;
 
 /// <summary>
-/// ESC/POS thermal printer service.
-/// Auto-detects connection type from POS_PRINTER_COMMAND:
-///   COM3 (or COM\d+)    → SerialPort at 9600 baud
-///   192.168.1.100:9100  → TcpClient
-///   USB / \\.\USB…      → FileStream to \\.\USB001
-///   anything else       → legacy Process.Start fallback (same as PrintService)
-/// Falls back gracefully when not configured.
+/// ESC/POS thermal printer service. Resolves the configured target (installed Windows printer
+/// name, COM3, 192.168.1.100:9100, USB path, or a legacy command) via <see cref="IPrinterSettingsResolver"/>
+/// and sends the receipt bytes through <see cref="IThermalPrinterTransport"/>, falling back to
+/// launching an external process when the target isn't a direct ESC/POS channel.
 /// </summary>
 public sealed partial class EscPosPrinterService : IPrintService
 {

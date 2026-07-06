@@ -39,8 +39,6 @@ public sealed class InvoicesViewModel : ViewModelBase
 
     private InvoiceSummaryRow? _selectedInvoice;
     private string _searchText = string.Empty;
-    private DateOnly? _fromDate;
-    private DateOnly? _toDate;
     private string _statusFilter = string.Empty;
     private string _returnReason = string.Empty;
     private string _returnDescription = string.Empty;
@@ -113,18 +111,6 @@ public sealed class InvoicesViewModel : ViewModelBase
     {
         get => _searchText;
         set => SetProperty(ref _searchText, value ?? string.Empty);
-    }
-
-    public DateOnly? FromDate
-    {
-        get => _fromDate;
-        set => SetProperty(ref _fromDate, value);
-    }
-
-    public DateOnly? ToDate
-    {
-        get => _toDate;
-        set => SetProperty(ref _toDate, value);
     }
 
     /// <summary>
@@ -228,8 +214,8 @@ public sealed class InvoicesViewModel : ViewModelBase
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         var request = new SalesHistoryRequest(
-            FromDate,
-            ToDate,
+            From: null,
+            To: null,
             string.IsNullOrWhiteSpace(SearchText) ? null : SearchText,
             CurrentPage,
             PageSize);

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using POS.Application.DTOs.Invoices;
 using POS.Application.Interfaces;
+using POS.Domain.Entities;
 
 namespace POS.Infrastructure.Persistence.Queries;
 
@@ -50,19 +51,47 @@ public sealed class SalesHistoryQueryService : ISalesHistoryQueryService
                 (row.Customer != null && EF.Functions.Like(row.Customer.FullName, pattern)));
         }
 
-        return await query
+        var pageRows = await query
             .OrderByDescending(row => row.Sale.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(row => new SaleHistoryResult(
+            .Select(row => new
+            {
                 row.Sale.Id,
                 row.Sale.InvoiceNumber,
                 row.Sale.CustomerId,
-                row.Customer == null ? null : row.Customer.FullName,
+                CustomerName = row.Customer == null ? null : row.Customer.FullName,
                 row.Sale.Status,
-                row.Sale.CreatedAt,
-                row.Sale.Items.Sum(item => item.UnitPrice.Amount * item.Quantity - item.Discount.Amount)))
+                row.Sale.CreatedAt
+            })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        // Totals computed from flat scalar columns fetched separately, then summed client-side.
+        // EF Core/SQLite cannot translate a Sum over money-converted columns once it's combined
+        // with a GroupBy or a navigation (Sale.Items) inside a Select — both attempts threw
+        // "could not be translated" — so the arithmetic is done in memory instead.
+        List<Guid> saleIds = pageRows.Select(row => row.Id).ToList();
+        var itemAmounts = await _dbContext.Set<SaleItem>()
+            .AsNoTracking()
+            .Where(item => saleIds.Contains(item.SaleId))
+            .Select(item => new { item.SaleId, UnitPrice = item.UnitPrice.Amount, item.Quantity, Discount = item.Discount.Amount })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        Dictionary<Guid, decimal> totals = itemAmounts
+            .GroupBy(item => item.SaleId)
+            .ToDictionary(g => g.Key, g => g.Sum(item => item.UnitPrice * item.Quantity - item.Discount));
+
+        return pageRows
+            .Select(row => new SaleHistoryResult(
+                row.Id,
+                row.InvoiceNumber,
+                row.CustomerId,
+                row.CustomerName,
+                row.Status,
+                row.CreatedAt,
+                totals.TryGetValue(row.Id, out decimal total) ? total : 0m))
+            .ToList();
     }
 }

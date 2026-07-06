@@ -19,7 +19,6 @@ using POS.Application.UseCases.Shifts;
 using POS.Domain.Enums;
 using POS.Infrastructure;
 using POS.Infrastructure.Services;
-using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.ViewModels;
 
 namespace POS.Presentation;
@@ -154,15 +153,7 @@ public partial class App : System.Windows.Application
         var role = session.Role;
         var username = session.Username;
 
-        IProductLookupService productLookup;
-        try
-        {
-            productLookup = sp.GetRequiredService<IProductLookupService>();
-        }
-        catch
-        {
-            productLookup = new PrototypeProductLookupService();
-        }
+        IProductLookupService productLookup = sp.GetRequiredService<IProductLookupService>();
 
         CashierViewModel cashier;
         try
@@ -170,9 +161,9 @@ public partial class App : System.Windows.Application
             var createSale = sp.GetRequiredService<CreateSaleUseCase>();
             RedeemLoyaltyPointsUseCase? redeemLoyalty = null;
             try { redeemLoyalty = sp.GetRequiredService<RedeemLoyaltyPointsUseCase>(); } catch { }
-            POS.Application.Interfaces.IPrintService? printService = null;
-            try { printService = sp.GetRequiredService<POS.Application.Interfaces.IPrintService>(); } catch { }
-            cashier = new CashierViewModel(productLookup, new PreviewPaymentUseCase(), createSale, redeemLoyalty, printService);
+            ReprintReceiptUseCase? printReceipt = null;
+            try { printReceipt = sp.GetRequiredService<ReprintReceiptUseCase>(); } catch { }
+            cashier = new CashierViewModel(productLookup, new PreviewPaymentUseCase(), createSale, redeemLoyalty, printReceipt);
         }
         catch
         {
@@ -333,7 +324,9 @@ public partial class App : System.Windows.Application
             try { emailServiceForSettings = sp.GetRequiredService<Application.Interfaces.IEmailService>(); } catch { }
             Application.Interfaces.IWhatsAppService? whatsAppServiceForSettings = null;
             try { whatsAppServiceForSettings = sp.GetRequiredService<Application.Interfaces.IWhatsAppService>(); } catch { }
-            settings = new SettingsViewModel(loadSettings, saveSettings, triggerBackup, emailServiceForSettings, whatsAppServiceForSettings);
+            Application.Interfaces.IInstalledPrinterProvider? printerProviderForSettings = null;
+            try { printerProviderForSettings = sp.GetRequiredService<Application.Interfaces.IInstalledPrinterProvider>(); } catch { }
+            settings = new SettingsViewModel(loadSettings, saveSettings, triggerBackup, emailServiceForSettings, whatsAppServiceForSettings, printerProviderForSettings);
         }
         catch
         {

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using POS.Domain.Entities;
@@ -10,6 +11,7 @@ namespace POS.Infrastructure.Services;
 
 public enum ThermalPrinterTargetKind
 {
+    Windows,
     Serial,
     Tcp,
     Usb,
@@ -21,7 +23,8 @@ public sealed record ThermalPrinterTarget(
     string? WorkingDirectory,
     ThermalPrinterTargetKind Kind)
 {
-    public bool SupportsDirectEscPos => Kind is ThermalPrinterTargetKind.Serial or ThermalPrinterTargetKind.Tcp or ThermalPrinterTargetKind.Usb;
+    public bool SupportsDirectEscPos =>
+        Kind is ThermalPrinterTargetKind.Windows or ThermalPrinterTargetKind.Serial or ThermalPrinterTargetKind.Tcp or ThermalPrinterTargetKind.Usb;
 }
 
 public interface IPrinterSettingsResolver
@@ -70,6 +73,15 @@ public sealed partial class PrinterSettingsResolver : IPrinterSettingsResolver
     public static ThermalPrinterTargetKind Classify(string command)
     {
         string trimmed = command.Trim();
+
+        // Checked first: an installed Windows printer name is the reliable path for USB thermal
+        // printers set up through Impresoras y escáneres — the OS resolves the physical port
+        // (USB001, etc.) by name, so it survives reconnecting to a different port.
+        if (WindowsPrinterProbe.IsInstalled(trimmed))
+        {
+            return ThermalPrinterTargetKind.Windows;
+        }
+
         if (SerialPortRegex().IsMatch(trimmed))
         {
             return ThermalPrinterTargetKind.Serial;
@@ -96,6 +108,32 @@ public sealed partial class PrinterSettingsResolver : IPrinterSettingsResolver
     private static partial Regex TcpAddressRegex();
 }
 
+/// <summary>Cheap OpenPrinter/ClosePrinter probe shared by classification and the Windows transport.</summary>
+internal static class WindowsPrinterProbe
+{
+    public static bool IsInstalled(string printerName)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || string.IsNullOrWhiteSpace(printerName))
+        {
+            return false;
+        }
+
+        if (!OpenPrinterW(printerName, out IntPtr hPrinter, IntPtr.Zero))
+        {
+            return false;
+        }
+
+        ClosePrinter(hPrinter);
+        return true;
+    }
+
+    [DllImport("winspool.drv", EntryPoint = "OpenPrinterW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool OpenPrinterW(string pPrinterName, out IntPtr phPrinter, IntPtr pDefault);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    private static extern bool ClosePrinter(IntPtr hPrinter);
+}
+
 public sealed class ThermalPrinterTransport : IThermalPrinterTransport
 {
     public async Task SendAsync(ThermalPrinterTarget target, byte[] payload, CancellationToken cancellationToken = default)
@@ -105,6 +143,9 @@ public sealed class ThermalPrinterTransport : IThermalPrinterTransport
 
         switch (target.Kind)
         {
+            case ThermalPrinterTargetKind.Windows:
+                SendViaWindowsPrinter(target.Command, payload);
+                return;
             case ThermalPrinterTargetKind.Serial:
                 await SendViaSerialAsync(target.Command, payload, cancellationToken).ConfigureAwait(false);
                 return;
@@ -118,6 +159,87 @@ public sealed class ThermalPrinterTransport : IThermalPrinterTransport
                 throw new InvalidOperationException("La configuración actual de impresora no admite escritura ESC/POS directa.");
         }
     }
+
+    /// <summary>Sends raw bytes through the Windows print spooler (RAW datatype) by printer name.</summary>
+    private static void SendViaWindowsPrinter(string printerName, byte[] data)
+    {
+        if (!OpenPrinterW(printerName, out IntPtr hPrinter, IntPtr.Zero))
+        {
+            throw new InvalidOperationException("No se pudo abrir la impresora configurada. Verifica que siga instalada en Windows.");
+        }
+
+        try
+        {
+            var docInfo = new DOCINFOW
+            {
+                pDocName = "Recibo POS",
+                pOutputFile = null,
+                pDataType = "RAW"
+            };
+
+            if (!StartDocPrinterW(hPrinter, 1, ref docInfo))
+            {
+                throw new InvalidOperationException("No se pudo iniciar el trabajo de impresión en la impresora configurada.");
+            }
+
+            try
+            {
+                if (!StartPagePrinter(hPrinter))
+                {
+                    throw new InvalidOperationException("No se pudo iniciar la página de impresión.");
+                }
+
+                try
+                {
+                    if (!WritePrinter(hPrinter, data, data.Length, out _))
+                    {
+                        throw new InvalidOperationException("La impresora rechazó los datos enviados. Verifica que esté encendida y con papel.");
+                    }
+                }
+                finally
+                {
+                    EndPagePrinter(hPrinter);
+                }
+            }
+            finally
+            {
+                EndDocPrinter(hPrinter);
+            }
+        }
+        finally
+        {
+            ClosePrinter(hPrinter);
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DOCINFOW
+    {
+        [MarshalAs(UnmanagedType.LPWStr)] public string pDocName;
+        [MarshalAs(UnmanagedType.LPWStr)] public string? pOutputFile;
+        [MarshalAs(UnmanagedType.LPWStr)] public string pDataType;
+    }
+
+    [DllImport("winspool.drv", EntryPoint = "OpenPrinterW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool OpenPrinterW(string pPrinterName, out IntPtr phPrinter, IntPtr pDefault);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    private static extern bool ClosePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.drv", EntryPoint = "StartDocPrinterW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool StartDocPrinterW(IntPtr hPrinter, int level, ref DOCINFOW pDocInfo);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    private static extern bool EndDocPrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    private static extern bool StartPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    private static extern bool EndPagePrinter(IntPtr hPrinter);
+
+    [DllImport("winspool.drv", SetLastError = true)]
+    private static extern bool WritePrinter(IntPtr hPrinter, byte[] pBytes, int dwCount, out int dwWritten);
 
     private static string NormalizeUsbPath(string command)
     {

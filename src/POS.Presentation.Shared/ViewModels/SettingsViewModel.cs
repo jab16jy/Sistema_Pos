@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows.Input;
 using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
@@ -14,6 +15,12 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly TriggerManualBackupUseCase _triggerBackup;
     private readonly IEmailService? _emailService;
     private readonly IWhatsAppService? _whatsAppService;
+    private readonly IInstalledPrinterProvider? _printerProvider;
+
+    // Virtual/system printers that are never a receipt target — excluded from auto-detection
+    // (still listed, so the user can pick one manually if they ever need to).
+    private static readonly string[] VirtualPrinterHints =
+        ["XPS", "PDF", "OneNote", "Fax", "Microsoft Print"];
 
     private string _businessName = string.Empty;
     private string? _businessAddress;
@@ -46,22 +53,32 @@ public sealed class SettingsViewModel : ViewModelBase
         SaveSettingsUseCase saveSettings,
         TriggerManualBackupUseCase triggerBackup,
         IEmailService? emailService = null,
-        IWhatsAppService? whatsAppService = null)
+        IWhatsAppService? whatsAppService = null,
+        IInstalledPrinterProvider? printerProvider = null)
     {
         _loadSettings = loadSettings;
         _saveSettings = saveSettings;
         _triggerBackup = triggerBackup;
         _emailService = emailService;
         _whatsAppService = whatsAppService;
+        _printerProvider = printerProvider;
 
         LoadCommand = new RelayCommand(_ => _ = LoadAsync());
         SaveCommand = new RelayCommand(_ => _ = SaveAsync());
         BackupCommand = new RelayCommand(_ => _ = BackupAsync());
         TestEmailCommand = new RelayCommand(_ => _ = TestEmailAsync());
         TestWhatsAppCommand = new RelayCommand(_ => _ = TestWhatsAppAsync());
+        RefreshPrintersCommand = new RelayCommand(_ => RefreshPrinters());
+
+        RefreshPrinters();
     }
 
     public ObservableCollection<SettingsWarning> Warnings { get; } = [];
+
+    /// <summary>Installed printers offered in the Configuración dropdown (auto-detected from the OS).</summary>
+    public ObservableCollection<string> AvailablePrinters { get; } = [];
+
+    public ICommand RefreshPrintersCommand { get; }
 
     public ICommand LoadCommand { get; }
 
@@ -257,6 +274,36 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Re-reads the OS printer list into <see cref="AvailablePrinters"/> and, when no printer is
+    /// configured yet, auto-selects the first physical (non-virtual) printer found. Call after the
+    /// user reconnects a printer to pick it up without restarting.
+    /// </summary>
+    public void RefreshPrinters()
+    {
+        var printers = _printerProvider?.GetInstalledPrinters() ?? [];
+
+        AvailablePrinters.Clear();
+        foreach (var name in printers)
+        {
+            AvailablePrinters.Add(name);
+        }
+
+        if (string.IsNullOrWhiteSpace(PrinterCommand))
+        {
+            string? candidate = PickDefaultPrinter(printers);
+            if (candidate is not null)
+            {
+                PrinterCommand = candidate;
+            }
+        }
+    }
+
+    /// <summary>First physical printer (skips XPS/PDF/OneNote/Fax), or null if only virtual ones exist.</summary>
+    public static string? PickDefaultPrinter(IReadOnlyList<string> printers) =>
+        printers.FirstOrDefault(p =>
+            !VirtualPrinterHints.Any(h => p.Contains(h, StringComparison.OrdinalIgnoreCase)));
+
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         SettingsResult? settings = await _loadSettings.ExecuteAsync(cancellationToken).ConfigureAwait(true);
@@ -271,6 +318,12 @@ public sealed class SettingsViewModel : ViewModelBase
         TaxId = settings.TaxId;
         PrinterCommand = settings.PrinterCommand;
         PrinterWorkingDirectory = settings.PrinterWorkingDirectory;
+
+        // No printer saved yet → auto-detect one from the OS so the caja works out of the box.
+        if (string.IsNullOrWhiteSpace(PrinterCommand))
+        {
+            RefreshPrinters();
+        }
         BackupDirectory = settings.BackupDirectory;
         CurrencyCode = settings.CurrencyCode;
 

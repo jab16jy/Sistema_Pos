@@ -420,8 +420,20 @@
               <materialDesign:PackIcon Kind="Printer" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
               <TextBlock Text="Impresión" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
             </StackPanel>
-            <TextBlock Text="Comando / puerto" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding PrinterCommand, Mode=TwoWay}" Tag="USB:POS58" Margin="0,0,0,8" />
+            <TextBlock Text="Impresora" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ComboBox Grid.Column="0" IsEditable="True"
+                        ItemsSource="{Binding AvailablePrinters}"
+                        Text="{Binding PrinterCommand, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+              <Button Grid.Column="1" Content="Detectar" Command="{Binding RefreshPrintersCommand}"
+                      Margin="6,0,0,0" Padding="8,0" VerticalAlignment="Center" />
+            </Grid>
+            <TextBlock Text="Se detecta automáticamente. Elige por nombre; el puerto (USB, red) se resuelve solo."
+                       Style="{StaticResource MutedText}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8" />
             <TextBlock Text="Plantilla de recibo" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
             <ComboBox SelectedValuePath="Content" SelectedValue="{Binding ReceiptTemplate, Mode=TwoWay}" Margin="0,0,0,8">
               <ComboBoxItem Content="80 mm térmico" IsSelected="True" />

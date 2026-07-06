@@ -166,8 +166,14 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsAdminHubSelected));
                 OnPropertyChanged(nameof(IsAdminSectionSelected));
+                OnPropertyChanged(nameof(IsSettingsViewSelected));
                 OnPropertyChanged(nameof(CurrentFuncbarModule));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
+
+                if (IsInvoicesSelected)
+                {
+                    _ = Invoices?.LoadFirstPageAsync();
+                }
             }
         }
     }
@@ -231,6 +237,14 @@ public sealed class MainShellViewModel : ViewModelBase
     public bool IsAdminHubSelected => SelectedModule.Key == "admin";
 
     public bool IsAdminSectionSelected => IsAdminHubSelected || AdminHubModuleKeys.Contains(SelectedModule.Key);
+
+    /// <summary>
+    /// Admin (F5) and Configuración share the same SettingsView screen. Rendered from a single
+    /// XAML entry point so only one RadioButton group backs the subtabs — two separate
+    /// SettingsView instances would fight over the shared "ConfigTabs" GroupName, since WPF's
+    /// RadioButton grouping ignores UserControl boundaries and leaves the loser with no tab checked.
+    /// </summary>
+    public bool IsSettingsViewSelected => IsAdminHubSelected || IsSettingsSelected;
 
     public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected && !IsAdminHubSelected;
 
