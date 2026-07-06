@@ -8,11 +8,13 @@ namespace POS.Application.UseCases.Products;
 public sealed class UpdateProductUseCase
 {
     private readonly IProductRepository _products;
+    private readonly ICategoryRepository _categories;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateProductUseCase(IProductRepository products, IUnitOfWork unitOfWork)
+    public UpdateProductUseCase(IProductRepository products, ICategoryRepository categories, IUnitOfWork unitOfWork)
     {
         _products = products;
+        _categories = categories;
         _unitOfWork = unitOfWork;
     }
 
@@ -20,6 +22,8 @@ public sealed class UpdateProductUseCase
     {
         Product product = await _products.GetByIdAsync(request.ProductId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("Product was not found.");
+
+        await EnsureCategoryExistsAsync(request.CategoryId, cancellationToken).ConfigureAwait(false);
 
         if (!string.IsNullOrWhiteSpace(request.Barcode))
         {
@@ -33,7 +37,7 @@ public sealed class UpdateProductUseCase
         product.UpdateDetails(
             request.Name,
             request.CategoryId,
-            new Money(request.CostPrice),
+            request.CostPrice.HasValue ? new Money(request.CostPrice.Value) : null,
             new Money(request.SalePrice),
             new StockQuantity(request.MinimumStock),
             request.Description,
@@ -49,7 +53,7 @@ public sealed class UpdateProductUseCase
         product.Id,
         product.Name,
         product.CategoryId,
-        product.CostPrice?.Amount ?? 0m,
+        product.CostPrice?.Amount,
         product.SalePrice.Amount,
         product.CurrentStock,
         product.MinimumStock,
@@ -57,4 +61,17 @@ public sealed class UpdateProductUseCase
         product.Description,
         product.Barcode,
         product.IsActive);
+
+    private async Task EnsureCategoryExistsAsync(Guid categoryId, CancellationToken cancellationToken)
+    {
+        if (categoryId == Guid.Empty)
+        {
+            throw new ArgumentException("Category is required.", nameof(categoryId));
+        }
+
+        if (await _categories.GetByIdAsync(categoryId, cancellationToken).ConfigureAwait(false) is null)
+        {
+            throw new InvalidOperationException("Selected category was not found.");
+        }
+    }
 }
