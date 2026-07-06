@@ -220,6 +220,71 @@ public sealed class InvoiceUseCaseTests
             TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task CancelSaleAsync_RestoresStockRecordsMovementAndCancelsSale()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var inventory = new InMemoryInventoryRepository();
+        var unitOfWork = new CountingUnitOfWork();
+        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var useCase = new CancelSaleUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            inventory,
+            new InMemoryUserRepository(adminUser),
+            unitOfWork);
+
+        await useCase.ExecuteAsync(
+            new CancelSaleRequest(sale.Id, adminUser.Id, "Anulación administrativa"),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(SaleStatus.Cancelled, sale.Status);
+        Assert.Equal(10m, product.CurrentStock);
+        InventoryMovement movement = Assert.Single(inventory.AddedMovements);
+        Assert.Equal(InventoryMovementType.Return, movement.Type);
+        Assert.Equal(sale.Id, movement.ReferenceId);
+        Assert.Contains("Anulación administrativa", movement.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task CancelSaleAsync_WhenUserIsNotAdmin_ThrowsUnauthorizedActionException()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var cashierUser = new User("cashier", "hash", UserRole.Cashier);
+        var useCase = new CancelSaleUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            new InMemoryUserRepository(cashierUser),
+            new CountingUnitOfWork());
+
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() => useCase.ExecuteAsync(
+            new CancelSaleRequest(sale.Id, cashierUser.Id, "Intento sin permisos"),
+            TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task CancelSaleAsync_WhenSaleAlreadyReturned_RejectsCancellation()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        sale.MarkReturned();
+        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var useCase = new CancelSaleUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            new InMemoryUserRepository(adminUser),
+            new CountingUnitOfWork());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new CancelSaleRequest(sale.Id, adminUser.Id, "Conflicto de estado"),
+            TestContext.Current.CancellationToken));
+    }
+
     private static Product CreateProduct() => new(
         "Rice",
         Guid.NewGuid(),

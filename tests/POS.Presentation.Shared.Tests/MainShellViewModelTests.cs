@@ -1,5 +1,14 @@
 using POS.Domain.Interfaces;
+using POS.Application.DTOs.Inventory;
+using POS.Application.DTOs.Products;
+using POS.Application.Interfaces;
+using POS.Application.UseCases.Categories;
+using POS.Application.UseCases.Inventory;
+using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Sales;
+using POS.Domain.Entities;
+using POS.Domain.Enums;
+using POS.Domain.ValueObjects;
 using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.Shell;
 using POS.Presentation.Shared.ViewModels;
@@ -99,6 +108,39 @@ public sealed class MainShellViewModelTests
         Assert.Contains("4 venta", viewModel.OperatorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task SelectingProductsModule_LoadsProductsAutomatically()
+    {
+        Category category = new("Sin categoría");
+        var viewModel = new MainShellViewModel
+        {
+            Products = CreateProductsViewModel(
+            [new ProductSearchResult(Guid.NewGuid(), "Aceite", category.Id, "Sin categoría", null, 25_000m, 3m, 1m, 19m, null, "ACE-1", true)],
+            [category])
+        };
+
+        viewModel.SelectedModule = viewModel.AdminHubModules.Single(module => module.Key == "products");
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Single(viewModel.Products!.Products);
+    }
+
+    [Fact]
+    public async Task SelectingInventoryModule_LoadsStockAutomatically()
+    {
+        var viewModel = new MainShellViewModel
+        {
+            Inventory = CreateInventoryViewModel([
+                new InventoryStockLevel(Guid.NewGuid(), "Aceite", "ACE-1", 3m, 1m, false)
+            ])
+        };
+
+        viewModel.SelectedModule = viewModel.AdminHubModules.Single(module => module.Key == "inventory");
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Single(viewModel.Inventory!.StockLevels);
+    }
+
     private sealed class StaticSaleSummaryRepository : ISaleRepository
     {
         private readonly DashboardSummaryData _summary;
@@ -112,5 +154,107 @@ public sealed class MainShellViewModelTests
 
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
             => Task.FromResult(_summary);
+    }
+
+    private static ProductsViewModel CreateProductsViewModel(
+        IReadOnlyList<ProductSearchResult> results,
+        IReadOnlyList<Category> categories)
+    {
+        var productRepository = new StubProductRepository();
+        var categoryRepository = new StubCategoryRepository(categories);
+
+        return new ProductsViewModel(
+            new CreateProductUseCase(productRepository, categoryRepository, new NoOpUnitOfWork()),
+            new UpdateProductUseCase(productRepository, categoryRepository, new NoOpUnitOfWork()),
+            new DeleteProductUseCase(productRepository, new NoOpUnitOfWork()),
+            new SearchProductsUseCase(new StubProductCatalogQueryService(results)),
+            new SearchCategoriesUseCase(categoryRepository));
+    }
+
+    private static InventoryViewModel CreateInventoryViewModel(IReadOnlyList<InventoryStockLevel> stockLevels)
+    {
+        var inventoryRepository = new StubInventoryRepository(stockLevels);
+        var productRepository = new StubProductRepository();
+        return new InventoryViewModel(
+            new QueryStockUseCase(inventoryRepository),
+            new QueryLowStockUseCase(inventoryRepository),
+            new QueryMovementHistoryUseCase(inventoryRepository),
+            new AdjustStockUseCase(productRepository, inventoryRepository, new NoOpUnitOfWork()));
+    }
+
+    private sealed class StubProductCatalogQueryService : IProductCatalogQueryService
+    {
+        private readonly IReadOnlyList<ProductSearchResult> _results;
+
+        public StubProductCatalogQueryService(IReadOnlyList<ProductSearchResult> results)
+        {
+            _results = results;
+        }
+
+        public Task<IReadOnlyList<ProductSearchResult>> SearchAsync(SearchProductsRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult(_results);
+    }
+
+    private sealed class StubCategoryRepository : ICategoryRepository
+    {
+        private readonly IReadOnlyList<Category> _categories;
+
+        public StubCategoryRepository(IReadOnlyList<Category> categories)
+        {
+            _categories = categories;
+        }
+
+        public Task<IReadOnlyList<Category>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(_categories);
+
+        public Task<Category?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(_categories.SingleOrDefault(category => category.Id == id));
+
+        public Task AddAsync(Category category, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task UpdateAsync(Category category, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<bool> HasProductsAsync(Guid categoryId, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+    }
+
+    private sealed class StubProductRepository : IProductRepository
+    {
+        public Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<Product?>(null);
+
+        public Task<Product?> GetByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
+            => Task.FromResult<Product?>(null);
+
+        public Task AddAsync(Product product, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class StubInventoryRepository : IInventoryRepository
+    {
+        private readonly IReadOnlyList<InventoryStockLevel> _stockLevels;
+
+        public StubInventoryRepository(IReadOnlyList<InventoryStockLevel> stockLevels)
+        {
+            _stockLevels = stockLevels;
+        }
+
+        public Task<IReadOnlyList<InventoryStockLevel>> GetStockLevelsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(_stockLevels);
+
+        public Task<IReadOnlyList<InventoryMovement>> GetMovementsByProductAsync(Guid productId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<InventoryMovement>>([]);
+
+        public Task<IReadOnlyList<Product>> GetLowStockProductsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Product>>([]);
+
+        public Task AddMovementAsync(InventoryMovement movement, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class NoOpUnitOfWork : IUnitOfWork
+    {
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
     }
 }
