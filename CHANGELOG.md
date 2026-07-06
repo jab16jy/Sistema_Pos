@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.22.1](https://github.com/jab16jy/Sistema_Pos/compare/v0.22.0...v0.22.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* autocomplete suggestions, SMTP hardening and Gmail send ([85bbe1f](https://github.com/jab16jy/Sistema_Pos/commit/85bbe1fed630ce386a3b66db47919459ac5a649f))
+* **caja:** show autocomplete suggestions and refine product lookup ([222be5d](https://github.com/jab16jy/Sistema_Pos/commit/222be5d75294c73bd1da5b2b9f0154ccae7974d3))
+* **settings:** protect SMTP password, auto-load config, sanitize errors ([2a2312a](https://github.com/jab16jy/Sistema_Pos/commit/2a2312a1fd24e6563ae78a8d7854ec781ab4a8dc))
+
 ## [0.22.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.21.0...v0.22.0) (2026-07-06)
 
 
