@@ -17,7 +17,11 @@ internal sealed class BusinessSettingsConfiguration : IEntityTypeConfiguration<B
         builder.Property(settings => settings.SmtpHost).HasMaxLength(200);
         builder.Property(settings => settings.SmtpPort);
         builder.Property(settings => settings.SmtpUser).HasMaxLength(200);
-        builder.Property(settings => settings.SmtpPassword).HasMaxLength(500);
+        builder.Property(settings => settings.SmtpPassword)
+            .HasConversion(
+                password => SmtpPasswordProtector.Protect(password),
+                storedPassword => SmtpPasswordProtector.Unprotect(storedPassword))
+            .HasMaxLength(500);
         builder.Property(settings => settings.SmtpUseSsl);
         builder.Property(settings => settings.SmtpSenderAddress).HasMaxLength(200);
         builder.Property(settings => settings.PrinterCommand).HasMaxLength(500);

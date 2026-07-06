@@ -404,9 +404,14 @@ public sealed class SettingsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            Message = $"Error al enviar el correo de prueba: {ex.Message}";
+            Message = $"Error al enviar el correo de prueba: {GetSafeEmailErrorMessage(ex)}";
         }
     }
+
+    private static string GetSafeEmailErrorMessage(Exception ex) =>
+        ex is ArgumentException or InvalidOperationException
+            ? ex.Message
+            : "No se pudo enviar el correo. Verifica host, puerto, SSL/TLS, usuario, contraseña de aplicación y remitente SMTP.";
 
     /// <summary>
     /// Runs the real, DI-configured <see cref="IWhatsAppService"/> script against <see cref="TestWhatsAppNumber"/>.
