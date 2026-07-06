@@ -18,8 +18,16 @@ public partial class SettingsView
             return;
         }
 
-        _hasLoadedSettings = true;
-        await viewModel.LoadAsync().ConfigureAwait(true);
+        try
+        {
+            await viewModel.LoadAsync().ConfigureAwait(true);
+            _hasLoadedSettings = true;
+        }
+        catch (Exception ex)
+        {
+            viewModel.ShowError($"Error al cargar configuración: {ex.Message}");
+            _hasLoadedSettings = false;
+        }
     }
     private void SmtpPasswordBox_OnPasswordChanged(object sender, System.Windows.RoutedEventArgs e)
     {

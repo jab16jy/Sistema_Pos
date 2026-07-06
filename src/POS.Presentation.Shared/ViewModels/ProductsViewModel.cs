@@ -57,11 +57,11 @@ public sealed class ProductsViewModel : ViewModelBase
         _searchCategories = searchCategories;
         _importProductsCsv = importProductsCsv;
         Categories = [];
-        LoadCommand = new RelayCommand(_ => _ = LoadAsync());
-        SaveCommand = new RelayCommand(_ => _ = SaveAsync());
-        DeleteCommand = new RelayCommand(_ => _ = DeleteAsync(), _ => SelectedProduct is not null);
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar productos: {ex.Message}"));
+        SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar producto: {ex.Message}"));
+        DeleteCommand = new RelayCommand(_ => RunSafe(DeleteAsync(), ex => Message = $"Error al eliminar producto: {ex.Message}"), _ => SelectedProduct is not null);
         ClearCommand = new RelayCommand(_ => NewProduct());
-        ImportCsvCommand = new RelayCommand(_ => _ = ImportCsvAsync(), _ => _importProductsCsv is not null);
+        ImportCsvCommand = new RelayCommand(_ => RunSafe(ImportCsvAsync(), ex => Message = $"Error al importar CSV: {ex.Message}"), _ => _importProductsCsv is not null);
         NewCommand = new RelayCommand(_ => NewProduct());
         ToggleCsvCommand = new RelayCommand(_ => IsCsvSectionOpen = !IsCsvSectionOpen);
     }
@@ -352,6 +352,10 @@ public sealed class ProductsViewModel : ViewModelBase
         catch (OperationCanceledException)
         {
         }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar productos: {ex.Message}";
+        }
     }
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)
@@ -500,7 +504,7 @@ public sealed class ProductsViewModel : ViewModelBase
         _searchCancellationTokenSource?.Cancel();
         _searchCancellationTokenSource?.Dispose();
         _searchCancellationTokenSource = new CancellationTokenSource();
-        _ = LoadAsync(_searchCancellationTokenSource.Token);
+        RunSafe(LoadAsync(_searchCancellationTokenSource.Token), ex => Message = $"Error al cargar productos: {ex.Message}");
     }
 
     private async Task LoadCategoriesAsync(CancellationToken cancellationToken)

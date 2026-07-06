@@ -45,6 +45,20 @@ public sealed class ProductsViewModelTests
         Assert.Null(viewModel.CostPrice);
     }
 
+    [Fact]
+    public async Task LoadAsync_WhenSearchFails_SetsRecoverableMessage()
+    {
+        var viewModel = new ProductsViewModel(
+            new CreateProductUseCase(new StubProductRepository(), new StubCategoryRepository([]), new NoOpUnitOfWork()),
+            new UpdateProductUseCase(new StubProductRepository(), new StubCategoryRepository([]), new NoOpUnitOfWork()),
+            new DeleteProductUseCase(new StubProductRepository(), new NoOpUnitOfWork()),
+            new SearchProductsUseCase(new ThrowingProductCatalogQueryService()));
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("Error al cargar productos", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static ProductsViewModel CreateViewModel(
         IProductCatalogQueryService productCatalogQueryService,
         IReadOnlyList<Category> categories)
@@ -71,6 +85,12 @@ public sealed class ProductsViewModelTests
 
         public Task<IReadOnlyList<ProductSearchResult>> SearchAsync(SearchProductsRequest request, CancellationToken cancellationToken = default)
             => Task.FromResult(_results);
+    }
+
+    private sealed class ThrowingProductCatalogQueryService : IProductCatalogQueryService
+    {
+        public Task<IReadOnlyList<ProductSearchResult>> SearchAsync(SearchProductsRequest request, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("falló búsqueda");
     }
 
     private sealed class StubCategoryRepository : ICategoryRepository

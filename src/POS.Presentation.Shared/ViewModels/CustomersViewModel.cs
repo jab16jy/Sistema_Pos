@@ -46,11 +46,11 @@ public sealed class CustomersViewModel : ViewModelBase
         Customers.CollectionChanged += OnCustomersCollectionChanged;
         HistoryEntries.CollectionChanged += OnHistoryEntriesCollectionChanged;
 
-        LoadCommand = new RelayCommand(_ => _ = LoadAsync());
-        SaveCommand = new RelayCommand(_ => _ = SaveAsync());
-        DeleteCommand = new RelayCommand(_ => _ = DeleteAsync(), _ => SelectedCustomer is not null);
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar clientes: {ex.Message}"));
+        SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar cliente: {ex.Message}"));
+        DeleteCommand = new RelayCommand(_ => RunSafe(DeleteAsync(), ex => Message = $"Error al eliminar cliente: {ex.Message}"), _ => SelectedCustomer is not null);
         NewCommand = new RelayCommand(_ => ClearForm());
-        OpenHistoryCommand = new RelayCommand(_ => _ = OpenHistoryAsync(), _ => SelectedCustomer is not null);
+        OpenHistoryCommand = new RelayCommand(_ => RunSafe(OpenHistoryAsync(), ex => Message = $"Error al cargar historial: {ex.Message}"), _ => SelectedCustomer is not null);
         SetHistoryFilterCommand = new RelayCommand(filter => HistoryFilter = filter as string ?? "all");
     }
 
@@ -89,8 +89,8 @@ public sealed class CustomersViewModel : ViewModelBase
                     Email = value.Email;
                     Address = value.Address;
                     IsActive = value.IsActive;
-                    _ = LoadLoyaltyPointsAsync(value.Id);
-                    _ = OpenHistoryAsync();
+                    RunSafe(LoadLoyaltyPointsAsync(value.Id), _ => LoyaltyPoints = 0);
+                    RunSafe(OpenHistoryAsync(), ex => Message = $"Error al cargar historial: {ex.Message}");
                 }
                 else
                 {
@@ -213,18 +213,28 @@ public sealed class CustomersViewModel : ViewModelBase
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        var results = await _searchCustomers.ExecuteAsync(new CustomerSearchRequest(SearchText, IncludeInactive), cancellationToken).ConfigureAwait(true);
-        Customers.Clear();
-        foreach (var customer in results)
+        try
         {
-            Customers.Add(customer);
-        }
+            var results = await _searchCustomers.ExecuteAsync(new CustomerSearchRequest(SearchText, IncludeInactive), cancellationToken).ConfigureAwait(true);
+            Customers.Clear();
+            foreach (var customer in results)
+            {
+                Customers.Add(customer);
+            }
 
-        Message = Customers.Count == 0
-            ? "No encontramos clientes con ese filtro. Puedes registrar uno nuevo."
-            : IncludeInactive
-                ? "Selecciona un cliente activo o inactivo para actualizarlo o reactivarlo."
-                : "Selecciona un cliente para ver su historial o actualizar sus datos.";
+            Message = Customers.Count == 0
+                ? "No encontramos clientes con ese filtro. Puedes registrar uno nuevo."
+                : IncludeInactive
+                    ? "Selecciona un cliente activo o inactivo para actualizarlo o reactivarlo."
+                    : "Selecciona un cliente para ver su historial o actualizar sus datos.";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar clientes: {ex.Message}";
+        }
     }
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)
@@ -285,16 +295,26 @@ public sealed class CustomersViewModel : ViewModelBase
             return;
         }
 
-        CustomerHistoryResult history = await _getHistory.ExecuteAsync(SelectedCustomer.Id, cancellationToken).ConfigureAwait(true);
-        HistoryEntries.Clear();
-        foreach (CustomerHistoryEntry entry in history.Entries)
+        try
         {
-            HistoryEntries.Add(entry);
-        }
+            CustomerHistoryResult history = await _getHistory.ExecuteAsync(SelectedCustomer.Id, cancellationToken).ConfigureAwait(true);
+            HistoryEntries.Clear();
+            foreach (CustomerHistoryEntry entry in history.Entries)
+            {
+                HistoryEntries.Add(entry);
+            }
 
-        Message = HistoryEntries.Count == 0
-            ? "Este cliente aún no tiene ventas o movimientos registrados."
-            : $"Historial cargado: {HistoryEntries.Count} movimiento(s).";
+            Message = HistoryEntries.Count == 0
+                ? "Este cliente aún no tiene ventas o movimientos registrados."
+                : $"Historial cargado: {HistoryEntries.Count} movimiento(s).";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar historial: {ex.Message}";
+        }
     }
 
     private async Task LoadLoyaltyPointsAsync(Guid customerId, CancellationToken cancellationToken = default)
@@ -310,7 +330,7 @@ public sealed class CustomersViewModel : ViewModelBase
             var balance = await _getLoyaltyBalance.ExecuteAsync(customerId, recentTransactionCount: 1, cancellationToken).ConfigureAwait(true);
             LoyaltyPoints = balance?.Balance ?? 0;
         }
-        catch
+        catch (Exception)
         {
             LoyaltyPoints = 0;
         }

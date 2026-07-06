@@ -303,6 +303,8 @@ public sealed class CashierViewModel : ViewModelBase
         private set => SetProperty(ref _message, value);
     }
 
+    public void ShowError(string message) => Message = message;
+
     public decimal TotalAmount => CartItems.Sum(item => item.Subtotal);
 
     public string TotalText => FormatCurrency(TotalAmount);
@@ -363,8 +365,18 @@ public sealed class CashierViewModel : ViewModelBase
 
     public async Task SearchAsync(CancellationToken cancellationToken = default)
     {
-        CancelAutocompleteSearch();
-        await SearchProductsAsync(SearchText, updateMessage: true, cancellationToken).ConfigureAwait(true);
+        try
+        {
+            CancelAutocompleteSearch();
+            await SearchProductsAsync(SearchText, updateMessage: true, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al buscar productos: {ex.Message}";
+        }
     }
 
     public async Task HandleScannerInputAsync(CancellationToken cancellationToken = default)
@@ -450,6 +462,10 @@ public sealed class CashierViewModel : ViewModelBase
         }
         catch (OperationCanceledException)
         {
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al buscar productos: {ex.Message}";
         }
     }
 
@@ -579,11 +595,15 @@ public sealed class CashierViewModel : ViewModelBase
         {
             Message = ex.Message;
         }
+        catch (Exception ex)
+        {
+            Message = $"Error al confirmar la venta: {ex.Message}";
+        }
     }
 
     private void ConfirmPrototypeSale()
     {
-        _ = ConfirmSaleAsync();
+        RunSafe(ConfirmSaleAsync(), ex => Message = $"Error al confirmar la venta: {ex.Message}");
     }
 
     private async Task PrintPendingReceiptAsync()
@@ -601,6 +621,10 @@ public sealed class CashierViewModel : ViewModelBase
         catch (InvalidOperationException ex)
         {
             Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al imprimir el recibo: {ex.Message}";
         }
         finally
         {

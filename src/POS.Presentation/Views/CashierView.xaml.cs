@@ -36,7 +36,15 @@ public partial class CashierView : UserControl
         }
 
         e.Handled = true;
-        await viewModel.HandleScannerInputAsync();
+        try
+        {
+            await viewModel.HandleScannerInputAsync();
+        }
+        catch (Exception ex)
+        {
+            viewModel.ShowError($"Error al procesar la búsqueda: {ex.Message}");
+        }
+
         SearchTextBox.Focus();
         SearchTextBox.SelectAll();
     }
