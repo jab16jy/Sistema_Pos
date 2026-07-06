@@ -12,7 +12,6 @@ using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Queries;
 using POS.Infrastructure.Persistence.Repositories;
 using POS.Infrastructure.Services;
-using System.Net.Mail;
 using Xunit;
 
 namespace POS.Application.Tests;
@@ -34,6 +33,26 @@ public sealed class RuntimeReadinessTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IReportService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IPrintService>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<IProductLookupService>());
+    }
+
+    [Fact]
+    public async Task MigrateAsync_AppliesSmtpSettingsMigration_SoBusinessSettingsIsQueryable()
+    {
+        // Guards against the PersistSmtpSettings migration losing its [Migration] designer:
+        // if EF stops discovering it, MigrateAsync won't create the SMTP columns and this query throws.
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
+            .Options;
+        await using var dbContext = new AppDbContext(options);
+
+        await dbContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
+
+        // Selects SmtpHost & friends; throws "no such column" if the migration was skipped.
+        BusinessSettings? settings = await dbContext.BusinessSettings.FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+        Assert.Null(settings);
     }
 
     [Fact]
@@ -123,8 +142,132 @@ public sealed class RuntimeReadinessTests
 
         var service = new SmtpEmailService(new SmtpRuntimeOptions(), dbContext);
 
-        await Assert.ThrowsAsync<SmtpException>(() =>
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.SendAsync("client@example.com", "Subject", "Body", [1], "doc.pdf", TestContext.Current.CancellationToken));
+
+        Assert.Contains("SMTP", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("smtp.persisted.local", error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task BusinessSettings_PersistsSmtpPasswordProtectedAndReadsItBack()
+    {
+        const string dummyPassword = "unit-test-app-password";
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+
+        await using (var dbContext = CreateDbContext(connection))
+        {
+            await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+            dbContext.BusinessSettings.Add(new BusinessSettings(
+                "Store",
+                null,
+                null,
+                "smtp.gmail.com",
+                587,
+                "mailer@store.local",
+                dummyPassword,
+                true,
+                "mailer@store.local",
+                null,
+                null,
+                null,
+                "COP"));
+            await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        string? storedPassword;
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT SmtpPassword FROM BUSINESS_SETTINGS LIMIT 1";
+            storedPassword = (string?)await command.ExecuteScalarAsync(TestContext.Current.CancellationToken);
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            Assert.NotEqual(dummyPassword, storedPassword);
+            Assert.StartsWith("dpapi:v1:", storedPassword, StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.Equal(dummyPassword, storedPassword);
+        }
+
+        await using var readContext = CreateDbContext(connection);
+        BusinessSettings settings = await readContext.BusinessSettings.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(dummyPassword, settings.SmtpPassword);
+    }
+
+    [Fact]
+    public async Task BusinessSettings_ReadsLegacyPlaintextSmtpPassword()
+    {
+        const string legacyPassword = "legacy-test-password";
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                INSERT INTO BUSINESS_SETTINGS
+                    (Id, BusinessName, SmtpHost, SmtpPort, SmtpUser, SmtpPassword, SmtpUseSsl, SmtpSenderAddress, CurrencyCode)
+                VALUES
+                    ($id, $businessName, $host, $port, $user, $password, $ssl, $sender, $currency)
+                """;
+            command.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+            command.Parameters.AddWithValue("$businessName", "Store");
+            command.Parameters.AddWithValue("$host", "smtp.gmail.com");
+            command.Parameters.AddWithValue("$port", 587);
+            command.Parameters.AddWithValue("$user", "mailer@store.local");
+            command.Parameters.AddWithValue("$password", legacyPassword);
+            command.Parameters.AddWithValue("$ssl", true);
+            command.Parameters.AddWithValue("$sender", "mailer@store.local");
+            command.Parameters.AddWithValue("$currency", "COP");
+            await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken);
+        }
+
+        BusinessSettings settings = await dbContext.BusinessSettings.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(legacyPassword, settings.SmtpPassword);
+    }
+
+    [Fact]
+    public async Task SmtpEmailService_LiveGmailSend_UsesPersistedUiConfigurationWhenExplicitlyEnabled()
+    {
+        string? recipient = Environment.GetEnvironmentVariable("POS_SMTP_LIVE_TEST_TO");
+        if (string.IsNullOrWhiteSpace(recipient))
+        {
+            return;
+        }
+
+        string dbPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "PosLocal",
+            "pos.db");
+
+        Assert.True(File.Exists(dbPath), "No se encontró la base local de la app para leer la configuración SMTP persistida.");
+
+        await using var dbContext = CreateDbContext(new SqliteConnection($"Data Source={dbPath}"));
+        BusinessSettings? settings = await dbContext.BusinessSettings.AsNoTracking().FirstOrDefaultAsync(TestContext.Current.CancellationToken);
+        Assert.NotNull(settings);
+        Assert.Equal("smtp.gmail.com", settings.SmtpHost);
+        Assert.Equal(587, settings.SmtpPort);
+        Assert.True(settings.SmtpUseSsl);
+        Assert.False(string.IsNullOrWhiteSpace(settings.SmtpUser));
+        Assert.False(string.IsNullOrWhiteSpace(settings.SmtpPassword));
+        Assert.False(string.IsNullOrWhiteSpace(settings.SmtpSenderAddress));
+
+        var service = new SmtpEmailService(new SmtpRuntimeOptions(), dbContext);
+
+        bool sent = await service.SendAsync(
+            recipient,
+            "Prueba SMTP Gmail — Esthetic POS",
+            "Este correo confirma que la configuración SMTP persistida en Esthetic POS puede enviar con Gmail.",
+            [],
+            "prueba.txt",
+            TestContext.Current.CancellationToken);
+
+        Assert.True(sent);
     }
 
     [Fact]

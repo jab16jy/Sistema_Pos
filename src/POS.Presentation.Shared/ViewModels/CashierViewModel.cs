@@ -47,6 +47,7 @@ public sealed class CashierViewModel : ViewModelBase
     private decimal _receivedAmount;
     private decimal _deferredAmount;
     private string _message = "Busca o escanea un producto para iniciar la venta.";
+    private bool _hasNoMatches;
     private bool _canConfirm;
     private decimal _changeAmount;
     private CustomerResult? _selectedCustomer;
@@ -113,7 +114,7 @@ public sealed class CashierViewModel : ViewModelBase
         CartItems.CollectionChanged += OnCartItemsChanged;
 
         SearchCommand = new RelayCommand(async _ => await SearchAsync().ConfigureAwait(true));
-        _addSelectedProductCommand = new RelayCommand(_ => AddSelectedProduct(), _ => CanAddSelectedProduct);
+        _addSelectedProductCommand = new RelayCommand(_ => TryAddSelectedProduct(), _ => CanAddSelectedProduct);
         _appendReceivedAmountCommand = new RelayCommand(AppendReceivedAmount);
         _backspaceReceivedAmountCommand = new RelayCommand(_ => BackspaceReceivedAmount());
         _setExactAmountCommand = new RelayCommand(_ => SetExactReceivedAmount(), _ => TotalAmount > 0m);
@@ -353,6 +354,13 @@ public sealed class CashierViewModel : ViewModelBase
 
     public bool CanAddSelectedProduct => SelectedProduct is not null && Quantity > 0m;
 
+    /// <summary>True when the last search ran with text and found nothing — drives the "Sin coincidencias" hint.</summary>
+    public bool HasNoMatches
+    {
+        get => _hasNoMatches;
+        private set => SetProperty(ref _hasNoMatches, value);
+    }
+
     public async Task SearchAsync(CancellationToken cancellationToken = default)
     {
         CancelAutocompleteSearch();
@@ -374,18 +382,45 @@ public sealed class CashierViewModel : ViewModelBase
             !string.IsNullOrWhiteSpace(result.Barcode) &&
             string.Equals(result.Barcode, normalized, StringComparison.OrdinalIgnoreCase));
 
-        if (exactBarcodeMatch is null)
+        // Enter adds the exact scan match or, failing that, the highlighted suggestion
+        CashierProductSearchResultViewModel? productToAdd = exactBarcodeMatch ?? SelectedProduct;
+        if (productToAdd is null)
         {
             return;
         }
 
-        SelectedProduct = exactBarcodeMatch;
-        AddSelectedProduct();
+        AddProductAndResetSearch(productToAdd);
+    }
+
+    /// <summary>Adds <paramref name="product"/> to the cart and clears the search box on success (Enter, double click).</summary>
+    public bool AddProductAndResetSearch(CashierProductSearchResultViewModel product)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+
+        SelectedProduct = product;
+        if (!TryAddSelectedProduct())
+        {
+            return false;
+        }
 
         SearchText = string.Empty;
         SearchResults.Clear();
         SelectedProduct = null;
-        Message = $"Producto {exactBarcodeMatch.Name} agregado correctamente desde el escáner.";
+        Message = $"Producto {product.Name} agregado al carrito.";
+        return true;
+    }
+
+    /// <summary>Moves the highlighted search result up/down; used by arrow keys from the search box.</summary>
+    public void MoveSelection(int delta)
+    {
+        if (SearchResults.Count == 0)
+        {
+            return;
+        }
+
+        int currentIndex = SelectedProduct is null ? -1 : SearchResults.IndexOf(SelectedProduct);
+        int nextIndex = Math.Clamp(currentIndex + delta, 0, SearchResults.Count - 1);
+        SelectedProduct = SearchResults[nextIndex];
     }
 
     private void StartAutocompleteSearch()
@@ -393,10 +428,11 @@ public sealed class CashierViewModel : ViewModelBase
         CancelAutocompleteSearch();
 
         string query = SearchText.Trim();
-        if (query.Length < 2)
+        if (query.Length == 0)
         {
             SearchResults.Clear();
             SelectedProduct = null;
+            HasNoMatches = false;
             return;
         }
 
@@ -433,6 +469,7 @@ public sealed class CashierViewModel : ViewModelBase
         }
 
         SelectedProduct = SearchResults.FirstOrDefault();
+        HasNoMatches = SearchResults.Count == 0 && query.Trim().Length > 0;
 
         if (updateMessage)
         {
@@ -454,18 +491,18 @@ public sealed class CashierViewModel : ViewModelBase
         _autocompleteSearchCts = null;
     }
 
-    private void AddSelectedProduct()
+    private bool TryAddSelectedProduct()
     {
         if (SelectedProduct is null)
         {
             Message = "Primero selecciona un producto.";
-            return;
+            return false;
         }
 
         if (Quantity > SelectedProduct.AvailableStock)
         {
             Message = $"Solo hay {SelectedProduct.AvailableStock:0.##} unidades disponibles de {SelectedProduct.Name}.";
-            return;
+            return false;
         }
 
         CashierCartItemViewModel? existingItem = CartItems.FirstOrDefault(item => item.ProductId == SelectedProduct.ProductId);
@@ -475,7 +512,7 @@ public sealed class CashierViewModel : ViewModelBase
             if (requestedTotal > SelectedProduct.AvailableStock)
             {
                 Message = $"No puedes vender {requestedTotal:0.##}; solo hay {SelectedProduct.AvailableStock:0.##} unidades disponibles.";
-                return;
+                return false;
             }
 
             existingItem.Increase(Quantity);
@@ -488,6 +525,7 @@ public sealed class CashierViewModel : ViewModelBase
         Quantity = 1m;
         RefreshTotals(updateMessage: false);
         Message = "Producto agregado al carrito.";
+        return true;
     }
 
     private void ClearCart()

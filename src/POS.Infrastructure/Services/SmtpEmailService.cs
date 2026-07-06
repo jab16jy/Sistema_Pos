@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using System.Net.Sockets;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Interfaces;
 using POS.Infrastructure.Persistence;
@@ -33,32 +34,41 @@ public sealed class SmtpEmailService : IEmailService
             throw new InvalidOperationException("La configuración SMTP está incompleta. Configura servidor y remitente antes de enviar correos.");
         }
 
-        using var client = new SmtpClient(configuration.Host, configuration.Port)
+        try
         {
-            EnableSsl = configuration.UseSsl
-        };
+            using var client = new SmtpClient(configuration.Host, configuration.Port)
+            {
+                EnableSsl = configuration.UseSsl
+            };
 
-        if (!string.IsNullOrWhiteSpace(configuration.User))
-        {
-            client.Credentials = new NetworkCredential(configuration.User, configuration.Password ?? string.Empty);
+            if (!string.IsNullOrWhiteSpace(configuration.User))
+            {
+                client.Credentials = new NetworkCredential(configuration.User, configuration.Password ?? string.Empty);
+            }
+
+            using var message = new MailMessage
+            {
+                From = new MailAddress(configuration.FromAddress),
+                Subject = subject,
+                Body = body,
+                IsBodyHtml = false
+            };
+
+            message.To.Add(to);
+
+            using var stream = new MemoryStream(attachment);
+            message.Attachments.Add(new Attachment(stream, attachmentName));
+
+            await client.SendMailAsync(message, ct).ConfigureAwait(false);
+            return true;
         }
-
-        using var message = new MailMessage
+        catch (Exception ex) when (IsRecoverableSmtpFailure(ex))
         {
-            From = new MailAddress(configuration.FromAddress),
-            Subject = subject,
-            Body = body,
-            IsBodyHtml = false
-        };
-
-        message.To.Add(to);
-
-        using var stream = new MemoryStream(attachment);
-        message.Attachments.Add(new Attachment(stream, attachmentName));
-
-        await client.SendMailAsync(message, ct);
-        return true;
-    }
+            throw new InvalidOperationException(
+                "No se pudo enviar el correo. Verifica host, puerto, SSL/TLS, usuario, contraseña de aplicación y remitente SMTP.",
+                ex);
+        }
+        }
 
     private async Task<ResolvedSmtpConfiguration> ResolveConfigurationAsync(CancellationToken ct)
     {
@@ -112,4 +122,7 @@ public sealed class SmtpEmailService : IEmailService
         string? Password,
         bool UseSsl,
         string? FromAddress);
+
+    private static bool IsRecoverableSmtpFailure(Exception ex) =>
+        ex is SmtpException or SocketException or IOException or FormatException or InvalidOperationException;
 }

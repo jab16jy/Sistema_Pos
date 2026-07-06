@@ -245,6 +245,105 @@ public sealed class CashierViewModelTests
         Assert.Contains("Solo hay", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task AddProductAndResetSearch_AddsToCartAndClearsSearch()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz"
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        CashierProductSearchResultViewModel product = viewModel.SearchResults[0];
+
+        bool added = viewModel.AddProductAndResetSearch(product);
+
+        Assert.True(added);
+        Assert.Single(viewModel.CartItems);
+        Assert.Equal(string.Empty, viewModel.SearchText);
+        Assert.Empty(viewModel.SearchResults);
+        Assert.Null(viewModel.SelectedProduct);
+        Assert.Contains("agregado", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AddProductAndResetSearch_WhenStockInsufficient_KeepsSearchState()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "café",
+            Quantity = 99m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        CashierProductSearchResultViewModel product = viewModel.SearchResults[0];
+
+        bool added = viewModel.AddProductAndResetSearch(product);
+
+        Assert.False(added);
+        Assert.Empty(viewModel.CartItems);
+        Assert.Equal("café", viewModel.SearchText);
+        Assert.NotEmpty(viewModel.SearchResults);
+        Assert.Contains("Solo hay", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task MoveSelection_NavigatesAndClampsWithinResults()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "a"
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        Assert.True(viewModel.SearchResults.Count >= 2);
+        Assert.Equal(viewModel.SearchResults[0], viewModel.SelectedProduct);
+
+        viewModel.MoveSelection(1);
+        Assert.Equal(viewModel.SearchResults[1], viewModel.SelectedProduct);
+
+        viewModel.MoveSelection(-1);
+        Assert.Equal(viewModel.SearchResults[0], viewModel.SelectedProduct);
+
+        viewModel.MoveSelection(-1);
+        Assert.Equal(viewModel.SearchResults[0], viewModel.SelectedProduct);
+    }
+
+    [Fact]
+    public async Task SearchAsync_WhenNoResults_SetsHasNoMatches()
+    {
+        var viewModel = new CashierViewModel(new EmptyProductLookupService())
+        {
+            SearchText = "zzz"
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(viewModel.HasNoMatches);
+
+        viewModel.SearchText = string.Empty;
+        Assert.False(viewModel.HasNoMatches);
+    }
+
+    [Fact]
+    public async Task HandleScannerInputAsync_WithNameQuery_AddsHighlightedSuggestionAndClearsSearch()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz"
+        };
+
+        await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+
+        CashierCartItemViewModel item = Assert.Single(viewModel.CartItems);
+        Assert.Equal("Arroz 500g", item.ProductName);
+        Assert.Equal(string.Empty, viewModel.SearchText);
+        Assert.Empty(viewModel.SearchResults);
+    }
+
+    private sealed class EmptyProductLookupService : POS.Application.Interfaces.IProductLookupService
+    {
+        public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ProductLookupResult>>([]);
+    }
+
     private sealed class StaticProductLookupService : POS.Application.Interfaces.IProductLookupService
     {
         private readonly ProductLookupResult _product;

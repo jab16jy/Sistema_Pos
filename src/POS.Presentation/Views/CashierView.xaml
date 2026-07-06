@@ -88,12 +88,12 @@
 
           <TextBox x:Name="SearchTextBox"
                    Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                    Tag="Escanear código o escribir nombre..."
-                    FontSize="15"
-                    Height="44"
-                    KeyDown="SearchTextBox_OnKeyDown"
-                    BorderBrush="{StaticResource BrushPrimary}"
-                    BorderThickness="2" />
+                   Tag="Escanea código o escribe el nombre del producto..."
+                   FontSize="15"
+                   Height="44"
+                   KeyDown="SearchTextBox_OnKeyDown"
+                   BorderBrush="{StaticResource BrushPrimary}"
+                   BorderThickness="2" />
 
           <xctk:IntegerUpDown Grid.Column="1"
                               Value="{Binding Quantity, Mode=TwoWay}"
@@ -117,17 +117,35 @@
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
 
-          <Border BorderBrush="{StaticResource BrushBorder}"
-                  BorderThickness="1"
-                  CornerRadius="0,0,6,6"
-                  Background="{StaticResource BrushSurface}"
-                  Visibility="{Binding SearchResults.Count, Converter={StaticResource ZeroToVisibilityConverter}}">
-            <ListBox ItemsSource="{Binding SearchResults}"
-                     SelectedItem="{Binding SelectedProduct, Mode=TwoWay}"
-                     BorderThickness="0"
-                     Background="Transparent"
-                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     MaxHeight="180">
+          <StackPanel>
+            <Grid Margin="2,0,0,6"
+                  Visibility="{Binding SearchResults.Count, Converter={StaticResource IntGreaterThanZeroToVisibilityConverter}}">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBlock Text="Sugerencias encontradas"
+                         Style="{StaticResource CashHint}"
+                         FontWeight="SemiBold"
+                         Foreground="{StaticResource BrushPrimary}" />
+              <TextBlock Grid.Column="1"
+                         Text="↑↓ elegir · Enter agregar"
+                         Style="{StaticResource CashHint}" />
+            </Grid>
+
+            <Border BorderBrush="{StaticResource BrushBorder}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Background="{StaticResource BrushSurface}"
+                    Visibility="{Binding SearchResults.Count, Converter={StaticResource IntGreaterThanZeroToVisibilityConverter}}">
+              <ListBox x:Name="ResultsListBox"
+                       ItemsSource="{Binding SearchResults}"
+                       SelectedItem="{Binding SelectedProduct, Mode=TwoWay}"
+                       MouseDoubleClick="ResultsListBox_OnMouseDoubleClick"
+                       BorderThickness="0"
+                       Background="Transparent"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                       MaxHeight="180">
               <ListBox.ItemTemplate>
                 <DataTemplate>
                   <Border Padding="12,10"
@@ -212,6 +230,12 @@
               </ListBox.ItemTemplate>
             </ListBox>
           </Border>
+
+          <TextBlock Text="Sin coincidencias"
+                     Style="{StaticResource CashHint}"
+                     Margin="2,6,0,0"
+                     Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVisibilityConverter}}" />
+          </StackPanel>
 
           <Button Grid.Column="1"
                   Content="Agregar"
