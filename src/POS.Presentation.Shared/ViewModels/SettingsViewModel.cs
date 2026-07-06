@@ -31,20 +31,14 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _currencyCode = "COP";
     private string _message = "Carga la configuración del negocio o realiza un backup.";
 
-    // Impresión y envíos subtab — presentation-only fields. There is no Application-level use case to
-    // read/write printer receipt template, SMTP host/port/sender, or WhatsApp script path/working-directory
-    // (RuntimeOptions for those live in Infrastructure and are wired once at app startup in App.xaml.cs;
-    // exposing a read/write path for them would require a new settings use case, out of scope for this
-    // Presentation-only slice). These fields hold local session state so the subtab renders and can drive
-    // the real Test-Email/Test-WhatsApp actions below; they are NOT persisted by SaveCommand. Documented in
-    // apply-progress as a deviation from the wireframe's fully-editable mock.
     private string _receiptTemplate = "80 mm térmico";
-    private string _smtpHost = "smtp.office365.com";
-    private string _smtpSenderAddress = "ventas@estheticpos.local";
+    private string _smtpHost = string.Empty;
+    private string _smtpSenderAddress = string.Empty;
+    private string _smtpUser = string.Empty;
+    private string _smtpPassword = string.Empty;
     private string _smtpPort = "587";
+    private bool _smtpUseSsl = true;
     private string _testEmailRecipient = string.Empty;
-    private string _whatsAppScriptPath = "C:\\scripts\\send-whatsapp.ps1";
-    private string _whatsAppWorkingDirectory = "C:\\scripts";
     private string _whatsAppStatus = "Listo";
     private string _testWhatsAppNumber = string.Empty;
 
@@ -172,7 +166,6 @@ public sealed class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _receiptTemplate, value ?? "80 mm térmico");
     }
 
-    /// <summary>Presentation-only, not persisted — see class remarks.</summary>
     public string SmtpHost
     {
         get => _smtpHost;
@@ -186,7 +179,6 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Presentation-only, not persisted — see class remarks.</summary>
     public string SmtpSenderAddress
     {
         get => _smtpSenderAddress;
@@ -200,11 +192,28 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Presentation-only, not persisted — see class remarks.</summary>
+    public string SmtpUser
+    {
+        get => _smtpUser;
+        set => SetProperty(ref _smtpUser, value ?? string.Empty);
+    }
+
+    public string SmtpPassword
+    {
+        get => _smtpPassword;
+        set => SetProperty(ref _smtpPassword, value ?? string.Empty);
+    }
+
     public string SmtpPort
     {
         get => _smtpPort;
         set => SetProperty(ref _smtpPort, value ?? "587");
+    }
+
+    public bool SmtpUseSsl
+    {
+        get => _smtpUseSsl;
+        set => SetProperty(ref _smtpUseSsl, value);
     }
 
     /// <summary>Destination address for the "Enviar prueba" test-send action (not the actual SMTP account).</summary>
@@ -214,28 +223,7 @@ public sealed class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _testEmailRecipient, value ?? string.Empty);
     }
 
-    /// <summary>Presentation-only, not persisted — see class remarks.</summary>
-    public string WhatsAppScriptPath
-    {
-        get => _whatsAppScriptPath;
-        set
-        {
-            if (SetProperty(ref _whatsAppScriptPath, value ?? string.Empty))
-            {
-                OnPropertyChanged(nameof(IsWhatsAppReady));
-                OnPropertyChanged(nameof(ReadyChannelsSummary));
-            }
-        }
-    }
-
-    /// <summary>Presentation-only, not persisted — see class remarks.</summary>
-    public string WhatsAppWorkingDirectory
-    {
-        get => _whatsAppWorkingDirectory;
-        set => SetProperty(ref _whatsAppWorkingDirectory, value ?? string.Empty);
-    }
-
-    /// <summary>Presentation-only status pill value ("Listo" / "Requiere revisión").</summary>
+    /// <summary>Status pill for WhatsApp Desktop/Web integration.</summary>
     public string WhatsAppStatus
     {
         get => _whatsAppStatus;
@@ -249,7 +237,7 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Destination phone number for the "Probar script" test action.</summary>
+    /// <summary>Destination phone number for the WhatsApp Desktop/Web test action.</summary>
     public string TestWhatsAppNumber
     {
         get => _testWhatsAppNumber;
@@ -260,7 +248,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public bool IsSmtpConfigured => !string.IsNullOrWhiteSpace(SmtpHost) && !string.IsNullOrWhiteSpace(SmtpSenderAddress);
 
-    public bool IsWhatsAppReady => WhatsAppStatus == "Listo" && !string.IsNullOrWhiteSpace(WhatsAppScriptPath);
+    public bool IsWhatsAppReady => WhatsAppStatus == "Listo" && _whatsAppService is not null;
 
     public bool IsBackupConfigured => !string.IsNullOrWhiteSpace(BackupDirectory);
 
@@ -316,6 +304,12 @@ public sealed class SettingsViewModel : ViewModelBase
         BusinessName = settings.BusinessName;
         BusinessAddress = settings.BusinessAddress;
         TaxId = settings.TaxId;
+        SmtpHost = settings.SmtpHost ?? string.Empty;
+        SmtpPort = settings.SmtpPort?.ToString() ?? "587";
+        SmtpUser = settings.SmtpUser ?? string.Empty;
+        SmtpPassword = settings.SmtpPassword ?? string.Empty;
+        SmtpUseSsl = settings.SmtpUseSsl;
+        SmtpSenderAddress = settings.SmtpSenderAddress ?? string.Empty;
         PrinterCommand = settings.PrinterCommand;
         PrinterWorkingDirectory = settings.PrinterWorkingDirectory;
 
@@ -345,26 +339,7 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         try
         {
-            var request = new SaveSettingsRequest(
-                BusinessName,
-                BusinessAddress,
-                TaxId,
-                PrinterCommand,
-                PrinterWorkingDirectory,
-                BackupDirectory,
-                CurrencyCode);
-
-            SettingsResult result = await _saveSettings.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-
-            Warnings.Clear();
-            if (result.Warnings is not null)
-            {
-                foreach (var warning in result.Warnings)
-                {
-                    Warnings.Add(warning);
-                }
-            }
-
+            await SaveCurrentSettingsAsync(cancellationToken).ConfigureAwait(true);
             Message = Warnings.Count == 0
                 ? "Configuración guardada exitosamente."
                 : $"Configuración guardada con {Warnings.Count} advertencia(s). Revisa la sección de impresora.";
@@ -415,6 +390,8 @@ public sealed class SettingsViewModel : ViewModelBase
 
         try
         {
+            await SaveCurrentSettingsAsync(cancellationToken).ConfigureAwait(true);
+
             bool sent = await _emailService.SendAsync(
                 TestEmailRecipient,
                 "Prueba de configuración — Esthetic POS",
@@ -445,7 +422,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
         if (string.IsNullOrWhiteSpace(TestWhatsAppNumber))
         {
-            Message = "Ingresa un número para probar el script.";
+            Message = "Ingresa un número para probar WhatsApp.";
             return;
         }
 
@@ -457,11 +434,53 @@ public sealed class SettingsViewModel : ViewModelBase
                 null,
                 cancellationToken).ConfigureAwait(true);
 
-            Message = sent ? "Script de WhatsApp ejecutado correctamente." : "El script de WhatsApp no se ejecutó correctamente.";
+            Message = sent ? "WhatsApp abierto correctamente." : "No se pudo abrir WhatsApp en este equipo.";
         }
         catch (Exception ex)
         {
-            Message = $"No se pudo probar el script de WhatsApp: {ex.Message}";
+            Message = $"No se pudo abrir WhatsApp: {ex.Message}";
         }
+    }
+
+    private async Task<SettingsResult> SaveCurrentSettingsAsync(CancellationToken cancellationToken)
+    {
+        int? smtpPort = null;
+        if (!string.IsNullOrWhiteSpace(SmtpPort))
+        {
+            if (!int.TryParse(SmtpPort, out int parsedPort) || parsedPort <= 0)
+            {
+                throw new ArgumentException("El puerto SMTP debe ser un número mayor que cero.", nameof(SmtpPort));
+            }
+
+            smtpPort = parsedPort;
+        }
+
+        var request = new SaveSettingsRequest(
+            BusinessName,
+            BusinessAddress,
+            TaxId,
+            SmtpHost,
+            smtpPort,
+            SmtpUser,
+            SmtpPassword,
+            SmtpUseSsl,
+            SmtpSenderAddress,
+            PrinterCommand,
+            PrinterWorkingDirectory,
+            BackupDirectory,
+            CurrencyCode);
+
+        SettingsResult result = await _saveSettings.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+
+        Warnings.Clear();
+        if (result.Warnings is not null)
+        {
+            foreach (var warning in result.Warnings)
+            {
+                Warnings.Add(warning);
+            }
+        }
+
+        return result;
     }
 }

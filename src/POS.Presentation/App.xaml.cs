@@ -141,8 +141,6 @@ public partial class App : System.Windows.Application
             options.Smtp.UseSsl = smtpSsl;
         }
 
-        options.WhatsAppScript.FileName = Environment.GetEnvironmentVariable("POS_WHATSAPP_SCRIPT");
-        options.WhatsAppScript.WorkingDirectory = Environment.GetEnvironmentVariable("POS_WHATSAPP_WORKDIR");
         options.Printer.Command = Environment.GetEnvironmentVariable("POS_PRINTER_COMMAND");
         options.Printer.WorkingDirectory = Environment.GetEnvironmentVariable("POS_PRINTER_WORKDIR");
     }
@@ -303,11 +301,16 @@ public partial class App : System.Windows.Application
             var querySalesHistory = sp.GetRequiredService<QuerySalesHistoryUseCase>();
             var reprintReceipt = sp.GetRequiredService<ReprintReceiptUseCase>();
             var processReturn = sp.GetRequiredService<ProcessReturnUseCase>();
+            Application.UseCases.Invoices.CancelSaleUseCase? cancelSaleForInvoices = null;
+            try { cancelSaleForInvoices = sp.GetRequiredService<Application.UseCases.Invoices.CancelSaleUseCase>(); } catch { }
             Application.UseCases.Communication.SendDocumentUseCase? sendDocumentForInvoices = null;
             try { sendDocumentForInvoices = sp.GetRequiredService<Application.UseCases.Communication.SendDocumentUseCase>(); } catch { }
-            invoices = new InvoicesViewModel(querySalesHistory, reprintReceipt, processReturn, sendDocumentForInvoices)
+            Application.Interfaces.IPdfService? pdfServiceForInvoices = null;
+            try { pdfServiceForInvoices = sp.GetRequiredService<Application.Interfaces.IPdfService>(); } catch { }
+            invoices = new InvoicesViewModel(querySalesHistory, reprintReceipt, processReturn, sendDocumentForInvoices, pdfServiceForInvoices, cancelSaleForInvoices)
             {
-                OperatorUserId = cashier.CashierUserId
+                OperatorUserId = cashier.CashierUserId,
+                CurrentUserRole = session.Role
             };
         }
         catch

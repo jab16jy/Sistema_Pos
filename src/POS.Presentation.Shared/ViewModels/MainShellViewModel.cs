@@ -174,6 +174,16 @@ public sealed class MainShellViewModel : ViewModelBase
                 {
                     _ = Invoices?.LoadFirstPageAsync();
                 }
+
+                if (IsProductsSelected)
+                {
+                    _ = Products?.LoadAsync();
+                }
+
+                if (IsInventorySelected)
+                {
+                    _ = Inventory?.LoadStockAsync();
+                }
             }
         }
     }
