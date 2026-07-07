@@ -4,6 +4,7 @@ using POS.Application.UseCases.Invoices;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
+using POS.Presentation.Shared.Invoices;
 using POS.Presentation.Shared.ViewModels;
 using Xunit;
 
@@ -48,6 +49,35 @@ public sealed class InvoicesViewModelTests
         Assert.Equal("Factura_FAC-001.pdf", export.Value.FileName);
         Assert.Equal([1, 2, 3, 4], export.Value.Data);
         Assert.Contains("listo", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CashierFilter_RestrictsRowsToSelectedWorkerAndListsAvailableCashiers()
+    {
+        var viewModel = new InvoicesViewModel(
+            new QuerySalesHistoryUseCase(new StaticSalesHistoryQueryService(
+                new SaleHistoryResult(Guid.NewGuid(), "FAC-A", null, null, SaleStatus.Completed, DateTimeOffset.Now, 1_000m, "ana"),
+                new SaleHistoryResult(Guid.NewGuid(), "FAC-B", null, null, SaleStatus.Completed, DateTimeOffset.Now, 2_000m, "beto"))),
+            new ReprintReceiptUseCase(new EmptySaleRepository(), new NoOpPrintService()),
+            new ProcessReturnUseCase(
+                new EmptySaleRepository(),
+                new EmptyProductRepository(),
+                new EmptyInventoryRepository(),
+                new EmptySaleReturnRepository(),
+                new NoOpUnitOfWork(),
+                new EmptyUserRepository()));
+
+        await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, viewModel.FilteredInvoices.Count);
+        Assert.Contains("ana", viewModel.AvailableCashiers);
+        Assert.Contains("beto", viewModel.AvailableCashiers);
+
+        viewModel.CashierFilter = "ana";
+
+        InvoiceSummaryRow only = Assert.Single(viewModel.FilteredInvoices);
+        Assert.Equal("FAC-A", only.InvoiceNumber);
+        Assert.Equal("ana", only.CashierName);
     }
 
     [Fact]

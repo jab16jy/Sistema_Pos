@@ -44,6 +44,7 @@ public sealed class InvoicesViewModel : ViewModelBase
     private InvoiceSummaryRow? _selectedInvoice;
     private string _searchText = string.Empty;
     private string _statusFilter = string.Empty;
+    private string _cashierFilter = string.Empty;
     private string _returnReason = string.Empty;
     private string _returnDescription = string.Empty;
     private string _refundType = "Efectivo";
@@ -84,6 +85,9 @@ public sealed class InvoicesViewModel : ViewModelBase
 
     /// <summary>Filtered, presentation-ready rows bound to the invoice grid.</summary>
     public ObservableCollection<InvoiceSummaryRow> FilteredInvoices { get; } = [];
+
+    /// <summary>Distinct cashier/worker names in the loaded page (plus a leading "" = all) for the worker filter dropdown.</summary>
+    public ObservableCollection<string> AvailableCashiers { get; } = [];
 
     public ICommand LoadCommand { get; }
 
@@ -142,7 +146,23 @@ public sealed class InvoicesViewModel : ViewModelBase
         {
             if (SetProperty(ref _statusFilter, value ?? string.Empty))
             {
-                ApplyStatusFilter();
+                ApplyFilters();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Worker/cashier filter key (cashier display name, "" = all). Applied client-side over the already-loaded
+    /// page, same as <see cref="StatusFilter"/>. Options come from <see cref="AvailableCashiers"/>.
+    /// </summary>
+    public string CashierFilter
+    {
+        get => _cashierFilter;
+        set
+        {
+            if (SetProperty(ref _cashierFilter, value ?? string.Empty))
+            {
+                ApplyFilters();
             }
         }
     }
@@ -264,7 +284,8 @@ public sealed class InvoicesViewModel : ViewModelBase
             _allInvoices.Clear();
             _allInvoices.AddRange(results.Select(InvoiceSummaryRow.FromSale));
             HasMorePages = results.Count == PageSize;
-            ApplyStatusFilter();
+            RebuildAvailableCashiers();
+            ApplyFilters();
 
             Message = FilteredInvoices.Count == 0
                 ? "No encontramos facturas con ese criterio."
@@ -483,16 +504,43 @@ public sealed class InvoicesViewModel : ViewModelBase
         }
     }
 
-    private void ApplyStatusFilter()
+    private void ApplyFilters()
     {
-        IEnumerable<InvoiceSummaryRow> filtered = string.IsNullOrEmpty(StatusFilter)
-            ? _allInvoices
-            : _allInvoices.Where(row => row.StatusFilterKey == StatusFilter);
+        IEnumerable<InvoiceSummaryRow> filtered = _allInvoices;
+
+        if (!string.IsNullOrEmpty(StatusFilter))
+        {
+            filtered = filtered.Where(row => row.StatusFilterKey == StatusFilter);
+        }
+
+        if (!string.IsNullOrEmpty(CashierFilter))
+        {
+            filtered = filtered.Where(row => row.CashierName == CashierFilter);
+        }
 
         FilteredInvoices.Clear();
         foreach (InvoiceSummaryRow row in filtered)
         {
             FilteredInvoices.Add(row);
+        }
+    }
+
+    private void RebuildAvailableCashiers()
+    {
+        string current = CashierFilter;
+
+        AvailableCashiers.Clear();
+        AvailableCashiers.Add(string.Empty); // "" = todos
+        foreach (string name in _allInvoices.Select(row => row.CashierName).Distinct().OrderBy(name => name, StringComparer.CurrentCulture))
+        {
+            AvailableCashiers.Add(name);
+        }
+
+        // Drop a stale selection so the grid doesn't silently show nothing.
+        if (!AvailableCashiers.Contains(current))
+        {
+            _cashierFilter = string.Empty;
+            OnPropertyChanged(nameof(CashierFilter));
         }
     }
 

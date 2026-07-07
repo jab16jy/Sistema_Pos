@@ -42,6 +42,7 @@ public sealed class CashierViewModel : ViewModelBase
     private CancellationTokenSource? _autocompleteSearchCts;
     private string _searchText = string.Empty;
     private CashierProductSearchResultViewModel? _selectedProduct;
+    private CashierCartItemViewModel? _selectedCartItem;
     private decimal _quantity = 1m;
     private PaymentMethodOption _selectedPaymentMethod;
     private decimal _receivedAmount;
@@ -234,6 +235,12 @@ public sealed class CashierViewModel : ViewModelBase
                 UpdateCommandState();
             }
         }
+    }
+
+    public CashierCartItemViewModel? SelectedCartItem
+    {
+        get => _selectedCartItem;
+        set => SetProperty(ref _selectedCartItem, value);
     }
 
     public decimal Quantity
@@ -664,6 +671,10 @@ public sealed class CashierViewModel : ViewModelBase
         }
 
         CartItems.Remove(item);
+        if (SelectedCartItem == item)
+        {
+            SelectedCartItem = null;
+        }
         RefreshTotals(updateMessage: false);
         Message = $"{item.ProductName} eliminado del carrito.";
     }

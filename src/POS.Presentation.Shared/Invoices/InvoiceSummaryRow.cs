@@ -18,7 +18,8 @@ public sealed record InvoiceSummaryRow(
     SaleStatus Status,
     string StatusLabel,
     DateTimeOffset CreatedAt,
-    string DateFormatted)
+    string DateFormatted,
+    string CashierName = "—")
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -31,7 +32,8 @@ public sealed record InvoiceSummaryRow(
         sale.Status,
         ResolveStatusLabel(sale.Status),
         sale.CreatedAt,
-        sale.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture));
+        sale.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+        string.IsNullOrWhiteSpace(sale.CashierName) ? "—" : sale.CashierName);
 
     private static string ResolveStatusLabel(SaleStatus status) => status switch
     {

@@ -16,8 +16,12 @@ public sealed class AuditLogRepository : IAuditLogRepository
         AuditLogFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
-        // SQLite cannot ORDER BY existing DateTimeOffset TEXT columns safely.
+        // EF Core's SQLite provider can't translate ORDER BY over a raw DateTimeOffset into SQL
+        // (throws NotSupportedException). Ordering client-side avoids that without adding a
+        // DB-level int conversion, which would silently misread already-persisted TEXT timestamps
+        // as garbage dates instead of erroring.
         // Do not switch this to an INTEGER conversion without a migration/backfill.
+        // ponytail: fetches the whole table; add a date-bounded WHERE if AUDIT_LOGS grows large.
         List<AuditLog> logs = await _dbContext.AuditLogs
             .AsNoTracking()
             .ToListAsync(cancellationToken)

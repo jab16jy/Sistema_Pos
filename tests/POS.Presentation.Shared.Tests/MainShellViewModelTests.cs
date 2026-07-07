@@ -118,9 +118,9 @@ public sealed class MainShellViewModelTests
     {
         var viewModel = new MainShellViewModel(
             new CashierViewModel(new PrototypeProductLookupService()),
-            dashboardSummaryUseCase: null,
+            null,
             UserRole.Cashier,
-            "cajero");
+            "cajero1");
 
         Assert.Equal(["cashier", "customers", "quotes", "invoices", "shifts"], viewModel.FuncbarModules.Select(module => module.Key));
         Assert.Equal(["F1", "F2", "F3", "F4", "F5"], viewModel.FuncbarModules.Select(module => module.Shortcut));
@@ -134,12 +134,11 @@ public sealed class MainShellViewModelTests
     {
         var viewModel = new MainShellViewModel(
             new CashierViewModel(new PrototypeProductLookupService()),
-            dashboardSummaryUseCase: null,
+            null,
             UserRole.Cashier,
-            "cajero");
-        var shiftsModule = viewModel.FuncbarModules.Single(module => module.Key == "shifts");
+            "cajero1");
 
-        viewModel.SelectModuleCommand.Execute(shiftsModule);
+        viewModel.SelectedModule = viewModel.FuncbarModules.Single(module => module.Key == "shifts");
 
         Assert.True(viewModel.IsShiftsSelected);
         Assert.Equal("shifts", viewModel.CurrentFuncbarModule.Key);

@@ -17,6 +17,16 @@ public sealed class SaveCustomerUseCase
 
     public async Task<CustomerResult> ExecuteAsync(SaveCustomerRequest request, CancellationToken cancellationToken = default)
     {
+        // Cédula/identificación must be unique across customers. On edit, allow the record to keep its own.
+        if (!string.IsNullOrWhiteSpace(request.Identification))
+        {
+            var duplicate = await _customers.GetByIdentificationAsync(request.Identification.Trim(), cancellationToken);
+            if (duplicate is not null && duplicate.Id != request.CustomerId)
+            {
+                throw new InvalidOperationException($"Ya existe un cliente con la identificación '{request.Identification.Trim()}'.");
+            }
+        }
+
         Customer customer;
         if (request.CustomerId.HasValue)
         {

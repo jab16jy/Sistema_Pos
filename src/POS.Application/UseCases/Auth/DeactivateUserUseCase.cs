@@ -1,3 +1,4 @@
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.UseCases.Auth;
