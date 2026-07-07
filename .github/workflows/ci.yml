@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'POS.sln'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '.github/workflows/**'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - 'POS.sln'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test-smoke:
+    name: Build, test, and startup smoke check
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+          cache: true
+          cache-dependency-path: |
+            Directory.Packages.props
+            global.json
+            **/*.csproj
+
+      - name: Prepare artifact folders
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path artifacts/build | Out-Null
+          New-Item -ItemType Directory -Force -Path artifacts/test-results | Out-Null
+
+      - name: Restore solution
+        shell: pwsh
+        run: dotnet restore POS.sln --verbosity minimal
+
+      - name: Build solution (Release)
+        shell: pwsh
+        run: dotnet build POS.sln --configuration Release --no-restore --verbosity minimal /bl:artifacts/build/pos-release.binlog
+
+      - name: Run Domain tests
+        shell: pwsh
+        run: dotnet test tests/POS.Domain.Tests/POS.Domain.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=domain-tests.trx" --results-directory artifacts/test-results
+
+      - name: Run Application tests
+        shell: pwsh
+        run: dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=application-tests.trx" --results-directory artifacts/test-results
+
+      - name: Run Presentation.Shared tests
+        shell: pwsh
+        run: dotnet test tests/POS.Presentation.Shared.Tests/POS.Presentation.Shared.Tests.csproj --configuration Release --no-build --logger "trx;LogFileName=presentation-shared-tests.trx" --results-directory artifacts/test-results
+
+      - name: Run Presentation startup smoke tests
+        shell: pwsh
+        run: dotnet test tests/POS.Presentation.SmokeTests/POS.Presentation.SmokeTests.csproj --configuration Release --no-build --logger "trx;LogFileName=presentation-smoke-tests.trx" --results-directory artifacts/test-results
+
+      - name: Upload build and test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-artifacts-${{ github.run_number }}
+          if-no-files-found: warn
+          path: |
+            artifacts/build/**
+            artifacts/test-results/**

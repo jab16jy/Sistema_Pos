@@ -100,12 +100,12 @@ public sealed class PurchasesViewModelTests
     [Fact]
     public void WpfComposition_UsesCashierOperatorSeamForPurchaseAudit()
     {
-        string appSource = File.ReadAllText(FindRepositoryFile("src/POS.Presentation/App.xaml.cs"));
+        string bootstrapperSource = File.ReadAllText(FindRepositoryFile("src/POS.Presentation/AppBootstrapper.cs"));
 
-        Assert.DoesNotContain("LocalPrototypeOperatorId", appSource, StringComparison.Ordinal);
-        Assert.DoesNotContain("11111111-1111-1111-1111-111111111111", appSource, StringComparison.Ordinal);
-        Assert.Contains("CashierUserId", appSource, StringComparison.Ordinal);
-        Assert.Contains("() => cashier.CashierUserId", appSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("LocalPrototypeOperatorId", bootstrapperSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("11111111-1111-1111-1111-111111111111", bootstrapperSource, StringComparison.Ordinal);
+        Assert.Contains("CashierUserId", bootstrapperSource, StringComparison.Ordinal);
+        Assert.Contains("() => cashier.CashierUserId", bootstrapperSource, StringComparison.Ordinal);
     }
 
     [Fact]

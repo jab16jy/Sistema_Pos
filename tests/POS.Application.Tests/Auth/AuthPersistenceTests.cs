@@ -24,8 +24,8 @@ public sealed class AuthPersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var repository = new UserRepository(dbContext);
-        var admin = await SeedAdminAsync(repository, TestContext.Current.CancellationToken);
-        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService());
+        var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
+        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService(), dbContext);
 
         (bool ok, string? error) = await useCase.ExecuteAsync("cajero1", "1234", UserRole.Cashier, admin.Id, TestContext.Current.CancellationToken);
 
@@ -45,7 +45,8 @@ public sealed class AuthPersistenceTests
         var repository = new UserRepository(dbContext);
         var cashier = new User("cajero-actual", "hash", UserRole.Cashier);
         await repository.AddAsync(cashier, TestContext.Current.CancellationToken);
-        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService());
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService(), dbContext);
 
         (bool ok, string? error) = await useCase.ExecuteAsync("nuevo", "1234", UserRole.Administrator, cashier.Id, TestContext.Current.CancellationToken);
 
@@ -62,8 +63,8 @@ public sealed class AuthPersistenceTests
         await using var dbContext = CreateDbContext(connection, new FakeSession("admin"));
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var repository = new UserRepository(dbContext);
-        var admin = await SeedAdminAsync(repository, TestContext.Current.CancellationToken);
-        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService());
+        var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
+        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService(), dbContext);
 
         await useCase.ExecuteAsync("cajero1", "1234", UserRole.Cashier, admin.Id, TestContext.Current.CancellationToken);
 
@@ -71,7 +72,7 @@ public sealed class AuthPersistenceTests
         // NotSupportedException on SQLite; it now orders client-side and reads the entries the
         // SaveChanges override auto-wrote.
         System.Collections.Generic.IReadOnlyList<AuditLogEntry> logs =
-            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext)).ExecuteAsync(10, TestContext.Current.CancellationToken);
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext)).ExecuteAsync(10, null, TestContext.Current.CancellationToken);
 
         Assert.Contains(logs, l => l.EntityName == "User" && l.Username == "admin");
     }
@@ -110,7 +111,7 @@ public sealed class AuthPersistenceTests
             {
                 IReadOnlyList<AuditLogEntry> logs = await scope.ServiceProvider
                     .GetRequiredService<GetAuditLogsUseCase>()
-                    .ExecuteAsync(10, TestContext.Current.CancellationToken);
+                    .ExecuteAsync(10, null, TestContext.Current.CancellationToken);
 
                 // The crux of "quién cambió qué": EF injects the session so the actor is the operator, not "Sistema".
                 Assert.Contains(logs, l => l.EntityName == "User" && l.Username == "carlos");
@@ -126,10 +127,11 @@ public sealed class AuthPersistenceTests
         }
     }
 
-    private static async Task<User> SeedAdminAsync(UserRepository repository, CancellationToken ct)
+    private static async Task<User> SeedAdminAsync(AppDbContext dbContext, UserRepository repository, CancellationToken ct)
     {
         var admin = new User("admin-seed", "hash", UserRole.Administrator);
         await repository.AddAsync(admin, ct);
+        await dbContext.SaveChangesAsync(ct);
         return admin;
     }
 

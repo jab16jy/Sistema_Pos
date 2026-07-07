@@ -141,17 +141,16 @@ public sealed class UserManagementViewModel : ViewModelBase
         }
     }
 
-    // ponytail: UI-level trust boundary — this is a single-process desktop app, so the ViewModel
-    // is the operation boundary. Move the check into the use case if a non-UI caller ever appears.
+    // Mirror the use-case authorization at the UI boundary so the desktop user gets immediate feedback.
     private bool EnsureAdmin()
     {
-        if (_session.Role == UserRole.Administrator)
+        if (IsAdmin)
         {
             return true;
         }
 
         HasError = true;
-        StatusMessage = "Solo un administrador puede gestionar usuarios.";
+        StatusMessage = "Solo un administrador puede gestionar usuarios y permisos.";
         return false;
     }
 
@@ -186,7 +185,6 @@ public sealed class UserManagementViewModel : ViewModelBase
     {
         if (!EnsureAdmin()) return;
         if (SelectedUser is null) return;
-        if (!EnsureAdmin()) return;
 
         try
         {
@@ -213,7 +211,6 @@ public sealed class UserManagementViewModel : ViewModelBase
     {
         if (!EnsureAdmin()) return;
         if (SelectedUser is null) return;
-        if (!EnsureAdmin()) return;
 
         try
         {
@@ -242,15 +239,4 @@ public sealed class UserManagementViewModel : ViewModelBase
         StatusMessage = message;
     }
 
-    private bool EnsureAdmin()
-    {
-        if (IsAdmin)
-        {
-            return true;
-        }
-
-        HasError = true;
-        StatusMessage = "Solo un administrador puede gestionar usuarios y permisos.";
-        return false;
-    }
 }

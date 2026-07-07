@@ -8,7 +8,7 @@ context: |
   UI: WPF for Windows target and Avalonia prototype for Linux; shared ViewModels in POS.Presentation.Shared.
   Data/Infrastructure: EF Core 9, SQLite, QuestPDF, dependency injection.
   Architecture: Presentation -> Application -> Domain; Infrastructure depends on Application/Domain contracts; Domain has no outer dependency.
-  Testing: xUnit v3 projects under tests/, coverlet collector available; Linux SDK cannot build WPF WindowsDesktop project.
+  Testing: xUnit v3 projects under tests/, including a Windows-only presentation startup smoke test; coverlet collector available; Linux SDK cannot build WPF WindowsDesktop project.
 
 testing:
   detected: 2026-06-21
@@ -20,13 +20,14 @@ testing:
       - dotnet test tests/POS.Domain.Tests/POS.Domain.Tests.csproj --no-restore
       - dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj --no-restore
       - dotnet test tests/POS.Presentation.Shared.Tests/POS.Presentation.Shared.Tests.csproj --no-restore
+      - dotnet test tests/POS.Presentation.SmokeTests/POS.Presentation.SmokeTests.csproj --no-restore
   layers:
     unit:
       available: true
       tool: xUnit v3
     integration:
-      available: partial
-      tool: EF Core/SQLite-capable infrastructure present; no dedicated integration test project detected
+      available: true
+      tool: EF Core/SQLite persistence coverage plus Windows-only presentation startup smoke test project
     e2e:
       available: false
       tool: null
@@ -71,5 +72,6 @@ rules:
     coverage_threshold: 0
     notes:
       - On Linux/Arch, WPF POS.Presentation may require WindowsDesktop SDK on Windows; verify non-WPF projects or Avalonia/shared UI where appropriate.
+      - The smoke project `tests/POS.Presentation.SmokeTests` must run on Windows because it composes the real WPF presentation bootstrap path.
   archive:
     - Preserve archive directories as audit trail; never delete archived changes.

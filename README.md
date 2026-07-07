@@ -43,6 +43,7 @@ Local desktop POS for small businesses. Documentation lives in `docs md/`.
 - **Role-based access** — Admin sees all modules; Cashier is restricted to sales flow
 - **IVA 19 %** — applied in domain layer on products and sale items
 - **ESC/POS printing** — auto-detects COM port, IP:PORT, USB, or falls back to process command
+- **Impresión Térmica ESC/POS**: Implementación del adaptador `InstalledPrinterProvider` para buscar e interactuar con impresoras físicas de Windows.
 - **PDF/Excel export** — operational and profit reports via QuestPDF + ClosedXML
 - **CSV product import** — row-level validation with error reporting
 - **Loyalty program** — points earned/redeemed per sale; tiered levels
@@ -74,6 +75,7 @@ tests/
   POS.Domain.Tests/
   POS.Application.Tests/
   POS.Presentation.Shared.Tests/
+  POS.Presentation.SmokeTests/
 ```
 
 ## Running the pre-built app
@@ -104,6 +106,12 @@ Domain, Application, and Infrastructure tests run on any OS:
 dotnet test tests/POS.Domain.Tests/POS.Domain.Tests.csproj
 dotnet test tests/POS.Application.Tests/POS.Application.Tests.csproj
 dotnet test tests/POS.Presentation.Shared.Tests/POS.Presentation.Shared.Tests.csproj
+```
+
+Windows startup smoke check:
+
+```bash
+dotnet test tests/POS.Presentation.SmokeTests/POS.Presentation.SmokeTests.csproj
 ```
 
 ## Runtime options
