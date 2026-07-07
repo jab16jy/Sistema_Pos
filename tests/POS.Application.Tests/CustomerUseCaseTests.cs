@@ -67,6 +67,41 @@ public sealed class CustomerUseCaseTests
     }
 
     [Fact]
+    public async Task SaveCustomerAsync_WithDuplicateIdentification_ThrowsAndDoesNotCreateSecond()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var useCase = new SaveCustomerUseCase(new CustomerRepository(dbContext), dbContext);
+        await useCase.ExecuteAsync(new SaveCustomerRequest(null, "Ana Gomez", "123", null, null, null, true), TestContext.Current.CancellationToken);
+
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new SaveCustomerRequest(null, "Otro Cliente", "123", null, null, null, true),
+            TestContext.Current.CancellationToken));
+
+        Assert.Contains("123", ex.Message);
+        Assert.Single(await dbContext.Customers.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task SaveCustomerAsync_EditingKeepsItsOwnIdentification()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var useCase = new SaveCustomerUseCase(new CustomerRepository(dbContext), dbContext);
+        CustomerResult created = await useCase.ExecuteAsync(new SaveCustomerRequest(null, "Ana Gomez", "123", null, null, null, true), TestContext.Current.CancellationToken);
+
+        // Re-saving the same customer with the same identification must not trip the uniqueness guard.
+        CustomerResult updated = await useCase.ExecuteAsync(new SaveCustomerRequest(created.Id, "Ana Maria", "123", null, null, null, true), TestContext.Current.CancellationToken);
+
+        Assert.Equal(created.Id, updated.Id);
+        Assert.Equal("Ana Maria", updated.FullName);
+    }
+
+    [Fact]
     public async Task SaveCustomerAsync_WithExistingCustomer_UpdatesThenDeactivatesRecord()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

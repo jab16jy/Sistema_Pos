@@ -16,6 +16,9 @@ public sealed class CustomerRepository : ICustomerRepository
     public Task<Customer?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         => _dbContext.Customers.FirstOrDefaultAsync(customer => customer.Id == id, cancellationToken);
 
+    public Task<Customer?> GetByIdentificationAsync(string identification, CancellationToken cancellationToken = default)
+        => _dbContext.Customers.FirstOrDefaultAsync(customer => customer.Identification == identification, cancellationToken);
+
     public async Task<IReadOnlyList<Customer>> SearchAsync(string? searchText, bool activeOnly, CancellationToken cancellationToken = default)
     {
         IQueryable<Customer> query = _dbContext.Customers.AsNoTracking();

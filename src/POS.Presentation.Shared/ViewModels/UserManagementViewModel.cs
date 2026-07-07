@@ -139,13 +139,29 @@ public sealed class UserManagementViewModel : ViewModelBase
         }
     }
 
+    // ponytail: UI-level trust boundary — this is a single-process desktop app, so the ViewModel
+    // is the operation boundary. Move the check into the use case if a non-UI caller ever appears.
+    private bool EnsureAdmin()
+    {
+        if (_session.Role == UserRole.Administrator)
+        {
+            return true;
+        }
+
+        HasError = true;
+        StatusMessage = "Solo un administrador puede gestionar usuarios.";
+        return false;
+    }
+
     private async Task CreateAsync()
     {
+        if (!EnsureAdmin()) return;
+
         try
         {
             HasError = false;
             StatusMessage = string.Empty;
-            var (ok, error) = await _createUser.ExecuteAsync(NewUsername, NewPassword, NewRole);
+            var (ok, error) = await _createUser.ExecuteAsync(NewUsername, NewPassword, NewRole, _session.OperatorId);
             if (!ok)
             {
                 HasError = true;
@@ -166,13 +182,14 @@ public sealed class UserManagementViewModel : ViewModelBase
 
     private async Task SaveEditAsync()
     {
+        if (!EnsureAdmin()) return;
         if (SelectedUser is null) return;
 
         try
         {
             HasError = false;
             StatusMessage = string.Empty;
-            var (ok, error) = await _updateUser.ExecuteAsync(SelectedUser.Id, EditPassword, EditRole);
+            var (ok, error) = await _updateUser.ExecuteAsync(SelectedUser.Id, EditPassword, EditRole, _session.OperatorId);
             if (!ok)
             {
                 HasError = true;
@@ -191,6 +208,7 @@ public sealed class UserManagementViewModel : ViewModelBase
 
     private async Task DeactivateAsync()
     {
+        if (!EnsureAdmin()) return;
         if (SelectedUser is null) return;
 
         try

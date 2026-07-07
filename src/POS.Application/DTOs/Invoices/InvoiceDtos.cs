@@ -16,7 +16,8 @@ public sealed record SaleHistoryResult(
     string? CustomerName,
     SaleStatus Status,
     DateTimeOffset CreatedAt,
-    decimal Total);
+    decimal Total,
+    string? CashierName = null);
 
 /// <summary>
 /// A single line in a partial return request.

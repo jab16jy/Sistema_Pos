@@ -17,8 +17,14 @@ public sealed class CreateUserUseCase
     }
 
     public async Task<(bool Success, string? Error)> ExecuteAsync(
-        string username, string password, UserRole role, CancellationToken ct = default)
+        string username, string password, UserRole role, Guid requestingUserId, CancellationToken ct = default)
     {
+        // Defense in depth: UserManagementViewModel already gates this in the UI, but the use case
+        // must not trust an unverified caller — only an administrator may create users.
+        var requestingUser = await _users.GetByIdAsync(requestingUserId, ct);
+        if (requestingUser is null || requestingUser.Role != UserRole.Administrator)
+            return (false, "Solo un administrador puede crear usuarios.");
+
         if (string.IsNullOrWhiteSpace(username))
             return (false, "El nombre de usuario es requerido.");
         if (string.IsNullOrWhiteSpace(password) || password.Length < 4)
