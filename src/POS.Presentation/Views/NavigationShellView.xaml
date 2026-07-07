@@ -101,6 +101,7 @@
       </ListBox>
     </Border>
 
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
     <Grid Margin="20" x:Name="ShellContent">
       <Grid Visibility="{Binding IsCashierSelected, Converter={StaticResource BoolToVisibilityConverter}}">
         <Grid.RowDefinitions>
@@ -250,5 +251,6 @@
         </Border>
       </Grid>
     </Grid>
+    </ScrollViewer>
   </DockPanel>
 </Window>

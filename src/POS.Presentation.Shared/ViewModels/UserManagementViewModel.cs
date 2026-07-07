@@ -161,7 +161,7 @@ public sealed class UserManagementViewModel : ViewModelBase
         {
             HasError = false;
             StatusMessage = string.Empty;
-            var (ok, error) = await _createUser.ExecuteAsync(NewUsername, NewPassword, NewRole);
+            var (ok, error) = await _createUser.ExecuteAsync(NewUsername, NewPassword, NewRole, _session.OperatorId);
             if (!ok)
             {
                 HasError = true;
@@ -189,7 +189,7 @@ public sealed class UserManagementViewModel : ViewModelBase
         {
             HasError = false;
             StatusMessage = string.Empty;
-            var (ok, error) = await _updateUser.ExecuteAsync(SelectedUser.Id, EditPassword, EditRole);
+            var (ok, error) = await _updateUser.ExecuteAsync(SelectedUser.Id, EditPassword, EditRole, _session.OperatorId);
             if (!ok)
             {
                 HasError = true;

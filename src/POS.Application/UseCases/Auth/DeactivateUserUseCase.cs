@@ -1,3 +1,4 @@
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.UseCases.Auth;
@@ -13,6 +14,10 @@ public sealed class DeactivateUserUseCase
     {
         if (userId == requestingUserId)
             return (false, "No puedes desactivar tu propio usuario.");
+
+        var requestingUser = await _users.GetByIdAsync(requestingUserId, ct);
+        if (requestingUser is null || requestingUser.Role != UserRole.Administrator)
+            return (false, "Solo un administrador puede desactivar usuarios.");
 
         var user = await _users.GetByIdAsync(userId, ct);
         if (user is null) return (false, "Usuario no encontrado.");
