@@ -97,6 +97,14 @@ public sealed class MainShellViewModel : ViewModelBase
         _operatorMessage = "Escanea el código o escribe el nombre del producto. Este prototipo no guarda datos todavía.";
         SelectModuleCommand = new RelayCommand(SelectModule, CanSelectModule);
         LogoutCommand = new RelayCommand(_ => LogoutRequested?.Invoke());
+        GoBackToAdminCommand = new RelayCommand(_ =>
+        {
+            var adminModule = FuncbarModules.FirstOrDefault(m => m.Key == "admin");
+            if (adminModule is not null)
+            {
+                SelectedModule = adminModule;
+            }
+        });
     }
 
     public event Action? LogoutRequested;
@@ -152,6 +160,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public ICommand SelectModuleCommand { get; }
     public ICommand LogoutCommand { get; }
+    public ICommand GoBackToAdminCommand { get; }
 
     public ModuleNavigationItem SelectedModule
     {
@@ -183,6 +192,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsAdminHubSelected));
                 OnPropertyChanged(nameof(IsAdminSectionSelected));
+                OnPropertyChanged(nameof(IsAdminSubmoduleSelected));
                 OnPropertyChanged(nameof(IsSettingsViewSelected));
                 OnPropertyChanged(nameof(CurrentFuncbarModule));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
@@ -281,6 +291,10 @@ public sealed class MainShellViewModel : ViewModelBase
     public bool IsAdminHubSelected => SelectedModule.Key == "admin";
 
     public bool IsAdminSectionSelected => IsAdminHubSelected || AdminHubModuleKeys.Contains(SelectedModule.Key);
+
+    public bool IsAdminSubmoduleSelected =>
+        (AdminHubModuleKeys.Contains(SelectedModule.Key) || SelectedModule.Key == "users" || SelectedModule.Key == "audit") &&
+        SelectedModule.Key != "admin";
 
     /// <summary>
     /// Admin (F5) and Configuración share the same SettingsView screen. Rendered from a single

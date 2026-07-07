@@ -39,9 +39,9 @@ public sealed class UserManagementViewModel : ViewModelBase
         _session = session;
 
         LoadUsersCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => SetUnexpectedError($"Error al cargar usuarios: {ex.Message}")));
-        CreateUserCommand = new RelayCommand(_ => RunSafe(CreateAsync(), ex => SetUnexpectedError($"Error al crear usuario: {ex.Message}")));
-        SaveEditCommand = new RelayCommand(_ => RunSafe(SaveEditAsync(), ex => SetUnexpectedError($"Error al actualizar usuario: {ex.Message}")), _ => SelectedUser is not null);
-        DeactivateCommand = new RelayCommand(_ => RunSafe(DeactivateAsync(), ex => SetUnexpectedError($"Error al desactivar usuario: {ex.Message}")), _ => SelectedUser is not null);
+        CreateUserCommand = new RelayCommand(_ => RunSafe(CreateAsync(), ex => SetUnexpectedError($"Error al crear usuario: {ex.Message}")), _ => IsAdmin);
+        SaveEditCommand = new RelayCommand(_ => RunSafe(SaveEditAsync(), ex => SetUnexpectedError($"Error al actualizar usuario: {ex.Message}")), _ => IsAdmin && SelectedUser is not null);
+        DeactivateCommand = new RelayCommand(_ => RunSafe(DeactivateAsync(), ex => SetUnexpectedError($"Error al desactivar usuario: {ex.Message}")), _ => IsAdmin && SelectedUser is not null);
     }
 
     public ObservableCollection<UserSummary> Users { get; } = new();
@@ -110,6 +110,8 @@ public sealed class UserManagementViewModel : ViewModelBase
         get => _isLoading;
         private set => SetProperty(ref _isLoading, value);
     }
+
+    public bool IsAdmin => _session.IsAuthenticated && _session.Role == UserRole.Administrator;
 
     public ICommand LoadUsersCommand { get; }
     public ICommand CreateUserCommand { get; }
@@ -184,6 +186,7 @@ public sealed class UserManagementViewModel : ViewModelBase
     {
         if (!EnsureAdmin()) return;
         if (SelectedUser is null) return;
+        if (!EnsureAdmin()) return;
 
         try
         {
@@ -210,6 +213,7 @@ public sealed class UserManagementViewModel : ViewModelBase
     {
         if (!EnsureAdmin()) return;
         if (SelectedUser is null) return;
+        if (!EnsureAdmin()) return;
 
         try
         {
@@ -236,5 +240,17 @@ public sealed class UserManagementViewModel : ViewModelBase
     {
         HasError = true;
         StatusMessage = message;
+    }
+
+    private bool EnsureAdmin()
+    {
+        if (IsAdmin)
+        {
+            return true;
+        }
+
+        HasError = true;
+        StatusMessage = "Solo un administrador puede gestionar usuarios y permisos.";
+        return false;
     }
 }

@@ -88,6 +88,32 @@ public sealed class MainShellViewModelTests
     }
 
     [Fact]
+    public void SelectingAdminSubmodule_SetsIsAdminSubmoduleSelectedToTrue()
+    {
+        var viewModel = new MainShellViewModel();
+        var productsModule = viewModel.AdminHubModules.Single(module => module.Key == "products");
+
+        viewModel.SelectedModule = productsModule;
+
+        Assert.True(viewModel.IsAdminSubmoduleSelected);
+    }
+
+    [Fact]
+    public void GoBackToAdminCommand_NavigatesToAdminHub()
+    {
+        var viewModel = new MainShellViewModel();
+        var productsModule = viewModel.AdminHubModules.Single(module => module.Key == "products");
+        viewModel.SelectedModule = productsModule;
+
+        Assert.True(viewModel.IsAdminSubmoduleSelected);
+
+        viewModel.GoBackToAdminCommand.Execute(null);
+
+        Assert.True(viewModel.IsAdminHubSelected);
+        Assert.False(viewModel.IsAdminSubmoduleSelected);
+    }
+
+    [Fact]
     public void CashierRole_RestrictsFuncbarToOperationalModulesAndEmptiesAdminHub()
     {
         var viewModel = new MainShellViewModel(

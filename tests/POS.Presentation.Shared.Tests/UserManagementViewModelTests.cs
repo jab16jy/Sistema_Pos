@@ -16,7 +16,7 @@ public sealed class UserManagementViewModelTests
         var repository = new ThrowingUserRepository();
         var viewModel = new UserManagementViewModel(
             new GetAllUsersUseCase(repository),
-            new CreateUserUseCase(repository, new FakePasswordHashService()),
+            new CreateUserUseCase(repository, new FakePasswordHashService(), new NoOpUnitOfWork()),
             new UpdateUserUseCase(repository, new FakePasswordHashService()),
             new DeactivateUserUseCase(repository),
             new FakeSession());
@@ -31,12 +31,10 @@ public sealed class UserManagementViewModelTests
     [Fact]
     public async Task CreateUserCommand_AsCashier_IsRejectedBeforeTouchingRepository()
     {
-        // ThrowingUserRepository would throw if the guard let execution reach the repo,
-        // which would surface a different ("Error al crear usuario") message.
         var repository = new ThrowingUserRepository();
         var viewModel = new UserManagementViewModel(
             new GetAllUsersUseCase(repository),
-            new CreateUserUseCase(repository, new FakePasswordHashService()),
+            new CreateUserUseCase(repository, new FakePasswordHashService(), new NoOpUnitOfWork()),
             new UpdateUserUseCase(repository, new FakePasswordHashService()),
             new DeactivateUserUseCase(repository),
             new FakeSession(UserRole.Cashier))
@@ -78,6 +76,11 @@ public sealed class UserManagementViewModelTests
         public string HashPassword(string password) => $"hash:{password}";
 
         public bool VerifyPassword(string password, string passwordHash) => passwordHash == $"hash:{password}";
+    }
+
+    private sealed class NoOpUnitOfWork : IUnitOfWork
+    {
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(1);
     }
 
     private sealed class FakeSession : ICurrentOperatorSession

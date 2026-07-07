@@ -15,9 +15,13 @@ public sealed class DeactivateUserUseCase
         if (userId == requestingUserId)
             return (false, "No puedes desactivar tu propio usuario.");
 
-        var requestingUser = await _users.GetByIdAsync(requestingUserId, ct);
-        if (requestingUser is null || requestingUser.Role != UserRole.Administrator)
-            return (false, "Solo un administrador puede desactivar usuarios.");
+        var authorizationError = await AdminUserAuthorization.EnsureAdministratorAsync(
+            _users,
+            requestingUserId,
+            "Solo un administrador puede desactivar usuarios.",
+            ct).ConfigureAwait(false);
+        if (authorizationError is not null)
+            return (false, authorizationError);
 
         var user = await _users.GetByIdAsync(userId, ct);
         if (user is null) return (false, "Usuario no encontrado.");

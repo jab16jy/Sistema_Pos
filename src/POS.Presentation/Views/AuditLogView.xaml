@@ -12,7 +12,22 @@
     </StackPanel>
     <Border Grid.Row="1" Style="{StaticResource Card}">
       <StackPanel>
-        <Button Content="Actualizar" Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" HorizontalAlignment="Left" />
+        <WrapPanel Margin="0,0,0,12">
+          <StackPanel Width="180" Margin="0,0,12,8">
+            <TextBlock Text="Usuario" Style="{StaticResource MutedText}" />
+            <TextBox Text="{Binding UsernameFilter, UpdateSourceTrigger=PropertyChanged}" />
+          </StackPanel>
+          <StackPanel Width="160" Margin="0,0,12,8">
+            <TextBlock Text="Acción" Style="{StaticResource MutedText}" />
+            <ComboBox ItemsSource="{Binding AvailableActionFilters}" SelectedItem="{Binding SelectedActionFilter}" />
+          </StackPanel>
+          <StackPanel Width="180" Margin="0,0,12,8">
+            <TextBlock Text="Entidad" Style="{StaticResource MutedText}" />
+            <ComboBox ItemsSource="{Binding AvailableEntityFilters}" SelectedItem="{Binding SelectedEntityFilter}" />
+          </StackPanel>
+          <Button Content="Aplicar filtros" Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}" Margin="0,14,8,8" />
+          <Button Content="Limpiar" Command="{Binding ClearFiltersCommand}" Margin="0,14,0,8" />
+        </WrapPanel>
         <DataGrid ItemsSource="{Binding Logs}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
           <DataGrid.Columns>
             <DataGridTextColumn Header="Fecha" Binding="{Binding CreatedAt}" Width="160" />
