@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.22.3](https://github.com/jab16jy/Sistema_Pos/compare/v0.22.2...v0.22.3) (2026-07-07)
+
+
+### Bug Fixes
+
+* correct audit ordering, cashier role gating, and admin auth guards ([dbdc11d](https://github.com/jab16jy/Sistema_Pos/commit/dbdc11d087f339efd79a2bb7699dd42c9a25e01d))
+* correct audit ordering, cashier role gating, and admin auth guards ([2dd0602](https://github.com/jab16jy/Sistema_Pos/commit/2dd06022c7101459cac05fbfddfee6daa618ea91))
+* correct audit ordering, cashier role gating, and admin auth guards ([defded8](https://github.com/jab16jy/Sistema_Pos/commit/defded8566c28f65a7c1ca51c9b31cf4291ba776))
+
 ## [0.22.2](https://github.com/jab16jy/Sistema_Pos/compare/v0.22.1...v0.22.2) (2026-07-06)
 
 
