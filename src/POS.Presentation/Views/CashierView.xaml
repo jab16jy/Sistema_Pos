@@ -267,8 +267,57 @@
 
         <Grid Grid.Row="3" Margin="0,8,0,0">
           <ScrollViewer Visibility="{Binding HasCartItems, Converter={StaticResource BoolToVisibilityConverter}}">
-            <ItemsControl ItemsSource="{Binding CartItems}">
-              <ItemsControl.ItemTemplate>
+            <ListBox x:Name="CartListBox"
+                     ItemsSource="{Binding CartItems}"
+                     SelectedItem="{Binding SelectedCartItem, Mode=TwoWay}"
+                     BorderThickness="0"
+                     Background="Transparent"
+                     HorizontalContentAlignment="Stretch"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+              <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                  <Setter Property="Background" Value="Transparent" />
+                  <Setter Property="BorderThickness" Value="0" />
+                  <Setter Property="Padding" Value="0" />
+                  <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                  <Setter Property="Template">
+                    <Setter.Value>
+                      <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Border"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                Padding="{TemplateBinding Padding}">
+                          <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                          <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="#F3F4F6" />
+                            <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource BrushPrimary}" />
+                            <Setter TargetName="Border" Property="BorderThickness" Value="2,0,0,0" />
+                          </Trigger>
+                          <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Border" Property="Background" Value="#F9FAFB" />
+                          </Trigger>
+                          <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                              <Condition Property="IsSelected" Value="True" />
+                              <Condition Property="IsMouseOver" Value="True" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Border" Property="Background" Value="#E5E7EB" />
+                          </MultiTrigger>
+                        </ControlTemplate.Triggers>
+                      </ControlTemplate>
+                    </Setter.Value>
+                  </Setter>
+                </Style>
+              </ListBox.ItemContainerStyle>
+              <ListBox.InputBindings>
+                <KeyBinding Key="Delete"
+                            Command="{Binding RemoveCartItemCommand}"
+                            CommandParameter="{Binding SelectedCartItem}" />
+              </ListBox.InputBindings>
+              <ListBox.ItemTemplate>
                 <DataTemplate>
                   <Border BorderBrush="{StaticResource BrushBorder}"
                           BorderThickness="0,0,0,1"
@@ -282,10 +331,10 @@
                         <ColumnDefinition Width="72" />
                       </Grid.ColumnDefinitions>
 
-                        <StackPanel VerticalAlignment="Center">
-                          <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" />
-                          <TextBlock Text="{Binding ProductCode, StringFormat=COD: {0}}" Style="{StaticResource CashHint}" />
-                        </StackPanel>
+                      <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding ProductCode, StringFormat=COD: {0}}" Style="{StaticResource CashHint}" />
+                      </StackPanel>
 
                       <xctk:DecimalUpDown Grid.Column="1"
                                           Value="{Binding Quantity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
@@ -323,12 +372,6 @@
                           </Style>
                         </StackPanel.Style>
                         <Button Style="{StaticResource CashIconButton}"
-                                Command="{Binding DataContext.EditCartItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"
-                                ToolTip="Editar cantidad">
-                          <materialDesign:PackIcon Kind="Pencil" Width="15" Height="15" />
-                        </Button>
-                        <Button Style="{StaticResource CashIconButton}"
                                 Command="{Binding DataContext.RemoveCartItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 CommandParameter="{Binding}"
                                 Foreground="{StaticResource BrushDanger}"
@@ -339,8 +382,8 @@
                     </Grid>
                   </Border>
                 </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+              </ListBox.ItemTemplate>
+            </ListBox>
           </ScrollViewer>
 
           <Border Visibility="{Binding HasCartItems, Converter={StaticResource BooleanNegationToVisibilityConverter}}"

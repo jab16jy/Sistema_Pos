@@ -19,10 +19,12 @@ public sealed class UserRepository : IUserRepository
     public Task<bool> AnyAsync(CancellationToken ct = default)
         => _dbContext.Users.AnyAsync(ct);
 
-    public Task AddAsync(User user, CancellationToken ct = default)
+    public async Task AddAsync(User user, CancellationToken ct = default)
     {
+        // CreateUserUseCase has no unit of work, so persist here (mirrors UpdateAsync below).
+        // Without this the new user only lived in the change tracker and was never saved.
         _dbContext.Users.Add(user);
-        return Task.CompletedTask;
+        await _dbContext.SaveChangesAsync(ct);
     }
 
     public async Task<IReadOnlyList<User>> GetAllAsync(CancellationToken ct = default)

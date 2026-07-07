@@ -18,6 +18,11 @@ public sealed class MainShellViewModel : ViewModelBase
         "products", "inventory", "suppliers", "reports", "shifts", "loyalty", "barcode"
     };
 
+    // Cashiers get an operational funcbar only (no admin hub). Turnos is reachable directly
+    // so they can open/close their own shift.
+    private static readonly IReadOnlyList<string> CashierFuncbarKeys =
+        ["cashier", "customers", "quotes", "invoices", "shifts"];
+
     private readonly GetDashboardSummaryUseCase? _dashboardSummaryUseCase;
     private ModuleNavigationItem _selectedModule;
     private string _operatorMessage;
@@ -63,9 +68,21 @@ public sealed class MainShellViewModel : ViewModelBase
             new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true)
         };
 
-        FuncbarModules = new ObservableCollection<ModuleNavigationItem>(allModules.Take(5));
-        AdminHubModules = new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => AdminHubModuleKeys.Contains(m.Key)));
-        AdminHubExtraModules = new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => m.Key is "users" or "audit"));
+        var isAdmin = role == UserRole.Administrator;
+
+        FuncbarModules = isAdmin
+            ? new ObservableCollection<ModuleNavigationItem>(allModules.Take(5))
+            : new ObservableCollection<ModuleNavigationItem>(
+                CashierFuncbarKeys.Select((key, i) => allModules.First(m => m.Key == key) with { Shortcut = $"F{i + 1}" }));
+
+        // Admin-only hubs stay empty for cashiers, so Productos/Inventario/Usuarios/Auditoría/etc.
+        // are unreachable from the shell — role gating, not just hidden buttons.
+        AdminHubModules = isAdmin
+            ? new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => AdminHubModuleKeys.Contains(m.Key)))
+            : new ObservableCollection<ModuleNavigationItem>();
+        AdminHubExtraModules = isAdmin
+            ? new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => m.Key is "users" or "audit"))
+            : new ObservableCollection<ModuleNavigationItem>();
         Modules = FuncbarModules;
 
         Metrics = new ObservableCollection<DashboardMetric>
@@ -213,7 +230,13 @@ public sealed class MainShellViewModel : ViewModelBase
         {
             if (IsAdminSectionSelected)
             {
-                return FuncbarModules.Single(module => module.Key == "admin");
+                // Cashiers have no "admin" tile (Turnos sits in their funcbar directly),
+                // so fall through to match the selected module instead of throwing.
+                var adminTile = FuncbarModules.FirstOrDefault(module => module.Key == "admin");
+                if (adminTile is not null)
+                {
+                    return adminTile;
+                }
             }
 
             return FuncbarModules.FirstOrDefault(module => module.Key == SelectedModule.Key) ?? FuncbarModules[0];

@@ -88,6 +88,37 @@ public sealed class MainShellViewModelTests
     }
 
     [Fact]
+    public void CashierRole_RestrictsFuncbarToOperationalModulesAndEmptiesAdminHub()
+    {
+        var viewModel = new MainShellViewModel(
+            new CashierViewModel(new PrototypeProductLookupService()),
+            null,
+            UserRole.Cashier,
+            "cajero1");
+
+        Assert.Equal(["cashier", "customers", "quotes", "invoices", "shifts"], viewModel.FuncbarModules.Select(module => module.Key));
+        Assert.Equal(["F1", "F2", "F3", "F4", "F5"], viewModel.FuncbarModules.Select(module => module.Shortcut));
+        Assert.Empty(viewModel.AdminHubModules);
+        Assert.Empty(viewModel.AdminHubExtraModules);
+        Assert.DoesNotContain(viewModel.FuncbarModules, module => module.Key is "admin" or "users" or "audit" or "products" or "reports");
+    }
+
+    [Fact]
+    public void CashierRole_SelectingTurnos_ResolvesFuncbarWithoutThrowing()
+    {
+        var viewModel = new MainShellViewModel(
+            new CashierViewModel(new PrototypeProductLookupService()),
+            null,
+            UserRole.Cashier,
+            "cajero1");
+
+        viewModel.SelectedModule = viewModel.FuncbarModules.Single(module => module.Key == "shifts");
+
+        Assert.True(viewModel.IsShiftsSelected);
+        Assert.Equal("shifts", viewModel.CurrentFuncbarModule.Key);
+    }
+
+    [Fact]
     public async Task LoadDashboardMetricsAsync_UsesPersistedSalesSummary()
     {
         var viewModel = new MainShellViewModel(

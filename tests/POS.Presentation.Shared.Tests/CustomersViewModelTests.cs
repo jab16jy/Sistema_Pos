@@ -233,6 +233,9 @@ public sealed class CustomersViewModelTests
         public Task<Customer?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(Customers.FirstOrDefault(customer => customer.Id == id));
 
+        public Task<Customer?> GetByIdentificationAsync(string identification, CancellationToken cancellationToken = default)
+            => Task.FromResult(Customers.FirstOrDefault(customer => customer.Identification == identification));
+
         public Task UpdateAsync(Customer customer, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task<IReadOnlyList<Customer>> SearchAsync(string? searchText, bool activeOnly, CancellationToken cancellationToken = default)

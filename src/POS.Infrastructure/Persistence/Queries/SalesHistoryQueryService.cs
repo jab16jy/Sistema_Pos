@@ -29,7 +29,10 @@ public sealed class SalesHistoryQueryService : ISalesHistoryQueryService
             join customer in _dbContext.Customers.AsNoTracking()
                 on sale.CustomerId equals customer.Id into customers
             from customer in customers.DefaultIfEmpty()
-            select new { Sale = sale, Customer = customer };
+            join user in _dbContext.Users.AsNoTracking()
+                on sale.CashierUserId equals user.Id into cashiers
+            from cashier in cashiers.DefaultIfEmpty()
+            select new { Sale = sale, Customer = customer, Cashier = cashier };
 
         if (request.From.HasValue)
         {
@@ -61,6 +64,7 @@ public sealed class SalesHistoryQueryService : ISalesHistoryQueryService
                 row.Sale.InvoiceNumber,
                 row.Sale.CustomerId,
                 CustomerName = row.Customer == null ? null : row.Customer.FullName,
+                CashierName = row.Cashier == null ? null : row.Cashier.Username,
                 row.Sale.Status,
                 row.Sale.CreatedAt
             })
@@ -91,7 +95,8 @@ public sealed class SalesHistoryQueryService : ISalesHistoryQueryService
                 row.CustomerName,
                 row.Status,
                 row.CreatedAt,
-                totals.TryGetValue(row.Id, out decimal total) ? total : 0m))
+                totals.TryGetValue(row.Id, out decimal total) ? total : 0m,
+                row.CashierName))
             .ToList();
     }
 }

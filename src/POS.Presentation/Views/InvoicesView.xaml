@@ -36,17 +36,37 @@
           <Grid Margin="14,10">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="150" />
               <ColumnDefinition Width="120" />
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBox Text="{Binding SearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="N° factura o cliente..." />
-            <ComboBox Grid.Column="1" SelectedValuePath="Tag" SelectedValue="{Binding StatusFilter, Mode=TwoWay}" Margin="8,0,0,0">
+            <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableCashiers}" SelectedItem="{Binding CashierFilter, Mode=TwoWay}" Margin="8,0,0,0"
+                      ToolTip="Filtrar por trabajador">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock>
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Text" Value="{Binding}" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding}" Value="">
+                            <Setter Property="Text" Value="Todos los trabajadores" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <ComboBox Grid.Column="2" SelectedValuePath="Tag" SelectedValue="{Binding StatusFilter, Mode=TwoWay}" Margin="8,0,0,0">
               <ComboBoxItem Content="Todo" Tag="" IsSelected="True" />
               <ComboBoxItem Content="Activa" Tag="activa" />
               <ComboBoxItem Content="Anulada" Tag="anulada" />
               <ComboBoxItem Content="Devuelta" Tag="devuelta" />
             </ComboBox>
-            <Button Grid.Column="2" Content="Buscar" Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" />
+            <Button Grid.Column="3" Content="Buscar" Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" />
           </Grid>
 
           <!-- Encabezado -->
@@ -54,15 +74,17 @@
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="100" />
               <ColumnDefinition Width="*" />
-              <ColumnDefinition Width="120" />
-              <ColumnDefinition Width="90" />
+              <ColumnDefinition Width="130" />
+              <ColumnDefinition Width="110" />
+              <ColumnDefinition Width="80" />
               <ColumnDefinition Width="140" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="N° Factura" Style="{StaticResource MutedText}" FontSize="11" Margin="14,8" />
             <TextBlock Grid.Column="1" Text="Cliente" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
-            <TextBlock Grid.Column="2" Text="Total" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
-            <TextBlock Grid.Column="3" Text="Estado" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
-            <TextBlock Grid.Column="4" Text="Fecha" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
+            <TextBlock Grid.Column="2" Text="Trabajador" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
+            <TextBlock Grid.Column="3" Text="Total" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
+            <TextBlock Grid.Column="4" Text="Estado" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
+            <TextBlock Grid.Column="5" Text="Fecha" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
           </Grid>
 
           <!-- Filas -->
@@ -76,14 +98,16 @@
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="100" />
                     <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="120" />
-                    <ColumnDefinition Width="90" />
+                    <ColumnDefinition Width="130" />
+                    <ColumnDefinition Width="110" />
+                    <ColumnDefinition Width="80" />
                     <ColumnDefinition Width="140" />
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="{Binding InvoiceNumber}" FontFamily="Consolas" FontWeight="Bold" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="1" Text="{Binding CustomerName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                  <TextBlock Grid.Column="2" Text="{Binding TotalFormatted}" FontWeight="SemiBold" FontFamily="Consolas" VerticalAlignment="Center" />
-                  <Border Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Left">
+                  <TextBlock Grid.Column="2" Text="{Binding CashierName}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Grid.Column="3" Text="{Binding TotalFormatted}" FontWeight="SemiBold" FontFamily="Consolas" VerticalAlignment="Center" />
+                  <Border Grid.Column="4" VerticalAlignment="Center" HorizontalAlignment="Left">
                     <Border.Style>
                       <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
                         <Style.Triggers>
@@ -104,7 +128,7 @@
                     </Border.Style>
                     <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="Medium" />
                   </Border>
-                  <TextBlock Grid.Column="4" Text="{Binding DateFormatted}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="5" Text="{Binding DateFormatted}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
                 </Grid>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -143,151 +167,153 @@
       </Border>
 
       <!-- ══ Panel de acciones ══ -->
-      <StackPanel Grid.Column="2">
+      <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel>
 
-        <!-- Factura seleccionada -->
-        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-          <StackPanel Margin="14">
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-              <materialDesign:PackIcon Kind="Receipt" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
-              <TextBlock Text="Factura seleccionada" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
-            </StackPanel>
+          <!-- Factura seleccionada -->
+          <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+            <StackPanel Margin="14">
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <materialDesign:PackIcon Kind="Receipt" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
+                <TextBlock Text="Factura seleccionada" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+              </StackPanel>
 
-            <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
-              <StackPanel>
-                <TextBlock FontSize="14" FontWeight="Bold" FontFamily="Consolas">
-                  <TextBlock.Style>
-                    <Style TargetType="TextBlock">
-                      <Setter Property="Text" Value="— Ninguna —" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding HasSelectedInvoice}" Value="True">
-                          <Setter Property="Text" Value="{Binding SelectedInvoice.InvoiceNumber}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </TextBlock.Style>
-                </TextBlock>
-                <TextBlock FontSize="12" Margin="0,2,0,0">
-                  <TextBlock.Style>
-                    <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
-                      <Setter Property="Text" Value="Selecciona una factura del grid" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding HasSelectedInvoice}" Value="True">
-                          <Setter Property="Text" Value="{Binding SelectedInvoice.CustomerName}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </TextBlock.Style>
-                </TextBlock>
-                <Grid Margin="0,10,0,0" Visibility="{Binding HasSelectedInvoice, Converter={StaticResource BoolToVisibilityConverter}}">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                  </Grid.ColumnDefinitions>
-                  <StackPanel>
-                    <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11" />
-                    <TextBlock Text="{Binding SelectedInvoice.TotalFormatted}" FontSize="18" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}" />
+              <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                <StackPanel>
+                  <TextBlock FontSize="14" FontWeight="Bold" FontFamily="Consolas">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Text" Value="— Ninguna —" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding HasSelectedInvoice}" Value="True">
+                            <Setter Property="Text" Value="{Binding SelectedInvoice.InvoiceNumber}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                  <TextBlock FontSize="12" Margin="0,2,0,0">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                        <Setter Property="Text" Value="Selecciona una factura del grid" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding HasSelectedInvoice}" Value="True">
+                            <Setter Property="Text" Value="{Binding SelectedInvoice.CustomerName}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                  <Grid Margin="0,10,0,0" Visibility="{Binding HasSelectedInvoice, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*" />
+                      <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                      <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11" />
+                      <TextBlock Text="{Binding SelectedInvoice.TotalFormatted}" FontSize="18" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="Fecha" Style="{StaticResource MutedText}" FontSize="11" />
+                      <TextBlock Text="{Binding SelectedInvoice.DateFormatted}" FontSize="13" FontFamily="Consolas" />
+                    </StackPanel>
+                  </Grid>
+                </StackPanel>
+              </Border>
+
+              <StackPanel Margin="0,0,0,4">
+                <TextBlock Text="Destino (email o WhatsApp)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding RecipientContact, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="cliente@email.com o 3001234567" Margin="0,0,0,8" />
+              </StackPanel>
+
+              <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button Command="{Binding ReprintCommand}" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Printer" Width="16" Height="16" Margin="0,0,4,0" />
+                    <TextBlock Text="Reimprimir" FontSize="12" />
                   </StackPanel>
-                  <StackPanel Grid.Column="1">
-                    <TextBlock Text="Fecha" Style="{StaticResource MutedText}" FontSize="11" />
-                    <TextBlock Text="{Binding SelectedInvoice.DateFormatted}" FontSize="13" FontFamily="Consolas" />
+                </Button>
+                <Button Grid.Column="2" Command="{Binding ExportPdfCommand}" HorizontalContentAlignment="Center" ToolTip="Exportar la factura seleccionada a PDF.">
+                  <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="FilePdfBox" Width="16" Height="16" Margin="0,0,4,0" />
+                    <TextBlock Text="PDF" FontSize="12" />
                   </StackPanel>
-                </Grid>
-              </StackPanel>
-            </Border>
-
-            <StackPanel Margin="0,0,0,4">
-              <TextBlock Text="Destino (email o WhatsApp)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <TextBox Text="{Binding RecipientContact, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="cliente@email.com o 3001234567" Margin="0,0,0,8" />
+                </Button>
+              </Grid>
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="8" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Button Command="{Binding SendByEmailCommand}" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="Email" Width="16" Height="16" Margin="0,0,4,0" />
+                    <TextBlock Text="Email" FontSize="12" />
+                  </StackPanel>
+                </Button>
+                <Button Grid.Column="2" Command="{Binding SendByWhatsAppCommand}" HorizontalContentAlignment="Center">
+                  <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="WhatsApp" Width="16" Height="16" Margin="0,0,4,0" />
+                    <TextBlock Text="WhatsApp" FontSize="12" />
+                  </StackPanel>
+                </Button>
+              </Grid>
+              <TextBlock Text="Los envíos digitales se resuelven aquí, sin crear un módulo separado de comunicación." Style="{StaticResource MutedText}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" />
             </StackPanel>
+          </Border>
 
-            <Grid Margin="0,0,0,8">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <Button Command="{Binding ReprintCommand}" HorizontalContentAlignment="Center">
-                <StackPanel Orientation="Horizontal">
-                  <materialDesign:PackIcon Kind="Printer" Width="16" Height="16" Margin="0,0,4,0" />
-                  <TextBlock Text="Reimprimir" FontSize="12" />
-                </StackPanel>
-              </Button>
-              <Button Grid.Column="2" Command="{Binding ExportPdfCommand}" HorizontalContentAlignment="Center" ToolTip="Exportar la factura seleccionada a PDF.">
-                <StackPanel Orientation="Horizontal">
-                  <materialDesign:PackIcon Kind="FilePdfBox" Width="16" Height="16" Margin="0,0,4,0" />
-                  <TextBlock Text="PDF" FontSize="12" />
-                </StackPanel>
-              </Button>
-            </Grid>
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="*" />
-              </Grid.ColumnDefinitions>
-              <Button Command="{Binding SendByEmailCommand}" HorizontalContentAlignment="Center">
-                <StackPanel Orientation="Horizontal">
-                  <materialDesign:PackIcon Kind="Email" Width="16" Height="16" Margin="0,0,4,0" />
-                  <TextBlock Text="Email" FontSize="12" />
-                </StackPanel>
-              </Button>
-              <Button Grid.Column="2" Command="{Binding SendByWhatsAppCommand}" HorizontalContentAlignment="Center">
-                <StackPanel Orientation="Horizontal">
-                  <materialDesign:PackIcon Kind="WhatsApp" Width="16" Height="16" Margin="0,0,4,0" />
-                  <TextBlock Text="WhatsApp" FontSize="12" />
-                </StackPanel>
-              </Button>
-            </Grid>
-            <TextBlock Text="Los envíos digitales se resuelven aquí, sin crear un módulo separado de comunicación." Style="{StaticResource MutedText}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" />
-          </StackPanel>
-        </Border>
+          <!-- Devolución / anulación -->
+          <Border Style="{StaticResource Card}">
+            <StackPanel Margin="14">
+              <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                <materialDesign:PackIcon Kind="AssignmentReturn" Foreground="{StaticResource BrushWarning}" VerticalAlignment="Center" />
+                <TextBlock Text="Devolución / anulación" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+              </StackPanel>
 
-        <!-- Devolución / anulación -->
-        <Border Style="{StaticResource Card}">
-          <StackPanel Margin="14">
-            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-              <materialDesign:PackIcon Kind="AssignmentReturn" Foreground="{StaticResource BrushWarning}" VerticalAlignment="Center" />
-              <TextBlock Text="Devolución / anulación" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+              <TextBlock Text="Motivo de devolución *" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ReturnReason, Mode=TwoWay}" Margin="0,0,0,8">
+                <ComboBoxItem Content="Selecciona un motivo" Tag="" IsSelected="True" />
+                <ComboBoxItem Content="Producto dañado o defectuoso" Tag="Producto dañado o defectuoso" />
+                <ComboBoxItem Content="Producto incorrecto" Tag="Producto incorrecto" />
+                <ComboBoxItem Content="Cliente se arrepintió" Tag="Cliente se arrepintió" />
+                <ComboBoxItem Content="Vencimiento próximo" Tag="Vencimiento próximo" />
+                <ComboBoxItem Content="Otro" Tag="Otro" />
+              </ComboBox>
+
+              <TextBlock Text="Descripción" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding ReturnDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="Detalle de la devolución..." AcceptsReturn="True" Height="70" Margin="0,0,0,8" />
+
+              <TextBlock Text="Tipo de reembolso" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <ComboBox SelectedValuePath="Content" SelectedValue="{Binding RefundType, Mode=TwoWay}" Margin="0,0,0,8">
+                <ComboBoxItem Content="Efectivo" IsSelected="True" />
+                <ComboBoxItem Content="Nota crédito" />
+                <ComboBoxItem Content="Cambio de producto" />
+              </ComboBox>
+
+              <Button Command="{Binding ProcessReturnCommand}" HorizontalContentAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="AssignmentReturn" Width="16" Height="16" Margin="0,0,4,0" />
+                  <TextBlock Text="Procesar devolución" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding CancelSaleCommand}" HorizontalContentAlignment="Center" Margin="0,8,0,0" Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="Cancel" Width="16" Height="16" Margin="0,0,4,0" />
+                  <TextBlock Text="Anular factura" />
+                </StackPanel>
+              </Button>
+              <TextBlock Text="La devolución restaurará el stock de todos los productos de la venta." Style="{StaticResource MutedText}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" />
+              <TextBlock Text="La anulación está disponible solo en modo administrador y también restaurará el stock." Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVisibilityConverter}}" />
             </StackPanel>
-
-            <TextBlock Text="Motivo de devolución *" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <ComboBox SelectedValuePath="Tag" SelectedValue="{Binding ReturnReason, Mode=TwoWay}" Margin="0,0,0,8">
-              <ComboBoxItem Content="Selecciona un motivo" Tag="" IsSelected="True" />
-              <ComboBoxItem Content="Producto dañado o defectuoso" Tag="Producto dañado o defectuoso" />
-              <ComboBoxItem Content="Producto incorrecto" Tag="Producto incorrecto" />
-              <ComboBoxItem Content="Cliente se arrepintió" Tag="Cliente se arrepintió" />
-              <ComboBoxItem Content="Vencimiento próximo" Tag="Vencimiento próximo" />
-              <ComboBoxItem Content="Otro" Tag="Otro" />
-            </ComboBox>
-
-            <TextBlock Text="Descripción" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding ReturnDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="Detalle de la devolución..." AcceptsReturn="True" Height="70" Margin="0,0,0,8" />
-
-            <TextBlock Text="Tipo de reembolso" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <ComboBox SelectedValuePath="Content" SelectedValue="{Binding RefundType, Mode=TwoWay}" Margin="0,0,0,8">
-              <ComboBoxItem Content="Efectivo" IsSelected="True" />
-              <ComboBoxItem Content="Nota crédito" />
-              <ComboBoxItem Content="Cambio de producto" />
-            </ComboBox>
-
-            <Button Command="{Binding ProcessReturnCommand}" HorizontalContentAlignment="Center">
-              <StackPanel Orientation="Horizontal">
-                <materialDesign:PackIcon Kind="AssignmentReturn" Width="16" Height="16" Margin="0,0,4,0" />
-                <TextBlock Text="Procesar devolución" />
-              </StackPanel>
-            </Button>
-            <Button Command="{Binding CancelSaleCommand}" HorizontalContentAlignment="Center" Margin="0,8,0,0" Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVisibilityConverter}}">
-              <StackPanel Orientation="Horizontal">
-                <materialDesign:PackIcon Kind="Cancel" Width="16" Height="16" Margin="0,0,4,0" />
-                <TextBlock Text="Anular factura" />
-              </StackPanel>
-            </Button>
-            <TextBlock Text="La devolución restaurará el stock de todos los productos de la venta." Style="{StaticResource MutedText}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" />
-            <TextBlock Text="La anulación está disponible solo en modo administrador y también restaurará el stock." Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap" Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVisibilityConverter}}" />
-          </StackPanel>
-        </Border>
-      </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
     </Grid>
   </Grid>
 </UserControl>
