@@ -18,6 +18,8 @@ public sealed class MainShellViewModel : ViewModelBase
         "products", "inventory", "suppliers", "reports", "shifts", "loyalty", "barcode"
     };
 
+    private static readonly string[] CashierFuncbarKeys = ["cashier", "customers", "quotes", "invoices", "shifts"];
+
     private readonly GetDashboardSummaryUseCase? _dashboardSummaryUseCase;
     private ModuleNavigationItem _selectedModule;
     private string _operatorMessage;
@@ -63,9 +65,17 @@ public sealed class MainShellViewModel : ViewModelBase
             new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true)
         };
 
-        FuncbarModules = new ObservableCollection<ModuleNavigationItem>(allModules.Take(5));
-        AdminHubModules = new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => AdminHubModuleKeys.Contains(m.Key)));
-        AdminHubExtraModules = new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => m.Key is "users" or "audit"));
+        bool isAdmin = role == UserRole.Administrator;
+        FuncbarModules = isAdmin
+            ? new ObservableCollection<ModuleNavigationItem>(allModules.Take(5))
+            : new ObservableCollection<ModuleNavigationItem>(CashierFuncbarKeys.Select((key, index) =>
+                allModules.First(module => module.Key == key) with { Shortcut = $"F{index + 1}" }));
+        AdminHubModules = isAdmin
+            ? new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => AdminHubModuleKeys.Contains(m.Key)))
+            : new ObservableCollection<ModuleNavigationItem>();
+        AdminHubExtraModules = isAdmin
+            ? new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => m.Key is "users" or "audit"))
+            : new ObservableCollection<ModuleNavigationItem>();
         Modules = FuncbarModules;
 
         Metrics = new ObservableCollection<DashboardMetric>
@@ -80,6 +90,14 @@ public sealed class MainShellViewModel : ViewModelBase
         _operatorMessage = "Escanea el código o escribe el nombre del producto. Este prototipo no guarda datos todavía.";
         SelectModuleCommand = new RelayCommand(SelectModule, CanSelectModule);
         LogoutCommand = new RelayCommand(_ => LogoutRequested?.Invoke());
+        GoBackToAdminCommand = new RelayCommand(_ =>
+        {
+            var adminModule = FuncbarModules.FirstOrDefault(m => m.Key == "admin");
+            if (adminModule is not null)
+            {
+                SelectedModule = adminModule;
+            }
+        });
     }
 
     public event Action? LogoutRequested;
@@ -135,6 +153,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public ICommand SelectModuleCommand { get; }
     public ICommand LogoutCommand { get; }
+    public ICommand GoBackToAdminCommand { get; }
 
     public ModuleNavigationItem SelectedModule
     {
@@ -166,6 +185,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsAdminHubSelected));
                 OnPropertyChanged(nameof(IsAdminSectionSelected));
+                OnPropertyChanged(nameof(IsAdminSubmoduleSelected));
                 OnPropertyChanged(nameof(IsSettingsViewSelected));
                 OnPropertyChanged(nameof(CurrentFuncbarModule));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
@@ -213,7 +233,11 @@ public sealed class MainShellViewModel : ViewModelBase
         {
             if (IsAdminSectionSelected)
             {
-                return FuncbarModules.Single(module => module.Key == "admin");
+                var adminModule = FuncbarModules.FirstOrDefault(module => module.Key == "admin");
+                if (adminModule is not null)
+                {
+                    return adminModule;
+                }
             }
 
             return FuncbarModules.FirstOrDefault(module => module.Key == SelectedModule.Key) ?? FuncbarModules[0];
@@ -258,6 +282,10 @@ public sealed class MainShellViewModel : ViewModelBase
     public bool IsAdminHubSelected => SelectedModule.Key == "admin";
 
     public bool IsAdminSectionSelected => IsAdminHubSelected || AdminHubModuleKeys.Contains(SelectedModule.Key);
+
+    public bool IsAdminSubmoduleSelected =>
+        (AdminHubModuleKeys.Contains(SelectedModule.Key) || SelectedModule.Key == "users" || SelectedModule.Key == "audit") &&
+        SelectedModule.Key != "admin";
 
     /// <summary>
     /// Admin (F5) and Configuración share the same SettingsView screen. Rendered from a single

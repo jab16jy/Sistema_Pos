@@ -24,12 +24,15 @@ public sealed class CashierShiftRepository : ICashierShiftRepository
 
     public async Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.CashierShifts
+        var shifts = await _dbContext.CashierShifts
             .AsNoTracking()
-            .OrderByDescending(s => s.OpenedAt)
-            .Take(limit)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return shifts
+            .OrderByDescending(s => s.OpenedAt)
+            .Take(limit)
+            .ToList();
     }
 
     public async Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default)

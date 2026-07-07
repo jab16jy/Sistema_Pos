@@ -16,8 +16,16 @@ public sealed class UpdateUserUseCase
     }
 
     public async Task<(bool Success, string? Error)> ExecuteAsync(
-        Guid userId, string? newPassword, UserRole newRole, CancellationToken ct = default)
+        Guid userId, string? newPassword, UserRole newRole, Guid requestingUserId, CancellationToken ct = default)
     {
+        var authorizationError = await AdminUserAuthorization.EnsureAdministratorAsync(
+            _users,
+            requestingUserId,
+            "Solo un administrador puede actualizar usuarios.",
+            ct).ConfigureAwait(false);
+        if (authorizationError is not null)
+            return (false, authorizationError);
+
         var user = await _users.GetByIdAsync(userId, ct);
         if (user is null) return (false, "Usuario no encontrado.");
 

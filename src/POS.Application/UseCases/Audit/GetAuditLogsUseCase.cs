@@ -1,5 +1,6 @@
 using POS.Application.DTOs.Audit;
 using POS.Domain.Interfaces;
+using POS.Domain.ValueObjects;
 
 namespace POS.Application.UseCases.Audit;
 
@@ -9,9 +10,12 @@ public sealed class GetAuditLogsUseCase
 
     public GetAuditLogsUseCase(IAuditLogRepository auditLogs) => _auditLogs = auditLogs;
 
-    public async Task<IReadOnlyList<AuditLogEntry>> ExecuteAsync(int limit = 100, CancellationToken ct = default)
+    public async Task<IReadOnlyList<AuditLogEntry>> ExecuteAsync(
+        int limit = 100,
+        AuditLogFilter? filter = null,
+        CancellationToken ct = default)
     {
-        var logs = await _auditLogs.GetRecentAsync(limit, ct).ConfigureAwait(false);
+        var logs = await _auditLogs.GetRecentAsync(limit, filter, ct).ConfigureAwait(false);
         return logs.Select(log => new AuditLogEntry(
             log.Id,
             log.UserId,

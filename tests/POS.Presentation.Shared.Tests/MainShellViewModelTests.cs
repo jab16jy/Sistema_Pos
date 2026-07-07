@@ -88,6 +88,64 @@ public sealed class MainShellViewModelTests
     }
 
     [Fact]
+    public void SelectingAdminSubmodule_SetsIsAdminSubmoduleSelectedToTrue()
+    {
+        var viewModel = new MainShellViewModel();
+        var productsModule = viewModel.AdminHubModules.Single(module => module.Key == "products");
+
+        viewModel.SelectedModule = productsModule;
+
+        Assert.True(viewModel.IsAdminSubmoduleSelected);
+    }
+
+    [Fact]
+    public void GoBackToAdminCommand_NavigatesToAdminHub()
+    {
+        var viewModel = new MainShellViewModel();
+        var productsModule = viewModel.AdminHubModules.Single(module => module.Key == "products");
+        viewModel.SelectedModule = productsModule;
+
+        Assert.True(viewModel.IsAdminSubmoduleSelected);
+
+        viewModel.GoBackToAdminCommand.Execute(null);
+
+        Assert.True(viewModel.IsAdminHubSelected);
+        Assert.False(viewModel.IsAdminSubmoduleSelected);
+    }
+
+    [Fact]
+    public void CashierRole_RestrictsFuncbarToOperationalModulesAndEmptiesAdminHub()
+    {
+        var viewModel = new MainShellViewModel(
+            new CashierViewModel(new PrototypeProductLookupService()),
+            dashboardSummaryUseCase: null,
+            UserRole.Cashier,
+            "cajero");
+
+        Assert.Equal(["cashier", "customers", "quotes", "invoices", "shifts"], viewModel.FuncbarModules.Select(module => module.Key));
+        Assert.Equal(["F1", "F2", "F3", "F4", "F5"], viewModel.FuncbarModules.Select(module => module.Shortcut));
+        Assert.Empty(viewModel.AdminHubModules);
+        Assert.Empty(viewModel.AdminHubExtraModules);
+        Assert.DoesNotContain(viewModel.FuncbarModules, module => module.Key is "admin" or "users" or "audit" or "products" or "reports");
+    }
+
+    [Fact]
+    public void CashierRole_SelectingTurnos_ResolvesFuncbarWithoutThrowing()
+    {
+        var viewModel = new MainShellViewModel(
+            new CashierViewModel(new PrototypeProductLookupService()),
+            dashboardSummaryUseCase: null,
+            UserRole.Cashier,
+            "cajero");
+        var shiftsModule = viewModel.FuncbarModules.Single(module => module.Key == "shifts");
+
+        viewModel.SelectModuleCommand.Execute(shiftsModule);
+
+        Assert.True(viewModel.IsShiftsSelected);
+        Assert.Equal("shifts", viewModel.CurrentFuncbarModule.Key);
+    }
+
+    [Fact]
     public async Task LoadDashboardMetricsAsync_UsesPersistedSalesSummary()
     {
         var viewModel = new MainShellViewModel(

@@ -39,3 +39,6 @@ logs/
 .claude/
 build_output/
 .worktrees/
+
+# Codegraph tool cache
+.codegraph/

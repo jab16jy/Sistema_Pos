@@ -312,22 +312,6 @@
                                   Orientation="Horizontal"
                                   HorizontalAlignment="Right"
                                   VerticalAlignment="Center">
-                        <StackPanel.Style>
-                          <Style TargetType="StackPanel">
-                            <Setter Property="Visibility" Value="Hidden" />
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Border}}" Value="True">
-                                <Setter Property="Visibility" Value="Visible" />
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </StackPanel.Style>
-                        <Button Style="{StaticResource CashIconButton}"
-                                Command="{Binding DataContext.EditCartItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}"
-                                ToolTip="Editar cantidad">
-                          <materialDesign:PackIcon Kind="Pencil" Width="15" Height="15" />
-                        </Button>
                         <Button Style="{StaticResource CashIconButton}"
                                 Command="{Binding DataContext.RemoveCartItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 CommandParameter="{Binding}"

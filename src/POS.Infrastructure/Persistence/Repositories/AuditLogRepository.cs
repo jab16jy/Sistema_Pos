@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
+using POS.Domain.ValueObjects;
 
 namespace POS.Infrastructure.Persistence.Repositories;
 
@@ -10,13 +11,40 @@ public sealed class AuditLogRepository : IAuditLogRepository
 
     public AuditLogRepository(AppDbContext dbContext) => _dbContext = dbContext;
 
-    public async Task<IReadOnlyList<AuditLog>> GetRecentAsync(int limit = 100, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AuditLog>> GetRecentAsync(
+        int limit = 100,
+        AuditLogFilter? filter = null,
+        CancellationToken cancellationToken = default)
     {
-        return await _dbContext.AuditLogs
+        // SQLite cannot ORDER BY existing DateTimeOffset TEXT columns safely.
+        // Do not switch this to an INTEGER conversion without a migration/backfill.
+        List<AuditLog> logs = await _dbContext.AuditLogs
             .AsNoTracking()
-            .OrderByDescending(log => log.CreatedAt)
-            .Take(limit)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        IEnumerable<AuditLog> query = logs;
+        if (filter is { HasFilters: true })
+        {
+            query = query.Where(log => MatchesFilter(log, filter));
+        }
+
+        return query
+            .OrderByDescending(log => log.CreatedAt)
+            .Take(limit)
+            .ToList();
     }
+
+    private static bool MatchesFilter(AuditLog log, AuditLogFilter filter)
+    {
+        return MatchesContains(log.Username, filter.Username) &&
+            MatchesExact(log.Action, filter.Action) &&
+            MatchesExact(log.EntityName, filter.EntityName);
+    }
+
+    private static bool MatchesContains(string value, string? filter)
+        => string.IsNullOrWhiteSpace(filter) || value.Contains(filter.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private static bool MatchesExact(string value, string? filter)
+        => string.IsNullOrWhiteSpace(filter) || string.Equals(value, filter.Trim(), StringComparison.OrdinalIgnoreCase);
 }
