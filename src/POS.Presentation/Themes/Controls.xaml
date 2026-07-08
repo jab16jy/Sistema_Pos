@@ -64,7 +64,7 @@
     <Setter Property="Background" Value="{StaticResource BrushCard}" />
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusMd}" />
     <Setter Property="Padding" Value="16" />
   </Style>
 
@@ -83,7 +83,7 @@
                   Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="4"
+                  CornerRadius="{StaticResource RadiusSm}"
                   Padding="{TemplateBinding Padding}">
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
@@ -146,7 +146,7 @@
                   Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="4">
+                  CornerRadius="{StaticResource RadiusSm}">
             <Grid>
               <ScrollViewer x:Name="PART_ContentHost"
                             Foreground="{TemplateBinding Foreground}"
@@ -193,7 +193,7 @@
                   Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}"
                   BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="4">
+                  CornerRadius="{StaticResource RadiusSm}">
             <ScrollViewer x:Name="PART_ContentHost"
                           Foreground="{TemplateBinding Foreground}"
                           Margin="{TemplateBinding Padding}" />
@@ -233,7 +233,7 @@
     <Setter Property="Background" Value="{StaticResource BrushSurfaceContainer}" />
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="CornerRadius" Value="{StaticResource RadiusSm}" />
     <Setter Property="Padding" Value="8,3" />
   </Style>
 
