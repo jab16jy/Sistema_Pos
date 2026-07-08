@@ -28,21 +28,21 @@
                                  VerticalAlignment="Center" Margin="0,0,12,0" />
 
         <StackPanel Grid.Column="1">
-          <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource BrushSuccess}">
+          <TextBlock Style="{StaticResource TextBody}" FontWeight="SemiBold" Foreground="{StaticResource BrushSuccess}">
             <Run Text="Turno activo — " /><Run Text="{Binding ActiveShiftCashier, Mode=OneWay}" />
           </TextBlock>
-          <TextBlock FontSize="11" Foreground="{StaticResource BrushMuted}" Margin="0,2,0,0">
+          <TextBlock Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}" Margin="0,2,0,0">
             <Run Text="Abierto a las " /><Run Text="{Binding ActiveShiftOpenTime, Mode=OneWay}" />
             <Run Text=" · Base: " /><Run Text="{Binding ActiveShiftBaseCashFormatted, Mode=OneWay}" />
             <Run Text=" · Ventas: " /><Run Text="{Binding ActiveShiftSalesTotal, Mode=OneWay}" />
           </TextBlock>
           <TextBlock Text="El cierre del efectivo se ejecuta aqui. Reportes solo consulta cierres ya completados."
-                     FontSize="11" Foreground="{StaticResource BrushMuted}" Margin="0,2,0,0" />
+                     Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}" Margin="0,2,0,0" />
         </StackPanel>
 
         <Border Grid.Column="2" Background="{StaticResource BrushSuccessContainer}" CornerRadius="3" Padding="6,2"
                 VerticalAlignment="Center">
-          <TextBlock Text="Abierto" FontSize="11" FontWeight="SemiBold"
+          <TextBlock Text="Abierto" Style="{StaticResource TextCaption}" FontWeight="SemiBold"
                      Foreground="{StaticResource BrushSuccess}" />
         </Border>
       </Grid>
@@ -75,7 +75,7 @@
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <TextBlock Text="Historial de turnos" FontSize="13" FontWeight="SemiBold"
+            <TextBlock Text="Historial de turnos" Style="{StaticResource TextBody}" FontWeight="SemiBold"
                        VerticalAlignment="Center" />
 
             <DatePicker Grid.Column="1" SelectedDate="{Binding FromDate, Mode=TwoWay}"
@@ -102,13 +102,13 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="80" />
               </Grid.ColumnDefinitions>
-              <TextBlock Text="CAJERO" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="1" Text="ESTADO" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="2" Text="APERTURA" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="3" Text="CIERRE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="4" Text="BASE" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="5" Text="VENTAS" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="6" Text="DIFERENCIA" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Text="CAJERO" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="1" Text="ESTADO" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="2" Text="APERTURA" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="3" Text="CIERRE" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="4" Text="BASE" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="5" Text="VENTAS" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="6" Text="DIFERENCIA" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
             </Grid>
           </Border>
 
@@ -129,7 +129,7 @@
                         <ColumnDefinition Width="80" />
                       </Grid.ColumnDefinitions>
 
-                      <TextBlock Grid.Column="0" Text="{Binding CashierUsername}" FontSize="13"
+                      <TextBlock Grid.Column="0" Text="{Binding CashierUsername}" Style="{StaticResource TextBody}"
                                  FontWeight="{Binding IsOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=weight}" />
 
                       <!-- Status chip -->
@@ -144,9 +144,9 @@
                             </Style.Triggers>
                           </Style>
                         </Border.Style>
-                        <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="SemiBold">
+                        <TextBlock Text="{Binding StatusLabel}" FontWeight="SemiBold">
                           <TextBlock.Style>
-                            <Style TargetType="TextBlock">
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                               <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
                               <Style.Triggers>
                                 <DataTrigger Binding="{Binding StatusChipKind}" Value="success">
@@ -158,17 +158,17 @@
                         </TextBlock>
                       </Border>
 
-                      <TextBlock Grid.Column="2" Text="{Binding OpenedAtFormatted}" FontFamily="Consolas" FontSize="12" />
-                      <TextBlock Grid.Column="3" Text="{Binding ClosedAtFormatted}" FontFamily="Consolas" FontSize="12"
+                      <TextBlock Grid.Column="2" Text="{Binding OpenedAtFormatted}" FontFamily="Consolas" Style="{StaticResource TextSmall}" />
+                      <TextBlock Grid.Column="3" Text="{Binding ClosedAtFormatted}" FontFamily="Consolas" Style="{StaticResource TextSmall}"
                                  Foreground="{StaticResource BrushMuted}" />
-                      <TextBlock Grid.Column="4" Text="{Binding OpeningCashFormatted}" FontFamily="Consolas" FontSize="13" />
-                      <TextBlock Grid.Column="5" Text="—" FontFamily="Consolas" FontSize="13" FontWeight="SemiBold"
+                      <TextBlock Grid.Column="4" Text="{Binding OpeningCashFormatted}" FontFamily="Consolas" Style="{StaticResource TextBody}" />
+                      <TextBlock Grid.Column="5" Text="—" FontFamily="Consolas" Style="{StaticResource TextBody}" FontWeight="SemiBold"
                                  Foreground="{StaticResource BrushPrimary}" />
 
                       <!-- Difference -->
-                      <TextBlock Grid.Column="6" Text="{Binding DifferenceLabel}" FontFamily="Consolas" FontSize="13" FontWeight="Bold">
+                      <TextBlock Grid.Column="6" Text="{Binding DifferenceLabel}" FontFamily="Consolas" FontWeight="Bold">
                         <TextBlock.Style>
-                          <Style TargetType="TextBlock">
+                          <Style TargetType="TextBlock" BasedOn="{StaticResource TextBody}">
                             <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
                             <Style.Triggers>
                               <DataTrigger Binding="{Binding DifferenceKind}" Value="success">
@@ -221,7 +221,7 @@
                 <materialDesign:PackIcon Kind="LockOpen" Width="18" Height="18"
                                          Foreground="{StaticResource BrushSuccess}"
                                          VerticalAlignment="Center" Margin="0,0,8,0" />
-                <TextBlock Text="Abrir turno" FontSize="13" FontWeight="SemiBold" />
+                <TextBlock Text="Abrir turno" Style="{StaticResource TextBody}" FontWeight="SemiBold" />
               </StackPanel>
             </Border>
 
@@ -269,7 +269,7 @@
                 <materialDesign:PackIcon Kind="Lock" Width="18" Height="18"
                                          Foreground="{StaticResource BrushDanger}"
                                          VerticalAlignment="Center" Margin="0,0,8,0" />
-                <TextBlock Text="Cerrar turno activo" FontSize="13" FontWeight="SemiBold" />
+                <TextBlock Text="Cerrar turno activo" Style="{StaticResource TextBody}" FontWeight="SemiBold" />
               </StackPanel>
             </Border>
 
@@ -283,16 +283,16 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Efectivo esperado" FontSize="12" />
-                    <TextBlock Grid.Column="1" Text="{Binding ExpectedCashFormatted}" FontFamily="Consolas" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="Efectivo esperado" Style="{StaticResource TextSmall}" />
+                    <TextBlock Grid.Column="1" Text="{Binding ExpectedCashFormatted}" FontFamily="Consolas" FontWeight="Bold" Style="{StaticResource TextSmall}" />
                   </Grid>
                   <Grid>
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Digital" FontSize="12" />
-                    <TextBlock Grid.Column="1" Text="{Binding ExpectedDigitalFormatted}" FontFamily="Consolas" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="Digital" Style="{StaticResource TextSmall}" />
+                    <TextBlock Grid.Column="1" Text="{Binding ExpectedDigitalFormatted}" FontFamily="Consolas" FontWeight="Bold" Style="{StaticResource TextSmall}" />
                   </Grid>
                 </StackPanel>
               </Border>
@@ -320,9 +320,9 @@
                     </Style.Triggers>
                   </Style>
                 </Border.Style>
-                <TextBlock Text="{Binding CloseDifferenceLabel}" FontSize="12" FontWeight="SemiBold">
+                <TextBlock Text="{Binding CloseDifferenceLabel}" FontWeight="SemiBold">
                   <TextBlock.Style>
-                    <Style TargetType="TextBlock">
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextSmall}">
                       <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
                       <Style.Triggers>
                         <DataTrigger Binding="{Binding CloseDifferenceKind}" Value="success">

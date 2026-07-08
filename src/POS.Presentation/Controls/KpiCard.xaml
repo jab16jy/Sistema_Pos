@@ -5,7 +5,7 @@
   <Border Style="{StaticResource Card}" MinHeight="96">
     <StackPanel>
       <TextBlock Text="{Binding Label, ElementName=Root}" Style="{StaticResource MutedText}" FontSize="12" />
-      <TextBlock Text="{Binding Value, ElementName=Root}" FontSize="24" FontWeight="Bold" Margin="0,4,0,0" />
+      <TextBlock Text="{Binding Value, ElementName=Root}" Style="{StaticResource TextH1}" FontWeight="Bold" Margin="0,4,0,0" />
       <TextBlock Text="{Binding Hint, ElementName=Root}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,2,0,0" />
     </StackPanel>
   </Border>

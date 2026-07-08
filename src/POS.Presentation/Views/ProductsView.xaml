@@ -101,7 +101,7 @@
 
                   <!-- Info -->
                   <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Style="{StaticResource TextBody}"
                                TextTrimming="CharacterEllipsis" />
                     <TextBlock Style="{StaticResource MutedText}" FontSize="11">
                       <Run Text="{Binding Barcode, Mode=OneWay, TargetNullValue='—'}" />
@@ -112,7 +112,7 @@
 
                   <!-- Price + stock chip -->
                   <StackPanel Grid.Column="2" HorizontalAlignment="Right">
-                    <TextBlock FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Right">
+                    <TextBlock Style="{StaticResource TextBody}" FontWeight="SemiBold" HorizontalAlignment="Right">
                       <Run Text="$ " />
                       <Run Text="{Binding SalePrice, Mode=OneWay, StringFormat='N0'}" />
                     </TextBlock>
@@ -157,7 +157,7 @@
                                         Foreground="{StaticResource BrushBorder}"
                                         HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
-            <TextBlock Text="Sin resultados" FontSize="15" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,4" />
+            <TextBlock Text="Sin resultados" Style="{StaticResource TextH3}" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,8,0,4" />
             <TextBlock Text="Intenta con otro nombre o codigo de barras." Style="{StaticResource MutedText}" HorizontalAlignment="Center" />
           </StackPanel>
         </Grid>
@@ -181,7 +181,7 @@
             </Grid.ColumnDefinitions>
             <materialDesign:PackIcon Kind="PackageVariant" Width="20" Height="20"
                                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Grid.Column="1" Text="{Binding FormTitle}" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="{Binding FormTitle}" Style="{StaticResource TextH3}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <!-- Status chip -->
             <Border Grid.Column="2" Padding="6,2" CornerRadius="3"
                     Visibility="{Binding ShowFormStatusChip, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -373,7 +373,7 @@
                     <StackPanel Orientation="Horizontal">
                       <materialDesign:PackIcon Kind="FileUpload" Width="18" Height="18"
                                                 Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                      <TextBlock Text="Importar desde CSV" FontSize="13" FontWeight="SemiBold"
+                      <TextBlock Text="Importar desde CSV" Style="{StaticResource TextBody}" FontWeight="SemiBold"
                                  Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" />
                       <materialDesign:PackIcon Kind="ChevronDown" Width="18" Height="18"
                                                 Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="8,0,0,0" />
@@ -459,7 +459,7 @@
           </Grid.RowDefinitions>
 
           <Grid Margin="0,0,0,12">
-            <TextBlock Text="Categorias" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="Categorias" Style="{StaticResource TextH3}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <Button Command="{Binding LoadCommand}" Style="{StaticResource PrimaryButton}"
                     HorizontalAlignment="Right" Padding="10,0">
               <StackPanel Orientation="Horizontal">
@@ -519,7 +519,7 @@
           <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
             <materialDesign:PackIcon Kind="Shape" Width="20" Height="20"
                                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Text="Nueva categoria" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="Nueva categoria" Style="{StaticResource TextH3}" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
 
           <TextBlock Text="Nombre de la categoria *" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />

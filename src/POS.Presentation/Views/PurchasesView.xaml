@@ -62,7 +62,7 @@
                 </Border>
 
                 <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Style="{StaticResource TextBody}" TextTrimming="CharacterEllipsis" />
                   <TextBlock Style="{StaticResource MutedText}" FontSize="11">
                     <Run Text="{Binding Phone, Mode=OneWay, TargetNullValue='—'}" />
                   </TextBlock>
@@ -89,7 +89,7 @@
           <StackPanel Orientation="Horizontal">
             <materialDesign:PackIcon Kind="Store" Width="16" Height="16"
                                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Text="Nuevo proveedor" FontWeight="SemiBold" FontSize="12"
+            <TextBlock Text="Nuevo proveedor" FontWeight="SemiBold" Style="{StaticResource TextSmall}"
                        Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
             <materialDesign:PackIcon Kind="ChevronDown" Width="16" Height="16"
                                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="8,0,0,0" />
@@ -153,7 +153,7 @@
             </Grid.ColumnDefinitions>
             <materialDesign:PackIcon Kind="TruckDelivery" Width="20" Height="20"
                                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Grid.Column="1" Text="Nueva compra" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="Nueva compra" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <!-- Supplier chip -->
             <Border Grid.Column="2" Padding="6,2" CornerRadius="3">
               <Border.Style>
@@ -215,7 +215,7 @@
           <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
             <materialDesign:PackIcon Kind="PlusBox" Width="20" Height="20"
                                       Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Text="Agregar producto" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="Agregar producto" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
 
           <Grid>
@@ -270,9 +270,9 @@
             </Grid.ColumnDefinitions>
             <materialDesign:PackIcon Kind="FormatListBulleted" Width="20" Height="20"
                                       Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Grid.Column="1" Text="Items de la compra" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="Items de la compra" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <Border Grid.Column="2" Style="{StaticResource ChipStyle}" Padding="6,2">
-              <TextBlock Text="{Binding ItemCountLabel}" FontSize="11" FontWeight="SemiBold"
+              <TextBlock Text="{Binding ItemCountLabel}" Style="{StaticResource TextCaption}" FontWeight="SemiBold"
                          Foreground="{StaticResource BrushMuted}" />
             </Border>
           </Grid>
@@ -287,10 +287,10 @@
                 <ColumnDefinition Width="120" />
                 <ColumnDefinition Width="40" />
               </Grid.ColumnDefinitions>
-              <TextBlock Text="PRODUCTO" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="1" Text="QTY" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Center" />
-              <TextBlock Grid.Column="2" Text="COSTO UNIT." FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Right" />
-              <TextBlock Grid.Column="3" Text="SUBTOTAL" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Right" />
+              <TextBlock Text="PRODUCTO" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="1" Text="QTY" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Center" />
+              <TextBlock Grid.Column="2" Text="COSTO UNIT." Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Right" />
+              <TextBlock Grid.Column="3" Text="SUBTOTAL" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" TextAlignment="Right" />
             </Grid>
           </Border>
 
@@ -307,7 +307,7 @@
                       <ColumnDefinition Width="120" />
                       <ColumnDefinition Width="40" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding ProductId, StringFormat='{}{0:D8}'}" FontWeight="SemiBold" FontSize="13"
+                    <TextBlock Text="{Binding ProductId, StringFormat='{}{0:D8}'}" FontWeight="SemiBold" Style="{StaticResource TextBody}"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" Text="{Binding Quantity}" FontFamily="Consolas" FontWeight="SemiBold"
                                TextAlignment="Center" VerticalAlignment="Center" />
@@ -354,7 +354,7 @@
                 <!-- Subtotal -->
                 <StackPanel Margin="0,0,24,0">
                   <TextBlock Text="Subtotal" Style="{StaticResource MutedText}" FontSize="11" />
-                  <TextBlock FontSize="15" FontWeight="SemiBold" FontFamily="Consolas">
+                  <TextBlock Style="{StaticResource TextH3}" FontWeight="SemiBold" FontFamily="Consolas">
                     <Run Text="$ " />
                     <Run Text="{Binding Subtotal, Mode=OneWay, StringFormat='N0'}" />
                   </TextBlock>
@@ -362,7 +362,7 @@
                 <!-- IVA -->
                 <StackPanel Margin="0,0,24,0">
                   <TextBlock Text="IVA" Style="{StaticResource MutedText}" FontSize="11" />
-                  <TextBlock FontSize="15" FontWeight="SemiBold" FontFamily="Consolas">
+                  <TextBlock Style="{StaticResource TextH3}" FontWeight="SemiBold" FontFamily="Consolas">
                     <Run Text="$ " />
                     <Run Text="{Binding Iva, Mode=OneWay, StringFormat='N0'}" />
                   </TextBlock>
@@ -370,7 +370,7 @@
                 <!-- Total -->
                 <StackPanel>
                   <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11" />
-                  <TextBlock FontSize="20" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}">
+                  <TextBlock Style="{StaticResource TextH2}" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}">
                     <Run Text="$ " />
                     <Run Text="{Binding Total, Mode=OneWay, StringFormat='N0'}" />
                   </TextBlock>

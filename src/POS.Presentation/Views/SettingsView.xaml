@@ -40,7 +40,7 @@
 
         <Border Style="{StaticResource Card}" Margin="0,0,0,12">
           <StackPanel Margin="14">
-            <TextBlock Text="Módulos administrativos y utilidades" FontSize="16" FontWeight="Bold" />
+            <TextBlock Text="Módulos administrativos y utilidades" Style="{StaticResource TextH3}" FontWeight="Bold" />
             <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0" MaxWidth="720">
               Desde aquí se agrupan funciones de baja frecuencia para que no compitan con la operación diaria de caja. La navegación principal queda enfocada en vender, cobrar y consultar.
             </TextBlock>
@@ -136,7 +136,7 @@
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="Cierre de caja operativo" VerticalAlignment="Center" />
                   <Border Grid.Column="1" Style="{StaticResource ChipStyle}" Background="{StaticResource BrushSuccessContainer}" BorderBrush="{StaticResource BrushSuccess}">
-                    <TextBlock Text="Solo en Turnos" FontSize="11" />
+                    <TextBlock Text="Solo en Turnos" Style="{StaticResource TextCaption}" />
                   </Border>
                 </Grid>
                 <Grid Margin="0,0,0,6">
@@ -145,7 +145,7 @@
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="Lealtad diaria del cliente" VerticalAlignment="Center" />
                   <Border Grid.Column="1" Style="{StaticResource ChipStyle}" Background="{StaticResource BrushPrimaryContainer}" BorderBrush="{StaticResource BrushPrimary}">
-                    <TextBlock Text="Dentro de Clientes y Caja" FontSize="11" />
+                    <TextBlock Text="Dentro de Clientes y Caja" Style="{StaticResource TextCaption}" />
                   </Border>
                 </Grid>
                 <Grid Margin="0,0,0,6">
@@ -154,7 +154,7 @@
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="Comunicación digital" VerticalAlignment="Center" />
                   <Border Grid.Column="1" Style="{StaticResource ChipStyle}" Background="{StaticResource BrushPrimaryContainer}" BorderBrush="{StaticResource BrushPrimary}">
-                    <TextBlock Text="Dentro de Facturas y Cotizaciones" FontSize="11" />
+                    <TextBlock Text="Dentro de Facturas y Cotizaciones" Style="{StaticResource TextCaption}" />
                   </Border>
                 </Grid>
                 <Grid>
@@ -163,7 +163,7 @@
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="Etiquetas / códigos" VerticalAlignment="Center" />
                   <Border Grid.Column="1" Style="{StaticResource ChipStyle}" Background="{StaticResource BrushWarningContainer}" BorderBrush="{StaticResource BrushWarning}">
-                    <TextBlock Text="Utilidad administrativa" FontSize="11" />
+                    <TextBlock Text="Utilidad administrativa" Style="{StaticResource TextCaption}" />
                   </Border>
                 </Grid>
               </StackPanel>
@@ -178,12 +178,12 @@
                   <TextBlock Text="Alertas" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
                 <Border Background="{StaticResource BrushWarningContainer}" CornerRadius="6" Padding="10" Margin="0,0,0,8">
-                  <TextBlock Foreground="{StaticResource BrushWarning}" FontSize="12" TextWrapping="Wrap">
+                  <TextBlock Foreground="{StaticResource BrushWarning}" Style="{StaticResource TextSmall}" TextWrapping="Wrap">
                     Falta definir una política única para autorizaciones: devoluciones, anulación de documentos y ajustes manuales de stock deberían pedir rol administrador.
                   </TextBlock>
                 </Border>
                 <Border Background="{StaticResource BrushWarningContainer}" CornerRadius="6" Padding="10">
-                  <TextBlock Foreground="{StaticResource BrushWarning}" FontSize="12" TextWrapping="Wrap">
+                  <TextBlock Foreground="{StaticResource BrushWarning}" Style="{StaticResource TextSmall}" TextWrapping="Wrap">
                     WhatsApp debe abrir primero la app de escritorio y, si no está disponible, caer automáticamente a WhatsApp Web sin bloquear la operación.
                   </TextBlock>
                 </Border>
@@ -215,9 +215,9 @@
                         </Style.Triggers>
                       </Style>
                     </Border.Style>
-                    <TextBlock FontSize="11" FontWeight="Medium">
+                    <TextBlock FontWeight="Medium">
                       <TextBlock.Style>
-                        <Style TargetType="TextBlock">
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                           <Setter Property="Text" Value="Revisar" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding IsPrinterConfigured}" Value="True">
@@ -248,9 +248,9 @@
                         </Style.Triggers>
                       </Style>
                     </Border.Style>
-                    <TextBlock FontSize="11" FontWeight="Medium">
+                    <TextBlock FontWeight="Medium">
                       <TextBlock.Style>
-                        <Style TargetType="TextBlock">
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                           <Setter Property="Text" Value="Revisar" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding IsSmtpConfigured}" Value="True">
@@ -281,9 +281,9 @@
                         </Style.Triggers>
                       </Style>
                     </Border.Style>
-                    <TextBlock FontSize="11" FontWeight="Medium">
+                    <TextBlock FontWeight="Medium">
                       <TextBlock.Style>
-                        <Style TargetType="TextBlock">
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                           <Setter Property="Text" Value="Revisar" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding IsWhatsAppReady}" Value="True">
@@ -314,9 +314,9 @@
                         </Style.Triggers>
                       </Style>
                     </Border.Style>
-                    <TextBlock FontSize="11" FontWeight="Medium">
+                    <TextBlock FontWeight="Medium">
                       <TextBlock.Style>
-                        <Style TargetType="TextBlock">
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
                           <Setter Property="Text" Value="Sin configurar" />
                           <Style.Triggers>
                             <DataTrigger Binding="{Binding IsBackupConfigured}" Value="True">
