@@ -28,6 +28,38 @@
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
 
+  <!-- ===== Typography ramp =====
+       Semantic sizes that collapse the ad-hoc FontSize values scattered across views.
+       These set ONLY FontSize so any inline FontWeight/Foreground on the element is preserved.
+       Mapping used when migrating: 27/28/38 -> Display, 22/24 -> H1, 18/20 -> H2,
+       15/16 -> H3, 13/14 -> Body, 12 -> Small, 10/11 -> Caption. -->
+  <Style x:Key="TextDisplay" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="28" />
+  </Style>
+  <Style x:Key="TextH1" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="22" />
+  </Style>
+  <Style x:Key="TextH2" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="18" />
+  </Style>
+  <Style x:Key="TextH3" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="15" />
+  </Style>
+  <Style x:Key="TextBody" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style x:Key="TextSmall" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style x:Key="TextCaption" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+    <Setter Property="FontSize" Value="11" />
+  </Style>
+
+  <!-- Corner radius scale (sm=inputs/buttons, md=info panels, lg=cards) -->
+  <CornerRadius x:Key="RadiusSm">4</CornerRadius>
+  <CornerRadius x:Key="RadiusMd">8</CornerRadius>
+  <CornerRadius x:Key="RadiusLg">12</CornerRadius>
+
   <Style x:Key="Card" TargetType="Border">
     <Setter Property="Background" Value="{StaticResource BrushCard}" />
     <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
@@ -85,6 +117,18 @@
     <Setter Property="Foreground" Value="White" />
     <Setter Property="Background" Value="{StaticResource BrushAccent}" />
     <Setter Property="BorderBrush" Value="{StaticResource BrushAccent}" />
+  </Style>
+
+  <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
+    <Setter Property="Background" Value="{StaticResource BrushPrimaryContainer}" />
+    <Setter Property="BorderBrush" Value="{StaticResource BrushPrimaryContainer}" />
+  </Style>
+
+  <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+    <Setter Property="Foreground" Value="White" />
+    <Setter Property="Background" Value="{StaticResource BrushDanger}" />
+    <Setter Property="BorderBrush" Value="{StaticResource BrushDanger}" />
   </Style>
 
   <Style TargetType="TextBox">
