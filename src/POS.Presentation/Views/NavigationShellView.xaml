@@ -33,7 +33,7 @@
           <!-- Logo + Esthetic POS title (Visible when NOT in an admin submodule) -->
           <StackPanel Orientation="Horizontal"
                       Visibility="{Binding IsAdminSubmoduleSelected, Converter={StaticResource BooleanNegationToVisibilityConverter}}">
-            <TextBlock Text="Esthetic POS" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" />
+            <TextBlock Text="Esthetic POS" FontWeight="Bold" Style="{StaticResource TextH3}" VerticalAlignment="Center" />
           </StackPanel>
 
           <!-- Back to Admin Hub Button (Visible only when in an admin submodule) -->
@@ -50,14 +50,14 @@
 
         <TextBlock Grid.Column="1"
                    Text="{Binding SelectedModule.Title}"
-                   FontSize="16"
+                   Style="{StaticResource TextH3}"
                    FontWeight="SemiBold"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center" />
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
           <Border Width="28" Height="28" CornerRadius="14" Background="{StaticResource BrushPrimaryContainer}" Margin="0,0,8,0">
-            <TextBlock Text="OP" Foreground="{StaticResource BrushPrimary}" FontWeight="Bold" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock Text="OP" Foreground="{StaticResource BrushPrimary}" FontWeight="Bold" Style="{StaticResource TextCaption}" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <TextBlock Text="{Binding OperatorDisplayName}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,12,0" />
           <TextBlock x:Name="ClockTextBlock" Style="{StaticResource MonoText}" VerticalAlignment="Center" Margin="0,0,12,0" />
@@ -247,7 +247,7 @@
       <Grid Visibility="{Binding IsPlannedModuleSelected, Converter={StaticResource BoolToVisibilityConverter}}">
         <Border Style="{StaticResource Card}" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
           <StackPanel>
-            <TextBlock Text="{Binding SelectedModule.Title}" FontSize="28" FontWeight="Bold" HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding SelectedModule.Title}" Style="{StaticResource TextDisplay}" FontWeight="Bold" HorizontalAlignment="Center" />
             <TextBlock Text="This module is planned for a later implementation slice." Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,8,0,0" />
             <TextBlock Text="{Binding SelectedModule.Description}" Style="{StaticResource MutedText}" TextAlignment="Center" Margin="0,8,0,0" />
           </StackPanel>

@@ -172,7 +172,7 @@
             <materialDesign:PackIcon Kind="CartOutline" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" Text="Carrito de cotización" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
             <Border Grid.Column="2" Style="{StaticResource ChipStyle}">
-              <TextBlock FontSize="11">
+              <TextBlock Style="{StaticResource TextCaption}">
                 <TextBlock.Text>
                   <MultiBinding StringFormat="{}{0} ítems">
                     <Binding Path="CartItems.Count" />
@@ -253,7 +253,7 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                   <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11" HorizontalAlignment="Right" />
-                  <TextBlock Text="{Binding TotalFormatted}" FontSize="24" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Right" />
+                  <TextBlock Text="{Binding TotalFormatted}" Style="{StaticResource TextH1}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Right" />
                 </StackPanel>
               </Grid>
               <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
@@ -366,7 +366,7 @@
                             </Style.Triggers>
                           </Style>
                         </Border.Style>
-                        <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="Medium" />
+                        <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource TextCaption}" FontWeight="Medium" />
                       </Border>
                       <TextBlock Grid.Column="4" Text="{Binding ExpiresAt}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
                       <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">

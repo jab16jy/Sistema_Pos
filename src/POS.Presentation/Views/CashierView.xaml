@@ -246,7 +246,7 @@
         </Grid>
 
         <Border Grid.Row="2"
-                Background="#E8EAED"
+                Background="{StaticResource BrushSurfaceAlt}"
                 CornerRadius="4"
                 Padding="16,10"
                 Margin="0,12,0,0">
@@ -389,7 +389,7 @@
           <Border Visibility="{Binding HasCartItems, Converter={StaticResource BooleanNegationToVisibilityConverter}}"
                   Background="Transparent">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-              <Border Width="48" Height="48" CornerRadius="24" Background="#F4F4F5" HorizontalAlignment="Center">
+              <Border Width="48" Height="48" CornerRadius="24" Background="{StaticResource BrushSurfaceContainer}" HorizontalAlignment="Center">
                 <Border Width="24" Height="24" CornerRadius="4" Background="{StaticResource BrushBorder}" HorizontalAlignment="Center" VerticalAlignment="Center" />
               </Border>
               <TextBlock Text="No hay productos aún"
@@ -418,7 +418,7 @@
 
           <StackPanel Grid.Column="2" HorizontalAlignment="Right">
             <TextBlock Text="{Binding CartSummaryText}" Style="{StaticResource CashHint}" HorizontalAlignment="Right" />
-            <TextBlock Text="{Binding SubtotalSummaryText}" FontSize="13" FontWeight="Medium" HorizontalAlignment="Right" />
+            <TextBlock Text="{Binding SubtotalSummaryText}" Style="{StaticResource TextBody}" FontWeight="Medium" HorizontalAlignment="Right" />
           </StackPanel>
         </Grid>
       </Grid>
@@ -426,13 +426,13 @@
 
     <Border Grid.Column="2" Style="{StaticResource Card}" Padding="16">
       <StackPanel>
-        <Border Background="#CCFBF1"
+        <Border Background="{StaticResource BrushSecondaryContainer}"
                 CornerRadius="6"
                 Padding="14"
                 Margin="0,0,0,14">
           <StackPanel>
-            <TextBlock Text="TOTAL A PAGAR" FontSize="11" FontWeight="Medium" Foreground="{StaticResource BrushAccent}" />
-            <TextBlock Text="{Binding TotalText}" FontSize="28" FontWeight="Bold" Margin="0,2,0,0" />
+            <TextBlock Text="TOTAL A PAGAR" Style="{StaticResource TextCaption}" FontWeight="Medium" Foreground="{StaticResource BrushAccent}" />
+            <TextBlock Text="{Binding TotalText}" Style="{StaticResource TextDisplay}" FontWeight="Bold" Margin="0,2,0,0" />
           </StackPanel>
         </Border>
 
@@ -578,7 +578,7 @@
                   Command="{Binding HoldSaleCommand}" />
         </StackPanel>
 
-        <Border Background="#F4F4F5"
+        <Border Background="{StaticResource BrushSurfaceContainer}"
                 BorderBrush="{StaticResource BrushBorder}"
                 BorderThickness="1"
                 CornerRadius="6"

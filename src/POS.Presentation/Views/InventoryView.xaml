@@ -22,16 +22,16 @@
         <UniformGrid Columns="3">
           <StackPanel Margin="0,0,8,0">
             <TextBlock Text="TOTAL SKUS" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" />
-            <TextBlock Text="{Binding TotalSkus}" FontSize="18" FontWeight="Bold" FontFamily="Consolas" />
+            <TextBlock Text="{Binding TotalSkus}" Style="{StaticResource TextH3}" FontWeight="Bold" FontFamily="Consolas" />
           </StackPanel>
           <StackPanel Margin="8,0,8,0">
             <TextBlock Text="STOCK BAJO" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" />
-            <TextBlock Text="{Binding LowStockCount}" FontSize="18" FontWeight="Bold" FontFamily="Consolas"
+            <TextBlock Text="{Binding LowStockCount}" Style="{StaticResource TextH3}" FontWeight="Bold" FontFamily="Consolas"
                        Foreground="{StaticResource BrushWarning}" />
           </StackPanel>
           <StackPanel Margin="8,0,0,0">
             <TextBlock Text="SIN STOCK" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" />
-            <TextBlock Text="{Binding OutOfStockCount}" FontSize="18" FontWeight="Bold" FontFamily="Consolas"
+            <TextBlock Text="{Binding OutOfStockCount}" Style="{StaticResource TextH3}" FontWeight="Bold" FontFamily="Consolas"
                        Foreground="{StaticResource BrushDanger}" />
           </StackPanel>
         </UniformGrid>
@@ -77,9 +77,9 @@
                 <ColumnDefinition Width="90" />
                 <ColumnDefinition Width="40" />
               </Grid.ColumnDefinitions>
-              <TextBlock Text="PRODUCTO" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="1" Text="STOCK" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="2" Text="ESTADO" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Text="PRODUCTO" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="1" Text="STOCK" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+              <TextBlock Grid.Column="2" Text="ESTADO" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
             </Grid>
           </Border>
 
@@ -107,7 +107,7 @@
                   </Grid.ColumnDefinitions>
 
                   <!-- Product name -->
-                  <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" FontSize="13"
+                  <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" Style="{StaticResource TextBody}"
                              VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
 
                   <!-- Stock bar -->
@@ -200,7 +200,7 @@
             </Grid.ColumnDefinitions>
             <materialDesign:PackIcon Kind="Tune" Width="20" Height="20"
                                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Grid.Column="1" Text="Ajuste de stock" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="Ajuste de stock" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <Border Grid.Column="2" Padding="6,2" CornerRadius="3">
               <Border.Style>
                 <Style TargetType="Border">
@@ -346,7 +346,7 @@
             </Grid.ColumnDefinitions>
             <materialDesign:PackIcon Kind="History" Width="20" Height="20"
                                       Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Grid.Column="1" Text="Historial de movimientos" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="Historial de movimientos" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <ComboBox Grid.Column="2" SelectedValue="{Binding MovementTypeFilter, Mode=TwoWay}"
                       SelectedValuePath="Tag">
               <ComboBoxItem Content="Todo tipo" Tag="" IsSelected="True" />
@@ -406,7 +406,7 @@
 
                       <!-- Info -->
                       <StackPanel Grid.Column="1" Margin="8,0,0,0">
-                        <TextBlock Text="{Binding Reason}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding Reason}" FontWeight="SemiBold" Style="{StaticResource TextBody}" TextTrimming="CharacterEllipsis" />
                         <TextBlock Style="{StaticResource MutedText}" FontSize="11">
                           <Run Text="{Binding CreatedAt, Mode=OneWay, StringFormat='{}{0:HH:mm}'}" />
                           <Run Text=" -> stock: " />

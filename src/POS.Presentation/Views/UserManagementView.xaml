@@ -16,7 +16,7 @@
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <StackPanel>
-            <TextBlock Text="Usuarios del sistema" FontSize="20" FontWeight="Bold" />
+            <TextBlock Text="Usuarios del sistema" Style="{StaticResource TextH2}" FontWeight="Bold" />
             <TextBlock Text="Administra accesos, contraseñas y roles." Style="{StaticResource MutedText}" />
           </StackPanel>
           <Button Grid.Column="1" Content="Actualizar lista" Command="{Binding LoadUsersCommand}"
@@ -53,7 +53,7 @@
       <!-- Create new user -->
       <Border Style="{StaticResource Card}" Margin="0,0,0,12">
         <StackPanel>
-          <TextBlock Text="Nuevo usuario" FontSize="16" FontWeight="Bold" Margin="0,0,0,12" />
+          <TextBlock Text="Nuevo usuario" Style="{StaticResource TextH3}" FontWeight="Bold" Margin="0,0,0,12" />
 
           <TextBlock Text="Nombre de usuario" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
           <TextBox Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" Margin="0,0,0,10" />
@@ -77,7 +77,7 @@
               Visibility="{Binding SelectedUser, Converter={StaticResource NullToVisibilityConverter}}">
         <StackPanel>
           <TextBlock Text="{Binding SelectedUser.Username, StringFormat='Editar: {0}'}"
-                     FontSize="16" FontWeight="Bold" Margin="0,0,0,4" />
+                     Style="{StaticResource TextH3}" FontWeight="Bold" Margin="0,0,0,4" />
           <TextBlock Text="Deja la contraseña vacía para no cambiarla."
                      Style="{StaticResource MutedText}" Margin="0,0,0,12" />
 
@@ -94,7 +94,7 @@
             <Button Content="Guardar cambios" Command="{Binding SaveEditCommand}"
                     Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
             <Button Content="Desactivar usuario" Command="{Binding DeactivateCommand}"
-                    Background="#DC2626" Foreground="White" BorderThickness="0"
+                    Background="{StaticResource BrushDanger}" Foreground="White" BorderThickness="0"
                     Padding="12,8" Cursor="Hand" />
           </StackPanel>
         </StackPanel>
