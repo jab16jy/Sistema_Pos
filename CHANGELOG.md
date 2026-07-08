@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.25.0...v0.26.0) (2026-07-08)
+
+
+### Features
+
+* move quote payments from history to cashier ([#90](https://github.com/jab16jy/Sistema_Pos/issues/90)) ([619b4a8](https://github.com/jab16jy/Sistema_Pos/commit/619b4a81db5d1e5db4ce731b7a51481dc950b148))
+
 ## [0.25.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.24.0...v0.25.0) (2026-07-08)
 
 
