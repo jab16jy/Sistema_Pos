@@ -91,11 +91,13 @@ public sealed class RuntimeReadinessTests
     public async Task WhatsAppDesktopWebService_FallsBackToWebAndRevealsAttachment()
     {
         string tempDirectory = Path.Combine(Path.GetTempPath(), "pos-whatsapp-test-" + Guid.NewGuid());
+        string documentsDirectory = Path.Combine(tempDirectory, "Documents");
         Directory.CreateDirectory(tempDirectory);
+        Directory.CreateDirectory(documentsDirectory);
         string attachmentPath = Path.Combine(tempDirectory, "invoice.pdf");
         await File.WriteAllTextAsync(attachmentPath, "pdf", TestContext.Current.CancellationToken);
         var launcher = new FakeExternalLinkLauncher(desktopResult: false, webResult: true);
-        var service = new WhatsAppDesktopWebService(launcher);
+        var service = new WhatsAppDesktopWebService(launcher, () => documentsDirectory);
 
         try
         {
@@ -109,7 +111,35 @@ public sealed class RuntimeReadinessTests
             Assert.Contains("whatsapp://send/", launcher.AttemptedUris[0].ToString(), StringComparison.Ordinal);
             Assert.Contains("phone=573001234567", launcher.AttemptedUris[0].ToString(), StringComparison.Ordinal);
             Assert.Contains("https://wa.me/573001234567?text=", launcher.AttemptedUris[1].ToString(), StringComparison.Ordinal);
-            Assert.Equal(attachmentPath, launcher.RevealedFile);
+            string expectedDocumentPath = Path.Combine(documentsDirectory, "POS WhatsApp", "invoice.pdf");
+            Assert.Equal(expectedDocumentPath, launcher.RevealedFile);
+            Assert.True(File.Exists(expectedDocumentPath));
+            Assert.Contains("POS%20WhatsApp", launcher.AttemptedUris[1].OriginalString, StringComparison.Ordinal);
+            Assert.Contains("invoice.pdf", launcher.AttemptedUris[1].OriginalString, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WhatsAppDesktopWebService_WhenDocumentsCopyFails_KeepsOriginalAttachmentPath()
+    {
+        string tempDirectory = Path.Combine(Path.GetTempPath(), "pos-whatsapp-test-" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDirectory);
+        string attachmentPath = Path.Combine(tempDirectory, "invoice.pdf");
+        string unavailableDocumentsPath = Path.Combine(tempDirectory, "documents-file");
+        await File.WriteAllTextAsync(attachmentPath, "pdf", TestContext.Current.CancellationToken);
+        await File.WriteAllTextAsync(unavailableDocumentsPath, "not a directory", TestContext.Current.CancellationToken);
+
+        try
+        {
+            string? preparedPath = WhatsAppDesktopWebService.PrepareAttachmentForManualAttach(
+                attachmentPath,
+                unavailableDocumentsPath);
+
+            Assert.Equal(attachmentPath, preparedPath);
         }
         finally
         {
@@ -377,6 +407,59 @@ public sealed class RuntimeReadinessTests
 
         Assert.NotEmpty(bytes);
         Assert.True(bytes.Length > 100);
+    }
+
+    [Fact]
+    public async Task PdfService_GenerateInvoicePdfAsync_ReturnsNonEmptyStyledInvoicePdfBytes()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        dbContext.BusinessSettings.Add(new BusinessSettings(
+            "Esthetic POS",
+            "Calle 123 #45-67",
+            "900123456-7",
+            null,
+            null,
+            null,
+            null,
+            false,
+            null,
+            null,
+            null,
+            null,
+            "COP"));
+
+        var product = new Product(
+            "Serum Premium",
+            Guid.NewGuid(),
+            new Money(20_000m),
+            new Money(45_000m),
+            new StockQuantity(5m),
+            new StockQuantity(1m));
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(
+            new ProductRepository(dbContext),
+            new SaleRepository(dbContext),
+            dbContext);
+        var sale = await saleUseCase.ExecuteAsync(
+            new CreateSaleRequest(
+                Guid.NewGuid(),
+                null,
+                [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+                [new CreateSalePaymentRequest(PaymentMethod.Cash, 45_000m, 50_000m, null)]),
+            TestContext.Current.CancellationToken);
+
+        var service = new PdfService(dbContext);
+
+        byte[] bytes = await service.GenerateInvoicePdfAsync(sale.SaleId, TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(bytes);
+        Assert.True(bytes.Length > 1_000);
     }
 
     [Fact]

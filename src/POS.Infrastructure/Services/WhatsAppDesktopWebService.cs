@@ -54,10 +54,15 @@ public sealed class ExternalLinkLauncher : IExternalLinkLauncher
 public sealed class WhatsAppDesktopWebService : IWhatsAppService
 {
     private readonly IExternalLinkLauncher _launcher;
+    private readonly Func<string> _documentsDirectoryProvider;
 
-    public WhatsAppDesktopWebService(IExternalLinkLauncher? launcher = null)
+    public WhatsAppDesktopWebService(
+        IExternalLinkLauncher? launcher = null,
+        Func<string>? documentsDirectoryProvider = null)
     {
         _launcher = launcher ?? new ExternalLinkLauncher();
+        _documentsDirectoryProvider = documentsDirectoryProvider
+            ?? (() => Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments));
     }
 
     public Task<bool> SendAsync(
@@ -74,7 +79,8 @@ public sealed class WhatsAppDesktopWebService : IWhatsAppService
             throw new InvalidOperationException("Ingresa un número de WhatsApp válido antes de enviar.");
         }
 
-        string finalMessage = BuildMessage(message, attachmentPath);
+        string? shareableAttachmentPath = PrepareAttachmentForManualAttach(attachmentPath, GetDocumentsDirectory());
+        string finalMessage = BuildMessage(message, shareableAttachmentPath);
         Uri desktopUri = BuildDesktopUri(normalizedPhone, finalMessage);
         Uri webUri = BuildWebUri(normalizedPhone, finalMessage);
 
@@ -84,9 +90,9 @@ public sealed class WhatsAppDesktopWebService : IWhatsAppService
             throw new InvalidOperationException("No se pudo abrir WhatsApp Desktop ni WhatsApp Web en este equipo.");
         }
 
-        if (!string.IsNullOrWhiteSpace(attachmentPath))
+        if (!string.IsNullOrWhiteSpace(shareableAttachmentPath))
         {
-            _launcher.RevealFile(attachmentPath);
+            _launcher.RevealFile(shareableAttachmentPath);
         }
 
         return Task.FromResult(true);
@@ -107,6 +113,58 @@ public sealed class WhatsAppDesktopWebService : IWhatsAppService
         }
 
         return $"{normalizedMessage}\n\nArchivo listo para adjuntar:\n{attachmentPath}";
+    }
+
+    public static string? PrepareAttachmentForManualAttach(string? attachmentPath, string documentsDirectory)
+    {
+        if (string.IsNullOrWhiteSpace(attachmentPath) || !File.Exists(attachmentPath))
+        {
+            return attachmentPath;
+        }
+
+        if (string.IsNullOrWhiteSpace(documentsDirectory))
+        {
+            return attachmentPath;
+        }
+
+        try
+        {
+            string targetDirectory = Path.Combine(documentsDirectory, "POS WhatsApp");
+            Directory.CreateDirectory(targetDirectory);
+
+            string targetPath = Path.Combine(targetDirectory, Path.GetFileName(attachmentPath));
+            if (Path.GetFullPath(attachmentPath).Equals(Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
+            {
+                return targetPath;
+            }
+
+            File.Copy(attachmentPath, targetPath, overwrite: true);
+            return targetPath;
+        }
+        catch (IOException)
+        {
+            return attachmentPath;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return attachmentPath;
+        }
+    }
+
+    private string GetDocumentsDirectory()
+    {
+        try
+        {
+            return _documentsDirectoryProvider();
+        }
+        catch (IOException)
+        {
+            return string.Empty;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return string.Empty;
+        }
     }
 
     public static Uri BuildDesktopUri(string phoneNumber, string message) =>
