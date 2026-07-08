@@ -232,6 +232,14 @@ public sealed class MainShellViewModel : ViewModelBase
                         RunSafe(Inventory.LoadStockAsync(), ex => OperatorMessage = $"Error al cargar Inventario: {ex.Message}");
                     }
                 }
+
+                if (IsCustomersSelected)
+                {
+                    if (Customers is not null)
+                    {
+                        RunSafe(Customers.LoadAsync(), ex => OperatorMessage = $"Error al cargar Clientes: {ex.Message}");
+                    }
+                }
             }
         }
     }
