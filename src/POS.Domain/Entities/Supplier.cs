@@ -1,3 +1,5 @@
+using POS.Domain.ValueObjects;
+
 namespace POS.Domain.Entities;
 
 public sealed class Supplier
@@ -14,8 +16,8 @@ public sealed class Supplier
         Name = string.Empty;
         TaxId = string.Empty;
         SetIdentity(name, taxId);
-        Phone = NormalizeOptional(phone);
-        Email = NormalizeOptional(email);
+        Phone = ContactInfo.NormalizePhone(phone);
+        Email = ContactInfo.NormalizeEmail(email);
         IsActive = true;
     }
 
@@ -29,8 +31,8 @@ public sealed class Supplier
     public void UpdateContactInfo(string name, string taxId, string? phone, string? email)
     {
         SetIdentity(name, taxId);
-        Phone = NormalizeOptional(phone);
-        Email = NormalizeOptional(email);
+        Phone = ContactInfo.NormalizePhone(phone);
+        Email = ContactInfo.NormalizeEmail(email);
     }
 
     public void Deactivate() => IsActive = false;
@@ -43,5 +45,4 @@ public sealed class Supplier
         TaxId = string.IsNullOrWhiteSpace(taxId) ? throw new ArgumentException("Supplier tax id is required.", nameof(taxId)) : taxId.Trim();
     }
 
-    private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

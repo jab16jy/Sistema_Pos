@@ -86,4 +86,14 @@ public sealed class QuoteTests
 
         Assert.Equal(180m, subtotal.Amount);
     }
+
+    [Fact]
+    public void Constructor_WithPhoneAndEmail_PreservesValidatedContactData()
+    {
+        var quote = new Quote("COT-2026-0001", "Ana Gomez", 30, null, "+57 300 123 4567", "ana@example.com", "  Observación  ");
+
+        Assert.Equal("+57 300 123 4567", quote.CustomerPhone);
+        Assert.Equal("ana@example.com", quote.CustomerEmail);
+        Assert.Equal("Observación", quote.Observations);
+    }
 }

@@ -10,14 +10,14 @@ public sealed class SupplierPurchaseTests
     [Fact]
     public void Supplier_UpdateAndDeactivate_KeepSupplierSelectableStateExplicit()
     {
-        var supplier = new Supplier("Acme Foods", "900123", "300", "sales@acme.test");
+        var supplier = new Supplier("Acme Foods", "900123", "+57 300 111 2233", "sales@acme.test");
 
-        supplier.UpdateContactInfo("Acme Wholesale", "900456", "301", null);
+        supplier.UpdateContactInfo("Acme Wholesale", "900456", "+57 301 222 3344", null);
         supplier.Deactivate();
 
         Assert.Equal("Acme Wholesale", supplier.Name);
         Assert.Equal("900456", supplier.TaxId);
-        Assert.Equal("301", supplier.Phone);
+        Assert.Equal("+57 301 222 3344", supplier.Phone);
         Assert.Null(supplier.Email);
         Assert.False(supplier.IsActive);
     }

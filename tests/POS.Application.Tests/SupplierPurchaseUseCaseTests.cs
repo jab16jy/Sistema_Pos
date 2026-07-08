@@ -27,7 +27,7 @@ public sealed class SupplierPurchaseUseCaseTests
         var save = new SaveSupplierUseCase(new SupplierRepository(dbContext), dbContext);
         var search = new SearchSuppliersUseCase(new SupplierLookupQueryService(dbContext));
 
-        SupplierResult result = await save.ExecuteAsync(new SaveSupplierRequest(null, "Acme Foods", "900123", "300", "sales@acme.test", true), TestContext.Current.CancellationToken);
+        SupplierResult result = await save.ExecuteAsync(new SaveSupplierRequest(null, "Acme Foods", "900123", "+57 300 111 2233", "sales@acme.test", true), TestContext.Current.CancellationToken);
         IReadOnlyList<SupplierSearchResult> suppliers = await search.ExecuteAsync(new SupplierSearchRequest("Acme", IncludeInactive: false), TestContext.Current.CancellationToken);
 
         SupplierSearchResult match = Assert.Single(suppliers);
@@ -47,7 +47,7 @@ public sealed class SupplierPurchaseUseCaseTests
         var search = new SearchSuppliersUseCase(new SupplierLookupQueryService(dbContext));
         SupplierResult created = await save.ExecuteAsync(new SaveSupplierRequest(null, "Acme Foods", "900123", null, null, true), TestContext.Current.CancellationToken);
 
-        SupplierResult updated = await save.ExecuteAsync(new SaveSupplierRequest(created.Id, "Acme Wholesale", "900456", "301", null, false), TestContext.Current.CancellationToken);
+        SupplierResult updated = await save.ExecuteAsync(new SaveSupplierRequest(created.Id, "Acme Wholesale", "900456", "+57 301 222 3344", null, false), TestContext.Current.CancellationToken);
         IReadOnlyList<SupplierSearchResult> activeOnly = await search.ExecuteAsync(new SupplierSearchRequest("Acme", IncludeInactive: false), TestContext.Current.CancellationToken);
         IReadOnlyList<SupplierSearchResult> all = await search.ExecuteAsync(new SupplierSearchRequest("Acme", IncludeInactive: true), TestContext.Current.CancellationToken);
 

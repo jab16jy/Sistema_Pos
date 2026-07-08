@@ -28,8 +28,18 @@ public sealed class CustomerTests
         var exception = Assert.Throws<ArgumentException>(() =>
             customer.UpdateContactInfo("", "123", null, null, null));
 
-        Assert.Contains("Customer name is required", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("nombre es obligatorio", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Ana Gomez", customer.FullName);
+    }
+
+    [Fact]
+    public void UpdateContactInfo_WithFormattedPhone_KeepsNormalizedValidatedContact()
+    {
+        var customer = new Customer("Ana Gomez", "123");
+
+        customer.UpdateContactInfo("Ana Gomez", "123", "+57 300 123 4567", "ana@example.com", null);
+
+        Assert.Equal("+57 300 123 4567", customer.Phone);
     }
 
     [Fact]

@@ -15,7 +15,26 @@ public sealed class SettingsRepository : ISettingsRepository
 
     public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default)
     {
-        return _dbContext.BusinessSettings.FirstOrDefaultAsync(cancellationToken);
+        return GetOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<BusinessSettings?> GetOrDefaultAsync(CancellationToken cancellationToken)
+    {
+        BusinessSettings? persisted = await _dbContext.BusinessSettings.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        return persisted ?? new BusinessSettings(
+            CompanyDefaults.BusinessName,
+            CompanyDefaults.BusinessAddress,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false,
+            null,
+            null,
+            null,
+            null,
+            "COP");
     }
 
     public async Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default)

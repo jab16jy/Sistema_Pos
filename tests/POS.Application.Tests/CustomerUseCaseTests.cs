@@ -111,7 +111,7 @@ public sealed class CustomerUseCaseTests
         var useCase = new SaveCustomerUseCase(new CustomerRepository(dbContext), dbContext);
         CustomerResult created = await useCase.ExecuteAsync(new SaveCustomerRequest(null, "Ana Gomez", "123", null, null, null, true), TestContext.Current.CancellationToken);
 
-        CustomerResult updated = await useCase.ExecuteAsync(new SaveCustomerRequest(created.Id, "Ana Maria", "456", "301", null, null, false), TestContext.Current.CancellationToken);
+        CustomerResult updated = await useCase.ExecuteAsync(new SaveCustomerRequest(created.Id, "Ana Maria", "456", "+57 301 222 3344", null, null, false), TestContext.Current.CancellationToken);
 
         Assert.Equal(created.Id, updated.Id);
         Assert.Equal("Ana Maria", updated.FullName);
@@ -204,7 +204,7 @@ public sealed class CustomerUseCaseTests
         var product = new Product("Rice", Guid.NewGuid(), new Domain.ValueObjects.Money(1_000m), new Domain.ValueObjects.Money(1_500m), new Domain.ValueObjects.StockQuantity(10m), new Domain.ValueObjects.StockQuantity(2m));
         var sale = new Sale(Guid.NewGuid(), customer.Id);
         sale.AddItem(product, new Domain.ValueObjects.Quantity(1m), Domain.ValueObjects.Money.Zero);
-        var quote = new Quote("COT-2026-0001", "Ana Gomez", 30, customer.Id, "300", "ana@example.com");
+        var quote = new Quote("COT-2026-0001", "Ana Gomez", 30, customer.Id, "+57 300 123 4567", "ana@example.com");
         quote.AddItem(new QuoteItem(product.Id, product.Name, new Domain.ValueObjects.Money(1_500m), new Domain.ValueObjects.Quantity(2m), 0m));
         var receivable = new Receivable(customer.Id, sale.Id, new Domain.ValueObjects.Money(5_000m));
         await dbContext.Customers.AddAsync(customer, TestContext.Current.CancellationToken);

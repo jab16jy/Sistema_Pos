@@ -1,5 +1,6 @@
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
+using POS.Domain.ValueObjects;
 
 namespace POS.Domain.Entities;
 
@@ -20,11 +21,6 @@ public sealed class Quote
             throw new ArgumentException("Quote number is required.", nameof(quoteNumber));
         }
 
-        if (string.IsNullOrWhiteSpace(customerName))
-        {
-            throw new ArgumentException("Customer name is required.", nameof(customerName));
-        }
-
         if (validityDays <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(validityDays), "Validity days must be greater than zero.");
@@ -32,12 +28,12 @@ public sealed class Quote
 
         Id = Guid.NewGuid();
         QuoteNumber = quoteNumber.Trim();
-        CustomerName = customerName.Trim();
+        CustomerName = ContactInfo.NormalizeName(customerName);
         ValidityDays = validityDays;
         CustomerId = customerId;
-        CustomerPhone = customerPhone;
-        CustomerEmail = customerEmail;
-        Observations = observations;
+        CustomerPhone = ContactInfo.NormalizePhone(customerPhone);
+        CustomerEmail = ContactInfo.NormalizeEmail(customerEmail);
+        Observations = string.IsNullOrWhiteSpace(observations) ? null : observations.Trim();
         Status = QuoteStatus.Draft;
         CreatedAt = DateTime.UtcNow;
         ExpiresAt = CreatedAt.AddDays(validityDays);

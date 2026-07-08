@@ -1,3 +1,5 @@
+using POS.Domain.ValueObjects;
+
 namespace POS.Domain.Entities;
 
 public sealed class Customer
@@ -11,7 +13,7 @@ public sealed class Customer
     public Customer(string fullName, string identification)
     {
         Id = Guid.NewGuid();
-        FullName = NormalizeRequired(fullName, "Customer name is required.", nameof(fullName));
+        FullName = ContactInfo.NormalizeName(fullName);
         Identification = NormalizeRequired(identification, "Customer identification is required.", nameof(identification));
         IsActive = true;
     }
@@ -29,10 +31,10 @@ public sealed class Customer
 
     public void UpdateContactInfo(string fullName, string identification, string? phone, string? email, string? address)
     {
-        FullName = NormalizeRequired(fullName, "Customer name is required.", nameof(fullName));
+        FullName = ContactInfo.NormalizeName(fullName);
         Identification = NormalizeRequired(identification, "Customer identification is required.", nameof(identification));
-        Phone = NormalizeOptional(phone);
-        Email = NormalizeOptional(email);
+        Phone = ContactInfo.NormalizePhone(phone);
+        Email = ContactInfo.NormalizeEmail(email);
         Address = NormalizeOptional(address);
     }
 

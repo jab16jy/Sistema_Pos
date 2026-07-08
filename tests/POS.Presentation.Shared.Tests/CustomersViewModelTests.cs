@@ -48,7 +48,7 @@ public sealed class CustomersViewModelTests
     {
         var repository = new InMemoryCustomerRepository();
         var customer = new Customer("Ana Gomez", "123");
-        customer.UpdateContactInfo("Ana Gomez", "123", "300", "ana@example.com", "Main Street 1");
+        customer.UpdateContactInfo("Ana Gomez", "123", "+57 300 123 4567", "ana@example.com", "Main Street 1");
         await repository.AddAsync(customer, TestContext.Current.CancellationToken);
         var viewModel = CreateViewModel(repository);
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
@@ -70,7 +70,7 @@ public sealed class CustomersViewModelTests
         await viewModel.SaveAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(repository.Customers);
-        Assert.Contains("Customer name is required", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("nombre es obligatorio", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
