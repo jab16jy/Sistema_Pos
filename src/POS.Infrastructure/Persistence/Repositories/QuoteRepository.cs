@@ -21,6 +21,19 @@ public sealed class QuoteRepository : IQuoteRepository
             .FirstOrDefaultAsync(q => q.Id == id, ct);
     }
 
+    public async Task<IReadOnlyList<Quote>> GetOpenByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
+    {
+        DateTime now = DateTime.UtcNow;
+
+        return await _dbContext.Quotes
+            .Include(q => q.Items)
+            .Where(q => q.CustomerId == customerId)
+            .Where(q => q.Status == QuoteStatus.Draft || q.Status == QuoteStatus.Active)
+            .Where(q => q.ExpiresAt >= now)
+            .OrderByDescending(q => q.CreatedAt)
+            .ToListAsync(ct);
+    }
+
     public async Task<string> GetNextQuoteNumberAsync(CancellationToken ct = default)
     {
         var count = await _dbContext.Quotes.CountAsync(ct);
@@ -47,7 +60,15 @@ public sealed class QuoteRepository : IQuoteRepository
         int pageSize,
         CancellationToken ct = default)
     {
-        var query = _dbContext.Quotes.Include(q => q.Items).AsQueryable();
+        var inactiveCustomerIds = _dbContext.Customers
+            .AsNoTracking()
+            .Where(c => !c.IsActive)
+            .Select(c => c.Id);
+
+        var query = _dbContext.Quotes
+            .Include(q => q.Items)
+            .Where(q => q.CustomerId == null || q.Status == QuoteStatus.Converted || !inactiveCustomerIds.Contains(q.CustomerId.Value))
+            .AsQueryable();
 
         if (from.HasValue)
         {

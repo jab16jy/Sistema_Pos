@@ -370,7 +370,7 @@
               <ColumnDefinition Width="120" />
               <ColumnDefinition Width="100" />
               <ColumnDefinition Width="100" />
-              <ColumnDefinition Width="220" />
+              <ColumnDefinition Width="170" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="N° Cotiz." Style="{StaticResource MutedText}" FontSize="11" Margin="14,8" />
             <TextBlock Grid.Column="1" Text="Cliente" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
@@ -392,7 +392,7 @@
                         <ColumnDefinition Width="120" />
                         <ColumnDefinition Width="100" />
                         <ColumnDefinition Width="100" />
-                        <ColumnDefinition Width="220" />
+                        <ColumnDefinition Width="170" />
                       </Grid.ColumnDefinitions>
                       <TextBlock Text="{Binding QuoteNumber}" FontFamily="Consolas" VerticalAlignment="Center" Margin="14,0,0,0" />
                       <TextBlock Grid.Column="1" Text="{Binding CustomerName}" FontWeight="Medium" VerticalAlignment="Center" />
@@ -438,15 +438,6 @@
                                 CommandParameter="{Binding}">
                           <materialDesign:PackIcon Kind="WhatsApp" Foreground="{StaticResource BrushMuted}" Width="16" Height="16" />
                         </Button>
-                        <Button Content="Venta"
-                                Style="{StaticResource PrimaryButton}"
-                                Padding="8,0"
-                                Height="26"
-                                FontSize="11"
-                                Margin="4,0,0,0"
-                                Visibility="{Binding CanConvertToSale, Converter={StaticResource BoolToVisibilityConverter}}"
-                                Command="{Binding DataContext.ConvertToSaleCommand, ElementName=HistorialTabRoot}"
-                                CommandParameter="{Binding}" />
                       </StackPanel>
                     </Grid>
                   </Border>

@@ -135,7 +135,7 @@ public sealed class QuoteViewModelTests
         var vm = CreateViewModel(out InMemoryQuoteRepository quoteRepo, out _, product);
         var customerId = Guid.NewGuid();
 
-        vm.SelectCustomerCommand.Execute(new CustomerSearchResult(customerId, "Ana Gómez", "123", "300", "ana@example.com", "Main Street", true));
+        vm.SelectCustomerCommand.Execute(new CustomerSearchResult(customerId, "Ana Gómez", "123", "3001234567", "ana@example.com", "Main Street", true));
         AddCartItem(vm, product.Id, product.Name, 2_000m);
 
         await vm.ConfirmAsync(TestContext.Current.CancellationToken);
@@ -219,6 +219,11 @@ public sealed class QuoteViewModelTests
             DateOnly? from, DateOnly? to, string? customerName, Domain.Enums.QuoteStatus? status,
             int page, int pageSize, CancellationToken ct = default)
             => Task.FromResult<(IReadOnlyList<Domain.Entities.Quote>, int)>(([.. _store.Values], _store.Count));
+
+        public Task<IReadOnlyList<Domain.Entities.Quote>> GetOpenByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Domain.Entities.Quote>>(_store.Values
+                .Where(q => q.CustomerId == customerId && q.Status is Domain.Enums.QuoteStatus.Draft or Domain.Enums.QuoteStatus.Active && q.ExpiresAt >= DateTime.UtcNow)
+                .ToArray());
 
         public IReadOnlyCollection<Domain.Entities.Quote> Quotes => _store.Values;
     }

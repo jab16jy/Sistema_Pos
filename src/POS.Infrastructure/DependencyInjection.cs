@@ -118,6 +118,7 @@ public static class DependencyInjection
         services.AddScoped<RegisterPurchaseUseCase>();
         services.AddScoped<CreateQuoteUseCase>();
         services.AddScoped<ConvertQuoteToSaleUseCase>();
+        services.AddScoped<GetCustomerPayableQuotesUseCase>();
         services.AddScoped<GetQuoteHistoryUseCase>();
         services.AddScoped<CreateSaleUseCase>();
         services.AddScoped<PreviewPaymentUseCase>();

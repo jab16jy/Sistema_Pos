@@ -66,7 +66,7 @@
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="*" />
       <ColumnDefinition Width="16" />
-      <ColumnDefinition Width="280" />
+      <ColumnDefinition Width="340" />
     </Grid.ColumnDefinitions>
 
     <Border Style="{StaticResource Card}" Padding="16">
@@ -550,6 +550,74 @@
                   </Grid>
                 </StackPanel>
               </Border>
+            </StackPanel>
+          </Border>
+
+          <Border Background="{StaticResource BrushPrimaryContainer}"
+                  BorderBrush="{StaticResource BrushPrimary}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="10"
+                  Margin="0,0,0,12"
+                  Visibility="{Binding IsQuoteLoaded, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="Cotización cargada" Style="{StaticResource CashHint}" FontWeight="SemiBold" Foreground="{StaticResource BrushPrimary}" />
+                <TextBlock Text="{Binding LoadedQuoteBanner}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0" />
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Content="Quitar"
+                      Command="{Binding ClearLoadedQuoteCommand}"
+                      Style="{StaticResource GhostButton}"
+                      Padding="6,4" />
+            </Grid>
+          </Border>
+
+          <Border BorderBrush="{StaticResource BrushWarning}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="10"
+                  Margin="0,0,0,12"
+                  Background="{StaticResource BrushWarningContainer}"
+                  Visibility="{Binding HasCustomerQuotes, Converter={StaticResource BoolToVisibilityConverter}}">
+            <StackPanel>
+              <TextBlock Text="Cotizaciones pendientes" Style="{StaticResource CashHint}" FontWeight="SemiBold" Foreground="{StaticResource BrushWarning}" />
+              <TextBlock Text="{Binding SelectedCustomerQuoteSummary}" Style="{StaticResource CashHint}" TextWrapping="Wrap" Margin="0,2,0,6" />
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ComboBox ItemsSource="{Binding CustomerQuotes}"
+                          SelectedItem="{Binding SelectedCustomerQuote, Mode=TwoWay}"
+                          MinWidth="170">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel>
+                        <TextBlock Text="{Binding QuoteNumber}" FontWeight="SemiBold" />
+                        <TextBlock Style="{StaticResource CashHint}">
+                          <TextBlock.Text>
+                            <MultiBinding StringFormat="{}Total {0:C0} · vence {1:dd/MM/yyyy}">
+                              <Binding Path="Total" />
+                              <Binding Path="ExpiresAt" />
+                            </MultiBinding>
+                          </TextBlock.Text>
+                        </TextBlock>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Grid.Column="1"
+                        Content="Cargar"
+                        Command="{Binding LoadCustomerQuoteCommand}"
+                        Style="{StaticResource PrimaryButton}"
+                        Margin="8,0,0,0"
+                        Padding="10,4" />
+              </Grid>
             </StackPanel>
           </Border>
 

@@ -110,6 +110,11 @@ public sealed class CreateQuoteUseCaseTests
             IReadOnlyList<Quote> items = [.. Quotes];
             return Task.FromResult<(IReadOnlyList<Quote> Items, int Total)>((items, Quotes.Count));
         }
+
+        public Task<IReadOnlyList<Quote>> GetOpenByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Quote>>(Quotes
+                .Where(q => q.CustomerId == customerId && q.Status is QuoteStatus.Draft or QuoteStatus.Active && q.ExpiresAt >= DateTime.UtcNow)
+                .ToArray());
     }
 
     private sealed class InMemoryUnitOfWork : IUnitOfWork

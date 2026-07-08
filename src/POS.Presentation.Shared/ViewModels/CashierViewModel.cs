@@ -6,12 +6,15 @@ using System.Windows.Input;
 using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Products;
+using POS.Application.DTOs.Quotes;
 using POS.Application.DTOs.Sales;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Invoices;
 using POS.Application.UseCases.Loyalty;
+using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Sales;
+using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Presentation.Shared.Cashier;
 using POS.Presentation.Shared.Commands;
@@ -28,6 +31,8 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RedeemLoyaltyPointsUseCase? _redeemLoyaltyPointsUseCase;
     private readonly ReprintReceiptUseCase? _printReceiptUseCase;
     private readonly SearchCustomersUseCase? _searchCustomersUseCase;
+    private readonly GetCustomerPayableQuotesUseCase? _getCustomerPayableQuotesUseCase;
+    private readonly ConvertQuoteToSaleUseCase? _convertQuoteToSaleUseCase;
     private readonly RelayCommand _printReceiptYesCommand;
     private readonly RelayCommand _printReceiptNoCommand;
     private Guid? _pendingPrintSaleId;
@@ -42,6 +47,8 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _holdSaleCommand;
     private readonly RelayCommand _confirmPrototypeSaleCommand;
     private readonly RelayCommand _clearCustomerCommand;
+    private readonly RelayCommand _loadCustomerQuoteCommand;
+    private readonly RelayCommand _clearLoadedQuoteCommand;
     private CancellationTokenSource? _autocompleteSearchCts;
     private string _searchText = string.Empty;
     private CashierProductSearchResultViewModel? _selectedProduct;
@@ -63,6 +70,8 @@ public sealed class CashierViewModel : ViewModelBase
     private bool _isCustomerAssignmentOpen;
     private bool _confirmAfterCustomerAssignment;
     private bool _customerAssignmentReviewed;
+    private CustomerPayableQuote? _selectedCustomerQuote;
+    private CustomerPayableQuote? _loadedQuote;
 
     public CashierViewModel(IProductLookupService productLookupService)
         : this(productLookupService, new PreviewPaymentUseCase())
@@ -102,7 +111,9 @@ public sealed class CashierViewModel : ViewModelBase
         CreateSaleUseCase? createSaleUseCase,
         RedeemLoyaltyPointsUseCase? redeemLoyaltyPointsUseCase,
         ReprintReceiptUseCase? printReceiptUseCase,
-        SearchCustomersUseCase? searchCustomersUseCase = null)
+        SearchCustomersUseCase? searchCustomersUseCase = null,
+        GetCustomerPayableQuotesUseCase? getCustomerPayableQuotesUseCase = null,
+        ConvertQuoteToSaleUseCase? convertQuoteToSaleUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _previewPaymentUseCase = previewPaymentUseCase ?? throw new ArgumentNullException(nameof(previewPaymentUseCase));
@@ -110,6 +121,8 @@ public sealed class CashierViewModel : ViewModelBase
         _redeemLoyaltyPointsUseCase = redeemLoyaltyPointsUseCase;
         _printReceiptUseCase = printReceiptUseCase;
         _searchCustomersUseCase = searchCustomersUseCase;
+        _getCustomerPayableQuotesUseCase = getCustomerPayableQuotesUseCase;
+        _convertQuoteToSaleUseCase = convertQuoteToSaleUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -123,6 +136,7 @@ public sealed class CashierViewModel : ViewModelBase
         SearchResults = [];
         CartItems = [];
         CustomerSearchResults = [];
+        CustomerQuotes = [];
         CartItems.CollectionChanged += OnCartItemsChanged;
 
         SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => Message = $"Error al buscar productos: {ex.Message}"));
@@ -136,6 +150,8 @@ public sealed class CashierViewModel : ViewModelBase
         _associateCustomerCommand = new RelayCommand(_ => AssociateCustomer());
         _holdSaleCommand = new RelayCommand(_ => HoldSale(), _ => HasCartItems);
         _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale());
+        _loadCustomerQuoteCommand = new RelayCommand(parameter => RunSafe(LoadCustomerQuoteFromCommandAsync(parameter), ex => Message = $"Error al cargar la cotización: {ex.Message}"), _ => SelectedCustomerQuote is not null);
+        _clearLoadedQuoteCommand = new RelayCommand(_ => ClearLoadedQuote(), _ => IsQuoteLoaded);
         _printReceiptYesCommand = new RelayCommand(_ => RunSafe(PrintPendingReceiptAsync(), ex => Message = $"Error al imprimir el recibo: {ex.Message}"), _ => IsAwaitingPrintChoice);
         _printReceiptNoCommand = new RelayCommand(_ => DeclinePendingReceipt(), _ => IsAwaitingPrintChoice);
         AddSelectedProductCommand = _addSelectedProductCommand;
@@ -157,6 +173,8 @@ public sealed class CashierViewModel : ViewModelBase
         _clearCustomerCommand = new RelayCommand(_ => ClearCustomerAssignment(), _ => CustomerId is not null || SelectedCustomer is not null);
         ClearCustomerCommand = _clearCustomerCommand;
         CloseCustomerAssignmentCommand = new RelayCommand(_ => CloseCustomerAssignment());
+        LoadCustomerQuoteCommand = _loadCustomerQuoteCommand;
+        ClearLoadedQuoteCommand = _clearLoadedQuoteCommand;
     }
 
     public ObservableCollection<CashierProductSearchResultViewModel> SearchResults { get; }
@@ -166,6 +184,8 @@ public sealed class CashierViewModel : ViewModelBase
     public ObservableCollection<PaymentMethodOption> PaymentMethods { get; }
 
     public ObservableCollection<CustomerSearchResult> CustomerSearchResults { get; }
+
+    public ObservableCollection<CustomerPayableQuote> CustomerQuotes { get; }
 
     public ICommand SearchCommand { get; }
 
@@ -198,6 +218,10 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand ClearCustomerCommand { get; }
 
     public ICommand CloseCustomerAssignmentCommand { get; }
+
+    public ICommand LoadCustomerQuoteCommand { get; }
+
+    public ICommand ClearLoadedQuoteCommand { get; }
 
     public Guid CashierUserId { get; set; }
 
@@ -247,6 +271,35 @@ public sealed class CashierViewModel : ViewModelBase
         get => _isCustomerAssignmentOpen;
         private set => SetProperty(ref _isCustomerAssignmentOpen, value);
     }
+
+    public CustomerPayableQuote? SelectedCustomerQuote
+    {
+        get => _selectedCustomerQuote;
+        set
+        {
+            if (SetProperty(ref _selectedCustomerQuote, value))
+            {
+                OnPropertyChanged(nameof(SelectedCustomerQuoteSummary));
+                _loadCustomerQuoteCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public int CustomerQuoteCount => CustomerQuotes.Count;
+
+    public bool HasCustomerQuotes => CustomerQuotes.Count > 0;
+
+    public bool IsQuoteLoaded => _loadedQuote is not null;
+
+    public string LoadedQuoteNumber => _loadedQuote?.QuoteNumber ?? string.Empty;
+
+    public string LoadedQuoteBanner => _loadedQuote is null
+        ? string.Empty
+        : $"Cobrando cotización {_loadedQuote.QuoteNumber} · {FormatCurrency(_loadedQuote.Total)}";
+
+    public string SelectedCustomerQuoteSummary => SelectedCustomerQuote is null
+        ? string.Empty
+        : $"{SelectedCustomerQuote.QuoteNumber} · {FormatCurrency(SelectedCustomerQuote.Total)} · vence {SelectedCustomerQuote.ExpiresAt:dd/MM/yyyy}";
 
     public decimal LoyaltyDiscount
     {
@@ -619,6 +672,7 @@ public sealed class CashierViewModel : ViewModelBase
         ReceivedAmount = 0m;
         DeferredAmount = 0m;
         ClearCustomerAssignment(resetReviewedFlag: true);
+        ClearCustomerQuoteCandidates();
         RefreshTotals(updateMessage: false);
         Message = "Carrito limpio. Puedes iniciar una nueva venta.";
     }
@@ -644,6 +698,12 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
+        if (IsQuoteLoaded)
+        {
+            await ConfirmLoadedQuoteAsync(cancellationToken).ConfigureAwait(true);
+            return;
+        }
+
         if (_createSaleUseCase is null)
         {
             Message = "Venta validada en prototipo. Falta guardar por Application/SQLite en una parte posterior.";
@@ -657,6 +717,7 @@ public sealed class CashierViewModel : ViewModelBase
             ReceivedAmount = 0m;
             DeferredAmount = 0m;
             ClearCustomerAssignment(resetReviewedFlag: true);
+            ClearCustomerQuoteCandidates();
             RefreshTotals(updateMessage: false);
             Message = $"Venta guardada con factura {result.InvoiceNumber}.";
 
@@ -792,7 +853,10 @@ public sealed class CashierViewModel : ViewModelBase
         CustomerSearchResults.Clear();
         _customerAssignmentReviewed = true;
         IsCustomerAssignmentOpen = false;
-        Message = $"Cliente asignado para puntos: {customer.FullName}.";
+        await LoadCustomerQuotesForSelectedCustomerAsync(cancellationToken).ConfigureAwait(true);
+        Message = HasCustomerQuotes
+            ? $"Cliente asignado: {customer.FullName}. Tiene {CustomerQuoteCount} cotización(es) pendiente(s); puedes cargar una en Caja."
+            : $"Cliente asignado para puntos: {customer.FullName}.";
 
         await ContinueSaleIfCustomerGateWasOpenAsync(cancellationToken).ConfigureAwait(true);
     }
@@ -800,6 +864,7 @@ public sealed class CashierViewModel : ViewModelBase
     public async Task ContinueWithoutCustomerAsync(CancellationToken cancellationToken = default)
     {
         ClearCustomerAssignment(resetReviewedFlag: false);
+        ClearCustomerQuoteCandidates();
         _customerAssignmentReviewed = true;
         IsCustomerAssignmentOpen = false;
         Message = "Factura sin cliente asignado. No acumulará puntos ni aparecerá en ventas del cliente.";
@@ -854,11 +919,123 @@ public sealed class CashierViewModel : ViewModelBase
         CustomerSearchText = string.Empty;
         CustomerSearchResults.Clear();
         IsCustomerAssignmentOpen = false;
+        if (IsQuoteLoaded)
+        {
+            ClearLoadedQuote(clearCart: true, updateMessage: false);
+        }
+
+        ClearCustomerQuoteCandidates();
         if (resetReviewedFlag)
         {
             _customerAssignmentReviewed = false;
             _confirmAfterCustomerAssignment = false;
         }
+    }
+
+    private async Task LoadCustomerQuotesForSelectedCustomerAsync(CancellationToken cancellationToken)
+    {
+        ClearCustomerQuoteCandidates();
+
+        if (_getCustomerPayableQuotesUseCase is null || CustomerId is not { } customerId)
+        {
+            return;
+        }
+
+        IReadOnlyList<CustomerPayableQuote> quotes = await _getCustomerPayableQuotesUseCase
+            .ExecuteAsync(customerId, cancellationToken)
+            .ConfigureAwait(true);
+
+        foreach (CustomerPayableQuote quote in quotes)
+        {
+            CustomerQuotes.Add(quote);
+        }
+
+        SelectedCustomerQuote = CustomerQuotes.FirstOrDefault();
+        NotifyCustomerQuotesChanged();
+    }
+
+    private async Task LoadCustomerQuoteFromCommandAsync(object? parameter)
+    {
+        CustomerPayableQuote? quote = parameter as CustomerPayableQuote ?? SelectedCustomerQuote;
+        await LoadCustomerQuoteAsync(quote).ConfigureAwait(true);
+    }
+
+    public Task LoadCustomerQuoteAsync(CustomerPayableQuote? quote, CancellationToken cancellationToken = default)
+    {
+        if (quote is null)
+        {
+            Message = "Selecciona una cotización pendiente para cargarla en Caja.";
+            return Task.CompletedTask;
+        }
+
+        if (CustomerId is null)
+        {
+            Message = "Asigna el cliente antes de cargar una cotización.";
+            return Task.CompletedTask;
+        }
+
+        CartItems.Clear();
+        foreach (CustomerPayableQuoteItem item in quote.Items)
+        {
+            CartItems.Add(new CashierCartItemViewModel(
+                item.ProductId,
+                item.ProductName,
+                CompactProductId(item.ProductId),
+                item.Quantity,
+                item.UnitPrice,
+                item.Discount));
+        }
+
+        _loadedQuote = quote;
+        SelectedCustomerQuote = quote;
+        _customerAssignmentReviewed = true;
+        DeferredAmount = 0m;
+        if (SelectedPaymentMethod.Method == PaymentMethod.Cash)
+        {
+            ReceivedAmount = quote.Total;
+        }
+
+        NotifyQuoteContextChanged();
+        RefreshTotals(updateMessage: false);
+        Message = $"Cotización {quote.QuoteNumber} cargada en Caja. Revisa el método de pago y finaliza la venta.";
+        return Task.CompletedTask;
+    }
+
+    private void ClearLoadedQuote(bool clearCart = true, bool updateMessage = true)
+    {
+        if (clearCart)
+        {
+            CartItems.Clear();
+        }
+
+        _loadedQuote = null;
+        NotifyQuoteContextChanged();
+        RefreshTotals(updateMessage: false);
+        if (updateMessage)
+        {
+            Message = "Cotización retirada de Caja. Puedes iniciar una venta normal.";
+        }
+    }
+
+    private void ClearCustomerQuoteCandidates()
+    {
+        CustomerQuotes.Clear();
+        SelectedCustomerQuote = null;
+        NotifyCustomerQuotesChanged();
+    }
+
+    private void NotifyCustomerQuotesChanged()
+    {
+        OnPropertyChanged(nameof(CustomerQuoteCount));
+        OnPropertyChanged(nameof(HasCustomerQuotes));
+    }
+
+    private void NotifyQuoteContextChanged()
+    {
+        OnPropertyChanged(nameof(IsQuoteLoaded));
+        OnPropertyChanged(nameof(LoadedQuoteNumber));
+        OnPropertyChanged(nameof(LoadedQuoteBanner));
+        _clearLoadedQuoteCommand.RaiseCanExecuteChanged();
     }
 
     private void HoldSale()
@@ -906,7 +1083,7 @@ public sealed class CashierViewModel : ViewModelBase
     private CreateSaleRequest BuildCreateSaleRequest()
     {
         IReadOnlyCollection<CreateSaleItemRequest> items = CartItems
-            .Select(item => new CreateSaleItemRequest(item.ProductId, item.Quantity, 0m))
+            .Select(item => new CreateSaleItemRequest(item.ProductId, item.Quantity, item.Discount))
             .ToArray();
 
         // Use settlement plan when a deferred amount is set; otherwise use legacy full-payment path
@@ -930,6 +1107,77 @@ public sealed class CashierViewModel : ViewModelBase
 
         return new CreateSaleRequest(CashierUserId, CustomerId, items, payments);
     }
+
+    private async Task ConfirmLoadedQuoteAsync(CancellationToken cancellationToken)
+    {
+        if (_loadedQuote is null)
+        {
+            return;
+        }
+
+        if (_convertQuoteToSaleUseCase is null)
+        {
+            Message = "La conversión de cotizaciones no está disponible en Caja.";
+            return;
+        }
+
+        if (CashierUserId == Guid.Empty)
+        {
+            Message = "No hay cajero autenticado para facturar la cotización.";
+            return;
+        }
+
+        try
+        {
+            CustomerPayableQuote quote = _loadedQuote;
+            var request = new ConvertQuoteToSaleRequest(
+                quote.QuoteId,
+                CashierUserId,
+                BuildPaymentRequests());
+
+            CreateSaleResult result = DeferredAmount > 0m
+                ? await _convertQuoteToSaleUseCase.ExecuteAsync(request, BuildSettlementPlan(), cancellationToken).ConfigureAwait(true)
+                : await _convertQuoteToSaleUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+
+            CartItems.Clear();
+            ReceivedAmount = 0m;
+            DeferredAmount = 0m;
+            ClearCustomerAssignment(resetReviewedFlag: true);
+            RefreshTotals(updateMessage: false);
+            Message = $"Cotización {quote.QuoteNumber} facturada con factura {result.InvoiceNumber}.";
+
+            if (_printReceiptUseCase is not null)
+            {
+                _pendingPrintSaleId = result.SaleId;
+                OnPropertyChanged(nameof(IsAwaitingPrintChoice));
+                _printReceiptYesCommand.RaiseCanExecuteChanged();
+                _printReceiptNoCommand.RaiseCanExecuteChanged();
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al facturar la cotización: {ex.Message}";
+        }
+    }
+
+    private IReadOnlyCollection<CreateSalePaymentRequest> BuildPaymentRequests()
+    {
+        return
+        [
+            new(
+                SelectedPaymentMethod.Method,
+                TotalAmount,
+                SelectedPaymentMethod.Method == PaymentMethod.Cash ? ReceivedAmount : null,
+                string.IsNullOrWhiteSpace(BankOrPlatform) ? null : BankOrPlatform)
+        ];
+    }
+
+    private SaleSettlementPlan BuildSettlementPlan()
+        => new(ReceivedAmount, SelectedPaymentMethod.Method, DeferredAmount);
 
     private void RefreshTotals(bool updateMessage = true)
     {
@@ -999,7 +1247,7 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void OnCartItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(CashierCartItemViewModel.Quantity) or nameof(CashierCartItemViewModel.Subtotal))
+        if (e.PropertyName is nameof(CashierCartItemViewModel.Quantity) or nameof(CashierCartItemViewModel.Discount) or nameof(CashierCartItemViewModel.Subtotal))
         {
             RefreshTotals(updateMessage: false);
         }
@@ -1057,4 +1305,7 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";
+
+    private static string CompactProductId(Guid productId)
+        => productId.ToString("N")[..8].ToUpperInvariant();
 }

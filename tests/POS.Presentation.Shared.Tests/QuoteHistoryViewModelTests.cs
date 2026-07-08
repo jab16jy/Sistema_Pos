@@ -378,6 +378,11 @@ public sealed class QuoteHistoryViewModelTests
             DateOnly? from, DateOnly? to, string? customerName, QuoteStatus? status,
             int page, int pageSize, CancellationToken ct = default)
             => Task.FromResult<(IReadOnlyList<Domain.Entities.Quote>, int)>((_quotes, _quotes.Count));
+
+        public Task<IReadOnlyList<Domain.Entities.Quote>> GetOpenByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Domain.Entities.Quote>>(_quotes
+                .Where(q => q.CustomerId == customerId && q.Status is QuoteStatus.Draft or QuoteStatus.Active && q.ExpiresAt >= DateTime.UtcNow)
+                .ToArray());
     }
 
     private sealed class InMemoryQuoteRepository : IQuoteRepository
@@ -416,6 +421,11 @@ public sealed class QuoteHistoryViewModelTests
             DateOnly? from, DateOnly? to, string? customerName, QuoteStatus? status,
             int page, int pageSize, CancellationToken ct = default)
             => Task.FromResult<(IReadOnlyList<Domain.Entities.Quote>, int)>(([.. _store.Values], _store.Count));
+
+        public Task<IReadOnlyList<Domain.Entities.Quote>> GetOpenByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<Domain.Entities.Quote>>(_store.Values
+                .Where(q => q.CustomerId == customerId && q.Status is QuoteStatus.Draft or QuoteStatus.Active && q.ExpiresAt >= DateTime.UtcNow)
+                .ToArray());
     }
 
     private sealed class InMemoryDocumentSendLogRepository : IDocumentSendLogRepository
