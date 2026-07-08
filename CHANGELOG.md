@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.25.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.24.0...v0.25.0) (2026-07-08)
+
+
+### Features
+
+* **documents:** improve receipt pdf and whatsapp attachment flow ([4941c00](https://github.com/jab16jy/Sistema_Pos/commit/4941c006c1e1879e3acf9e0c168b62383f7fbcc3))
+* **ui:** auto-load customers view when navigating to clientes module ([9856a7d](https://github.com/jab16jy/Sistema_Pos/commit/9856a7daf6bf73eecce60f8e6d3aefd7c1fdb6fe))
+* **ui:** make cashier and shifts side panels scrollable ([6724254](https://github.com/jab16jy/Sistema_Pos/commit/67242549c005bc956d9a5e141f09ed11ca58fd8c))
+
+
+### Bug Fixes
+
+* **loyalty:** don't crash startup on orphaned Sale.CustomerId ([#88](https://github.com/jab16jy/Sistema_Pos/issues/88)) ([b448dd2](https://github.com/jab16jy/Sistema_Pos/commit/b448dd26552507f87e03a7591a8000b533529999))
+
 ## [0.24.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.23.0...v0.24.0) (2026-07-08)
 
 
