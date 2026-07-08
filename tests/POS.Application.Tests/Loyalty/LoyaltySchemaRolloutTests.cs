@@ -68,4 +68,56 @@ public sealed class LoyaltySchemaRolloutTests
             }
         }
     }
+
+    [Fact]
+    public async Task EnsureLatestSchemaAsync_SkipsSaleWithOrphanedCustomerId()
+    {
+        string dbPath = Path.Combine(Path.GetTempPath(), $"pos-loyalty-{Guid.NewGuid():N}.db");
+
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddPosInfrastructure($"Data Source={dbPath}");
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            await DatabaseSchemaRollout.EnsureLatestSchemaAsync(provider, TestContext.Current.CancellationToken);
+
+            Guid orphanedCustomerId = Guid.NewGuid();
+
+            using (IServiceScope setupScope = provider.CreateScope())
+            {
+                var db = setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+                var product = new Product("Tratamiento", Guid.NewGuid(), new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m));
+                db.Products.Add(product);
+                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+                // Simulates historical data where the referenced Customer row no longer exists.
+                var sale = new Sale(Guid.NewGuid(), orphanedCustomerId);
+                sale.AddItem(product, new Quantity(1m), Money.Zero);
+                sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(700_000m), new Money(700_000m), null));
+                sale.Complete();
+
+                db.Sales.Add(sale);
+                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+            }
+
+            // Must not throw DbUpdateException (FK constraint) and must not crash startup.
+            await DatabaseSchemaRollout.EnsureLatestSchemaAsync(provider, TestContext.Current.CancellationToken);
+
+            using IServiceScope assertScope = provider.CreateScope();
+            var assertDb = assertScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            Assert.False(await assertDb.LoyaltyAccounts.AnyAsync(account => account.CustomerId == orphanedCustomerId, TestContext.Current.CancellationToken));
+            Assert.False(await assertDb.LoyaltyTransactions.AnyAsync(TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            if (File.Exists(dbPath))
+            {
+                File.Delete(dbPath);
+            }
+        }
+    }
 }
