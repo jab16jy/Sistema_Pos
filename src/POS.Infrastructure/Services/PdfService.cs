@@ -112,119 +112,253 @@ public sealed class PdfService : IPdfService
                 .ConfigureAwait(false);
         }
 
+        string? logoPath = ResolveBrandLogoPath();
+
         var pdfBytes = Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.Margin(2, Unit.Centimetre);
+                page.Margin(1.4f, Unit.Centimetre);
+                page.DefaultTextStyle(text => text.FontFamily("Segoe UI").FontSize(10).FontColor(Colors.Grey.Darken3));
+                page.PageColor(Colors.Grey.Lighten5);
+
                 page.Content().Column(col =>
                 {
-                    // ── Business header ──────────────────────────────────────
-                    col.Item().AlignCenter().Text(settings?.BusinessName ?? "POS Local")
-                        .FontSize(20).Bold();
-                    if (!string.IsNullOrWhiteSpace(settings?.BusinessAddress))
-                        col.Item().AlignCenter().Text(settings.BusinessAddress).FontSize(11);
-                    if (!string.IsNullOrWhiteSpace(settings?.TaxId))
-                        col.Item().AlignCenter().Text($"NIT: {settings.TaxId}").FontSize(11);
+                    col.Spacing(12);
 
-                    col.Item().PaddingVertical(6).LineHorizontal(1);
+                    col.Item().Element(header => ComposeInvoiceHeader(header, settings, sale, customer, logoPath));
 
-                    // ── Invoice metadata ─────────────────────────────────────
                     col.Item().Row(row =>
                     {
-                        row.RelativeItem().Text("FACTURA DE VENTA").FontSize(14).Bold();
-                        row.RelativeItem().AlignRight().Column(metaCol =>
-                        {
-                            metaCol.Item().Text($"N°: {sale.InvoiceNumber}").Bold();
-                            metaCol.Item().Text($"Fecha: {sale.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm}");
-                        });
+                        row.Spacing(12);
+                        row.RelativeItem().Element(card => ComposeCustomerCard(card, customer));
+                        row.RelativeItem().Element(card => ComposePaymentCard(card, sale, culture));
                     });
 
-                    if (customer is not null)
-                    {
-                        col.Item().PaddingTop(4).Text($"Cliente: {customer.FullName}");
-                        if (!string.IsNullOrWhiteSpace(customer.Phone))
-                            col.Item().Text($"Teléfono: {customer.Phone}").FontSize(10);
-                    }
-
-                    col.Item().PaddingVertical(6).LineHorizontal(1);
-
-                    // ── Items table ──────────────────────────────────────────
-                    col.Item().Table(table =>
-                    {
-                        table.ColumnsDefinition(columns =>
-                        {
-                            columns.RelativeColumn(4);
-                            columns.RelativeColumn(1);
-                            columns.RelativeColumn(2);
-                            columns.RelativeColumn(2);
-                        });
-
-                        table.Header(header =>
-                        {
-                            header.Cell().Text("Descripción").Bold();
-                            header.Cell().Text("Cant.").Bold();
-                            header.Cell().AlignRight().Text("Precio Unit.").Bold();
-                            header.Cell().AlignRight().Text("Subtotal").Bold();
-                        });
-
-                        foreach (var item in sale.Items)
-                        {
-                            table.Cell().Text(item.ProductName);
-                            table.Cell().Text(item.Quantity.ToString("N2", culture));
-                            table.Cell().AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
-                            table.Cell().AlignRight().Text(item.Subtotal().Amount.ToString("C0", culture));
-                        }
-                    });
-
-                    col.Item().PaddingVertical(6).LineHorizontal(1);
-
-                    // ── Totals ───────────────────────────────────────────────
-                    col.Item().AlignRight()
-                        .Text($"Base gravable: {sale.TaxableBaseTotal().Amount.ToString("C0", culture)}");
-                    col.Item().AlignRight()
-                        .Text($"IVA incluido: {sale.TaxTotal().Amount.ToString("C0", culture)}");
-                    col.Item().AlignRight()
-                        .Text($"TOTAL: {sale.Total().Amount.ToString("C0", culture)}")
-                        .FontSize(14).Bold();
-
-                    var cashPayment = sale.Payments.FirstOrDefault(
-                        p => p.Method == Domain.Enums.PaymentMethod.Cash);
-                    if (cashPayment is not null)
-                    {
-                        var received = cashPayment.ReceivedAmount?.Amount ?? cashPayment.Amount.Amount;
-                        col.Item().AlignRight()
-                            .Text($"Efectivo recibido: {received.ToString("C0", culture)}");
-                        var change = cashPayment.ChangeAmount().Amount;
-                        if (change > 0)
-                            col.Item().AlignRight()
-                                .Text($"Cambio: {change.ToString("C0", culture)}");
-                    }
-
-                    var methodNames = sale.Payments
-                        .Select(p => p.Method switch
-                        {
-                            Domain.Enums.PaymentMethod.Cash       => "Efectivo",
-                            Domain.Enums.PaymentMethod.DebitCard  => "Tarjeta Débito",
-                            Domain.Enums.PaymentMethod.CreditCard => "Tarjeta Crédito",
-                            Domain.Enums.PaymentMethod.Transfer   => "Transferencia",
-                            _                                      => p.Method.ToString()
-                        })
-                        .Distinct();
-                    col.Item().PaddingTop(4)
-                        .Text($"Forma de pago: {string.Join(", ", methodNames)}");
-
-                    col.Item().PaddingVertical(6).LineHorizontal(1);
-
-                    // ── Footer ───────────────────────────────────────────────
-                    col.Item().AlignCenter().PaddingTop(8)
-                        .Text($"Documento generado por POS Local — {DateTimeOffset.Now:yyyy-MM-dd}")
-                        .FontSize(9).Italic();
+                    col.Item().Element(table => ComposeItemsTable(table, sale, culture));
+                    col.Item().AlignRight().Width(260).Element(totals => ComposeTotalsCard(totals, sale, culture));
+                    col.Item().Element(footer => ComposeInvoiceFooter(footer));
                 });
             });
         }).GeneratePdf();
 
         return pdfBytes;
+    }
+
+    private static void ComposeInvoiceHeader(
+        IContainer container,
+        BusinessSettings? settings,
+        Sale sale,
+        Customer? customer,
+        string? logoPath)
+    {
+        string businessName = settings?.BusinessName ?? "POS Local";
+
+        container.Background(Colors.Blue.Darken4).Padding(18).Column(col =>
+        {
+            col.Spacing(10);
+            col.Item().Row(row =>
+            {
+                row.Spacing(16);
+                row.ConstantItem(76).Height(76).Element(logo => ComposeLogo(logo, logoPath));
+                row.RelativeItem().Column(info =>
+                {
+                    info.Spacing(3);
+                    info.Item().Text(businessName).FontSize(21).Bold().FontColor(Colors.White);
+                    info.Item().Text("Factura de venta POS").FontSize(11).FontColor(Colors.Blue.Lighten4);
+
+                    if (!string.IsNullOrWhiteSpace(settings?.BusinessAddress))
+                    {
+                        info.Item().Text(settings.BusinessAddress).FontSize(9).FontColor(Colors.Grey.Lighten2);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(settings?.TaxId))
+                    {
+                        info.Item().Text($"NIT: {settings.TaxId}").FontSize(9).FontColor(Colors.Grey.Lighten2);
+                    }
+                });
+
+                row.ConstantItem(170).AlignRight().Column(meta =>
+                {
+                    meta.Spacing(4);
+                    meta.Item().AlignRight().Text("FACTURA").FontSize(10).Bold().FontColor(Colors.Blue.Lighten4);
+                    meta.Item().AlignRight().Text(sale.InvoiceNumber).FontSize(15).Bold().FontColor(Colors.White);
+                    meta.Item().AlignRight().Text(sale.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm")).FontSize(9).FontColor(Colors.Grey.Lighten2);
+                    meta.Item().AlignRight().Text(customer is null ? "Cliente consumidor final" : customer.FullName).FontSize(9).FontColor(Colors.Grey.Lighten2);
+                });
+            });
+        });
+    }
+
+    private static void ComposeLogo(IContainer container, string? logoPath)
+    {
+        if (!string.IsNullOrWhiteSpace(logoPath) && File.Exists(logoPath))
+        {
+            container.Background(Colors.White).Padding(6).Image(File.ReadAllBytes(logoPath)).FitArea();
+            return;
+        }
+
+        container.Background(Colors.White).AlignCenter().AlignMiddle()
+            .Text("POS").FontSize(18).Bold().FontColor(Colors.Blue.Darken4);
+    }
+
+    private static void ComposeCustomerCard(IContainer container, Customer? customer)
+    {
+        container.Element(CardStyle).Column(col =>
+        {
+            col.Spacing(4);
+            col.Item().Text("Cliente").FontSize(9).Bold().FontColor(Colors.Blue.Darken3);
+            col.Item().Text(customer?.FullName ?? "Consumidor final").FontSize(12).Bold();
+
+            if (!string.IsNullOrWhiteSpace(customer?.Identification))
+            {
+                col.Item().Text($"Documento: {customer.Identification}").FontSize(9);
+            }
+
+            if (!string.IsNullOrWhiteSpace(customer?.Phone))
+            {
+                col.Item().Text($"Teléfono: {customer.Phone}").FontSize(9);
+            }
+        });
+    }
+
+    private static void ComposePaymentCard(IContainer container, Sale sale, CultureInfo culture)
+    {
+        var paymentMethods = sale.Payments.Select(p => PaymentMethodName(p.Method)).Distinct();
+        var cashPayment = sale.Payments.FirstOrDefault(p => p.Method == Domain.Enums.PaymentMethod.Cash);
+
+        container.Element(CardStyle).Column(col =>
+        {
+            col.Spacing(4);
+            col.Item().Text("Pago").FontSize(9).Bold().FontColor(Colors.Blue.Darken3);
+            col.Item().Text(string.Join(", ", paymentMethods)).FontSize(12).Bold();
+
+            if (cashPayment is not null)
+            {
+                decimal received = cashPayment.ReceivedAmount?.Amount ?? cashPayment.Amount.Amount;
+                col.Item().Text($"Recibido: {received.ToString("C0", culture)}").FontSize(9);
+                col.Item().Text($"Cambio: {cashPayment.ChangeAmount().Amount.ToString("C0", culture)}").FontSize(9);
+            }
+        });
+    }
+
+    private static void ComposeItemsTable(IContainer container, Sale sale, CultureInfo culture)
+    {
+        container.Element(CardStyle).Table(table =>
+        {
+            table.ColumnsDefinition(columns =>
+            {
+                columns.RelativeColumn(4);
+                columns.RelativeColumn(1);
+                columns.RelativeColumn(2);
+                columns.RelativeColumn(2);
+            });
+
+            table.Header(header =>
+            {
+                header.Cell().Element(HeaderCellStyle).Text("Descripción").FontColor(Colors.White).Bold();
+                header.Cell().Element(HeaderCellStyle).AlignCenter().Text("Cant.").FontColor(Colors.White).Bold();
+                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Precio unit.").FontColor(Colors.White).Bold();
+                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Subtotal").FontColor(Colors.White).Bold();
+            });
+
+            foreach (var item in sale.Items)
+            {
+                table.Cell().Element(CellStyle).Text(item.ProductName).Bold();
+                table.Cell().Element(CellStyle).AlignCenter().Text(item.Quantity.ToString("N2", culture));
+                table.Cell().Element(CellStyle).AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
+                table.Cell().Element(CellStyle).AlignRight().Text(item.Subtotal().Amount.ToString("C0", culture));
+            }
+        });
+    }
+
+    private static void ComposeTotalsCard(IContainer container, Sale sale, CultureInfo culture)
+    {
+        container.Background(Colors.Blue.Lighten5).Border(1).BorderColor(Colors.Blue.Lighten3).Padding(12).Column(col =>
+        {
+            col.Spacing(6);
+            col.Item().Row(row =>
+            {
+                row.RelativeItem().Text("Base gravable");
+                row.ConstantItem(100).AlignRight().Text(sale.TaxableBaseTotal().Amount.ToString("C0", culture));
+            });
+            col.Item().Row(row =>
+            {
+                row.RelativeItem().Text("IVA incluido");
+                row.ConstantItem(100).AlignRight().Text(sale.TaxTotal().Amount.ToString("C0", culture));
+            });
+            col.Item().LineHorizontal(1).LineColor(Colors.Blue.Lighten3);
+            col.Item().Row(row =>
+            {
+                row.RelativeItem().Text("TOTAL").FontSize(13).Bold().FontColor(Colors.Blue.Darken4);
+                row.ConstantItem(120).AlignRight().Text(sale.Total().Amount.ToString("C0", culture)).FontSize(15).Bold().FontColor(Colors.Blue.Darken4);
+            });
+        });
+    }
+
+    private static void ComposeInvoiceFooter(IContainer container)
+    {
+        container.AlignCenter().Column(col =>
+        {
+            col.Spacing(3);
+            col.Item().LineHorizontal(1).LineColor(Colors.Grey.Lighten2);
+            col.Item().AlignCenter().Text("Gracias por su compra").FontSize(11).Bold().FontColor(Colors.Blue.Darken3);
+            col.Item().AlignCenter().Text($"Documento generado por POS Local — {DateTimeOffset.Now:yyyy-MM-dd}").FontSize(8).FontColor(Colors.Grey.Darken1);
+        });
+    }
+
+    private static IContainer CardStyle(IContainer container) =>
+        container.Background(Colors.White).Border(1).BorderColor(Colors.Grey.Lighten2).Padding(12);
+
+    private static IContainer HeaderCellStyle(IContainer container) =>
+        container.Background(Colors.Blue.Darken3).PaddingVertical(7).PaddingHorizontal(6);
+
+    private static IContainer CellStyle(IContainer container) =>
+        container.BorderBottom(1).BorderColor(Colors.Grey.Lighten3).PaddingVertical(6).PaddingHorizontal(6);
+
+    private static string PaymentMethodName(Domain.Enums.PaymentMethod method) => method switch
+    {
+        Domain.Enums.PaymentMethod.Cash       => "Efectivo",
+        Domain.Enums.PaymentMethod.DebitCard  => "Tarjeta débito",
+        Domain.Enums.PaymentMethod.CreditCard => "Tarjeta crédito",
+        Domain.Enums.PaymentMethod.Transfer   => "Transferencia",
+        _                                     => method.ToString()
+    };
+
+    private static string? ResolveBrandLogoPath()
+    {
+        foreach (string root in EnumerateCandidateRoots())
+        {
+            string newLogo = Path.Combine(root, "logo", "Newlogo.png");
+            if (File.Exists(newLogo))
+            {
+                return newLogo;
+            }
+
+            string presentationLogo = Path.Combine(root, "src", "POS.Presentation", "Resources", "logo.jpeg");
+            if (File.Exists(presentationLogo))
+            {
+                return presentationLogo;
+            }
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> EnumerateCandidateRoots()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string start in new[] { AppContext.BaseDirectory, Environment.CurrentDirectory })
+        {
+            var directory = new DirectoryInfo(start);
+            for (int depth = 0; directory is not null && depth < 8; depth++, directory = directory.Parent)
+            {
+                if (seen.Add(directory.FullName))
+                {
+                    yield return directory.FullName;
+                }
+            }
+        }
     }
 }

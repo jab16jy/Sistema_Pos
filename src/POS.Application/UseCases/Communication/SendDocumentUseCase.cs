@@ -56,7 +56,7 @@ public sealed class SendDocumentUseCase
             }
             else
             {
-                var tempPath = Path.Combine(Path.GetTempPath(), $"pos_{request.DocumentId}.pdf");
+                var tempPath = Path.Combine(Path.GetTempPath(), $"{docTypeName}_{request.DocumentId:N}.pdf");
                 await File.WriteAllBytesAsync(tempPath, pdfBytes, ct);
 
                 var message = $"Adjunto encontrará su {docTypeName.ToLower()}.";
