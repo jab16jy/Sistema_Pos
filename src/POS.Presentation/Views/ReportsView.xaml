@@ -93,29 +93,29 @@
           <Border Style="{StaticResource Card}" Margin="0,0,8,0" BorderThickness="0,0,0,3" BorderBrush="{StaticResource BrushPrimary}">
             <StackPanel>
               <TextBlock Text="TOTAL FACTURADO" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding BilledTotalText}" FontSize="20" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}" Margin="0,4,0,0" />
+              <TextBlock Text="{Binding BilledTotalText}" Style="{StaticResource TextH2}" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}" Margin="0,4,0,0" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource Card}" Margin="8,0,8,0">
             <StackPanel>
               <TextBlock Text="EFECTIVO ESPERADO" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding ExpectedDrawerCashText}" FontSize="20" FontWeight="Bold" FontFamily="Consolas" Margin="0,4,0,0" />
+              <TextBlock Text="{Binding ExpectedDrawerCashText}" Style="{StaticResource TextH2}" FontWeight="Bold" FontFamily="Consolas" Margin="0,4,0,0" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource Card}" Margin="8,0,8,0">
             <StackPanel>
               <TextBlock Text="EFECTIVO VENTAS" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding CashCollectedText}" FontSize="20" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushSuccess}" Margin="0,4,0,4" />
+              <TextBlock Text="{Binding CashCollectedText}" Style="{StaticResource TextH2}" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushSuccess}" Margin="0,4,0,4" />
               <Border Style="{StaticResource ChipSuccessStyle}" HorizontalAlignment="Left"
                       Visibility="{Binding IsDrawerCashBalanced, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TextBlock Text="Cuadra" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushSuccess}" />
+                <TextBlock Text="Cuadra" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushSuccess}" />
               </Border>
             </StackPanel>
           </Border>
           <Border Style="{StaticResource Card}" Margin="8,0,8,0">
             <StackPanel>
               <TextBlock Text="PAGOS DIGITALES" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding DigitalCollectedText}" FontSize="20" FontWeight="Bold" FontFamily="Consolas" Margin="0,4,0,0" />
+              <TextBlock Text="{Binding DigitalCollectedText}" Style="{StaticResource TextH2}" FontWeight="Bold" FontFamily="Consolas" Margin="0,4,0,0" />
             </StackPanel>
           </Border>
           <!-- Note: the wireframe's 5th KPI is "Transferencias", a payment sub-category that does not
@@ -125,7 +125,7 @@
           <Border Style="{StaticResource Card}" Margin="8,0,0,0">
             <StackPanel>
               <TextBlock Text="ABONOS COBRADOS" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" />
-              <TextBlock Text="{Binding ReceivableSettlementsText}" FontSize="20" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushWarning}" Margin="0,4,0,0" />
+              <TextBlock Text="{Binding ReceivableSettlementsText}" Style="{StaticResource TextH2}" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushWarning}" Margin="0,4,0,0" />
             </StackPanel>
           </Border>
         </UniformGrid>
@@ -144,7 +144,7 @@
                placeholder, consistent with the KPI placeholders used in Phases 6/11. -->
           <Border Style="{StaticResource Card}" Padding="0">
             <StackPanel>
-              <TextBlock Text="Ventas por hora" FontSize="13" FontWeight="SemiBold" Margin="16,12,16,4" />
+              <TextBlock Text="Ventas por hora" Style="{StaticResource TextBody}" FontWeight="SemiBold" Margin="16,12,16,4" />
               <TextBlock Text="Datos ilustrativos — pendiente de agregacion por hora en el backend." Style="{StaticResource MutedText}" FontSize="11" Margin="16,0,16,12" />
               <UniformGrid Columns="10" Height="120" Margin="16,0,16,16" VerticalAlignment="Bottom">
                 <Border Background="{StaticResource BrushPrimaryContainer}" Height="46" Margin="2,0" VerticalAlignment="Bottom" />
@@ -164,15 +164,15 @@
           <!-- Por metodo de pago: real 2-category (cash/digital) split with percentages -->
           <Border Grid.Column="2" Style="{StaticResource Card}">
             <StackPanel>
-              <TextBlock Text="Por metodo de pago" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,12" />
+              <TextBlock Text="Por metodo de pago" Style="{StaticResource TextBody}" FontWeight="SemiBold" Margin="0,0,0,12" />
 
               <Grid Margin="0,0,0,4">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Efectivo" FontSize="12" />
-                <TextBlock Grid.Column="1" FontSize="12" FontWeight="Bold" FontFamily="Consolas">
+                <TextBlock Text="Efectivo" Style="{StaticResource TextSmall}" />
+                <TextBlock Grid.Column="1" Style="{StaticResource TextSmall}" FontWeight="Bold" FontFamily="Consolas">
                   <Run Text="{Binding CashCollectedText, Mode=OneWay}" />
                   <Run Text=" (" /><Run Text="{Binding CashPaymentPercentText, Mode=OneWay}" /><Run Text=")" />
                 </TextBlock>
@@ -187,8 +187,8 @@
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Digital (tarjeta + transferencia)" FontSize="12" />
-                <TextBlock Grid.Column="1" FontSize="12" FontWeight="Bold" FontFamily="Consolas">
+                <TextBlock Text="Digital (tarjeta + transferencia)" Style="{StaticResource TextSmall}" />
+                <TextBlock Grid.Column="1" Style="{StaticResource TextSmall}" FontWeight="Bold" FontFamily="Consolas">
                   <Run Text="{Binding DigitalCollectedText, Mode=OneWay}" />
                   <Run Text=" (" /><Run Text="{Binding DigitalPaymentPercentText, Mode=OneWay}" /><Run Text=")" />
                 </TextBlock>
@@ -223,7 +223,7 @@
               <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="Analisis de rentabilidad" FontSize="16" FontWeight="Bold" />
+              <TextBlock Text="Analisis de rentabilidad" Style="{StaticResource TextH3}" FontWeight="Bold" />
               <TextBlock Text="Top productos, margenes, comparacion de periodos y plataformas de pago." Style="{StaticResource MutedText}" FontSize="12" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -258,7 +258,7 @@
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="16,12,16,4">
                 <materialDesign:PackIcon Kind="StarCircle" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                <TextBlock Text="Top 10 · Productos mas vendidos" FontSize="13" FontWeight="SemiBold" />
+                <TextBlock Text="Top 10 · Productos mas vendidos" Style="{StaticResource TextBody}" FontWeight="SemiBold" />
               </StackPanel>
               <ItemsControl ItemsSource="{Binding TopSellerRows}" Margin="16,4,16,12" MaxHeight="280">
                 <ItemsControl.ItemTemplate>
@@ -270,16 +270,16 @@
                         <ColumnDefinition Width="36" />
                       </Grid.ColumnDefinitions>
                       <Border Width="20" Height="20" CornerRadius="10" Background="{StaticResource BrushSurfaceContainer}" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Rank}" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Rank}" Style="{StaticResource TextCaption}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                       </Border>
                       <StackPanel Grid.Column="1" Margin="8,0">
-                        <TextBlock Text="{Binding ProductName}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Text="{Binding ProductName}" Style="{StaticResource TextSmall}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                         <Border Height="6" Background="{StaticResource BrushSurfaceContainer}" CornerRadius="3" Margin="0,4,0,0">
                           <Border Background="{StaticResource BrushPrimary}" CornerRadius="3" HorizontalAlignment="Left"
                                   Width="{Binding BarPercent, Converter={StaticResource PercentToWidthConverter}, ConverterParameter=260}" />
                         </Border>
                       </StackPanel>
-                      <TextBlock Grid.Column="2" Text="{Binding UnitsSold, StringFormat='{}{0}u'}" FontFamily="Consolas" FontWeight="Bold" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                      <TextBlock Grid.Column="2" Text="{Binding UnitsSold, StringFormat='{}{0}u'}" FontFamily="Consolas" FontWeight="Bold" Style="{StaticResource TextCaption}" VerticalAlignment="Center" HorizontalAlignment="Right" />
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -296,17 +296,17 @@
             <StackPanel>
               <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                 <materialDesign:PackIcon Kind="Shape" Width="16" Height="16" Foreground="{StaticResource BrushAccent}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                <TextBlock Text="Margen bruto por categoria" FontSize="13" FontWeight="SemiBold" />
+                <TextBlock Text="Margen bruto por categoria" Style="{StaticResource TextBody}" FontWeight="SemiBold" />
               </StackPanel>
               <TextBlock Text="Datos ilustrativos — requiere agregar categoria a la consulta de margenes." Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,12" />
 
-              <TextBlock Text="Sin categorizar (ver Margen por producto abajo)" FontSize="12" FontWeight="Medium" Margin="0,0,0,4" />
+              <TextBlock Text="Sin categorizar (ver Margen por producto abajo)" Style="{StaticResource TextSmall}" FontWeight="Medium" Margin="0,0,0,4" />
               <Border Height="8" Background="{StaticResource BrushSurfaceContainer}" CornerRadius="4" Margin="0,0,0,12">
                 <Border Background="{StaticResource BrushWarning}" CornerRadius="4" HorizontalAlignment="Left" Width="120" />
               </Border>
 
               <!-- Margen por producto (real, reused from prior view) -->
-              <TextBlock Text="Margen por producto" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+              <TextBlock Text="Margen por producto" Style="{StaticResource TextSmall}" FontWeight="SemiBold" Margin="0,0,0,6" />
               <DataGrid ItemsSource="{Binding ProductMargins}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="150">
                 <DataGrid.Columns>
                   <DataGridTextColumn Header="Producto" Binding="{Binding ProductName}" Width="*" />
@@ -320,7 +320,7 @@
           <!-- Comparativa de periodos (real) -->
           <Border Grid.Row="2" Style="{StaticResource Card}">
             <StackPanel>
-              <TextBlock Text="Comparativa de periodos" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,12" />
+              <TextBlock Text="Comparativa de periodos" Style="{StaticResource TextBody}" FontWeight="SemiBold" Margin="0,0,0,12" />
               <UniformGrid Columns="3" DataContext="{Binding PeriodComparison}">
                 <StackPanel Margin="0,0,8,0">
                   <TextBlock Text="Periodo actual" Style="{StaticResource MutedText}" FontSize="11" />
@@ -355,7 +355,7 @@
                to reflect what the real data represents instead of inventing a channel split. -->
           <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource Card}">
             <StackPanel>
-              <TextBlock Text="Desglose por plataforma de pago" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4" />
+              <TextBlock Text="Desglose por plataforma de pago" Style="{StaticResource TextBody}" FontWeight="SemiBold" Margin="0,0,0,4" />
               <TextBlock Text="Agrupado por banco/plataforma de pago registrada en cada transaccion." Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,8" />
               <DataGrid ItemsSource="{Binding PlatformBreakdown}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="150">
                 <DataGrid.Columns>
@@ -385,7 +385,7 @@
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
               <materialDesign:PackIcon Kind="Receipt" Width="18" Height="18" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-              <TextBlock Text="Ultimo cierre registrado" FontSize="13" FontWeight="SemiBold" />
+              <TextBlock Text="Ultimo cierre registrado" Style="{StaticResource TextBody}" FontWeight="SemiBold" />
             </StackPanel>
 
             <StackPanel Visibility="{Binding HasLastClosedShift, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -394,24 +394,24 @@
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Cajero" FontSize="12" FontWeight="Medium" />
-                <TextBlock Grid.Column="1" Text="{Binding LastClosedShiftCashier}" FontFamily="Consolas" FontWeight="Bold" FontSize="12" />
+                <TextBlock Text="Cajero" Style="{StaticResource TextSmall}" FontWeight="Medium" />
+                <TextBlock Grid.Column="1" Text="{Binding LastClosedShiftCashier}" FontFamily="Consolas" FontWeight="Bold" Style="{StaticResource TextSmall}" />
               </Grid>
               <Grid Margin="0,0,0,8">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Apertura" FontSize="12" FontWeight="Medium" />
-                <TextBlock Grid.Column="1" Text="{Binding LastClosedShiftOpenSummary}" FontFamily="Consolas" FontSize="12" />
+                <TextBlock Text="Apertura" Style="{StaticResource TextSmall}" FontWeight="Medium" />
+                <TextBlock Grid.Column="1" Text="{Binding LastClosedShiftOpenSummary}" FontFamily="Consolas" Style="{StaticResource TextSmall}" />
               </Grid>
               <Grid Margin="0,0,0,12">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Cierre" FontSize="12" FontWeight="Medium" />
-                <TextBlock Grid.Column="1" Text="{Binding LastClosedShiftCloseSummary}" FontFamily="Consolas" FontSize="12" Foreground="{StaticResource BrushMuted}" />
+                <TextBlock Text="Cierre" Style="{StaticResource TextSmall}" FontWeight="Medium" />
+                <TextBlock Grid.Column="1" Text="{Binding LastClosedShiftCloseSummary}" FontFamily="Consolas" Style="{StaticResource TextSmall}" Foreground="{StaticResource BrushMuted}" />
               </Grid>
 
               <!-- Totals reuse the Operational subtab's currently loaded report period; documented as a
@@ -424,24 +424,24 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Total facturado (periodo cargado)" FontSize="12" />
-                    <TextBlock Grid.Column="1" Text="{Binding BilledTotalText}" FontFamily="Consolas" FontWeight="Bold" FontSize="12" Foreground="{StaticResource BrushPrimary}" />
+                    <TextBlock Text="Total facturado (periodo cargado)" Style="{StaticResource TextSmall}" />
+                    <TextBlock Grid.Column="1" Text="{Binding BilledTotalText}" FontFamily="Consolas" FontWeight="Bold" Style="{StaticResource TextSmall}" Foreground="{StaticResource BrushPrimary}" />
                   </Grid>
                   <Grid Margin="0,0,0,4">
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Efectivo esperado" FontSize="12" />
-                    <TextBlock Grid.Column="1" Text="{Binding ExpectedDrawerCashText}" FontFamily="Consolas" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="Efectivo esperado" Style="{StaticResource TextSmall}" />
+                    <TextBlock Grid.Column="1" Text="{Binding ExpectedDrawerCashText}" FontFamily="Consolas" FontWeight="Bold" Style="{StaticResource TextSmall}" />
                   </Grid>
                   <Grid>
                     <Grid.ColumnDefinitions>
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Digital" FontSize="12" />
-                    <TextBlock Grid.Column="1" Text="{Binding DigitalCollectedText}" FontFamily="Consolas" FontWeight="Bold" FontSize="12" />
+                    <TextBlock Text="Digital" Style="{StaticResource TextSmall}" />
+                    <TextBlock Grid.Column="1" Text="{Binding DigitalCollectedText}" FontFamily="Consolas" FontWeight="Bold" Style="{StaticResource TextSmall}" />
                   </Grid>
                   <TextBlock Text="Cifras del periodo cargado en Resumen operacional (no necesariamente el mismo rango exacto del turno)."
                              Style="{StaticResource MutedText}" FontSize="10" Margin="0,8,0,0" />
@@ -459,25 +459,25 @@
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
               <materialDesign:PackIcon Kind="ClipboardCheck" Width="18" Height="18" Foreground="{StaticResource BrushWarning}" VerticalAlignment="Center" Margin="0,0,8,0" />
-              <TextBlock Text="Consulta de cierres" FontSize="13" FontWeight="SemiBold" />
+              <TextBlock Text="Consulta de cierres" Style="{StaticResource TextBody}" FontWeight="SemiBold" />
             </StackPanel>
 
             <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,8">
               <StackPanel>
-                <TextBlock Text="Que si hace este tab" FontSize="12" FontWeight="SemiBold" />
+                <TextBlock Text="Que si hace este tab" Style="{StaticResource TextSmall}" FontWeight="SemiBold" />
                 <TextBlock Text="Consultar arqueos ya cerrados, diferencias detectadas y exportar evidencia." Style="{StaticResource MutedText}" FontSize="11" Margin="0,2,0,0" />
               </StackPanel>
             </Border>
             <Border Background="{StaticResource BrushWarningContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,12">
               <StackPanel>
-                <TextBlock Text="Que ya no hace" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource BrushWarning}" />
+                <TextBlock Text="Que ya no hace" Style="{StaticResource TextSmall}" FontWeight="SemiBold" Foreground="{StaticResource BrushWarning}" />
                 <TextBlock Text="El cierre operativo del turno no se ejecuta aqui. Se realiza desde Turnos para evitar duplicidad con reportes."
-                           Foreground="{StaticResource BrushWarning}" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap" />
+                           Foreground="{StaticResource BrushWarning}" Style="{StaticResource TextCaption}" Margin="0,2,0,0" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
 
             <!-- Recent closings (real data via GetShiftsUseCase) -->
-            <TextBlock Text="Cierres recientes" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <TextBlock Text="Cierres recientes" Style="{StaticResource TextSmall}" FontWeight="SemiBold" Margin="0,0,0,6" />
             <ItemsControl ItemsSource="{Binding RecentClosings}" MaxHeight="140" Margin="0,0,0,8">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
@@ -487,8 +487,8 @@
                       <ColumnDefinition Width="Auto" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding CashierUsername}" FontSize="12" VerticalAlignment="Center" />
-                    <TextBlock Grid.Column="1" Text="{Binding ClosedAtFormatted}" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource BrushMuted}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding CashierUsername}" Style="{StaticResource TextSmall}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding ClosedAtFormatted}" FontFamily="Consolas" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}" Margin="0,0,8,0" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="2" Text="{Binding DifferenceLabel}" FontFamily="Consolas" FontWeight="Bold" FontSize="12" VerticalAlignment="Center">
                       <TextBlock.Style>
                         <Style TargetType="TextBlock">
@@ -527,7 +527,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="Diferencia reportada (ultimo cierre)" FontSize="12" />
+                  <TextBlock Text="Diferencia reportada (ultimo cierre)" Style="{StaticResource TextSmall}" />
                   <TextBlock Grid.Column="1" Text="{Binding LastClosingDifferenceLabel}" FontFamily="Consolas" FontWeight="Bold" FontSize="12">
                     <TextBlock.Style>
                       <Style TargetType="TextBlock">
@@ -553,7 +553,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
-                  <TextBlock Text="Exportar evidencia" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                  <TextBlock Text="Exportar evidencia" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
                   <StackPanel Grid.Column="1" Orientation="Horizontal">
                     <Button Command="{Binding ExportOperationalPdfCommand}" Padding="8,0" Margin="0,0,6,0" ToolTip="Exportar PDF">
                       <materialDesign:PackIcon Kind="FilePdfBox" Width="16" Height="16" />

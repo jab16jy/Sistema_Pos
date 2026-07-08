@@ -22,7 +22,7 @@
           <StackPanel Orientation="Horizontal">
             <materialDesign:PackIcon Kind="BarcodeScan" Width="18" Height="18"
                                      Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Text="Generador" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="Generador" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
         </Border>
 
@@ -30,7 +30,7 @@
           <StackPanel Margin="16,12">
 
             <Border Background="{StaticResource BrushPrimaryContainer}" CornerRadius="6" Padding="10" Margin="0,0,0,12">
-              <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource BrushPrimary}">
+              <TextBlock TextWrapping="Wrap" Style="{StaticResource TextSmall}" Foreground="{StaticResource BrushPrimary}">
                 Utilidad administrativa. Normalmente se abre desde Productos o Admin.
               </TextBlock>
             </Border>
@@ -71,20 +71,20 @@
             <Border Background="{StaticResource BrushSurfaceContainer}" BorderBrush="{StaticResource BrushBorder}"
                     BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,12" MinHeight="140">
               <StackPanel HorizontalAlignment="Center">
-                <TextBlock Text="{Binding PreviewLabel}" FontWeight="Bold" FontSize="12" HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding PreviewLabel}" FontWeight="Bold" Style="{StaticResource TextSmall}" HorizontalAlignment="Center" />
 
                 <Image Source="{Binding PreviewImageBytes, Converter={StaticResource BytesToImageSourceConverter}}"
                        Visibility="{Binding PreviewImageBytes, Converter={StaticResource NullToVisibilityConverter}}"
                        Stretch="Uniform" MaxWidth="240" MaxHeight="80" Margin="0,8,0,0" />
 
-                <TextBlock Text="{Binding BarcodeValue}" FontFamily="Consolas" FontSize="13" Margin="0,8,0,0"
+                <TextBlock Text="{Binding BarcodeValue}" FontFamily="Consolas" Style="{StaticResource TextBody}" Margin="0,8,0,0"
                            HorizontalAlignment="Center"
                            Visibility="{Binding HasPreview, Converter={StaticResource BoolToVisibilityConverter}}" />
                 <TextBlock Text="Ingresa un valor para previsualizar" Style="{StaticResource MutedText}" FontSize="11"
                            Margin="0,8,0,0" HorizontalAlignment="Center"
                            Visibility="{Binding HasPreview, Converter={StaticResource BooleanNegationToVisibilityConverter}}" />
 
-                <TextBlock Text="{Binding PreviewPriceFormatted}" FontFamily="Consolas" FontWeight="Bold" FontSize="15"
+                <TextBlock Text="{Binding PreviewPriceFormatted}" FontFamily="Consolas" FontWeight="Bold" Style="{StaticResource TextH3}"
                            Margin="0,4,0,0" HorizontalAlignment="Center"
                            Visibility="{Binding HasPreviewPrice, Converter={StaticResource BoolToVisibilityConverter}}" />
               </StackPanel>
@@ -151,9 +151,9 @@
             </Grid.ColumnDefinitions>
             <materialDesign:PackIcon Kind="FormatListBulleted" Width="18" Height="18"
                                      Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Grid.Column="1" Text="Lote de impresi&#243;n" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="Lote de impresi&#243;n" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <Border Grid.Column="2" Style="{StaticResource ChipStyle}" Padding="6,2" Margin="0,0,8,0">
-              <TextBlock FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}">
+              <TextBlock Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}">
                 <Run Text="{Binding BatchItemCount, Mode=OneWay}" />
                 <Run Text=" &#237;tems" />
               </TextBlock>
@@ -197,7 +197,7 @@
                     <ColumnDefinition Width="Auto" />
                   </Grid.ColumnDefinitions>
                   <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource TextBody}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                     <TextBlock Text="{Binding Barcode}" Style="{StaticResource MutedText}" FontSize="11" FontFamily="Consolas" />
                   </StackPanel>
                   <TextBlock Grid.Column="1" Text="{Binding UnitPrice, StringFormat='{}${0:N0}'}" FontFamily="Consolas"
@@ -228,7 +228,7 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel VerticalAlignment="Center">
-                      <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Name}" Style="{StaticResource TextBody}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                       <TextBlock Text="{Binding MetaLine}" Style="{StaticResource MutedText}" FontSize="11" FontFamily="Consolas" />
                     </StackPanel>
 

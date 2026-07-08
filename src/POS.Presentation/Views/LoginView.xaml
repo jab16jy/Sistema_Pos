@@ -13,7 +13,7 @@
 
     <Border Width="440"
             Background="{StaticResource BrushSurface}"
-            CornerRadius="12"
+            CornerRadius="{StaticResource RadiusLg}"
             Padding="34"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
@@ -34,7 +34,7 @@
             </Image.Source>
           </Image>
           <TextBlock Text="Esthetic Medical Store"
-                     FontSize="27"
+                     Style="{StaticResource TextDisplay}"
                      FontWeight="SemiBold"
                      HorizontalAlignment="Center" />
           <TextBlock Text="Venta rápida, limpia y segura"
@@ -54,7 +54,7 @@
         <Border Background="{StaticResource BrushPrimaryContainer}"
                 BorderBrush="#BAE6FD"
                 BorderThickness="1"
-                CornerRadius="8"
+                CornerRadius="{StaticResource RadiusMd}"
                 Padding="12"
                 Margin="0,22,0,18">
           <Grid>
