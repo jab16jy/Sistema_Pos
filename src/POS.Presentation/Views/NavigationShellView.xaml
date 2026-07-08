@@ -10,7 +10,7 @@
         Height="780"
         MinWidth="1280"
         MinHeight="700"
-        Icon="pack://application:,,,/Resources/Newlogo.png"
+        Icon="pack://application:,,,/Resources/AppIcon.ico"
         WindowStartupLocation="CenterScreen">
   <Window.InputBindings>
     <KeyBinding Key="F1" Command="{Binding SelectModuleCommand}" CommandParameter="{Binding FuncbarModules[0]}" />
@@ -33,19 +33,6 @@
           <!-- Logo + Esthetic POS title (Visible when NOT in an admin submodule) -->
           <StackPanel Orientation="Horizontal"
                       Visibility="{Binding IsAdminSubmoduleSelected, Converter={StaticResource BooleanNegationToVisibilityConverter}}">
-            <Image Width="44"
-                   Height="44"
-                   Stretch="Uniform"
-                   RenderOptions.BitmapScalingMode="HighQuality"
-                   SnapsToDevicePixels="True"
-                   Margin="0,0,10,0"
-                   UseLayoutRounding="True">
-              <Image.Source>
-                <BitmapImage UriSource="pack://application:,,,/Resources/Newlogo.png"
-                             DecodePixelWidth="176"
-                             DecodePixelHeight="176" />
-              </Image.Source>
-            </Image>
             <TextBlock Text="Esthetic POS" FontWeight="Bold" FontSize="15" VerticalAlignment="Center" />
           </StackPanel>
 
