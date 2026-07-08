@@ -4,7 +4,7 @@
         xmlns:views="clr-namespace:POS.Presentation.Views"
         Title="Iniciar sesión — Esthetic Medical Store"
         Width="900"
-        Height="620"
+        Height="740"
         Icon="pack://application:,,,/Resources/AppIcon.ico"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize">
