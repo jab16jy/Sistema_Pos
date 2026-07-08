@@ -69,14 +69,28 @@ public static class DatabaseSchemaRollout
             .ToListAsync(ct)
             .ConfigureAwait(false);
 
+        // ponytail: a Sale can reference a CustomerId whose Customer row no longer exists
+        // (orphaned historical data). Creating a LoyaltyAccount for it would violate the FK
+        // and abort startup entirely, so those sales are skipped instead of crashing the app.
+        HashSet<Guid> existingCustomerIds = (await dbContext.Customers
+            .AsNoTracking()
+            .Select(customer => customer.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false)).ToHashSet();
+
         foreach (Sale sale in salesWithCustomer)
         {
+            if (sale.CustomerId is null || !existingCustomerIds.Contains(sale.CustomerId.Value))
+            {
+                continue;
+            }
+
             bool alreadyEarned = await dbContext.LoyaltyTransactions
                 .AsNoTracking()
                 .AnyAsync(transaction => transaction.SaleId == sale.Id && transaction.Type == LoyaltyTransactionType.Earned, ct)
                 .ConfigureAwait(false);
 
-            if (alreadyEarned || sale.CustomerId is null)
+            if (alreadyEarned)
             {
                 continue;
             }
