@@ -5,7 +5,7 @@
         Title="Iniciar sesión — Esthetic Medical Store"
         Width="900"
         Height="620"
-        Icon="pack://application:,,,/Resources/Newlogo.png"
+        Icon="pack://application:,,,/Resources/AppIcon.ico"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize">
   <views:LoginView />

@@ -4,6 +4,7 @@
     <TargetFramework>net9.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationIcon>..\..\logo\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,6 +21,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Resource Include="..\..\logo\AppIcon.ico">
+      <Link>Resources\AppIcon.ico</Link>
+    </Resource>
     <Resource Include="..\..\logo\Newlogo.png">
       <Link>Resources\Newlogo.png</Link>
     </Resource>

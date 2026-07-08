@@ -6,8 +6,8 @@
   <Grid>
     <Grid.Background>
       <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#F8F9FA" Offset="0" />
-        <GradientStop Color="#ECFEFF" Offset="1" />
+        <GradientStop Color="#F8FAFC" Offset="0" />
+        <GradientStop Color="#E2ECF7" Offset="1" />
       </LinearGradientBrush>
     </Grid.Background>
 
@@ -20,8 +20,8 @@
             Effect="{StaticResource CardShadow}">
       <StackPanel>
         <StackPanel HorizontalAlignment="Center" Margin="0,0,0,28">
-          <Image Width="132"
-                 Height="132"
+          <!-- Logo is 3:2 (1536x1024). Set only Width + DecodePixelWidth so Uniform keeps the aspect ratio. -->
+          <Image Width="208"
                  Stretch="Uniform"
                  RenderOptions.BitmapScalingMode="HighQuality"
                  SnapsToDevicePixels="True"
@@ -30,15 +30,14 @@
                  UseLayoutRounding="True">
             <Image.Source>
               <BitmapImage UriSource="pack://application:,,,/Resources/Newlogo.png"
-                           DecodePixelWidth="264"
-                           DecodePixelHeight="264" />
+                           DecodePixelWidth="416" />
             </Image.Source>
           </Image>
           <TextBlock Text="Esthetic Medical Store"
                      FontSize="27"
                      FontWeight="SemiBold"
                      HorizontalAlignment="Center" />
-          <TextBlock Text="Venta rapida, limpia y segura"
+          <TextBlock Text="Venta rápida, limpia y segura"
                      Style="{StaticResource MutedText}"
                      HorizontalAlignment="Center"
                      Margin="0,6,0,0" />
@@ -48,11 +47,11 @@
         <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
                  ToolTip="Escribe el usuario asignado por el administrador." />
 
-        <TextBlock Text="Contrasena" FontWeight="SemiBold" Margin="0,16,0,6" />
+        <TextBlock Text="Contraseña" FontWeight="SemiBold" Margin="0,16,0,6" />
         <PasswordBox x:Name="LoginPasswordBox"
-                     ToolTip="Escribe tu contrasena de acceso." />
+                     ToolTip="Escribe tu contraseña de acceso." />
 
-        <Border Background="#E0F2FE"
+        <Border Background="{StaticResource BrushPrimaryContainer}"
                 BorderBrush="#BAE6FD"
                 BorderThickness="1"
                 CornerRadius="8"
@@ -77,13 +76,13 @@
           </Grid>
         </Border>
 
-        <Button Content="Iniciar sesion"
+        <Button Content="Iniciar sesión"
                 Command="{Binding LoginCommand}"
                 Style="{StaticResource PrimaryButton}"
                 Height="46"
                 HorizontalAlignment="Stretch" />
 
-        <TextBlock Text="Atajo: Enter inicia sesion"
+        <TextBlock Text="Atajo: Enter inicia sesión"
                    Style="{StaticResource MutedText}"
                    FontSize="12"
                    HorizontalAlignment="Center"
