@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.23.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.22.3...v0.23.0) (2026-07-08)
+
+
+### Features
+
+* add loyalty program overview and rules management ([fca0359](https://github.com/jab16jy/Sistema_Pos/commit/fca0359c54f5f9ab1d943d7ea53cb6be277a00ce))
+* loyalty program overview and rules management ([cec2646](https://github.com/jab16jy/Sistema_Pos/commit/cec264682763305ffdb71f2a6ea6593cb7d17972))
+
 ## [0.22.3](https://github.com/jab16jy/Sistema_Pos/compare/v0.22.2...v0.22.3) (2026-07-07)
 
 
