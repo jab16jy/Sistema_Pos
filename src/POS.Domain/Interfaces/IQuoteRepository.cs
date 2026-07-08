@@ -6,6 +6,7 @@ namespace POS.Domain.Interfaces;
 public interface IQuoteRepository
 {
     Task<Quote?> GetByIdAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<Quote>> GetOpenByCustomerIdAsync(Guid customerId, CancellationToken ct = default);
     Task<string> GetNextQuoteNumberAsync(CancellationToken ct = default);
     Task AddAsync(Quote quote, CancellationToken ct = default);
     Task UpdateAsync(Quote quote, CancellationToken ct = default);

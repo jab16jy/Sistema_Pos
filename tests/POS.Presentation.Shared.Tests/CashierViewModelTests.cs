@@ -1,7 +1,9 @@
 using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Products;
+using POS.Application.DTOs.Quotes;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
+using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -410,6 +412,93 @@ public sealed class CashierViewModelTests
         Assert.Empty(viewModel.SearchResults);
     }
 
+    [Fact]
+    public async Task SelectCustomerAsync_WhenCustomerHasOpenQuote_ShowsPendingQuotesForCashier()
+    {
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var productId = Guid.NewGuid();
+        var quote = CreateCustomerQuote("COT-CAJA-001", customer.Id, productId, discount: 0m);
+        var quoteRepo = new InMemoryQuoteRepository(quote);
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(productId, "Serum", "SER-1", 2_000m, 10m)),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            new GetCustomerPayableQuotesUseCase(quoteRepo),
+            null);
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+
+        CustomerPayableQuote pending = Assert.Single(viewModel.CustomerQuotes);
+        Assert.Equal("COT-CAJA-001", pending.QuoteNumber);
+        Assert.True(viewModel.HasCustomerQuotes);
+        Assert.Contains("cotización", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LoadCustomerQuoteAsync_LoadsQuoteItemsIntoCashierCartWithDiscountedTotal()
+    {
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var productId = Guid.NewGuid();
+        var quote = CreateCustomerQuote("COT-CAJA-002", customer.Id, productId, discount: 10m);
+        var quoteRepo = new InMemoryQuoteRepository(quote);
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(productId, "Serum", "SER-1", 2_000m, 10m)),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            new GetCustomerPayableQuotesUseCase(quoteRepo),
+            null);
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+        await viewModel.LoadCustomerQuoteAsync(viewModel.CustomerQuotes.Single(), TestContext.Current.CancellationToken);
+
+        CashierCartItemViewModel item = Assert.Single(viewModel.CartItems);
+        Assert.Equal("Serum", item.ProductName);
+        Assert.Equal(10m, item.Discount);
+        Assert.Equal(1_800m, viewModel.TotalAmount);
+        Assert.True(viewModel.IsQuoteLoaded);
+        Assert.Contains("COT-CAJA-002", viewModel.LoadedQuoteBanner, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WhenQuoteLoaded_ConvertsOriginalQuoteAndCreatesInvoice()
+    {
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var product = new Product("Serum", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var quote = CreateCustomerQuote("COT-CAJA-003", customer.Id, product.Id, discount: 0m);
+        var quoteRepo = new InMemoryQuoteRepository(quote);
+        var sales = new InMemorySaleRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var createSaleUseCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork);
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "SER-1", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            new GetCustomerPayableQuotesUseCase(quoteRepo),
+            new ConvertQuoteToSaleUseCase(quoteRepo, createSaleUseCase, unitOfWork))
+        {
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+        await viewModel.LoadCustomerQuoteAsync(viewModel.CustomerQuotes.Single(), TestContext.Current.CancellationToken);
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+
+        Sale sale = Assert.Single(sales.Sales);
+        Assert.Equal(QuoteStatus.Converted, quote.Status);
+        Assert.Equal(sale.Id, quote.ConvertedSaleId);
+        Assert.Empty(viewModel.CartItems);
+        Assert.Contains("facturada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class EmptyProductLookupService : POS.Application.Interfaces.IProductLookupService
     {
         public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
@@ -466,6 +555,59 @@ public sealed class CashierViewModelTests
 
         public Task<IReadOnlyList<CustomerSearchResult>> SearchAsync(CustomerSearchRequest request, CancellationToken cancellationToken = default)
             => Task.FromResult(_customers);
+    }
+
+    private static Quote CreateCustomerQuote(string quoteNumber, Guid customerId, Guid productId, decimal discount)
+    {
+        var quote = new Quote(
+            quoteNumber,
+            "Ana Cliente",
+            30,
+            customerId,
+            customerPhone: "+57 300 123 4567",
+            customerEmail: null);
+        quote.AddItem(new QuoteItem(productId, "Serum", new Money(2_000m), new Quantity(1m), discount));
+        return quote;
+    }
+
+    private sealed class InMemoryQuoteRepository : IQuoteRepository
+    {
+        private readonly Dictionary<Guid, Quote> _quotes = new();
+
+        public InMemoryQuoteRepository(params Quote[] quotes)
+        {
+            foreach (Quote quote in quotes)
+            {
+                _quotes[quote.Id] = quote;
+            }
+        }
+
+        public Task<Quote?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(_quotes.TryGetValue(id, out Quote? quote) ? quote : null);
+
+        public Task<string> GetNextQuoteNumberAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult("COT-AUTO");
+
+        public Task AddAsync(Quote quote, CancellationToken cancellationToken = default)
+        {
+            _quotes[quote.Id] = quote;
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateAsync(Quote quote, CancellationToken cancellationToken = default)
+        {
+            _quotes[quote.Id] = quote;
+            return Task.CompletedTask;
+        }
+
+        public Task<(IReadOnlyList<Quote> Items, int Total)> GetHistoryAsync(
+            DateOnly? from, DateOnly? to, string? customerName, QuoteStatus? status, int page, int pageSize, CancellationToken cancellationToken = default)
+            => Task.FromResult<(IReadOnlyList<Quote>, int)>(([.. _quotes.Values], _quotes.Count));
+
+        public Task<IReadOnlyList<Quote>> GetOpenByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<Quote>>(_quotes.Values
+                .Where(q => q.CustomerId == customerId && q.Status is QuoteStatus.Draft or QuoteStatus.Active && q.ExpiresAt >= DateTime.UtcNow)
+                .ToArray());
     }
 
     // --- RED: settlement plan / deferred balance in CashierViewModel ---

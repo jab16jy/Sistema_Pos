@@ -7,14 +7,16 @@ public sealed class CashierCartItemViewModel : ViewModelBase
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private decimal _quantity;
+    private decimal _discount;
 
-    public CashierCartItemViewModel(Guid productId, string productName, string productCode, decimal quantity, decimal unitPrice)
+    public CashierCartItemViewModel(Guid productId, string productName, string productCode, decimal quantity, decimal unitPrice, decimal discount = 0m)
     {
         ProductId = productId;
         ProductName = productName;
         ProductCode = productCode;
         _quantity = quantity;
         UnitPrice = unitPrice;
+        _discount = NormalizeDiscount(discount);
     }
 
     public Guid ProductId { get; }
@@ -36,7 +38,24 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     }
 
     public decimal UnitPrice { get; }
-    public decimal Subtotal => Quantity * UnitPrice;
+    public decimal Discount
+    {
+        get => _discount;
+        set
+        {
+            if (SetProperty(ref _discount, NormalizeDiscount(value)))
+            {
+                OnPropertyChanged(nameof(DiscountText));
+                OnPropertyChanged(nameof(HasDiscount));
+                OnPropertyChanged(nameof(Subtotal));
+                OnPropertyChanged(nameof(SubtotalText));
+            }
+        }
+    }
+
+    public bool HasDiscount => Discount > 0m;
+    public string DiscountText => $"Dto. {Discount:0.##}%";
+    public decimal Subtotal => Quantity * UnitPrice * (1m - (Discount / 100m));
     public string UnitPriceText => FormatCurrency(UnitPrice);
     public string SubtotalText => FormatCurrency(Subtotal);
 
@@ -46,4 +65,5 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";
+    private static decimal NormalizeDiscount(decimal value) => value < 0m ? 0m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
 }

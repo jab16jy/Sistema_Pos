@@ -266,14 +266,28 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     /// </summary>
     public async Task ConvertToSaleAsync(QuoteSummaryRow? row, Guid cashierUserId, SaleSettlementPlan? settlementPlan, CancellationToken cancellationToken = default)
     {
+        var payments = new[] { new CreateSalePaymentRequest(PaymentMethod.Cash, row?.Total ?? 0m, null, null) };
+        await ConvertToSaleAsync(row, cashierUserId, payments, settlementPlan, "Cotización convertida", cancellationToken).ConfigureAwait(true);
+    }
+
+    private async Task ConvertToSaleAsync(
+        QuoteSummaryRow? row,
+        Guid cashierUserId,
+        IReadOnlyList<CreateSalePaymentRequest> payments,
+        SaleSettlementPlan? settlementPlan,
+        string successMessagePrefix,
+        CancellationToken cancellationToken = default)
+    {
         if (row is null)
         {
             return;
         }
 
-        if (row.Status == QuoteStatus.Converted)
+        if (!row.CanConvertToSale)
         {
-            StatusMessage = "Esta cotización ya fue convertida a venta.";
+            StatusMessage = row.Status == QuoteStatus.Converted
+                ? "Esta cotización ya fue convertida a venta."
+                : "Solo las cotizaciones activas o en borrador se pueden convertir a venta.";
             return;
         }
 
@@ -289,25 +303,23 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         try
         {
             CreateSaleResult result;
+            var request = new Application.DTOs.Quotes.ConvertQuoteToSaleRequest(
+                row.QuoteId,
+                cashierUserId,
+                payments);
+
             if (settlementPlan is not null)
             {
-                var request = new Application.DTOs.Quotes.ConvertQuoteToSaleRequest(
-                    row.QuoteId,
-                    cashierUserId,
-                    [new CreateSalePaymentRequest(PaymentMethod.Cash, row.Total, null, null)]);
                 result = await _convertUseCase.ExecuteAsync(request, settlementPlan, cancellationToken).ConfigureAwait(true);
             }
             else
             {
-                // Legacy path: full cash payment for the quote total
-                var request = new Application.DTOs.Quotes.ConvertQuoteToSaleRequest(
-                    row.QuoteId,
-                    cashierUserId,
-                    [new CreateSalePaymentRequest(PaymentMethod.Cash, row.Total, null, null)]);
                 result = await _convertUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
             }
 
-            StatusMessage = $"Cotización convertida. Factura: {result.InvoiceNumber}.";
+            string successMessage = $"{successMessagePrefix}. Factura: {result.InvoiceNumber}.";
+            await LoadAsync(cancellationToken).ConfigureAwait(true);
+            StatusMessage = successMessage;
         }
         catch (Exception ex)
         {
