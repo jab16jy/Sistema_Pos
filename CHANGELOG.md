@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.24.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.23.0...v0.24.0) (2026-07-08)
+
+
+### Features
+
+* **ui:** fix login theme, logo proportions, and desktop app icon ([b56c881](https://github.com/jab16jy/Sistema_Pos/commit/b56c881c1b4d7a5d45c9938e36529e7ee1af0634))
+* **ui:** login theme fix, logo proportions & desktop app icon ([3caf885](https://github.com/jab16jy/Sistema_Pos/commit/3caf885f3b5be96b861d72cceb75a29f04d77bad))
+
+
+### Bug Fixes
+
+* **ui:** enlarge login window height so the button isn't clipped ([7a78e75](https://github.com/jab16jy/Sistema_Pos/commit/7a78e758d89a5adfc993e944e6fd3014d49119ae))
+
 ## [0.23.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.22.3...v0.23.0) (2026-07-08)
 
 
