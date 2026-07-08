@@ -52,7 +52,8 @@ internal static class AppBootstrapper
                 new PreviewPaymentUseCase(),
                 sp.GetRequiredService<CreateSaleUseCase>(),
                 TryResolveOptional<RedeemLoyaltyPointsUseCase>(sp),
-                TryResolveOptional<ReprintReceiptUseCase>(sp)),
+                TryResolveOptional<ReprintReceiptUseCase>(sp),
+                TryResolveOptional<SearchCustomersUseCase>(sp)),
             () => new CashierViewModel(productLookup),
             moduleWarnings);
 
@@ -81,7 +82,9 @@ internal static class AppBootstrapper
             () => new QuoteHistoryViewModel(
                 sp.GetRequiredService<GetQuoteHistoryUseCase>(),
                 sp.GetRequiredService<ConvertQuoteToSaleUseCase>(),
-                sp.GetRequiredService<POS.Application.UseCases.Communication.SendDocumentUseCase>()),
+                sp.GetRequiredService<POS.Application.UseCases.Communication.SendDocumentUseCase>(),
+                session,
+                TryResolveOptional<POS.Application.Interfaces.IPdfService>(sp)),
             moduleWarnings);
 
         QuoteViewModel? quote = TryCreateOptionalModule(
@@ -89,7 +92,8 @@ internal static class AppBootstrapper
             () => new QuoteViewModel(
                 productLookup,
                 sp.GetRequiredService<CreateQuoteUseCase>(),
-                TryResolveOptional<POS.Application.UseCases.Communication.SendDocumentUseCase>(sp)),
+                TryResolveOptional<POS.Application.UseCases.Communication.SendDocumentUseCase>(sp),
+                TryResolveOptional<SearchCustomersUseCase>(sp)),
             moduleWarnings);
 
         GetDashboardSummaryUseCase? dashboardUseCase = TryResolveOptional<GetDashboardSummaryUseCase>(sp);
@@ -176,7 +180,9 @@ internal static class AppBootstrapper
             "Puntos",
             () => new LoyaltyViewModel(
                 sp.GetRequiredService<GetLoyaltyBalanceUseCase>(),
-                sp.GetRequiredService<RedeemLoyaltyPointsUseCase>()),
+                sp.GetRequiredService<RedeemLoyaltyPointsUseCase>(),
+                TryResolveOptional<GetLoyaltyProgramOverviewUseCase>(sp),
+                TryResolveOptional<SetLoyaltyRuleUseCase>(sp)),
             moduleWarnings);
 
         BarcodeViewModel? barcode = TryCreateOptionalModule(

@@ -17,53 +17,62 @@ public sealed class LoyaltyViewModel : ViewModelBase
 {
     private readonly GetLoyaltyBalanceUseCase _getBalance;
     private readonly RedeemLoyaltyPointsUseCase _redeemPoints;
+    private readonly GetLoyaltyProgramOverviewUseCase? _getProgramOverview;
+    private readonly SetLoyaltyRuleUseCase? _setLoyaltyRule;
 
     private int _balance;
     private CustomerResult? _selectedCustomer;
     private string _message = string.Empty;
     private bool _isLoading;
     private int _pointsToRedeem;
-
-    // ── Presentation-only: rule editing ──
-    private string _accumulationRate = "1 punto por cada $1.000 en compras";
-    private string _redemptionRate = "100 puntos = $1.000 de descuento";
-    private string _expirationPolicy = "12 meses sin compras";
-    private string _checkoutUsageMode = "Permitir ganar y canjear";
+    private decimal _pointsPerCurrencyUnit = 0.001m;
+    private decimal _redemptionValuePerPoint = 10m;
+    private int _minimumRedeemPoints = 100;
+    private string _ruleDescription = "1 punto por cada $1.000 vendidos; cada punto descuenta $10.";
+    private string _totalPointsIssued = "0";
+    private string _enrolledCustomers = "0";
+    private string _checkoutUsageRate = "Según ventas con cliente";
+    private string _redemptionsThisMonth = "0";
 
     public LoyaltyViewModel(
         GetLoyaltyBalanceUseCase getBalance,
-        RedeemLoyaltyPointsUseCase redeemPoints)
+        RedeemLoyaltyPointsUseCase redeemPoints,
+        GetLoyaltyProgramOverviewUseCase? getProgramOverview = null,
+        SetLoyaltyRuleUseCase? setLoyaltyRule = null)
     {
         _getBalance = getBalance ?? throw new ArgumentNullException(nameof(getBalance));
         _redeemPoints = redeemPoints ?? throw new ArgumentNullException(nameof(redeemPoints));
+        _getProgramOverview = getProgramOverview;
+        _setLoyaltyRule = setLoyaltyRule;
 
         Transactions = [];
+        ProgramTransactions = [];
         Tiers =
         [
-            new LoyaltyTierPresentation("Bronze", "0-499 pts", "Acumula normal. Sin descuento automatico.", "neutral"),
-            new LoyaltyTierPresentation("Silver", "500-999 pts", "+10% de puntos en compras especiales.", "primary"),
-            new LoyaltyTierPresentation("Gold", "1000+ pts", "Canje prioritario y campanas exclusivas.", "warning"),
-        ];
-
-        CampaignEntries =
-        [
-            new LoyaltyCampaignEntry("campaign", "Campana \"Semana de la piel\"", "Multiplica x2 los puntos en cosmeticos hasta 2026-07-07", "Activa", "earn"),
-            new LoyaltyCampaignEntry("event_upcoming", "Puntos proximos a vencer", "18 clientes con vencimiento en los proximos 15 dias", "18", "redeem"),
-            new LoyaltyCampaignEntry("analytics", "Impacto en ventas", "38% de las ventas del mes tuvieron cliente identificado", "+12%", "earn"),
+            new LoyaltyTierPresentation("Bronce", "0-499 pts", "Acumula con la regla activa del programa.", "neutral"),
+            new LoyaltyTierPresentation("Plata", "500-999 pts", "Cliente frecuente: revisar beneficios comerciales antes de vender.", "primary"),
+            new LoyaltyTierPresentation("Oro", "1000+ pts", "Cliente de alto valor: priorizar canje y seguimiento.", "warning"),
         ];
 
         LoadBalanceCommand = new RelayCommand(_ => RunSafe(LoadBalanceAsync(), ex => Message = $"Error al consultar saldo: {ex.Message}"));
         RedeemCommand = new RelayCommand(_ => RunSafe(RedeemAsync(), ex => Message = $"Error al redimir puntos: {ex.Message}"));
-        SaveRulesCommand = new RelayCommand(_ => Message = "Reglas guardadas");
+        LoadProgramCommand = new RelayCommand(_ => RunSafe(LoadProgramAsync(), ex => Message = $"Error al cargar puntos: {ex.Message}"));
+        SaveRulesCommand = new RelayCommand(_ => RunSafe(SaveRulesAsync(), ex => Message = $"Error al guardar reglas: {ex.Message}"));
         EditBenefitsCommand = new RelayCommand(_ => Message = "Editor de tiers no disponible en este entorno.");
+
+        if (_getProgramOverview is not null)
+        {
+            RunSafe(LoadProgramAsync(), ex => Message = $"Error al cargar puntos: {ex.Message}");
+        }
     }
 
     public ObservableCollection<LoyaltyTransactionResult> Transactions { get; }
     public ObservableCollection<LoyaltyTierPresentation> Tiers { get; }
-    public ObservableCollection<LoyaltyCampaignEntry> CampaignEntries { get; }
+    public ObservableCollection<LoyaltyProgramTransactionEntry> ProgramTransactions { get; }
 
     public ICommand LoadBalanceCommand { get; }
     public ICommand RedeemCommand { get; }
+    public ICommand LoadProgramCommand { get; }
     public ICommand SaveRulesCommand { get; }
     public ICommand EditBenefitsCommand { get; }
 
@@ -97,39 +106,149 @@ public sealed class LoyaltyViewModel : ViewModelBase
         private set => SetProperty(ref _isLoading, value);
     }
 
-    // ── Presentation-only: program status card ──
-    // These are static/placeholder values since no aggregate use case exposes program-wide metrics.
-    // Flagged as a gap consistent with Phase 6's KPI placeholder pattern.
-
-    public string TotalPointsIssued => "142.850";
-    public string EnrolledCustomers => "247";
-    public string CheckoutUsageRate => "38%";
-    public string RedemptionsThisMonth => "12";
-
-    // ── Presentation-only: rule editing ──
-
-    public string AccumulationRate
+    public string TotalPointsIssued
     {
-        get => _accumulationRate;
-        set => SetProperty(ref _accumulationRate, value ?? string.Empty);
+        get => _totalPointsIssued;
+        private set => SetProperty(ref _totalPointsIssued, value);
     }
 
-    public string RedemptionRate
+    public string EnrolledCustomers
     {
-        get => _redemptionRate;
-        set => SetProperty(ref _redemptionRate, value ?? string.Empty);
+        get => _enrolledCustomers;
+        private set => SetProperty(ref _enrolledCustomers, value);
     }
 
-    public string ExpirationPolicy
+    public string CheckoutUsageRate
     {
-        get => _expirationPolicy;
-        set => SetProperty(ref _expirationPolicy, value ?? string.Empty);
+        get => _checkoutUsageRate;
+        private set => SetProperty(ref _checkoutUsageRate, value);
     }
 
-    public string CheckoutUsageMode
+    public string RedemptionsThisMonth
     {
-        get => _checkoutUsageMode;
-        set => SetProperty(ref _checkoutUsageMode, value ?? string.Empty);
+        get => _redemptionsThisMonth;
+        private set => SetProperty(ref _redemptionsThisMonth, value);
+    }
+
+    public decimal PointsPerCurrencyUnit
+    {
+        get => _pointsPerCurrencyUnit;
+        set
+        {
+            if (SetProperty(ref _pointsPerCurrencyUnit, value))
+            {
+                OnPropertyChanged(nameof(AccumulationRate));
+            }
+        }
+    }
+
+    public decimal RedemptionValuePerPoint
+    {
+        get => _redemptionValuePerPoint;
+        set
+        {
+            if (SetProperty(ref _redemptionValuePerPoint, value))
+            {
+                OnPropertyChanged(nameof(RedemptionRate));
+            }
+        }
+    }
+
+    public int MinimumRedeemPoints
+    {
+        get => _minimumRedeemPoints;
+        set => SetProperty(ref _minimumRedeemPoints, value);
+    }
+
+    public string RuleDescription
+    {
+        get => _ruleDescription;
+        set => SetProperty(ref _ruleDescription, value ?? string.Empty);
+    }
+
+    public string AccumulationRate => $"{PointsPerCurrencyUnit:0.####} punto(s) por cada $1 vendido";
+
+    public string RedemptionRate => $"Cada punto descuenta ${RedemptionValuePerPoint:N0}";
+
+    public string CheckoutUsageMode => "Caja acumula y canjea usando la regla activa guardada.";
+
+    public string ExpirationPolicy => "Sin vencimiento configurado en esta versión.";
+
+    public async Task LoadProgramAsync(CancellationToken cancellationToken = default)
+    {
+        if (_getProgramOverview is null)
+        {
+            Message = "El resumen real de puntos no está disponible en este entorno.";
+            return;
+        }
+
+        IsLoading = true;
+        Message = string.Empty;
+
+        try
+        {
+            var overview = await _getProgramOverview.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+            ApplyOverview(overview);
+            Message = "Reglas y métricas de puntos cargadas desde la base de datos.";
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar puntos: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task SaveRulesAsync(CancellationToken cancellationToken = default)
+    {
+        if (_setLoyaltyRule is null)
+        {
+            Message = "No hay caso de uso disponible para guardar reglas de puntos.";
+            return;
+        }
+
+        if (PointsPerCurrencyUnit <= 0m || RedemptionValuePerPoint <= 0m || MinimumRedeemPoints < 0)
+        {
+            Message = "Revisa la regla: acumulación y redención deben ser mayores a cero, y el mínimo no puede ser negativo.";
+            return;
+        }
+
+        IsLoading = true;
+        Message = string.Empty;
+
+        try
+        {
+            var saved = await _setLoyaltyRule.ExecuteAsync(
+                new SetLoyaltyRuleRequest(PointsPerCurrencyUnit, RedemptionValuePerPoint, MinimumRedeemPoints, RuleDescription),
+                cancellationToken).ConfigureAwait(true);
+
+            ApplyRule(saved);
+            Message = "Reglas de puntos guardadas en la base de datos.";
+
+            if (_getProgramOverview is not null)
+            {
+                var overview = await _getProgramOverview.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+                ApplyOverview(overview);
+            }
+        }
+        catch (ArgumentException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al guardar reglas: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     public async Task LoadBalanceAsync(CancellationToken cancellationToken = default)
@@ -218,6 +337,52 @@ public sealed class LoyaltyViewModel : ViewModelBase
             IsLoading = false;
         }
     }
+
+    private void ApplyOverview(LoyaltyProgramOverviewResult overview)
+    {
+        TotalPointsIssued = overview.TotalPointsIssued.ToString("N0");
+        EnrolledCustomers = overview.EnrolledCustomers.ToString("N0");
+        RedemptionsThisMonth = overview.RedemptionsThisMonth.ToString("N0");
+        CheckoutUsageRate = overview.EnrolledCustomers == 0
+            ? "Sin clientes inscritos"
+            : "Basado en ventas con cliente";
+
+        if (overview.ActiveRule is not null)
+        {
+            ApplyRule(overview.ActiveRule);
+        }
+
+        ProgramTransactions.Clear();
+        foreach (var transaction in overview.RecentTransactions)
+        {
+            ProgramTransactions.Add(new LoyaltyProgramTransactionEntry(
+                transaction.Type.Equals("Redeemed", StringComparison.OrdinalIgnoreCase) ? "Canje de puntos" : "Puntos acumulados",
+                transaction.Description,
+                transaction.Points > 0 ? $"+{transaction.Points:N0}" : transaction.Points.ToString("N0"),
+                transaction.Points >= 0 ? "earn" : "redeem"));
+        }
+
+        if (ProgramTransactions.Count == 0)
+        {
+            ProgramTransactions.Add(new LoyaltyProgramTransactionEntry(
+                "Sin movimientos todavía",
+                "Cuando Caja acumule o canjee puntos, aparecerá aquí con datos reales.",
+                "0",
+                "neutral"));
+        }
+    }
+
+    private void ApplyRule(LoyaltyRuleResult rule)
+    {
+        PointsPerCurrencyUnit = rule.PointsPerCurrencyUnit;
+        RedemptionValuePerPoint = rule.RedemptionValuePerPoint;
+        MinimumRedeemPoints = rule.MinimumRedeemPoints;
+        RuleDescription = string.IsNullOrWhiteSpace(rule.Description)
+            ? "Regla activa sin descripción."
+            : rule.Description;
+        OnPropertyChanged(nameof(AccumulationRate));
+        OnPropertyChanged(nameof(RedemptionRate));
+    }
 }
 
 /// <summary>Presentation-only tier display record.</summary>
@@ -227,9 +392,8 @@ public sealed record LoyaltyTierPresentation(
     string BenefitDescription,
     string ChipKind);
 
-/// <summary>Presentation-only campaign/history entry.</summary>
-public sealed record LoyaltyCampaignEntry(
-    string IconKind,
+/// <summary>Presentation row for real persisted program movements.</summary>
+public sealed record LoyaltyProgramTransactionEntry(
     string Title,
     string Meta,
     string ValueLabel,

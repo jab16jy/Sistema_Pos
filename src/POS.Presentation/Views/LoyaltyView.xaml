@@ -71,6 +71,12 @@
               </StackPanel>
             </UniformGrid>
           </Border>
+          <Button Command="{Binding LoadProgramCommand}" Margin="16,0,16,16" Background="Transparent" BorderThickness="0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+              <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" Margin="0,0,4,0" />
+              <TextBlock Text="Actualizar datos reales" />
+            </StackPanel>
+          </Button>
         </StackPanel>
       </Border>
 
@@ -92,25 +98,22 @@
 
           <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="16,12">
-              <TextBlock Text="Tasa de acumulaci&#243;n" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <TextBox Text="{Binding AccumulationRate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+              <TextBlock Text="Puntos por cada $1 vendido" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding PointsPerCurrencyUnit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=0.####}" Margin="0,0,0,4" />
+              <TextBlock Text="{Binding AccumulationRate}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,12" />
 
-              <TextBlock Text="Tasa de redenci&#243;n" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <TextBox Text="{Binding RedemptionRate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+              <TextBlock Text="Valor en pesos de cada punto" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding RedemptionValuePerPoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4" />
+              <TextBlock Text="{Binding RedemptionRate}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,12" />
 
-              <TextBlock Text="Vencimiento de puntos" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <ComboBox SelectedValue="{Binding ExpirationPolicy, Mode=TwoWay}" SelectedValuePath="Content" Margin="0,0,0,12">
-                <ComboBoxItem Content="12 meses sin compras" />
-                <ComboBoxItem Content="6 meses sin compras" />
-                <ComboBoxItem Content="Sin vencimiento" />
-              </ComboBox>
+              <TextBlock Text="M&#237;nimo de puntos para canjear" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding MinimumRedeemPoints, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
 
-              <TextBlock Text="Uso en caja" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <ComboBox SelectedValue="{Binding CheckoutUsageMode, Mode=TwoWay}" SelectedValuePath="Content" Margin="0,0,0,12">
-                <ComboBoxItem Content="Permitir ganar y canjear" />
-                <ComboBoxItem Content="Solo ganar puntos" />
-                <ComboBoxItem Content="Solo mostrar saldo" />
-              </ComboBox>
+              <TextBlock Text="Descripci&#243;n de la regla" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding RuleDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="56" Margin="0,0,0,12" />
+
+              <TextBlock Text="{Binding CheckoutUsageMode}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,4" />
+              <TextBlock Text="{Binding ExpirationPolicy}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,12" />
 
               <Button Command="{Binding SaveRulesCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch">
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
@@ -225,7 +228,7 @@
       </Grid>
     </Border>
 
-    <!-- ══ COLUMN 3: Historial y campanas ══ -->
+    <!-- ══ COLUMN 3: Historial real de puntos ══ -->
     <Border Grid.Column="4" Style="{StaticResource Card}" Padding="0">
       <Grid>
         <Grid.RowDefinitions>
@@ -238,12 +241,12 @@
           <StackPanel Orientation="Horizontal">
             <materialDesign:PackIcon Kind="History" Width="18" Height="18"
                                      Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Text="Historial y campa&#241;as" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="Historial real de puntos" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
           </StackPanel>
         </Border>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding CampaignEntries}" Margin="16,12">
+          <ItemsControl ItemsSource="{Binding ProgramTransactions}" Margin="16,12">
             <ItemsControl.ItemTemplate>
               <DataTemplate>
                 <Border Padding="0,0,0,10" Margin="0,0,0,10" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
@@ -271,12 +274,6 @@
                             <Setter Property="Kind" Value="ChartBox" />
                             <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
                             <Style.Triggers>
-                              <DataTrigger Binding="{Binding IconKind}" Value="campaign">
-                                <Setter Property="Kind" Value="Bullhorn" />
-                              </DataTrigger>
-                              <DataTrigger Binding="{Binding IconKind}" Value="event_upcoming">
-                                <Setter Property="Kind" Value="CalendarClock" />
-                              </DataTrigger>
                               <DataTrigger Binding="{Binding Kind}" Value="earn">
                                 <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
                               </DataTrigger>

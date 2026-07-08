@@ -168,6 +168,67 @@ public sealed class QuoteHistoryViewModelTests
         Assert.Contains("ya fue convertida", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task ConvertToSaleCommand_UsesAuthenticatedOperatorSessionInsteadOfEmptyGuid()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var saleRepo = new InMemorySaleRepository();
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-008", product.Id);
+        quoteRepo.Store(quote);
+        var cashierId = Guid.NewGuid();
+        var summaries = new List<QuoteSummary>
+        {
+            new QuoteSummary(quote.Id, "COT-008", "Cliente Convertible", null, null, 2_000m, QuoteStatus.Draft, "2026-12-31")
+        };
+
+        var vm = BuildHistoryVmWithProduct(summaries, quoteRepo, product, saleRepo, new FakeOperatorSession(cashierId));
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        vm.ConvertToSaleCommand.Execute(vm.Quotes.Single());
+        await Task.Delay(100, TestContext.Current.CancellationToken);
+
+        Assert.Equal(cashierId, saleRepo.LastSale?.CashierUserId);
+    }
+
+    [Fact]
+    public async Task ConvertToSale_WithEmptyCashierId_BlocksBeforeCreatingSale()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-009", product.Id);
+        quoteRepo.Store(quote);
+        var vm = BuildHistoryVmWithProduct(
+            [new QuoteSummary(quote.Id, "COT-009", "Cliente", null, null, 2_000m, QuoteStatus.Draft, "2026-12-31")],
+            quoteRepo,
+            product);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        await vm.ConvertToSaleAsync(vm.Quotes.Single(), Guid.Empty, TestContext.Current.CancellationToken);
+
+        Assert.Contains("cajero autenticado", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ExportPdfAsync_WhenPdfServiceAvailable_RaisesFileExportRequested()
+    {
+        var quoteId = Guid.NewGuid();
+        var vm = BuildHistoryVm(
+            summaries:
+            [
+                new QuoteSummary(quoteId, "COT-011", "Cliente PDF", null, null, 40_000m, QuoteStatus.Draft, "2026-12-31")
+            ],
+            pdfService: new FakePdfService());
+        (string FileName, byte[] Data)? exported = null;
+        vm.FileExportRequested += (_, args) => exported = args;
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        await vm.ExportPdfAsync(vm.Quotes.Single(), TestContext.Current.CancellationToken);
+
+        Assert.Equal("COT-011.pdf", exported?.FileName);
+        Assert.NotNull(exported?.Data);
+    }
+
     // --- Helpers ---
 
     private static Domain.Entities.Quote CreateActiveQuote(string quoteNumber)
@@ -202,7 +263,9 @@ public sealed class QuoteHistoryViewModelTests
     private static QuoteHistoryViewModel BuildHistoryVmWithProduct(
         IReadOnlyList<QuoteSummary> summaries,
         InMemoryQuoteRepository quoteRepo,
-        Product product)
+        Product product,
+        InMemorySaleRepository? saleRepo = null,
+        ICurrentOperatorSession? session = null)
     {
         var log = new InMemoryDocumentSendLogRepository();
         var quoteEntities = BuildQuoteEntitiesFromSummaries(summaries, quoteRepo);
@@ -211,7 +274,7 @@ public sealed class QuoteHistoryViewModelTests
         var getHistoryUseCase = new GetQuoteHistoryUseCase(historyRepo);
         var convertUseCase = new ConvertQuoteToSaleUseCase(
             quoteRepo,
-            new CreateSaleUseCase(new StaticProductRepository(product), new InMemorySaleRepository(), new InMemoryUnitOfWork()),
+            new CreateSaleUseCase(new StaticProductRepository(product), saleRepo ?? new InMemorySaleRepository(), new InMemoryUnitOfWork()),
             new InMemoryUnitOfWork());
         var sendUseCase = new SendDocumentUseCase(
             new FakePdfService(),
@@ -220,13 +283,14 @@ public sealed class QuoteHistoryViewModelTests
             log,
             new InMemoryUnitOfWork());
 
-        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase);
+        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase, session);
     }
 
     private static QuoteHistoryViewModel BuildHistoryVm(
         IReadOnlyList<QuoteSummary>? summaries = null,
         InMemoryDocumentSendLogRepository? sendLog = null,
-        InMemoryQuoteRepository? quoteRepo = null)
+        InMemoryQuoteRepository? quoteRepo = null,
+        IPdfService? pdfService = null)
     {
         var log = sendLog ?? new InMemoryDocumentSendLogRepository();
         var repo = quoteRepo ?? new InMemoryQuoteRepository();
@@ -248,7 +312,7 @@ public sealed class QuoteHistoryViewModelTests
             log,
             new InMemoryUnitOfWork());
 
-        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase);
+        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase, pdfService: pdfService);
     }
 
     private static IReadOnlyList<Domain.Entities.Quote> BuildQuoteEntitiesFromSummaries(
@@ -376,7 +440,13 @@ public sealed class QuoteHistoryViewModelTests
 
     private sealed class InMemorySaleRepository : ISaleRepository
     {
-        public Task AddAsync(Domain.Entities.Sale sale, CancellationToken ct = default) => Task.CompletedTask;
+        public Domain.Entities.Sale? LastSale { get; private set; }
+
+        public Task AddAsync(Domain.Entities.Sale sale, CancellationToken ct = default)
+        {
+            LastSale = sale;
+            return Task.CompletedTask;
+        }
 
         public Task<Domain.Entities.Sale?> GetByIdAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult<Domain.Entities.Sale?>(null);
@@ -424,6 +494,14 @@ public sealed class QuoteHistoryViewModelTests
     {
         public Task<bool> SendAsync(string phoneNumber, string message, string? attachmentPath, CancellationToken ct = default)
             => Task.FromResult(true);
+    }
+
+    private sealed class FakeOperatorSession(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => "cashier";
+        public UserRole Role => UserRole.Cashier;
+        public bool IsAuthenticated => OperatorId != Guid.Empty;
     }
 
     // --- RED: settlement plan forwarded on quote conversion ---

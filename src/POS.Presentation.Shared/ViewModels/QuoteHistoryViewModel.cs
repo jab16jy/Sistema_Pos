@@ -3,6 +3,7 @@ using System.Windows.Input;
 using POS.Application.DTOs.Communication;
 using POS.Application.DTOs.Quotes;
 using POS.Application.DTOs.Sales;
+using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Quotes;
 using POS.Domain.Entities;
@@ -17,6 +18,8 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     private readonly GetQuoteHistoryUseCase _getHistoryUseCase;
     private readonly ConvertQuoteToSaleUseCase _convertUseCase;
     private readonly SendDocumentUseCase _sendUseCase;
+    private readonly ICurrentOperatorSession? _operatorSession;
+    private readonly IPdfService? _pdfService;
     private string _filterCustomerName = string.Empty;
     private QuoteStatus? _filterStatus;
     private DateOnly? _filterFrom;
@@ -31,21 +34,28 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     public QuoteHistoryViewModel(
         GetQuoteHistoryUseCase getHistoryUseCase,
         ConvertQuoteToSaleUseCase convertUseCase,
-        SendDocumentUseCase sendUseCase)
+        SendDocumentUseCase sendUseCase,
+        ICurrentOperatorSession? operatorSession = null,
+        IPdfService? pdfService = null)
     {
         _getHistoryUseCase = getHistoryUseCase ?? throw new ArgumentNullException(nameof(getHistoryUseCase));
         _convertUseCase = convertUseCase ?? throw new ArgumentNullException(nameof(convertUseCase));
         _sendUseCase = sendUseCase ?? throw new ArgumentNullException(nameof(sendUseCase));
+        _operatorSession = operatorSession;
+        _pdfService = pdfService;
 
         Quotes = [];
 
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => StatusMessage = $"Error al cargar cotizaciones: {ex.Message}"));
         NextPageCommand = new RelayCommand(_ => RunSafe(NextPageAsync(), ex => StatusMessage = $"Error al paginar cotizaciones: {ex.Message}"));
         PreviousPageCommand = new RelayCommand(_ => RunSafe(PreviousPageAsync(), ex => StatusMessage = $"Error al paginar cotizaciones: {ex.Message}"));
-        ConvertToSaleCommand = new RelayCommand(p => RunSafe(ConvertToSaleAsync(p as QuoteSummaryRow, Guid.Empty), ex => StatusMessage = $"Error al convertir la cotización: {ex.Message}"));
+        ConvertToSaleCommand = new RelayCommand(p => RunSafe(ConvertToSaleAsync(p as QuoteSummaryRow, ResolveCashierUserId()), ex => StatusMessage = $"Error al convertir la cotización: {ex.Message}"));
+        ExportPdfCommand = new RelayCommand(p => RunSafe(ExportPdfAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al generar el PDF: {ex.Message}"));
         SendByEmailCommand = new RelayCommand(p => RunSafe(SendByEmailAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(p => RunSafe(SendByWhatsAppAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
     }
+
+    public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
 
     public ObservableCollection<QuoteSummaryRow> Quotes { get; }
 
@@ -53,6 +63,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     public ICommand NextPageCommand { get; }
     public ICommand PreviousPageCommand { get; }
     public ICommand ConvertToSaleCommand { get; }
+    public ICommand ExportPdfCommand { get; }
     public ICommand SendByEmailCommand { get; }
     public ICommand SendByWhatsAppCommand { get; }
 
@@ -221,6 +232,26 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         }
     }
 
+    public async Task ExportPdfAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (_pdfService is null)
+        {
+            StatusMessage = "La generación de PDF no está disponible en este entorno.";
+            return;
+        }
+
+        SelectedQuote = row;
+
+        byte[] pdfBytes = await _pdfService.GenerateQuotePdfAsync(row.QuoteId, cancellationToken).ConfigureAwait(true);
+        FileExportRequested?.Invoke(this, ($"{row.QuoteNumber}.pdf", pdfBytes));
+        StatusMessage = $"PDF generado para {row.QuoteNumber}.";
+    }
+
     /// <summary>
     /// Converts an eligible (non-converted) quote to a sale using full cash payment.
     /// Blocked when the quote status is already Converted.
@@ -243,6 +274,12 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         if (row.Status == QuoteStatus.Converted)
         {
             StatusMessage = "Esta cotización ya fue convertida a venta.";
+            return;
+        }
+
+        if (cashierUserId == Guid.Empty)
+        {
+            StatusMessage = "No hay cajero autenticado para convertir la cotización.";
             return;
         }
 
@@ -294,4 +331,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         CurrentPage -= 1;
         await LoadAsync().ConfigureAwait(true);
     }
+
+    private Guid ResolveCashierUserId()
+        => _operatorSession is { IsAuthenticated: true } ? _operatorSession.OperatorId : Guid.Empty;
 }

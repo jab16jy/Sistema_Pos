@@ -30,10 +30,10 @@
         </WrapPanel>
         <DataGrid ItemsSource="{Binding Logs}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
           <DataGrid.Columns>
-            <DataGridTextColumn Header="Fecha" Binding="{Binding CreatedAt}" Width="160" />
+            <DataGridTextColumn Header="Fecha" Binding="{Binding DateText}" Width="140" />
             <DataGridTextColumn Header="Usuario" Binding="{Binding Username}" Width="120" />
-            <DataGridTextColumn Header="Acción" Binding="{Binding Action}" Width="90" />
-            <DataGridTextColumn Header="Entidad" Binding="{Binding EntityName}" Width="130" />
+            <DataGridTextColumn Header="Acción" Binding="{Binding ActionLabel}" Width="110" />
+            <DataGridTextColumn Header="Módulo / registro" Binding="{Binding EntityLabel}" Width="170" />
             <DataGridTextColumn Header="Detalle" Binding="{Binding Details}" Width="*" />
           </DataGrid.Columns>
         </DataGrid>

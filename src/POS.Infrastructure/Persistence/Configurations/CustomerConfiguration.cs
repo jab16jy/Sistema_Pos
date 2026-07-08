@@ -10,6 +10,7 @@ internal sealed class CustomerConfiguration : IEntityTypeConfiguration<Customer>
     {
         builder.ToTable("Customers");
         builder.HasKey(customer => customer.Id);
+        builder.Property(customer => customer.Id).HasConversion<string>();
         builder.Property(customer => customer.FullName).IsRequired();
         builder.Property(customer => customer.Identification).IsRequired();
         builder.Property(customer => customer.LoyaltyTierId).HasConversion<string>();

@@ -1,11 +1,13 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Communication;
 using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Quotes;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
+using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Quotes;
 using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
@@ -19,10 +21,13 @@ public sealed class QuoteViewModel : ViewModelBase
     private readonly IProductLookupService _productLookupService;
     private readonly CreateQuoteUseCase _createQuoteUseCase;
     private readonly SendDocumentUseCase? _sendDocumentUseCase;
+    private readonly SearchCustomersUseCase? _searchCustomersUseCase;
     private string _searchQuery = string.Empty;
     private string _customerName = string.Empty;
     private string _customerPhone = string.Empty;
     private string _customerEmail = string.Empty;
+    private Guid? _selectedCustomerId;
+    private string _selectedCustomerLabel = string.Empty;
     private int _validityDays = 30;
     private string _observations = string.Empty;
     private decimal _total;
@@ -31,16 +36,24 @@ public sealed class QuoteViewModel : ViewModelBase
     private bool _isConfirming;
     private string _lastQuoteNumber = string.Empty;
 
-    public QuoteViewModel(IProductLookupService productLookupService, CreateQuoteUseCase createQuoteUseCase, SendDocumentUseCase? sendDocumentUseCase = null)
+    public QuoteViewModel(
+        IProductLookupService productLookupService,
+        CreateQuoteUseCase createQuoteUseCase,
+        SendDocumentUseCase? sendDocumentUseCase = null,
+        SearchCustomersUseCase? searchCustomersUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _createQuoteUseCase = createQuoteUseCase ?? throw new ArgumentNullException(nameof(createQuoteUseCase));
         _sendDocumentUseCase = sendDocumentUseCase;
+        _searchCustomersUseCase = searchCustomersUseCase;
 
         SearchResults = [];
+        CustomerSearchResults = [];
         CartItems = [];
 
         SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => ValidationMessage = $"Error al buscar productos: {ex.Message}"));
+        SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => ValidationMessage = $"Error al buscar clientes: {ex.Message}"));
+        SelectCustomerCommand = new RelayCommand(p => SelectCustomer(p as CustomerSearchResult));
         AddToCartCommand = new RelayCommand(p => AddToCart(p as ProductLookupResult));
         RemoveFromCartCommand = new RelayCommand(p => RemoveFromCart(p as QuoteCartItemViewModel));
         ConfirmCommand = new RelayCommand(_ => RunSafe(ConfirmAsync(), ex => ValidationMessage = $"Error al crear la cotización: {ex.Message}"));
@@ -49,9 +62,12 @@ public sealed class QuoteViewModel : ViewModelBase
     }
 
     public ObservableCollection<ProductLookupResult> SearchResults { get; }
+    public ObservableCollection<CustomerSearchResult> CustomerSearchResults { get; }
     public ObservableCollection<QuoteCartItemViewModel> CartItems { get; }
 
     public ICommand SearchCommand { get; }
+    public ICommand SearchCustomerCommand { get; }
+    public ICommand SelectCustomerCommand { get; }
     public ICommand AddToCartCommand { get; }
     public ICommand RemoveFromCartCommand { get; }
     public ICommand ConfirmCommand { get; }
@@ -80,6 +96,26 @@ public sealed class QuoteViewModel : ViewModelBase
     {
         get => _customerEmail;
         set => SetProperty(ref _customerEmail, value ?? string.Empty);
+    }
+
+    public Guid? SelectedCustomerId
+    {
+        get => _selectedCustomerId;
+        private set
+        {
+            if (SetProperty(ref _selectedCustomerId, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedCustomer));
+            }
+        }
+    }
+
+    public bool HasSelectedCustomer => SelectedCustomerId.HasValue;
+
+    public string SelectedCustomerLabel
+    {
+        get => _selectedCustomerLabel;
+        private set => SetProperty(ref _selectedCustomerLabel, value ?? string.Empty);
     }
 
     public int ValidityDays
@@ -151,6 +187,55 @@ public sealed class QuoteViewModel : ViewModelBase
         {
             ValidationMessage = $"Error al buscar productos: {ex.Message}";
         }
+    }
+
+    private async Task SearchCustomersAsync(CancellationToken cancellationToken = default)
+    {
+        if (_searchCustomersUseCase is null)
+        {
+            ValidationMessage = "La búsqueda de clientes no está disponible en este entorno.";
+            return;
+        }
+
+        try
+        {
+            IReadOnlyList<CustomerSearchResult> results = await _searchCustomersUseCase
+                .ExecuteAsync(new CustomerSearchRequest(CustomerName, IncludeInactive: false), cancellationToken)
+                .ConfigureAwait(true);
+
+            CustomerSearchResults.Clear();
+            foreach (CustomerSearchResult result in results)
+            {
+                CustomerSearchResults.Add(result);
+            }
+
+            ValidationMessage = results.Count == 0
+                ? "No encontramos clientes activos con ese filtro. Puedes continuar como cliente ocasional."
+                : "Selecciona un cliente registrado para prellenar la cotización.";
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            ValidationMessage = $"Error al buscar clientes: {ex.Message}";
+        }
+    }
+
+    private void SelectCustomer(CustomerSearchResult? customer)
+    {
+        if (customer is null)
+        {
+            return;
+        }
+
+        SelectedCustomerId = customer.Id;
+        SelectedCustomerLabel = $"Cliente registrado: {customer.FullName} · ID {customer.Identification}";
+        CustomerName = customer.FullName;
+        CustomerPhone = customer.Phone ?? string.Empty;
+        CustomerEmail = customer.Email ?? string.Empty;
+        CustomerSearchResults.Clear();
+        ValidationMessage = "Cliente registrado vinculado a la cotización.";
     }
 
     private void AddToCart(ProductLookupResult? product)
@@ -233,9 +318,9 @@ public sealed class QuoteViewModel : ViewModelBase
     /// <summary>Sends the in-progress quote by WhatsApp. See <see cref="SendByEmailAsync"/> for the create-then-send rationale.</summary>
     public async Task SendByWhatsAppAsync(CancellationToken cancellationToken = default)
     {
-        if (CartItems.Count == 0)
+        if (string.IsNullOrWhiteSpace(CustomerPhone))
         {
-            ValidationMessage = "Carrito vacío";
+            ValidationMessage = "Ingresa el teléfono del cliente";
             return;
         }
 
@@ -299,7 +384,7 @@ public sealed class QuoteViewModel : ViewModelBase
             .ToList();
 
         CreateQuoteRequest request = new(
-            null,
+            SelectedCustomerId,
             CustomerName,
             string.IsNullOrWhiteSpace(CustomerPhone) ? null : CustomerPhone,
             string.IsNullOrWhiteSpace(CustomerEmail) ? null : CustomerEmail,
@@ -319,10 +404,13 @@ public sealed class QuoteViewModel : ViewModelBase
     {
         CartItems.Clear();
         SearchResults.Clear();
+        CustomerSearchResults.Clear();
         SearchQuery = string.Empty;
         CustomerName = string.Empty;
         CustomerPhone = string.Empty;
         CustomerEmail = string.Empty;
+        SelectedCustomerId = null;
+        SelectedCustomerLabel = string.Empty;
         ValidityDays = 30;
         Observations = string.Empty;
         RecalculateTotal();

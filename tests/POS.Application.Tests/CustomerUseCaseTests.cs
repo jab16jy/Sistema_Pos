@@ -194,6 +194,35 @@ public sealed class CustomerUseCaseTests
     }
 
     [Fact]
+    public async Task GetCustomerHistoryAsync_IncludesLinkedQuotesAndReceivableBalance()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var customer = new Customer("Ana Gomez", "123");
+        var product = new Product("Rice", Guid.NewGuid(), new Domain.ValueObjects.Money(1_000m), new Domain.ValueObjects.Money(1_500m), new Domain.ValueObjects.StockQuantity(10m), new Domain.ValueObjects.StockQuantity(2m));
+        var sale = new Sale(Guid.NewGuid(), customer.Id);
+        sale.AddItem(product, new Domain.ValueObjects.Quantity(1m), Domain.ValueObjects.Money.Zero);
+        var quote = new Quote("COT-2026-0001", "Ana Gomez", 30, customer.Id, "300", "ana@example.com");
+        quote.AddItem(new QuoteItem(product.Id, product.Name, new Domain.ValueObjects.Money(1_500m), new Domain.ValueObjects.Quantity(2m), 0m));
+        var receivable = new Receivable(customer.Id, sale.Id, new Domain.ValueObjects.Money(5_000m));
+        await dbContext.Customers.AddAsync(customer, TestContext.Current.CancellationToken);
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.Sales.AddAsync(sale, TestContext.Current.CancellationToken);
+        await dbContext.Quotes.AddAsync(quote, TestContext.Current.CancellationToken);
+        await dbContext.Receivables.AddAsync(receivable, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var useCase = new GetCustomerHistoryUseCase(new CustomerHistoryQueryService(dbContext));
+
+        CustomerHistoryResult history = await useCase.ExecuteAsync(customer.Id, TestContext.Current.CancellationToken);
+
+        Assert.Contains(history.Entries, entry => entry.Kind == "Quote" && entry.Reference == "COT-2026-0001" && entry.Amount == 3_000m);
+        Assert.Contains(history.Entries, entry => entry.Kind == "Receivable" && entry.Amount == 5_000m && entry.Status == "Pending");
+        Assert.Equal(5_000m, history.OutstandingBalance);
+    }
+
+    [Fact]
     public async Task DatabaseSchemaRolloutAsync_CreatesCustomersTableForExistingLocalDatabase()
     {
         string dbPath = Path.Combine(Path.GetTempPath(), $"pos-schema-{Guid.NewGuid():N}.db");

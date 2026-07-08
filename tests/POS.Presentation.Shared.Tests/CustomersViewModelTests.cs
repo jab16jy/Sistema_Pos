@@ -150,6 +150,26 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public async Task OpenHistoryAsync_SurfaceOutstandingBalanceFromReceivables()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var history = new StaticCustomerHistoryQueryService(new CustomerHistoryResult(customer.Id, [
+            new CustomerHistoryEntry(DateTimeOffset.UtcNow, "Receivable", "Saldo venta POS-1", 42_000m, "Pending")
+        ], OutstandingBalance: 42_000m));
+        var viewModel = new CustomersViewModel(new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()), new GetCustomerHistoryUseCase(history), new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)));
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+
+        await viewModel.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(42_000m, viewModel.OutstandingBalance);
+        Assert.Equal("$42.000", viewModel.OutstandingBalanceFormatted);
+        Assert.True(viewModel.HasOutstandingBalance);
+    }
+
+    [Fact]
     public async Task OpenHistoryAsync_WhenHistoryQueryFails_SetsRecoverableMessage()
     {
         var repository = new InMemoryCustomerRepository();
@@ -201,6 +221,25 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public async Task ResetView_ClearsSelectedCustomerWhenLeavingCustomersScreen()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var viewModel = CreateViewModel(repository);
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+
+        viewModel.ResetView();
+
+        Assert.Null(viewModel.SelectedCustomer);
+        Assert.False(viewModel.HasSelectedCustomer);
+        Assert.Equal(string.Empty, viewModel.FullName);
+        Assert.Empty(viewModel.HistoryEntries);
+        Assert.Contains("Busca", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void MainShell_ExposesCustomerModuleAsImplementedWithoutSelectingOtherModules()
     {
         var shell = new MainShellViewModel { Customers = CreateViewModel(new InMemoryCustomerRepository()) };
@@ -212,6 +251,25 @@ public sealed class CustomersViewModelTests
         Assert.True(shell.IsCustomersSelected);
         Assert.False(shell.IsCashierSelected);
         Assert.Equal("Abrir módulo", shell.MainActionText);
+    }
+
+    [Fact]
+    public async Task MainShell_WhenLeavingCustomers_ResetsCustomerSelection()
+    {
+        var repository = new InMemoryCustomerRepository();
+        await repository.AddAsync(new Customer("Ana Gomez", "123"), TestContext.Current.CancellationToken);
+        CustomersViewModel customersViewModel = CreateViewModel(repository);
+        await customersViewModel.LoadAsync(TestContext.Current.CancellationToken);
+        customersViewModel.SelectedCustomer = customersViewModel.Customers.Single();
+        var shell = new MainShellViewModel { Customers = customersViewModel };
+        var customers = shell.Modules.Single(module => module.Key == "customers");
+        var cashier = shell.Modules.Single(module => module.Key == "cashier");
+
+        shell.SelectedModule = customers;
+        shell.SelectedModule = cashier;
+
+        Assert.Null(customersViewModel.SelectedCustomer);
+        Assert.False(customersViewModel.HasSelectedCustomer);
     }
 
     private static CustomersViewModel CreateViewModel(InMemoryCustomerRepository repository)
@@ -330,5 +388,20 @@ public sealed class CustomersViewModelTests
 
         public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default)
             => Task.FromResult(0);
+
+        public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyRule>>([]);
+
+        public Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
+
+        public Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
+
+        public Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
+
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
     }
 }

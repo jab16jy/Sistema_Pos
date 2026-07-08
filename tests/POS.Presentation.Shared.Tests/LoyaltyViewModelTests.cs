@@ -108,6 +108,58 @@ public sealed class LoyaltyViewModelTests
         Assert.False(vm.IsLoading);
     }
 
+    [Fact]
+    public async Task LoadProgramAsync_UsesPersistedOverviewInsteadOfMockKpis()
+    {
+        var customerId = Guid.NewGuid();
+        var account = new LoyaltyAccount(customerId);
+        var transactions = new List<LoyaltyTransaction>
+        {
+            new(account.Id, Domain.Enums.LoyaltyTransactionType.Earned, 120, Guid.NewGuid(), "Venta registrada"),
+            new(account.Id, Domain.Enums.LoyaltyTransactionType.Redeemed, -20, null, "Canje en caja")
+        };
+        var rule = new LoyaltyRule(0.002m, 15m, 50, "Regla real");
+        var repo = new FakeLoyaltyRepository(account, transactions, balance: 100, activeRule: rule);
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, new FakeUnitOfWork()),
+            new GetLoyaltyProgramOverviewUseCase(repo));
+
+        await vm.LoadProgramAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("120", vm.TotalPointsIssued);
+        Assert.Equal("1", vm.EnrolledCustomers);
+        Assert.Equal("1", vm.RedemptionsThisMonth);
+        Assert.Equal(0.002m, vm.PointsPerCurrencyUnit);
+        Assert.Equal("Regla real", vm.RuleDescription);
+        Assert.Equal(2, vm.ProgramTransactions.Count);
+    }
+
+    [Fact]
+    public async Task SaveRulesAsync_PersistsRuleThroughUseCase()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var unitOfWork = new FakeUnitOfWork();
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, unitOfWork),
+            new GetLoyaltyProgramOverviewUseCase(repo),
+            new SetLoyaltyRuleUseCase(repo, unitOfWork))
+        {
+            PointsPerCurrencyUnit = 0.001m,
+            RedemptionValuePerPoint = 10m,
+            MinimumRedeemPoints = 100,
+            RuleDescription = "Nueva regla real"
+        };
+
+        await vm.SaveRulesAsync(TestContext.Current.CancellationToken);
+
+        var saved = Assert.Single(repo.Rules);
+        Assert.Equal("Nueva regla real", saved.Description);
+        Assert.Equal(1, unitOfWork.SaveCount);
+        Assert.Contains("guardadas", vm.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void SetEntityId(object entity, Guid id)
     {
         var prop = entity.GetType().GetProperty("Id");
@@ -133,7 +185,9 @@ public sealed class LoyaltyViewModelTests
         private readonly LoyaltyAccount? _account;
         private readonly IReadOnlyList<LoyaltyTransaction> _transactions;
         private readonly int _balance;
-        private readonly LoyaltyRule? _activeRule;
+        private LoyaltyRule? _activeRule;
+
+        public List<LoyaltyRule> Rules { get; } = [];
 
         public FakeLoyaltyRepository(
             LoyaltyAccount? account,
@@ -145,6 +199,10 @@ public sealed class LoyaltyViewModelTests
             _transactions = transactions;
             _balance = balance;
             _activeRule = activeRule;
+            if (activeRule is not null)
+            {
+                Rules.Add(activeRule);
+            }
         }
 
         public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
@@ -166,15 +224,39 @@ public sealed class LoyaltyViewModelTests
             => Task.FromResult(_transactions);
 
         public Task AddRuleAsync(LoyaltyRule rule, CancellationToken ct = default)
-            => Task.CompletedTask;
+        {
+            Rules.Add(rule);
+            _activeRule = rule;
+            return Task.CompletedTask;
+        }
 
         public Task UpdateRuleAsync(LoyaltyRule rule, CancellationToken ct = default)
             => Task.CompletedTask;
+
+        public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyRule>>(Rules.Take(maxCount).ToList());
+
+        public Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(_transactions.Where(transaction => transaction.Points > 0).Sum(transaction => transaction.Points));
+
+        public Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(_account is null ? 0 : 1);
+
+        public Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+            => Task.FromResult(_transactions.Count(transaction => transaction.Points < 0));
+
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>(_transactions.Take(maxCount).ToList());
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
+        public int SaveCount { get; private set; }
+
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult(1);
+        {
+            SaveCount++;
+            return Task.FromResult(1);
+        }
     }
 }

@@ -172,8 +172,20 @@ public sealed class MainShellViewModel : ViewModelBase
                 return;
             }
 
+            ModuleNavigationItem previousModule = _selectedModule;
+
             if (SetProperty(ref _selectedModule, value))
             {
+                if (previousModule.Key == "customers" && value.Key != "customers")
+                {
+                    Customers?.ResetView();
+                }
+
+                if (value.Key == "customers")
+                {
+                    Customers?.ResetView();
+                }
+
                 UpdateOperatorMessage(value);
                 OnPropertyChanged(nameof(MainActionText));
                 OnPropertyChanged(nameof(IsCashierSelected));

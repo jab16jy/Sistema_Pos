@@ -1,5 +1,7 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 using POS.Presentation.Shared.ViewModels;
 
 namespace POS.Presentation.Views;
@@ -12,7 +14,11 @@ public partial class QuoteView : UserControl
     /// Purely visual composition plumbing — no business logic — per pos-wpf-mvvm.
     /// </summary>
     public static readonly DependencyProperty HistoryViewModelProperty =
-        DependencyProperty.Register(nameof(HistoryViewModel), typeof(QuoteHistoryViewModel), typeof(QuoteView), new PropertyMetadata(null));
+        DependencyProperty.Register(
+            nameof(HistoryViewModel),
+            typeof(QuoteHistoryViewModel),
+            typeof(QuoteView),
+            new PropertyMetadata(null, OnHistoryViewModelChanged));
 
     public QuoteView()
     {
@@ -23,5 +29,40 @@ public partial class QuoteView : UserControl
     {
         get => (QuoteHistoryViewModel?)GetValue(HistoryViewModelProperty);
         set => SetValue(HistoryViewModelProperty, value);
+    }
+
+    private static void OnHistoryViewModelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is not QuoteView view)
+        {
+            return;
+        }
+
+        if (e.OldValue is QuoteHistoryViewModel oldViewModel)
+        {
+            oldViewModel.FileExportRequested -= view.OnFileExportRequested;
+        }
+
+        if (e.NewValue is QuoteHistoryViewModel newViewModel)
+        {
+            newViewModel.FileExportRequested += view.OnFileExportRequested;
+        }
+    }
+
+    private void OnFileExportRequested(object? sender, (string FileName, byte[] Data) args)
+    {
+        var dialog = new SaveFileDialog
+        {
+            FileName = args.FileName,
+            DefaultExt = ".pdf",
+            Filter = "PDF|*.pdf|Todos los archivos|*.*"
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        File.WriteAllBytes(dialog.FileName, args.Data);
     }
 }

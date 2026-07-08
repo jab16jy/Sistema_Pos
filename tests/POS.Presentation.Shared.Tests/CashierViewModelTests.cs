@@ -1,4 +1,7 @@
+using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Products;
+using POS.Application.Interfaces;
+using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -33,6 +36,7 @@ public sealed class CashierViewModelTests
         viewModel.ReceivedAmount = 6_000m;
 
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(viewModel.CartItems);
         Assert.Equal(0m, viewModel.TotalAmount);
@@ -175,6 +179,74 @@ public sealed class CashierViewModelTests
 
         viewModel.HoldSaleCommand.Execute(null);
         Assert.Contains("Requiere un caso de uso", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WithoutCustomer_OpensAssignmentBeforePersistingAndCanContinueWithoutCustomer()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([])))
+        {
+            SearchText = "rice",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        viewModel.ReceivedAmount = 3_000m;
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(sales.Sales);
+        Assert.True(viewModel.IsCustomerAssignmentOpen);
+        Assert.Contains("Antes de facturar", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+
+        await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+
+        Sale sale = Assert.Single(sales.Sales);
+        Assert.Null(sale.CustomerId);
+        Assert.Contains("guardada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WithSelectedCustomer_PersistsCustomerIdForHistoryAuditAndPoints()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var sales = new InMemorySaleRepository();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])))
+        {
+            SearchText = "rice",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        viewModel.ReceivedAmount = 3_000m;
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        viewModel.CustomerSearchText = "Ana";
+        await viewModel.SearchCustomersAsync(TestContext.Current.CancellationToken);
+        CustomerSearchResult selected = Assert.Single(viewModel.CustomerSearchResults);
+
+        await viewModel.SelectCustomerAsync(selected, TestContext.Current.CancellationToken);
+
+        Sale sale = Assert.Single(sales.Sales);
+        Assert.Equal(customer.Id, sale.CustomerId);
+        Assert.Contains("guardada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -384,6 +456,16 @@ public sealed class CashierViewModelTests
 
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
             => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));
+    }
+
+    private sealed class StaticCustomerLookupQueryService : ICustomerLookupQueryService
+    {
+        private readonly IReadOnlyList<CustomerSearchResult> _customers;
+
+        public StaticCustomerLookupQueryService(IReadOnlyList<CustomerSearchResult> customers) => _customers = customers;
+
+        public Task<IReadOnlyList<CustomerSearchResult>> SearchAsync(CustomerSearchRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult(_customers);
     }
 
     // --- RED: settlement plan / deferred balance in CashierViewModel ---

@@ -55,8 +55,8 @@ public sealed record QuoteSummaryRow(
 
     /// <summary>
     /// True when the "Venta" row action should be shown. Mirrors <c>ConvertQuoteToSaleUseCase</c>'s own guard
-    /// (blocks Converted/Expired), matching the wireframe's "only 'aceptada' quotes convert" intent as closely
-    /// as the real domain status set allows.
+    /// (blocks Converted/Expired). New quotes are created as Draft, and the documented business rule allows
+    /// Draft or Active quotes to be converted.
     /// </summary>
-    public bool CanConvertToSale => Status == QuoteStatus.Active;
+    public bool CanConvertToSale => Status is QuoteStatus.Draft or QuoteStatus.Active;
 }
