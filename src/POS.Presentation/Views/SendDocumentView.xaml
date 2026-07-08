@@ -17,7 +17,7 @@
   </Window.Resources>
   <Border Style="{StaticResource Card}" Margin="8">
     <StackPanel>
-      <TextBlock Text="Enviar Documento" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16" />
+      <TextBlock Text="Enviar Documento" Style="{StaticResource TextH3}" FontWeight="SemiBold" Margin="0,0,0,16" />
       <TextBlock Text="Contacto destinatario" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
       <TextBox Text="{Binding RecipientContact, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="Email o número de WhatsApp" Margin="0,0,0,12" />
       <TextBlock Text="Canal de envío" Style="{StaticResource MutedText}" Margin="0,0,0,4" />

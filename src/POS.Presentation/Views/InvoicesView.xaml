@@ -11,7 +11,7 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
     <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-      <TextBlock Text="Facturas" FontSize="22" FontWeight="Bold" VerticalAlignment="Center" />
+      <TextBlock Text="Facturas" Style="{StaticResource TextH1}" FontWeight="Bold" VerticalAlignment="Center" />
       <TextBlock Text="{Binding Message}" Visibility="{Binding Message, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" Style="{StaticResource MutedText}" Margin="16,0,0,0" VerticalAlignment="Center" />
     </StackPanel>
 
@@ -126,7 +126,7 @@
                         </Style.Triggers>
                       </Style>
                     </Border.Style>
-                    <TextBlock Text="{Binding StatusLabel}" FontSize="11" FontWeight="Medium" />
+                    <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource TextCaption}" FontWeight="Medium" />
                   </Border>
                   <TextBlock Grid.Column="5" Text="{Binding DateFormatted}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
                 </Grid>
@@ -211,11 +211,11 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel>
                       <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11" />
-                      <TextBlock Text="{Binding SelectedInvoice.TotalFormatted}" FontSize="18" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}" />
+                      <TextBlock Text="{Binding SelectedInvoice.TotalFormatted}" Style="{StaticResource TextH2}" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}" />
                     </StackPanel>
                     <StackPanel Grid.Column="1">
                       <TextBlock Text="Fecha" Style="{StaticResource MutedText}" FontSize="11" />
-                      <TextBlock Text="{Binding SelectedInvoice.DateFormatted}" FontSize="13" FontFamily="Consolas" />
+                      <TextBlock Text="{Binding SelectedInvoice.DateFormatted}" Style="{StaticResource TextBody}" FontFamily="Consolas" />
                     </StackPanel>
                   </Grid>
                 </StackPanel>
@@ -235,13 +235,13 @@
                 <Button Command="{Binding ReprintCommand}" HorizontalContentAlignment="Center">
                   <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="Printer" Width="16" Height="16" Margin="0,0,4,0" />
-                    <TextBlock Text="Reimprimir" FontSize="12" />
+                    <TextBlock Text="Reimprimir" Style="{StaticResource TextSmall}" />
                   </StackPanel>
                 </Button>
                 <Button Grid.Column="2" Command="{Binding ExportPdfCommand}" HorizontalContentAlignment="Center" ToolTip="Exportar la factura seleccionada a PDF.">
                   <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="FilePdfBox" Width="16" Height="16" Margin="0,0,4,0" />
-                    <TextBlock Text="PDF" FontSize="12" />
+                    <TextBlock Text="PDF" Style="{StaticResource TextSmall}" />
                   </StackPanel>
                 </Button>
               </Grid>
@@ -254,13 +254,13 @@
                 <Button Command="{Binding SendByEmailCommand}" HorizontalContentAlignment="Center">
                   <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="Email" Width="16" Height="16" Margin="0,0,4,0" />
-                    <TextBlock Text="Email" FontSize="12" />
+                    <TextBlock Text="Email" Style="{StaticResource TextSmall}" />
                   </StackPanel>
                 </Button>
                 <Button Grid.Column="2" Command="{Binding SendByWhatsAppCommand}" HorizontalContentAlignment="Center">
                   <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="WhatsApp" Width="16" Height="16" Margin="0,0,4,0" />
-                    <TextBlock Text="WhatsApp" FontSize="12" />
+                    <TextBlock Text="WhatsApp" Style="{StaticResource TextSmall}" />
                   </StackPanel>
                 </Button>
               </Grid>
