@@ -19,6 +19,9 @@ public interface ILoyaltyRepository
     /// <summary>Returns the currently active loyalty rule, or null if none is configured.</summary>
     Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Returns all active/inactive rules, newest first.</summary>
+    Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default);
+
     /// <summary>Persists a new loyalty rule. The caller must deactivate the previous rule before calling this.</summary>
     Task AddRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default);
 
@@ -27,4 +30,10 @@ public interface ILoyaltyRepository
 
     /// <summary>Returns the computed balance for a loyalty account (SUM of signed Points).</summary>
     Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default);
+
+    Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default);
+
+    Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default);
+    Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default);
 }

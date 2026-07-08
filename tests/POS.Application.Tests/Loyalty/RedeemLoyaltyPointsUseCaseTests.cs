@@ -158,6 +158,21 @@ public sealed class RedeemLoyaltyPointsUseCaseTests
 
         public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken ct = default)
             => Task.FromResult(_balance);
+
+        public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyRule>>([]);
+
+        public Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(Transactions.Where(transaction => transaction.Points > 0).Sum(transaction => transaction.Points));
+
+        public Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(_account is null ? 0 : 1);
+
+        public Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+            => Task.FromResult(Transactions.Count(transaction => transaction.Points < 0));
+
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>(Transactions.Take(maxCount).ToList());
     }
 
     private sealed class CountingUow : IUnitOfWork

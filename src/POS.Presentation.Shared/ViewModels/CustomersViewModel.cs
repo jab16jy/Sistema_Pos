@@ -31,6 +31,7 @@ public sealed class CustomersViewModel : ViewModelBase
     private int _totalCustomersCount;
     private int _activeCustomersCount;
     private string _historyFilter = "all";
+    private decimal _outstandingBalance;
 
     public CustomersViewModel(
         SaveCustomerUseCase saveCustomer,
@@ -95,6 +96,7 @@ public sealed class CustomersViewModel : ViewModelBase
                 else
                 {
                     LoyaltyPoints = 0;
+                    OutstandingBalance = 0m;
                     HistoryEntries.Clear();
                 }
 
@@ -211,6 +213,24 @@ public sealed class CustomersViewModel : ViewModelBase
     public string HistoryTotalFormatted
         => $"${HistoryEntries.Where(entry => IsSaleKind(entry.Kind)).Sum(entry => entry.Amount).ToString("N0", ColombianCulture)}";
 
+    /// <summary>Current outstanding customer debt from receivables, independent from the historical movement list.</summary>
+    public decimal OutstandingBalance
+    {
+        get => _outstandingBalance;
+        private set
+        {
+            if (SetProperty(ref _outstandingBalance, value))
+            {
+                OnPropertyChanged(nameof(OutstandingBalanceFormatted));
+                OnPropertyChanged(nameof(HasOutstandingBalance));
+            }
+        }
+    }
+
+    public string OutstandingBalanceFormatted => $"${OutstandingBalance.ToString("N0", ColombianCulture)}";
+
+    public bool HasOutstandingBalance => OutstandingBalance > 0m;
+
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -298,6 +318,7 @@ public sealed class CustomersViewModel : ViewModelBase
         try
         {
             CustomerHistoryResult history = await _getHistory.ExecuteAsync(SelectedCustomer.Id, cancellationToken).ConfigureAwait(true);
+            OutstandingBalance = history.OutstandingBalance;
             HistoryEntries.Clear();
             foreach (CustomerHistoryEntry entry in history.Entries)
             {
@@ -315,6 +336,12 @@ public sealed class CustomersViewModel : ViewModelBase
         {
             Message = $"Error al cargar historial: {ex.Message}";
         }
+    }
+
+    public void ResetView()
+    {
+        ClearForm();
+        Message = "Busca o selecciona un cliente para actualizar sus datos.";
     }
 
     private async Task LoadLoyaltyPointsAsync(Guid customerId, CancellationToken cancellationToken = default)
@@ -378,6 +405,9 @@ public sealed class CustomersViewModel : ViewModelBase
         Email = null;
         Address = null;
         IsActive = true;
+        LoyaltyPoints = 0;
+        OutstandingBalance = 0m;
+        HistoryEntries.Clear();
         HistoryFilter = "all";
     }
 }

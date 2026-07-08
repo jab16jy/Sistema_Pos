@@ -40,3 +40,21 @@ public sealed record SetLoyaltyRuleRequest(
     decimal RedemptionValuePerPoint,
     int MinimumRedeemPoints,
     string? Description = null);
+
+/// <summary>Current persisted loyalty rule shown in the admin module.</summary>
+public sealed record LoyaltyRuleResult(
+    Guid Id,
+    decimal PointsPerCurrencyUnit,
+    decimal RedemptionValuePerPoint,
+    int MinimumRedeemPoints,
+    string Description,
+    bool IsActive,
+    DateTimeOffset CreatedAt);
+
+/// <summary>Real program-wide loyalty metrics, derived from persisted accounts and transactions.</summary>
+public sealed record LoyaltyProgramOverviewResult(
+    LoyaltyRuleResult? ActiveRule,
+    int TotalPointsIssued,
+    int EnrolledCustomers,
+    int RedemptionsThisMonth,
+    IReadOnlyList<LoyaltyTransactionResult> RecentTransactions);

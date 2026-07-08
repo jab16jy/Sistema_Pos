@@ -10,6 +10,40 @@ namespace POS.Presentation.Shared.ViewModels;
 public sealed class AuditLogViewModel : ViewModelBase
 {
     private const string AllFilterLabel = "Todas";
+    private static readonly IReadOnlyDictionary<string, string> ActionLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Added"] = "Creado",
+        ["Modified"] = "Actualizado",
+        ["Deleted"] = "Eliminado"
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> EntityLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Customer"] = "Cliente",
+        ["Quote"] = "Cotización",
+        ["QuoteItem"] = "Producto de cotización",
+        ["Product"] = "Producto",
+        ["InventoryMovement"] = "Movimiento de inventario",
+        ["Sale"] = "Venta",
+        ["SaleItem"] = "Producto vendido",
+        ["SalePayment"] = "Pago de venta",
+        ["SaleReturn"] = "Devolución",
+        ["CashierShift"] = "Turno de caja",
+        ["CashClosing"] = "Cierre de caja",
+        ["User"] = "Usuario",
+        ["Supplier"] = "Proveedor",
+        ["Purchase"] = "Compra",
+        ["PurchaseItem"] = "Producto comprado",
+        ["Receivable"] = "Cuenta por cobrar",
+        ["ReceivableSettlement"] = "Abono a cuenta por cobrar",
+        ["LoyaltyAccount"] = "Cuenta de puntos",
+        ["LoyaltyTransaction"] = "Movimiento de puntos",
+        ["LoyaltyRule"] = "Regla de puntos",
+        ["Category"] = "Categoría",
+        ["AppSettings"] = "Configuración",
+        ["DocumentSendLog"] = "Envío de documento"
+    };
+
     private readonly GetAuditLogsUseCase _getAuditLogs;
     private string _message = "Carga los últimos movimientos del sistema.";
     private string _usernameFilter = string.Empty;
@@ -23,9 +57,26 @@ public sealed class AuditLogViewModel : ViewModelBase
         ClearFiltersCommand = new RelayCommand(_ => RunSafe(ClearFiltersAsync(), ex => Message = $"Error al limpiar filtros: {ex.Message}"));
     }
 
-    public ObservableCollection<AuditLogEntry> Logs { get; } = [];
-    public IReadOnlyList<string> AvailableActionFilters { get; } = [AllFilterLabel, "Added", "Modified", "Deleted"];
-    public IReadOnlyList<string> AvailableEntityFilters { get; } = [AllFilterLabel, "User", "Sale", "Product", "CashierShift", "Customer"];
+    public ObservableCollection<AuditLogDisplayEntry> Logs { get; } = [];
+    public IReadOnlyList<string> AvailableActionFilters { get; } = [AllFilterLabel, "Creado", "Actualizado", "Eliminado"];
+    public IReadOnlyList<string> AvailableEntityFilters { get; } =
+    [
+        AllFilterLabel,
+        "Cliente",
+        "Cotización",
+        "Producto",
+        "Movimiento de inventario",
+        "Venta",
+        "Usuario",
+        "Turno de caja",
+        "Proveedor",
+        "Compra",
+        "Cuenta por cobrar",
+        "Movimiento de puntos",
+        "Regla de puntos",
+        "Configuración",
+        "Envío de documento"
+    ];
 
     public ICommand LoadCommand { get; }
     public ICommand ClearFiltersCommand { get; }
@@ -63,7 +114,7 @@ public sealed class AuditLogViewModel : ViewModelBase
             Logs.Clear();
             foreach (var log in logs)
             {
-                Logs.Add(log);
+                Logs.Add(ToDisplayEntry(log));
             }
 
             Message = Logs.Count == 0
@@ -89,14 +140,86 @@ public sealed class AuditLogViewModel : ViewModelBase
 
     private AuditLogFilter BuildFilter() => new(
         NormalizeTextFilter(UsernameFilter),
-        NormalizeOptionFilter(SelectedActionFilter),
-        NormalizeOptionFilter(SelectedEntityFilter));
+        NormalizeActionFilter(SelectedActionFilter),
+        NormalizeEntityFilter(SelectedEntityFilter));
 
     private static string? NormalizeTextFilter(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string? NormalizeOptionFilter(string? value)
-        => string.IsNullOrWhiteSpace(value) || string.Equals(value, AllFilterLabel, StringComparison.OrdinalIgnoreCase)
-            ? null
-            : value.Trim();
+    private static string? NormalizeActionFilter(string? value)
+        => NormalizeMappedFilter(value, ActionLabels);
+
+    private static string? NormalizeEntityFilter(string? value)
+        => NormalizeMappedFilter(value, EntityLabels);
+
+    private static string? NormalizeMappedFilter(string? value, IReadOnlyDictionary<string, string> labels)
+    {
+        if (string.IsNullOrWhiteSpace(value) || string.Equals(value, AllFilterLabel, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        string trimmed = value.Trim();
+        if (labels.ContainsKey(trimmed))
+        {
+            return trimmed;
+        }
+
+        foreach (var (raw, label) in labels)
+        {
+            if (string.Equals(trimmed, label, StringComparison.OrdinalIgnoreCase))
+            {
+                return raw;
+            }
+        }
+
+        return trimmed;
+    }
+
+    private static AuditLogDisplayEntry ToDisplayEntry(AuditLogEntry log)
+    {
+        string actionLabel = ActionLabels.TryGetValue(log.Action, out string? action) ? action : log.Action;
+        string entityLabel = EntityLabels.TryGetValue(log.EntityName, out string? entity) ? entity : log.EntityName;
+        string details = BuildDetails(log, actionLabel, entityLabel);
+
+        return new AuditLogDisplayEntry(
+            log.CreatedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"),
+            log.Username,
+            actionLabel,
+            entityLabel,
+            details,
+            log.EntityId);
+    }
+
+    private static string BuildDetails(AuditLogEntry log, string actionLabel, string entityLabel)
+    {
+        string baseText = string.IsNullOrWhiteSpace(log.Details)
+            ? $"{entityLabel}: {actionLabel.ToLowerInvariant()}."
+            : TranslateDetails(log.Details);
+
+        return string.IsNullOrWhiteSpace(log.EntityId)
+            ? baseText
+            : $"{baseText} ID: {log.EntityId}.";
+    }
+
+    private static string TranslateDetails(string details)
+    {
+        return details
+            .Replace("Record created.", "Registro creado.", StringComparison.OrdinalIgnoreCase)
+            .Replace("Registro creado.", "Registro creado.", StringComparison.OrdinalIgnoreCase)
+            .Replace("Record deleted.", "Registro eliminado.", StringComparison.OrdinalIgnoreCase)
+            .Replace("Registro eliminado.", "Registro eliminado.", StringComparison.OrdinalIgnoreCase)
+            .Replace("Record updated.", "Registro actualizado.", StringComparison.OrdinalIgnoreCase)
+            .Replace("Registro actualizado.", "Registro actualizado.", StringComparison.OrdinalIgnoreCase)
+            .Replace("Modified fields:", "Campos modificados:", StringComparison.OrdinalIgnoreCase)
+            .Replace("Campos modificados:", "Campos modificados:", StringComparison.OrdinalIgnoreCase);
+    }
 }
+
+public sealed record AuditLogDisplayEntry(
+    string DateText,
+    string Username,
+    string ActionLabel,
+    string EntityLabel,
+    string Details,
+    string? EntityId);

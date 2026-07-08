@@ -64,13 +64,63 @@
               </Grid.ColumnDefinitions>
               <StackPanel>
                 <TextBlock Text="Nombre *" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-                <TextBox Text="{Binding CustomerName, Mode=TwoWay}" Tag="María López" />
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBox Text="{Binding CustomerName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="María López" />
+                  <Button Grid.Column="1"
+                          Content="Buscar"
+                          Command="{Binding SearchCustomerCommand}"
+                          Style="{StaticResource PrimaryButton}"
+                          Margin="8,0,0,0"
+                          Padding="10,0" />
+                </Grid>
               </StackPanel>
               <StackPanel Grid.Column="2">
                 <TextBlock Text="Teléfono" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
                 <TextBox Text="{Binding CustomerPhone, Mode=TwoWay}" Tag="3001234567" />
               </StackPanel>
             </Grid>
+            <TextBlock Text="{Binding SelectedCustomerLabel}"
+                       Visibility="{Binding SelectedCustomerLabel, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}"
+                       Style="{StaticResource MutedText}"
+                       FontSize="11"
+                       Margin="0,0,0,8" />
+            <ItemsControl ItemsSource="{Binding CustomerSearchResults}"
+                          Visibility="{Binding CustomerSearchResults.Count, Converter={StaticResource IntGreaterThanZeroToVisibilityConverter}}"
+                          Margin="0,0,0,8">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="8" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel>
+                        <TextBlock Text="{Binding FullName}" FontWeight="Medium" />
+                        <TextBlock Style="{StaticResource MutedText}" FontSize="11">
+                          <TextBlock.Text>
+                            <MultiBinding StringFormat="{}ID {0} · {1}">
+                              <Binding Path="Identification" />
+                              <Binding Path="Phone" />
+                            </MultiBinding>
+                          </TextBlock.Text>
+                        </TextBlock>
+                      </StackPanel>
+                      <Button Grid.Column="1"
+                              Content="Usar"
+                              Command="{Binding DataContext.SelectCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                              CommandParameter="{Binding}"
+                              Style="{StaticResource GhostQuoteButton}"
+                              Padding="8,4" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
             <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -370,7 +420,10 @@
                       </Border>
                       <TextBlock Grid.Column="4" Text="{Binding ExpiresAt}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
                       <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button ToolTip="PDF" Background="Transparent" BorderBrush="Transparent" Padding="4">
+                        <Button ToolTip="PDF"
+                                Background="Transparent" BorderBrush="Transparent" Padding="4"
+                                Command="{Binding DataContext.ExportPdfCommand, ElementName=HistorialTabRoot}"
+                                CommandParameter="{Binding}">
                           <materialDesign:PackIcon Kind="FilePdfBox" Foreground="{StaticResource BrushMuted}" Width="16" Height="16" />
                         </Button>
                         <Button ToolTip="Email"

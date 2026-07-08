@@ -142,6 +142,8 @@ public static class DependencyInjection
         services.AddScoped<AccumulateLoyaltyPointsUseCase>();
         services.AddScoped<RedeemLoyaltyPointsUseCase>();
         services.AddScoped<GetLoyaltyBalanceUseCase>();
+        services.AddScoped<GetLoyaltyProgramOverviewUseCase>();
+        services.AddScoped<SetLoyaltyRuleUseCase>();
         services.AddScoped<CreateCategoryUseCase>();
         services.AddScoped<UpdateCategoryUseCase>();
         services.AddScoped<SearchCategoriesUseCase>();

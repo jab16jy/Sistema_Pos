@@ -436,6 +436,122 @@
           </StackPanel>
         </Border>
 
+        <Border BorderBrush="{StaticResource BrushBorder}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="12"
+                Margin="0,0,0,12"
+                Background="{StaticResource BrushSurfaceContainer}">
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel>
+                <TextBlock Text="Cliente para puntos" Style="{StaticResource CashHint}" FontWeight="Medium" />
+                <TextBlock Text="{Binding AssignedCustomerLabel}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0" />
+                <TextBlock Text="Antes de facturar puedes asignar cliente o continuar sin cliente."
+                           Style="{StaticResource CashHint}"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0" />
+              </StackPanel>
+              <Button Grid.Column="1"
+                      Content="Asignar"
+                      Style="{StaticResource GhostButton}"
+                      Command="{Binding AssociateCustomerCommand}" />
+            </Grid>
+
+            <Border Background="White"
+                    BorderBrush="{StaticResource BrushPrimary}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="10"
+                    Margin="0,10,0,0"
+                    Visibility="{Binding IsCustomerAssignmentOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+              <StackPanel>
+                <Grid Margin="0,0,0,8">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="Asignar cliente a la factura" FontWeight="SemiBold" />
+                  <Button Grid.Column="1"
+                          Content="Cerrar"
+                          Style="{StaticResource GhostButton}"
+                          Command="{Binding CloseCustomerAssignmentCommand}"
+                          Padding="4,2" />
+                </Grid>
+
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBox Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                           Tag="Nombre, cédula o teléfono..."
+                           Height="34" />
+                  <Button Grid.Column="1"
+                          Content="Buscar"
+                          Style="{StaticResource PrimaryButton}"
+                          Command="{Binding SearchCustomerCommand}"
+                          Margin="8,0,0,0"
+                          Padding="10,4" />
+                </Grid>
+
+                <ItemsControl ItemsSource="{Binding CustomerSearchResults}"
+                              MaxHeight="160"
+                              Margin="0,8,0,0">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,8">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <StackPanel>
+                            <TextBlock Text="{Binding FullName}" FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource CashHint}">
+                              <TextBlock.Text>
+                                <MultiBinding StringFormat="ID {0} · {1}">
+                                  <Binding Path="Identification" />
+                                  <Binding Path="Phone" TargetNullValue="sin teléfono" />
+                                </MultiBinding>
+                              </TextBlock.Text>
+                            </TextBlock>
+                          </StackPanel>
+                          <Button Grid.Column="1"
+                                  Content="Usar"
+                                  Style="{StaticResource PrimaryButton}"
+                                  Command="{Binding DataContext.SelectCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                  CommandParameter="{Binding}"
+                                  Padding="10,4" />
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Grid Margin="0,10,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="8" />
+                    <ColumnDefinition Width="*" />
+                  </Grid.ColumnDefinitions>
+                  <Button Content="Sin cliente"
+                          Command="{Binding ContinueWithoutCustomerCommand}"
+                          Style="{StaticResource GhostButton}" />
+                  <Button Grid.Column="2"
+                          Content="Quitar cliente"
+                          Command="{Binding ClearCustomerCommand}"
+                          Style="{StaticResource GhostButton}" />
+                </Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Border>
+
         <TextBlock Text="Método de pago" Style="{StaticResource CashHint}" FontWeight="Medium" />
         <ComboBox ItemsSource="{Binding PaymentMethods}"
                   SelectedItem="{Binding SelectedPaymentMethod, Mode=TwoWay}"

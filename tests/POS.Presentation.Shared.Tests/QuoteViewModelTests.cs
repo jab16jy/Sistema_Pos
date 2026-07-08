@@ -1,7 +1,9 @@
 using POS.Application.DTOs.Communication;
+using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Products;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
+using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Quotes;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
@@ -65,13 +67,15 @@ public sealed class QuoteViewModelTests
     }
 
     [Fact]
-    public async Task SendByWhatsApp_WithEmptyCart_ShowsRecoverableValidationMessage()
+    public async Task SendByWhatsApp_WithoutPhone_ShowsRecoverableValidationMessage()
     {
         var vm = CreateViewModel(out _, out _);
+        vm.CustomerName = "Ana Gómez";
+        AddCartItem(vm, Guid.NewGuid(), "Producto Test", 1_000m);
 
         await vm.SendByWhatsAppAsync(TestContext.Current.CancellationToken);
 
-        Assert.Contains("Carrito vacío", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("teléfono", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -103,6 +107,41 @@ public sealed class QuoteViewModelTests
 
         Assert.True(row.CanConvertToSale);
         Assert.Equal("success", row.StatusChipKind);
+    }
+
+    [Fact]
+    public void QuoteSummaryRow_DraftStatus_CanConvertToSaleBecauseCreatedQuotesStartAsDraft()
+    {
+        var summary = new Application.DTOs.Quotes.QuoteSummary(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-100-D",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: Domain.Enums.QuoteStatus.Draft,
+            ExpiresAt: "2026-12-31");
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        Assert.True(row.CanConvertToSale);
+        Assert.Equal("warning", row.StatusChipKind);
+    }
+
+    [Fact]
+    public async Task Confirm_WithSelectedRegisteredCustomer_PersistsCustomerIdOnQuote()
+    {
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var vm = CreateViewModel(out InMemoryQuoteRepository quoteRepo, out _, product);
+        var customerId = Guid.NewGuid();
+
+        vm.SelectCustomerCommand.Execute(new CustomerSearchResult(customerId, "Ana Gómez", "123", "300", "ana@example.com", "Main Street", true));
+        AddCartItem(vm, product.Id, product.Name, 2_000m);
+
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+
+        Domain.Entities.Quote quote = Assert.Single(quoteRepo.Quotes);
+        Assert.Equal(customerId, quote.CustomerId);
     }
 
     [Fact]
@@ -180,6 +219,8 @@ public sealed class QuoteViewModelTests
             DateOnly? from, DateOnly? to, string? customerName, Domain.Enums.QuoteStatus? status,
             int page, int pageSize, CancellationToken ct = default)
             => Task.FromResult<(IReadOnlyList<Domain.Entities.Quote>, int)>(([.. _store.Values], _store.Count));
+
+        public IReadOnlyCollection<Domain.Entities.Quote> Quotes => _store.Values;
     }
 
     private sealed class StaticProductRepository : IProductRepository

@@ -41,7 +41,8 @@ public sealed record CustomerSearchRequest(string? SearchText, bool IncludeInact
 
 public sealed record CustomerHistoryResult(
     Guid CustomerId,
-    IReadOnlyList<CustomerHistoryEntry> Entries);
+    IReadOnlyList<CustomerHistoryEntry> Entries,
+    decimal OutstandingBalance = 0m);
 
 public sealed record CustomerHistoryEntry(
     DateTimeOffset OccurredAt,

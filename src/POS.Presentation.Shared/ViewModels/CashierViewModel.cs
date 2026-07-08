@@ -8,6 +8,7 @@ using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Sales;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Invoices;
 using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Sales;
@@ -26,6 +27,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly CreateSaleUseCase? _createSaleUseCase;
     private readonly RedeemLoyaltyPointsUseCase? _redeemLoyaltyPointsUseCase;
     private readonly ReprintReceiptUseCase? _printReceiptUseCase;
+    private readonly SearchCustomersUseCase? _searchCustomersUseCase;
     private readonly RelayCommand _printReceiptYesCommand;
     private readonly RelayCommand _printReceiptNoCommand;
     private Guid? _pendingPrintSaleId;
@@ -39,6 +41,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _associateCustomerCommand;
     private readonly RelayCommand _holdSaleCommand;
     private readonly RelayCommand _confirmPrototypeSaleCommand;
+    private readonly RelayCommand _clearCustomerCommand;
     private CancellationTokenSource? _autocompleteSearchCts;
     private string _searchText = string.Empty;
     private CashierProductSearchResultViewModel? _selectedProduct;
@@ -51,10 +54,15 @@ public sealed class CashierViewModel : ViewModelBase
     private bool _hasNoMatches;
     private bool _canConfirm;
     private decimal _changeAmount;
-    private CustomerResult? _selectedCustomer;
+    private CustomerSearchResult? _selectedCustomer;
+    private Guid? _customerId;
+    private string _customerSearchText = string.Empty;
     private decimal _loyaltyDiscount;
     private string _bankOrPlatform = string.Empty;
     private int _loyaltyPointsToRedeem;
+    private bool _isCustomerAssignmentOpen;
+    private bool _confirmAfterCustomerAssignment;
+    private bool _customerAssignmentReviewed;
 
     public CashierViewModel(IProductLookupService productLookupService)
         : this(productLookupService, new PreviewPaymentUseCase())
@@ -93,13 +101,15 @@ public sealed class CashierViewModel : ViewModelBase
         PreviewPaymentUseCase previewPaymentUseCase,
         CreateSaleUseCase? createSaleUseCase,
         RedeemLoyaltyPointsUseCase? redeemLoyaltyPointsUseCase,
-        ReprintReceiptUseCase? printReceiptUseCase)
+        ReprintReceiptUseCase? printReceiptUseCase,
+        SearchCustomersUseCase? searchCustomersUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _previewPaymentUseCase = previewPaymentUseCase ?? throw new ArgumentNullException(nameof(previewPaymentUseCase));
         _createSaleUseCase = createSaleUseCase;
         _redeemLoyaltyPointsUseCase = redeemLoyaltyPointsUseCase;
         _printReceiptUseCase = printReceiptUseCase;
+        _searchCustomersUseCase = searchCustomersUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -112,6 +122,7 @@ public sealed class CashierViewModel : ViewModelBase
 
         SearchResults = [];
         CartItems = [];
+        CustomerSearchResults = [];
         CartItems.CollectionChanged += OnCartItemsChanged;
 
         SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => Message = $"Error al buscar productos: {ex.Message}"));
@@ -140,6 +151,12 @@ public sealed class CashierViewModel : ViewModelBase
         ApplyRedemptionCommand = new RelayCommand(_ => RunSafe(ApplyRedemptionAsync(), ex => Message = $"Error al aplicar puntos: {ex.Message}"));
         PrintReceiptYesCommand = _printReceiptYesCommand;
         PrintReceiptNoCommand = _printReceiptNoCommand;
+        SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => Message = $"Error al buscar clientes: {ex.Message}"));
+        SelectCustomerCommand = new RelayCommand(parameter => RunSafe(SelectCustomerFromCommandAsync(parameter), ex => Message = $"Error al asignar cliente: {ex.Message}"), parameter => parameter is CustomerSearchResult);
+        ContinueWithoutCustomerCommand = new RelayCommand(_ => RunSafe(ContinueWithoutCustomerAsync(), ex => Message = $"Error al continuar sin cliente: {ex.Message}"));
+        _clearCustomerCommand = new RelayCommand(_ => ClearCustomerAssignment(), _ => CustomerId is not null || SelectedCustomer is not null);
+        ClearCustomerCommand = _clearCustomerCommand;
+        CloseCustomerAssignmentCommand = new RelayCommand(_ => CloseCustomerAssignment());
     }
 
     public ObservableCollection<CashierProductSearchResultViewModel> SearchResults { get; }
@@ -147,6 +164,8 @@ public sealed class CashierViewModel : ViewModelBase
     public ObservableCollection<CashierCartItemViewModel> CartItems { get; }
 
     public ObservableCollection<PaymentMethodOption> PaymentMethods { get; }
+
+    public ObservableCollection<CustomerSearchResult> CustomerSearchResults { get; }
 
     public ICommand SearchCommand { get; }
 
@@ -170,11 +189,33 @@ public sealed class CashierViewModel : ViewModelBase
 
     public ICommand ConfirmPrototypeSaleCommand { get; }
 
+    public ICommand SearchCustomerCommand { get; }
+
+    public ICommand SelectCustomerCommand { get; }
+
+    public ICommand ContinueWithoutCustomerCommand { get; }
+
+    public ICommand ClearCustomerCommand { get; }
+
+    public ICommand CloseCustomerAssignmentCommand { get; }
+
     public Guid CashierUserId { get; set; }
 
-    public Guid? CustomerId { get; set; }
+    public Guid? CustomerId
+    {
+        get => _customerId;
+        set
+        {
+            if (SetProperty(ref _customerId, value))
+            {
+                OnPropertyChanged(nameof(HasAssignedCustomer));
+                OnPropertyChanged(nameof(AssignedCustomerLabel));
+                _clearCustomerCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
 
-    public CustomerResult? SelectedCustomer
+    public CustomerSearchResult? SelectedCustomer
     {
         get => _selectedCustomer;
         set
@@ -182,8 +223,29 @@ public sealed class CashierViewModel : ViewModelBase
             if (SetProperty(ref _selectedCustomer, value))
             {
                 CustomerId = value?.Id;
+                OnPropertyChanged(nameof(HasAssignedCustomer));
+                OnPropertyChanged(nameof(AssignedCustomerLabel));
+                _clearCustomerCommand.RaiseCanExecuteChanged();
             }
         }
+    }
+
+    public bool HasAssignedCustomer => CustomerId.HasValue;
+
+    public string AssignedCustomerLabel => SelectedCustomer is not null
+        ? $"{SelectedCustomer.FullName} · ID {SelectedCustomer.Identification}"
+        : CustomerId.HasValue ? "Cliente asignado" : "Sin cliente asignado";
+
+    public string CustomerSearchText
+    {
+        get => _customerSearchText;
+        set => SetProperty(ref _customerSearchText, value ?? string.Empty);
+    }
+
+    public bool IsCustomerAssignmentOpen
+    {
+        get => _isCustomerAssignmentOpen;
+        private set => SetProperty(ref _isCustomerAssignmentOpen, value);
     }
 
     public decimal LoyaltyDiscount
@@ -556,6 +618,7 @@ public sealed class CashierViewModel : ViewModelBase
         CartItems.Clear();
         ReceivedAmount = 0m;
         DeferredAmount = 0m;
+        ClearCustomerAssignment(resetReviewedFlag: true);
         RefreshTotals(updateMessage: false);
         Message = "Carrito limpio. Puedes iniciar una nueva venta.";
     }
@@ -575,6 +638,12 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
+        if (ShouldAskForCustomerBeforeInvoice())
+        {
+            OpenCustomerAssignment(confirmAfterSelection: true);
+            return;
+        }
+
         if (_createSaleUseCase is null)
         {
             Message = "Venta validada en prototipo. Falta guardar por Application/SQLite en una parte posterior.";
@@ -587,6 +656,7 @@ public sealed class CashierViewModel : ViewModelBase
             CartItems.Clear();
             ReceivedAmount = 0m;
             DeferredAmount = 0m;
+            ClearCustomerAssignment(resetReviewedFlag: true);
             RefreshTotals(updateMessage: false);
             Message = $"Venta guardada con factura {result.InvoiceNumber}.";
 
@@ -681,9 +751,114 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void AssociateCustomer()
     {
+        OpenCustomerAssignment(confirmAfterSelection: false);
+    }
+
+    public async Task SearchCustomersAsync(CancellationToken cancellationToken = default)
+    {
+        if (_searchCustomersUseCase is null)
+        {
+            Message = "La búsqueda de clientes no está disponible en Caja.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(CustomerSearchText))
+        {
+            Message = "Escribe nombre, cédula, teléfono o correo para buscar el cliente.";
+            return;
+        }
+
+        IReadOnlyList<CustomerSearchResult> customers = await _searchCustomersUseCase
+            .ExecuteAsync(new CustomerSearchRequest(CustomerSearchText, IncludeInactive: false), cancellationToken)
+            .ConfigureAwait(true);
+
+        CustomerSearchResults.Clear();
+        foreach (CustomerSearchResult customer in customers)
+        {
+            CustomerSearchResults.Add(customer);
+        }
+
+        Message = CustomerSearchResults.Count == 0
+            ? "No encontramos clientes activos con ese texto. Puedes facturar sin cliente o registrarlo en Clientes."
+            : "Selecciona el cliente para acumular puntos en esta factura.";
+    }
+
+    public async Task SelectCustomerAsync(CustomerSearchResult customer, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(customer);
+
+        SelectedCustomer = customer;
+        CustomerSearchText = customer.FullName;
+        CustomerSearchResults.Clear();
+        _customerAssignmentReviewed = true;
+        IsCustomerAssignmentOpen = false;
+        Message = $"Cliente asignado para puntos: {customer.FullName}.";
+
+        await ContinueSaleIfCustomerGateWasOpenAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    public async Task ContinueWithoutCustomerAsync(CancellationToken cancellationToken = default)
+    {
+        ClearCustomerAssignment(resetReviewedFlag: false);
+        _customerAssignmentReviewed = true;
+        IsCustomerAssignmentOpen = false;
+        Message = "Factura sin cliente asignado. No acumulará puntos ni aparecerá en ventas del cliente.";
+
+        await ContinueSaleIfCustomerGateWasOpenAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    private async Task SelectCustomerFromCommandAsync(object? parameter)
+    {
+        if (parameter is CustomerSearchResult customer)
+        {
+            await SelectCustomerAsync(customer).ConfigureAwait(true);
+        }
+    }
+
+    private bool ShouldAskForCustomerBeforeInvoice()
+        => !_customerAssignmentReviewed && CustomerId is null && DeferredAmount <= 0m;
+
+    private void OpenCustomerAssignment(bool confirmAfterSelection)
+    {
+        _confirmAfterCustomerAssignment = confirmAfterSelection;
+        IsCustomerAssignmentOpen = true;
+        Message = confirmAfterSelection
+            ? "Antes de facturar, asigna un cliente para puntos o continúa sin cliente."
+            : "Busca el cliente para asociarlo a esta venta y al sistema de puntos.";
+    }
+
+    private void CloseCustomerAssignment()
+    {
+        IsCustomerAssignmentOpen = false;
+        _confirmAfterCustomerAssignment = false;
         Message = SelectedCustomer is null
-            ? "Selecciona un cliente desde el módulo Clientes para asociarlo a esta venta."
+            ? "Cliente no asignado todavía."
             : $"Cliente asociado: {SelectedCustomer.FullName}.";
+    }
+
+    private async Task ContinueSaleIfCustomerGateWasOpenAsync(CancellationToken cancellationToken)
+    {
+        if (!_confirmAfterCustomerAssignment)
+        {
+            return;
+        }
+
+        _confirmAfterCustomerAssignment = false;
+        await ConfirmSaleAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    private void ClearCustomerAssignment(bool resetReviewedFlag = false)
+    {
+        SelectedCustomer = null;
+        CustomerId = null;
+        CustomerSearchText = string.Empty;
+        CustomerSearchResults.Clear();
+        IsCustomerAssignmentOpen = false;
+        if (resetReviewedFlag)
+        {
+            _customerAssignmentReviewed = false;
+            _confirmAfterCustomerAssignment = false;
+        }
     }
 
     private void HoldSale()
