@@ -144,6 +144,7 @@ public sealed partial class EscPosPrinterService : IPrintService
                 PaymentMethod.DebitCard  => "Tarjeta Débito",
                 PaymentMethod.CreditCard => "Tarjeta Crédito",
                 PaymentMethod.Transfer   => "Transferencia",
+                PaymentMethod.LoyaltyPoints => "Puntos de lealtad",
                 _                        => p.Method.ToString()
             })
             .Distinct();

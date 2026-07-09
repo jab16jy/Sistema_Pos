@@ -15,13 +15,15 @@ public sealed record CreateSaleRequest
         Guid cashierUserId,
         Guid? customerId,
         IReadOnlyCollection<CreateSaleItemRequest> items,
-        IReadOnlyCollection<CreateSalePaymentRequest> payments)
+        IReadOnlyCollection<CreateSalePaymentRequest> payments,
+        int redeemLoyaltyPoints = 0)
     {
         CashierUserId = cashierUserId;
         CustomerId = customerId;
         Items = items;
         Payments = payments;
         SettlementPlan = null;
+        RedeemLoyaltyPoints = redeemLoyaltyPoints;
     }
 
     /// <summary>Settlement-plan constructor. Use this when deferred balance may be > 0.</summary>
@@ -47,6 +49,13 @@ public sealed record CreateSaleRequest
 
     /// <summary>Settlement plan describing collected + deferred amounts. Null when Payments is used.</summary>
     public SaleSettlementPlan? SettlementPlan { get; }
+
+    /// <summary>
+    /// Loyalty points the customer redeems on this sale. Zero means no redemption.
+    /// The redemption is validated, applied as a LoyaltyPoints tender, and recorded
+    /// atomically with the sale by CreateSaleUseCase.
+    /// </summary>
+    public int RedeemLoyaltyPoints { get; init; }
 }
 
 public sealed record CreateSaleItemRequest(

@@ -21,7 +21,49 @@ public sealed class RedeemLoyaltyPointsUseCase
         _unitOfWork = unitOfWork;
     }
 
+    /// <summary>
+    /// Validates and computes a redemption (points + COP discount) WITHOUT persisting anything.
+    /// Used to preview the discount at checkout before the sale is confirmed.
+    /// </summary>
+    public async Task<RedeemPointsResult> PreviewAsync(RedeemPointsRequest request, CancellationToken cancellationToken = default)
+    {
+        var (_, points, discount) = await ResolveAsync(request, cancellationToken).ConfigureAwait(false);
+        return new RedeemPointsResult(points, discount);
+    }
+
+    /// <summary>
+    /// Standalone redemption (no sale context): persists the redemption in its own unit of work.
+    /// Used by the loyalty module for manual redemptions.
+    /// </summary>
     public async Task<RedeemPointsResult> ExecuteAsync(RedeemPointsRequest request, CancellationToken cancellationToken = default)
+    {
+        var (account, points, discount) = await ResolveAsync(request, cancellationToken).ConfigureAwait(false);
+
+        await AddRedemptionTransactionAsync(account.Id, points, discount, saleId: null, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return new RedeemPointsResult(points, discount);
+    }
+
+    /// <summary>
+    /// Records a redemption tied to a sale WITHOUT saving — the caller's unit of work must
+    /// commit it atomically together with the sale, so points are only spent if the sale succeeds.
+    /// </summary>
+    public async Task<RedeemPointsResult> RecordForSaleAsync(RedeemPointsRequest request, Guid saleId, CancellationToken cancellationToken = default)
+    {
+        var (account, points, discount) = await ResolveAsync(request, cancellationToken).ConfigureAwait(false);
+
+        await AddRedemptionTransactionAsync(account.Id, points, discount, saleId, cancellationToken).ConfigureAwait(false);
+
+        return new RedeemPointsResult(points, discount);
+    }
+
+    /// <summary>
+    /// Validates the request against the active rule and account balance, and computes the
+    /// actual (possibly capped) points and COP discount. Performs no persistence.
+    /// </summary>
+    private async Task<(LoyaltyAccount Account, int Points, decimal Discount)> ResolveAsync(
+        RedeemPointsRequest request, CancellationToken cancellationToken)
     {
         if (request.PointsToRedeem <= 0)
         {
@@ -57,14 +99,12 @@ public sealed class RedeemLoyaltyPointsUseCase
                 $"Insufficient loyalty balance. Available: {balance}, requested: {request.PointsToRedeem}.");
         }
 
-        var fullDiscount = rule.DiscountFor(request.PointsToRedeem);
-
         // Guard: cap the discount to the sale total to prevent negative totals.
         // When the computed discount exceeds the sale total, reduce the redeemed points
         // so the discount fits within the sale total.
-        // SaleTotal == 0 means no sale context (standalone redemption) — skip the cap.
+        // SaleTotal == 0/null means no sale context (standalone redemption) — skip the cap.
         var actualPointsRedeemed = request.PointsToRedeem;
-        var actualDiscount = fullDiscount.Amount;
+        var actualDiscount = rule.DiscountFor(actualPointsRedeemed).Amount;
 
         if (request.SaleTotal > 0m && actualDiscount > request.SaleTotal)
         {
@@ -80,16 +120,28 @@ public sealed class RedeemLoyaltyPointsUseCase
             actualDiscount = rule.DiscountFor(actualPointsRedeemed).Amount;
         }
 
+        // A zero (or negative) redemption is not a valid redemption: it would produce a
+        // non-negative "Redeemed" transaction (rejected by the domain) and a $0 tender.
+        // Reachable when the sale total is below one point's value and the rule allows a
+        // zero minimum. Fail with a clear message instead of a confusing domain error.
+        if (actualPointsRedeemed <= 0)
+        {
+            throw new InvalidOperationException("The sale total is too low to redeem any points.");
+        }
+
+        return (account, actualPointsRedeemed, actualDiscount);
+    }
+
+    private Task AddRedemptionTransactionAsync(
+        Guid accountId, int points, decimal discount, Guid? saleId, CancellationToken cancellationToken)
+    {
         var transaction = new LoyaltyTransaction(
-            account.Id,
+            accountId,
             LoyaltyTransactionType.Redeemed,
-            -actualPointsRedeemed,
-            null,
-            $"Points redeemed: {actualPointsRedeemed} pts = {actualDiscount} COP discount");
+            -points,
+            saleId,
+            $"Points redeemed: {points} pts = {discount} COP discount");
 
-        await _loyalty.AddTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        return new RedeemPointsResult(actualPointsRedeemed, actualDiscount);
+        return _loyalty.AddTransactionAsync(transaction, cancellationToken);
     }
 }

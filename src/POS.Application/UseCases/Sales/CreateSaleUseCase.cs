@@ -15,10 +15,11 @@ public sealed class CreateSaleUseCase
     private readonly IUnitOfWork _unitOfWork;
     private readonly IReceivableRepository? _receivables;
     private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
+    private readonly RedeemLoyaltyPointsUseCase? _redeemPoints;
 
     /// <summary>Legacy constructor — no receivable support. Used by tests that don't need deferred balance.</summary>
     public CreateSaleUseCase(IProductRepository products, ISaleRepository sales, IUnitOfWork unitOfWork)
-        : this(products, sales, unitOfWork, null, null)
+        : this(products, sales, unitOfWork, null, null, null)
     {
     }
 
@@ -27,7 +28,7 @@ public sealed class CreateSaleUseCase
         ISaleRepository sales,
         IUnitOfWork unitOfWork,
         IReceivableRepository? receivables)
-        : this(products, sales, unitOfWork, receivables, null)
+        : this(products, sales, unitOfWork, receivables, null, null)
     {
     }
 
@@ -37,12 +38,24 @@ public sealed class CreateSaleUseCase
         IUnitOfWork unitOfWork,
         IReceivableRepository? receivables,
         AccumulateLoyaltyPointsUseCase? accumulatePoints)
+        : this(products, sales, unitOfWork, receivables, accumulatePoints, null)
+    {
+    }
+
+    public CreateSaleUseCase(
+        IProductRepository products,
+        ISaleRepository sales,
+        IUnitOfWork unitOfWork,
+        IReceivableRepository? receivables,
+        AccumulateLoyaltyPointsUseCase? accumulatePoints,
+        RedeemLoyaltyPointsUseCase? redeemPoints)
     {
         _products = products;
         _sales = sales;
         _unitOfWork = unitOfWork;
         _receivables = receivables;
         _accumulatePoints = accumulatePoints;
+        _redeemPoints = redeemPoints;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(CreateSaleRequest request, CancellationToken cancellationToken = default)
@@ -75,6 +88,33 @@ public sealed class CreateSaleUseCase
                 ?? throw new InvalidOperationException($"Product '{item.ProductId}' was not found.");
 
             sale.AddItem(product, new Quantity(item.Quantity), new Money(item.Discount));
+        }
+
+        // Loyalty redemption (tender): validate and cap the redemption, add it as a
+        // non-money LoyaltyPoints payment covering part of the total, and stage the point
+        // deduction (with this SaleId) so it commits atomically with the sale below.
+        // If the customer cannot actually redeem, this throws and the whole sale is aborted
+        // before anything is persisted — points are never spent without a completed sale.
+        if (request.RedeemLoyaltyPoints > 0 && request.CustomerId.HasValue && _redeemPoints is not null)
+        {
+            // Redeeming points against a deferred (credit) sale is not supported: the tender
+            // and the settlement plan's collected/deferred split would double-count coverage.
+            // Fail loud here so a non-UI caller can't reach the illegal combination silently.
+            if (request.SettlementPlan is not null)
+            {
+                throw new InvalidOperationException(
+                    "Loyalty point redemption cannot be combined with a deferred settlement plan.");
+            }
+
+            RedeemPointsResult redemption = await _redeemPoints.RecordForSaleAsync(
+                new RedeemPointsRequest(request.CustomerId.Value, request.RedeemLoyaltyPoints, sale.Total().Amount),
+                sale.Id,
+                cancellationToken).ConfigureAwait(false);
+
+            if (redemption.DiscountAmount > 0m)
+            {
+                sale.AddPayment(new Payment(Domain.Enums.PaymentMethod.LoyaltyPoints, new Money(redemption.DiscountAmount)));
+            }
         }
 
         if (request.SettlementPlan is not null)

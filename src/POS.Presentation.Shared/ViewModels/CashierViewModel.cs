@@ -304,7 +304,15 @@ public sealed class CashierViewModel : ViewModelBase
     public decimal LoyaltyDiscount
     {
         get => _loyaltyDiscount;
-        private set => SetProperty(ref _loyaltyDiscount, value);
+        private set
+        {
+            if (SetProperty(ref _loyaltyDiscount, value))
+            {
+                OnPropertyChanged(nameof(NetPayable));
+                OnPropertyChanged(nameof(NetPayableText));
+                RefreshPaymentPreview(updateMessage: false);
+            }
+        }
     }
 
     public string BankOrPlatform
@@ -431,6 +439,11 @@ public sealed class CashierViewModel : ViewModelBase
 
     public string TotalText => FormatCurrency(TotalAmount);
 
+    /// <summary>Amount the customer must actually pay after redeemed loyalty points are applied.</summary>
+    public decimal NetPayable => Math.Max(0m, TotalAmount - LoyaltyDiscount);
+
+    public string NetPayableText => FormatCurrency(NetPayable);
+
     public int CartLineCount => CartItems.Count;
 
     public decimal CartUnitCount => CartItems.Sum(item => item.Quantity);
@@ -458,11 +471,11 @@ public sealed class CashierViewModel : ViewModelBase
     public bool IsPaymentShortfall => HasCartItems &&
         SelectedPaymentMethod.Method == PaymentMethod.Cash &&
         ReceivedAmount > 0m &&
-        ReceivedAmount < TotalAmount;
+        ReceivedAmount < NetPayable;
 
     public string PaymentBalanceLabel => IsPaymentShortfall ? "Falta" : "Cambio";
 
-    public string PaymentBalanceText => IsPaymentShortfall ? FormatCurrency(TotalAmount - ReceivedAmount) : ChangeText;
+    public string PaymentBalanceText => IsPaymentShortfall ? FormatCurrency(NetPayable - ReceivedAmount) : ChangeText;
 
     public bool CanConfirm
     {
@@ -731,10 +744,15 @@ public sealed class CashierViewModel : ViewModelBase
         }
         catch (InvalidOperationException ex)
         {
+            // A confirm-time failure (e.g. the point balance changed since the preview and
+            // redemption was rejected) leaves a stale discount driving NetPayable. Clear it so
+            // the cart is payable at full price and the cashier can retry or re-apply points.
+            ResetRedemption();
             Message = ex.Message;
         }
         catch (Exception ex)
         {
+            ResetRedemption();
             Message = $"Error al confirmar la venta: {ex.Message}";
         }
     }
@@ -1063,12 +1081,22 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
+        if (DeferredAmount > 0m)
+        {
+            Message = "No se puede combinar canje de puntos con saldo a crédito. Cancela el crédito para aplicar puntos.";
+            return;
+        }
+
         try
         {
+            // Preview only — points are NOT spent here. The actual redemption is recorded
+            // atomically when the sale is confirmed (CreateSaleUseCase), so cancelling the
+            // sale never burns points.
             var request = new RedeemPointsRequest(SelectedCustomer.Id, LoyaltyPointsToRedeem, TotalAmount);
-            var result = await _redeemLoyaltyPointsUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+            var result = await _redeemLoyaltyPointsUseCase.PreviewAsync(request, cancellationToken).ConfigureAwait(true);
+            LoyaltyPointsToRedeem = result.PointsRedeemed;
             LoyaltyDiscount = result.DiscountAmount;
-            Message = $"Descuento de lealtad aplicado: ${result.DiscountAmount:N0} ({result.PointsRedeemed} puntos).";
+            Message = $"Descuento de lealtad aplicado: ${result.DiscountAmount:N0} ({result.PointsRedeemed} puntos). Se descontarán al confirmar la venta.";
         }
         catch (InvalidOperationException ex)
         {
@@ -1096,16 +1124,19 @@ public sealed class CashierViewModel : ViewModelBase
             return new CreateSaleRequest(CashierUserId, CustomerId, items, plan);
         }
 
+        // The customer only pays the net (total minus redeemed points); the loyalty tender
+        // covering the discount is added server-side by CreateSaleUseCase.
         IReadOnlyCollection<CreateSalePaymentRequest> payments =
         [
             new(
                 SelectedPaymentMethod.Method,
-                TotalAmount,
+                NetPayable,
                 SelectedPaymentMethod.Method == PaymentMethod.Cash ? ReceivedAmount : null,
                 string.IsNullOrWhiteSpace(BankOrPlatform) ? null : BankOrPlatform)
         ];
 
-        return new CreateSaleRequest(CashierUserId, CustomerId, items, payments);
+        int redeemPoints = LoyaltyDiscount > 0m ? LoyaltyPointsToRedeem : 0;
+        return new CreateSaleRequest(CashierUserId, CustomerId, items, payments, redeemPoints);
     }
 
     private async Task ConfirmLoadedQuoteAsync(CancellationToken cancellationToken)
@@ -1183,6 +1214,8 @@ public sealed class CashierViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(TotalAmount));
         OnPropertyChanged(nameof(TotalText));
+        OnPropertyChanged(nameof(NetPayable));
+        OnPropertyChanged(nameof(NetPayableText));
         OnPropertyChanged(nameof(CartLineCount));
         OnPropertyChanged(nameof(CartUnitCount));
         OnPropertyChanged(nameof(CartSummaryText));
@@ -1212,7 +1245,7 @@ public sealed class CashierViewModel : ViewModelBase
         }
 
         PaymentPreviewResult preview = _previewPaymentUseCase.Execute(new PaymentPreviewRequest(
-            TotalAmount,
+            NetPayable,
             SelectedPaymentMethod.Method,
             ReceivedAmount,
             DeferredAmount));
@@ -1243,14 +1276,34 @@ public sealed class CashierViewModel : ViewModelBase
                 item.PropertyChanged += OnCartItemPropertyChanged;
             }
         }
+
+        // Any change to the cart (add/remove/clear) invalidates a previewed redemption.
+        ResetRedemption();
     }
 
     private void OnCartItemPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(CashierCartItemViewModel.Quantity) or nameof(CashierCartItemViewModel.Discount) or nameof(CashierCartItemViewModel.Subtotal))
         {
+            ResetRedemption();
             RefreshTotals(updateMessage: false);
         }
+    }
+
+    /// <summary>
+    /// Clears any previewed loyalty redemption so a discount computed against an old cart
+    /// total can never be carried into a different sale. Points are only ever spent when the
+    /// sale is confirmed, so this simply discards the preview.
+    /// </summary>
+    private void ResetRedemption()
+    {
+        if (_loyaltyDiscount == 0m && _loyaltyPointsToRedeem == 0)
+        {
+            return;
+        }
+
+        LoyaltyDiscount = 0m;
+        LoyaltyPointsToRedeem = 0;
     }
 
     private void NotifyPaymentBalanceChanged()
@@ -1301,7 +1354,7 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void SetExactReceivedAmount()
     {
-        ReceivedAmount = TotalAmount;
+        ReceivedAmount = NetPayable;
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";

@@ -121,6 +121,53 @@ public sealed class RedeemLoyaltyPointsUseCaseTests
                 TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task PreviewAsync_ComputesDiscountWithoutSpendingPoints()
+    {
+        var customerId = Guid.NewGuid();
+        var account = new LoyaltyAccount(customerId);
+        var rule = new LoyaltyRule(0.001m, 1000m, 0);
+        var repo = new InMemLoyaltyRepository(account, rule, balance: 20);
+        var uow = new CountingUow();
+
+        var useCase = new RedeemLoyaltyPointsUseCase(repo, uow);
+
+        var result = await useCase.PreviewAsync(
+            new RedeemPointsRequest(customerId, 10, SaleTotal: 100_000m), TestContext.Current.CancellationToken);
+
+        Assert.Equal(10, result.PointsRedeemed);
+        Assert.Equal(10_000m, result.DiscountAmount);
+        // Preview must NOT persist anything — points are only spent when the sale is confirmed.
+        Assert.Empty(repo.Transactions);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task RecordForSaleAsync_StagesRedemptionLinkedToSale_WithoutSaving()
+    {
+        var customerId = Guid.NewGuid();
+        var saleId = Guid.NewGuid();
+        var account = new LoyaltyAccount(customerId);
+        var rule = new LoyaltyRule(0.001m, 1000m, 0);
+        var repo = new InMemLoyaltyRepository(account, rule, balance: 20);
+        var uow = new CountingUow();
+
+        var useCase = new RedeemLoyaltyPointsUseCase(repo, uow);
+
+        var result = await useCase.RecordForSaleAsync(
+            new RedeemPointsRequest(customerId, 10, SaleTotal: 100_000m), saleId, TestContext.Current.CancellationToken);
+
+        Assert.Equal(10, result.PointsRedeemed);
+        Assert.Equal(10_000m, result.DiscountAmount);
+        Assert.Single(repo.Transactions);
+        Assert.Equal(-10, repo.Transactions[0].Points);
+        Assert.Equal(LoyaltyTransactionType.Redeemed, repo.Transactions[0].Type);
+        // Redemption is tied to the sale so it can be reconciled and rolled back with it.
+        Assert.Equal(saleId, repo.Transactions[0].SaleId);
+        // No save here — the sale's unit of work commits the deduction atomically with the sale.
+        Assert.Equal(0, uow.SaveCount);
+    }
+
     private sealed class InMemLoyaltyRepository : ILoyaltyRepository
     {
         private readonly LoyaltyAccount? _account;
