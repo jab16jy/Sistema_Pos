@@ -1,7 +1,7 @@
-; Inno Setup script for EPOS (Sistema POS) — builds EPOS-Setup.exe
+; Inno Setup script for EPOS (Sistema POS) — builds EPOS-setup.exe
 ; ponytail: single-file self-contained publish + Inno Setup, no MSI/WiX — smallest path to a real Windows installer.
 #define MyAppName "EPOS"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "EPOS"
 #define MyAppExeName "EPOS.exe"
 
@@ -13,7 +13,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist
-OutputBaseFilename=EPOS-Setup
+OutputBaseFilename=EPOS-setup
 SetupIconFile=..\logo\AppIcon.ico
 Compression=lzma2
 SolidCompression=yes
