@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.26.0...v1.0.0) (2026-07-09)
+
+
+### Features
+
+* **audit:** readable audit log identifiers + invoice list fix ([2a5323b](https://github.com/jab16jy/Sistema_Pos/commit/2a5323b14f40aaba68eb9f804a03bd1dce5b876d))
+* **audit:** readable audit log identifiers + invoice list fix ([#93](https://github.com/jab16jy/Sistema_Pos/issues/93)) ([2a5323b](https://github.com/jab16jy/Sistema_Pos/commit/2a5323b14f40aaba68eb9f804a03bd1dce5b876d))
+* **domain:** integrate shared contact validation defaults ([522e4db](https://github.com/jab16jy/Sistema_Pos/commit/522e4db8f7acb77337a3b3b8ca7fc3b29b2aad05))
+
 ## [0.26.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.25.0...v0.26.0) (2026-07-08)
 
 
