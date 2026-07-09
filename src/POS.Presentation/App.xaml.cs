@@ -146,6 +146,7 @@ public partial class App : System.Windows.Application
 
         MainWindow = shell;
         shell.Show();
+        shellVm.RefreshDashboardMetrics();
 
         // Now that shell is open, restore normal shutdown behavior
         ShutdownMode = System.Windows.ShutdownMode.OnMainWindowClose;

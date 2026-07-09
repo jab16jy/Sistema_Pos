@@ -45,6 +45,7 @@ public sealed class MainShellViewModel : ViewModelBase
     public MainShellViewModel(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboardSummaryUseCase, UserRole role, string username)
     {
         Cashier = cashier ?? throw new ArgumentNullException(nameof(cashier));
+        Cashier.SaleCompleted += RefreshDashboardMetrics;
         _dashboardSummaryUseCase = dashboardSummaryUseCase;
         Role = role;
         OperatorDisplayName = BuildDisplayName(username, role);
@@ -326,6 +327,16 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected && !IsAdminHubSelected;
 
+    public void RefreshDashboardMetrics()
+    {
+        if (_dashboardSummaryUseCase is null)
+        {
+            return;
+        }
+
+        RunSafe(LoadDashboardMetricsAsync(), ex => OperatorMessage = $"Error al cargar dashboard: {ex.Message}");
+    }
+
     public async Task LoadDashboardMetricsAsync(CancellationToken cancellationToken = default)
     {
         if (_dashboardSummaryUseCase is null)
@@ -333,10 +344,11 @@ public sealed class MainShellViewModel : ViewModelBase
             return;
         }
 
-        DateTimeOffset now = DateTimeOffset.UtcNow;
+        DateTimeOffset now = DateTimeOffset.Now;
+        DateTimeOffset startOfDay = new(now.Year, now.Month, now.Day, 0, 0, 0, now.Offset);
         var request = new DashboardSummaryRequest(
-            new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(now.Year, now.Month, now.Day, 23, 59, 59, TimeSpan.Zero));
+            startOfDay.ToUniversalTime(),
+            startOfDay.AddDays(1).ToUniversalTime());
         DashboardSummary summary = await _dashboardSummaryUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 
         Metrics.Clear();

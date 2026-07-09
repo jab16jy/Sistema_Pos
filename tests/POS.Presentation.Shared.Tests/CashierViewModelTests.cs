@@ -32,6 +32,8 @@ public sealed class CashierViewModelTests
             Quantity = 2m,
             CashierUserId = Guid.NewGuid()
         };
+        int completedSales = 0;
+        viewModel.SaleCompleted += () => completedSales++;
 
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);
@@ -49,6 +51,7 @@ public sealed class CashierViewModelTests
         Assert.Equal(5_000m, sale.CashInDrawer().Amount);
         Assert.Equal(8m, product.CurrentStock);
         Assert.Equal(1, unitOfWork.SaveCount);
+        Assert.Equal(1, completedSales);
     }
 
     [Fact]

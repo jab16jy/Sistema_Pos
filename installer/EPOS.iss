@@ -3,7 +3,7 @@
 #define MyAppName "EPOS"
 #define MyAppVersion "1.0.1"
 #define MyAppPublisher "EPOS"
-#define MyAppExeName "POS.Presentation.exe"
+#define MyAppExeName "EPOS.exe"
 
 [Setup]
 AppId={{8F1B7E2B-6C1E-4B0A-9C8B-EPOS10000001}

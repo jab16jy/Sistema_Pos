@@ -147,14 +147,15 @@ public sealed class MainShellViewModelTests
     [Fact]
     public async Task LoadDashboardMetricsAsync_UsesPersistedSalesSummary()
     {
+        var repository = new StaticSaleSummaryRepository(new DashboardSummaryData(
+            125_000m,
+            75_000m,
+            50_000m,
+            3,
+            4));
         var viewModel = new MainShellViewModel(
             new CashierViewModel(new PrototypeProductLookupService()),
-            new GetDashboardSummaryUseCase(new StaticSaleSummaryRepository(new DashboardSummaryData(
-                125_000m,
-                75_000m,
-                50_000m,
-                3,
-                4))));
+            new GetDashboardSummaryUseCase(repository));
 
         await viewModel.LoadDashboardMetricsAsync(TestContext.Current.CancellationToken);
 
@@ -163,6 +164,35 @@ public sealed class MainShellViewModelTests
         Assert.Contains(viewModel.Metrics, metric => metric.Label == "Pagos digitales" && metric.Value == "$50.000");
         Assert.Contains(viewModel.Metrics, metric => metric.Label == "Stock bajo" && metric.Value == "3");
         Assert.Contains("4 venta", viewModel.OperatorMessage, StringComparison.OrdinalIgnoreCase);
+        DateTimeOffset now = DateTimeOffset.Now;
+        DateTimeOffset expectedStart = new DateTimeOffset(now.Year, now.Month, now.Day, 0, 0, 0, now.Offset).ToUniversalTime();
+        Assert.NotNull(repository.LastFrom);
+        Assert.NotNull(repository.LastTo);
+        Assert.Equal(expectedStart, repository.LastFrom.Value);
+        Assert.Equal(expectedStart.AddDays(1), repository.LastTo.Value);
+        Assert.Equal(TimeSpan.FromDays(1), repository.LastTo.Value - repository.LastFrom.Value);
+    }
+
+    [Fact]
+    public async Task RefreshDashboardMetrics_LoadsPersistedSalesSummary()
+    {
+        var viewModel = new MainShellViewModel(
+            new CashierViewModel(new PrototypeProductLookupService()),
+            new GetDashboardSummaryUseCase(new StaticSaleSummaryRepository(new DashboardSummaryData(
+                90_000m,
+                30_000m,
+                60_000m,
+                2,
+                3))));
+
+        viewModel.RefreshDashboardMetrics();
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Contains(viewModel.Metrics, metric => metric.Label == "Ventas del día" && metric.Value == "$90.000");
+        Assert.Contains(viewModel.Metrics, metric => metric.Label == "Efectivo en caja" && metric.Value == "$30.000");
+        Assert.Contains(viewModel.Metrics, metric => metric.Label == "Pagos digitales" && metric.Value == "$60.000");
+        Assert.Contains(viewModel.Metrics, metric => metric.Label == "Stock bajo" && metric.Value == "2");
+        Assert.Contains("3 venta", viewModel.OperatorMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -201,6 +231,8 @@ public sealed class MainShellViewModelTests
     private sealed class StaticSaleSummaryRepository : ISaleRepository
     {
         private readonly DashboardSummaryData _summary;
+        public DateTimeOffset? LastFrom { get; private set; }
+        public DateTimeOffset? LastTo { get; private set; }
 
         public StaticSaleSummaryRepository(DashboardSummaryData summary) => _summary = summary;
 
@@ -210,7 +242,11 @@ public sealed class MainShellViewModelTests
             => Task.FromResult<Domain.Entities.Sale?>(null);
 
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
-            => Task.FromResult(_summary);
+        {
+            LastFrom = from;
+            LastTo = to;
+            return Task.FromResult(_summary);
+        }
     }
 
     private static ProductsViewModel CreateProductsViewModel(

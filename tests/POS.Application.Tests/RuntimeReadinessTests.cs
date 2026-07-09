@@ -293,8 +293,8 @@ public sealed class RuntimeReadinessTests
 
         bool sent = await service.SendAsync(
             recipient,
-            "Prueba SMTP Gmail — Esthetic POS",
-            "Este correo confirma que la configuración SMTP persistida en Esthetic POS puede enviar con Gmail.",
+            "Prueba SMTP Gmail — Esthetic Medical Store",
+            "Este correo confirma que la configuración SMTP persistida en Esthetic Medical Store puede enviar con Gmail.",
             [],
             "prueba.txt",
             TestContext.Current.CancellationToken);
@@ -420,7 +420,7 @@ public sealed class RuntimeReadinessTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         dbContext.BusinessSettings.Add(new BusinessSettings(
-            "Esthetic POS",
+            "Esthetic Medical Store",
             "Calle 123 #45-67",
             "900123456-7",
             null,
