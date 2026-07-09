@@ -92,6 +92,13 @@
                    ItemsSource="{Binding FilteredInvoices}"
                    SelectedItem="{Binding SelectedInvoice, Mode=TwoWay}"
                    BorderThickness="0">
+            <ListBox.ItemContainerStyle>
+              <Style TargetType="ListBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="0,1" />
+              </Style>
+            </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
               <DataTemplate>
                 <Grid Margin="0,4">

@@ -7,6 +7,7 @@ using POS.Application.UseCases.Audit;
 using POS.Application.UseCases.Auth;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Domain.ValueObjects;
 using POS.Infrastructure;
 using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Repositories;
@@ -125,6 +126,70 @@ public sealed class AuthPersistenceTests
                 File.Delete(dbPath);
             }
         }
+    }
+
+    [Fact]
+    public async Task SaveChanges_AutoAudits_SaleUsesInvoiceNumberInsteadOfRawGuid()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection, new FakeSession("admin"));
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var sale = new Sale(Guid.NewGuid());
+        await dbContext.Sales.AddAsync(sale, TestContext.Current.CancellationToken);
+
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        IReadOnlyList<AuditLogEntry> logs =
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext)).ExecuteAsync(10, null, TestContext.Current.CancellationToken);
+
+        // An admin reading the audit log can't interpret a raw Guid; the invoice number is what they see on receipts/screen.
+        AuditLogEntry saleLog = Assert.Single(logs, l => l.EntityName == "Sale");
+        Assert.Equal(sale.InvoiceNumber, saleLog.EntityId);
+    }
+
+    [Fact]
+    public async Task SaveChanges_AutoAudits_CustomerUsesIdentificationInsteadOfRawGuid()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection, new FakeSession("admin"));
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var customer = new Customer("Juan Perez", "123456789");
+        await dbContext.Customers.AddAsync(customer, TestContext.Current.CancellationToken);
+
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        IReadOnlyList<AuditLogEntry> logs =
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext)).ExecuteAsync(10, null, TestContext.Current.CancellationToken);
+
+        // "el id del cliente" the admin recognizes is the cédula/NIT (Identification), not the internal Guid.
+        AuditLogEntry customerLog = Assert.Single(logs, l => l.EntityName == "Customer");
+        Assert.Equal(customer.Identification, customerLog.EntityId);
+    }
+
+    [Fact]
+    public async Task SaveChanges_AutoAudits_InventoryMovementDescribesWhatChanged()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection, new FakeSession("admin"));
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var product = new Product("Azucar", Guid.NewGuid(), new Money(1_000m), new Money(1_500m), new StockQuantity(10m), new StockQuantity(2m));
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        var movement = new InventoryMovement(product.Id, InventoryMovementType.Entry, new Quantity(5m), "Compra a proveedor", Guid.NewGuid());
+        await dbContext.InventoryMovements.AddAsync(movement, TestContext.Current.CancellationToken);
+
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        IReadOnlyList<AuditLogEntry> logs =
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext)).ExecuteAsync(10, null, TestContext.Current.CancellationToken);
+
+        // A raw "Registro creado." tells the admin nothing; they need the product, quantity and reason.
+        AuditLogEntry movementLog = Assert.Single(logs, l => l.EntityName == "InventoryMovement");
+        Assert.Contains("Azucar", movementLog.Details);
+        Assert.Contains("Entrada", movementLog.Details);
+        Assert.Contains("Compra a proveedor", movementLog.Details);
     }
 
     private static async Task<User> SeedAdminAsync(AppDbContext dbContext, UserRepository repository, CancellationToken ct)
