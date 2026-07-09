@@ -32,23 +32,23 @@ public sealed class SaleRepository : ISaleRepository
         DateTimeOffset to,
         CancellationToken cancellationToken = default)
     {
+        DateTimeOffset utcFrom = from.ToUniversalTime();
+        DateTimeOffset utcTo = to.ToUniversalTime();
+
         List<Sale> sales = await _dbContext.Sales
             .Include(sale => sale.Items)
             .Include(sale => sale.Payments)
+            .Where(sale => sale.CreatedAt >= utcFrom && sale.CreatedAt < utcTo && sale.Status == SaleStatus.Completed)
             .ToListAsync(cancellationToken);
 
-        sales = sales
-            .Where(sale => sale.CreatedAt >= from && sale.CreatedAt <= to && sale.Status == SaleStatus.Completed)
-            .ToList();
-
         int lowStockCount = await _dbContext.Products
-            .CountAsync(product => product.IsActive && product.CurrentStock <= product.MinimumStock, cancellationToken);
+            .CountAsync(product => product.IsActive && product.MinimumStock > 0m && product.CurrentStock <= product.MinimumStock, cancellationToken);
 
         decimal salesTotal = sales.Sum(sale => sale.Total().Amount);
         decimal cashInDrawer = sales.Sum(sale => sale.CashInDrawer().Amount);
         decimal digitalPayments = sales
             .SelectMany(sale => sale.Payments)
-            .Where(payment => payment.Method != PaymentMethod.Cash)
+            .Where(payment => IsDigitalPayment(payment.Method))
             .Sum(payment => payment.Amount.Amount);
 
         return new DashboardSummaryData(
@@ -58,4 +58,7 @@ public sealed class SaleRepository : ISaleRepository
             lowStockCount,
             sales.Count);
     }
+
+    private static bool IsDigitalPayment(PaymentMethod method)
+        => method is PaymentMethod.DebitCard or PaymentMethod.CreditCard or PaymentMethod.Transfer;
 }

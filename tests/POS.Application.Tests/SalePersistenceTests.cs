@@ -113,6 +113,88 @@ public sealed class SalePersistenceTests
     }
 
     [Fact]
+    public async Task GetDashboardSummaryAsync_ExcludesLoyaltyTenderFromDigitalPaymentsAndIgnoresZeroMinimumStock()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(2_800m), new StockQuantity(10m), new StockQuantity(2m));
+        var noThresholdProduct = new Product("No threshold", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(0m), new StockQuantity(0m));
+        var lowStockProduct = new Product("Low stock", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(1m), new StockQuantity(2m));
+        await dbContext.Products.AddRangeAsync([product, noThresholdProduct, lowStockProduct], TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(2_000m), new Money(2_000m), null));
+        sale.AddPayment(new Payment(PaymentMethod.LoyaltyPoints, new Money(800m), null, null));
+        sale.Complete();
+        await dbContext.Sales.AddAsync(sale, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var summaryUseCase = new GetDashboardSummaryUseCase(new SaleRepository(dbContext));
+
+        DashboardSummary summary = await summaryUseCase.ExecuteAsync(
+            new DashboardSummaryRequest(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1)),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, summary.SalesCount);
+        Assert.Equal(2_800m, summary.SalesTotal);
+        Assert.Equal(2_000m, summary.CashInDrawer);
+        Assert.Equal(0m, summary.DigitalPayments);
+        Assert.Equal(1, summary.LowStockCount);
+    }
+
+    [Fact]
+    public async Task GetDashboardSummaryAsync_WhenRequestedForToday_ExcludesPreviousDaySalesButKeepsCurrentLowStock()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m));
+        var lowStockProduct = new Product("Low stock", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(1m), new StockQuantity(2m));
+        await dbContext.Products.AddRangeAsync([product, lowStockProduct], TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        await saleUseCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_400m, 1_400m, null)]),
+            TestContext.Current.CancellationToken);
+        CreateSaleResult yesterdaySale = await saleUseCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_400m, null, "Nequi")]),
+            TestContext.Current.CancellationToken);
+
+        Sale persistedYesterdaySale = await dbContext.Sales.SingleAsync(sale => sale.Id == yesterdaySale.SaleId, TestContext.Current.CancellationToken);
+        dbContext.Entry(persistedYesterdaySale).Property(nameof(Sale.CreatedAt)).CurrentValue = DateTimeOffset.Now.AddDays(-1);
+        dbContext.Entry(persistedYesterdaySale).Property(nameof(Sale.CreatedAt)).IsModified = true;
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        DateTimeOffset now = DateTimeOffset.Now;
+        DateTimeOffset startOfToday = new(now.Year, now.Month, now.Day, 0, 0, 0, now.Offset);
+        var summaryUseCase = new GetDashboardSummaryUseCase(new SaleRepository(dbContext));
+
+        DashboardSummary summary = await summaryUseCase.ExecuteAsync(
+            new DashboardSummaryRequest(startOfToday, startOfToday.AddDays(1)),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, summary.SalesCount);
+        Assert.Equal(1_400m, summary.SalesTotal);
+        Assert.Equal(1_400m, summary.CashInDrawer);
+        Assert.Equal(0m, summary.DigitalPayments);
+        Assert.Equal(1, summary.LowStockCount);
+    }
+
+    [Fact]
     public async Task GetDashboardSummaryAsync_WhenNoSalesExist_ReturnsZeroState()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

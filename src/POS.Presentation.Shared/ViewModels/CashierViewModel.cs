@@ -177,6 +177,8 @@ public sealed class CashierViewModel : ViewModelBase
         ClearLoadedQuoteCommand = _clearLoadedQuoteCommand;
     }
 
+    public event Action? SaleCompleted;
+
     public ObservableCollection<CashierProductSearchResultViewModel> SearchResults { get; }
 
     public ObservableCollection<CashierCartItemViewModel> CartItems { get; }
@@ -733,6 +735,7 @@ public sealed class CashierViewModel : ViewModelBase
             ClearCustomerQuoteCandidates();
             RefreshTotals(updateMessage: false);
             Message = $"Venta guardada con factura {result.InvoiceNumber}.";
+            SaleCompleted?.Invoke();
 
             if (_printReceiptUseCase is not null)
             {
@@ -1176,6 +1179,7 @@ public sealed class CashierViewModel : ViewModelBase
             ClearCustomerAssignment(resetReviewedFlag: true);
             RefreshTotals(updateMessage: false);
             Message = $"Cotización {quote.QuoteNumber} facturada con factura {result.InvoiceNumber}.";
+            SaleCompleted?.Invoke();
 
             if (_printReceiptUseCase is not null)
             {
