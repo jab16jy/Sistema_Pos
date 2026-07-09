@@ -382,6 +382,7 @@ public sealed class PdfService : IPdfService
         Domain.Enums.PaymentMethod.DebitCard  => "Tarjeta débito",
         Domain.Enums.PaymentMethod.CreditCard => "Tarjeta crédito",
         Domain.Enums.PaymentMethod.Transfer   => "Transferencia",
+        Domain.Enums.PaymentMethod.LoyaltyPoints => "Puntos de lealtad",
         _                                     => method.ToString()
     };
 }

@@ -49,10 +49,12 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
             .Where(p => p.Method == PaymentMethod.Cash)
             .Sum(p => p.Amount.Amount);
 
-        // Digital collected from sales
+        // Digital collected from sales.
+        // LoyaltyPoints is a non-money tender (points redeemed), so it is excluded from
+        // both cash and digital collections — it never enters the drawer or the bank.
         decimal saleDigitalCollected = filteredSales
             .SelectMany(s => s.Payments)
-            .Where(p => p.Method != PaymentMethod.Cash)
+            .Where(p => p.Method != PaymentMethod.Cash && p.Method != PaymentMethod.LoyaltyPoints)
             .Sum(p => p.Amount.Amount);
 
         // Receivable settlements in range — SQLite limitation: DateTimeOffset comparison
