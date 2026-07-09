@@ -3,6 +3,8 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Customers;
+using POS.Application.DTOs.Receivables;
+using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Loyalty;
 using POS.Presentation.Shared.Commands;
@@ -17,7 +19,11 @@ public sealed class CustomersViewModel : ViewModelBase
     private readonly GetCustomerHistoryUseCase _getHistory;
     private readonly SearchCustomersUseCase _searchCustomers;
     private readonly GetLoyaltyBalanceUseCase? _getLoyaltyBalance;
+    private readonly IReceivableQueryService? _receivableQuery;
+    private readonly IApplyReceivablePaymentUseCase? _applyPayment;
     private CustomerSearchResult? _selectedCustomer;
+    private ReceivableSummary? _selectedReceivable;
+    private decimal _abonoAmount;
     private string _searchText = string.Empty;
     private string _fullName = string.Empty;
     private string _identification = string.Empty;
@@ -37,17 +43,22 @@ public sealed class CustomersViewModel : ViewModelBase
         SaveCustomerUseCase saveCustomer,
         GetCustomerHistoryUseCase getHistory,
         SearchCustomersUseCase searchCustomers,
-        GetLoyaltyBalanceUseCase? getLoyaltyBalance = null)
+        GetLoyaltyBalanceUseCase? getLoyaltyBalance = null,
+        IReceivableQueryService? receivableQuery = null,
+        IApplyReceivablePaymentUseCase? applyPayment = null)
     {
         _saveCustomer = saveCustomer;
         _getHistory = getHistory;
         _searchCustomers = searchCustomers;
         _getLoyaltyBalance = getLoyaltyBalance;
+        _receivableQuery = receivableQuery;
+        _applyPayment = applyPayment;
 
         Customers.CollectionChanged += OnCustomersCollectionChanged;
         HistoryEntries.CollectionChanged += OnHistoryEntriesCollectionChanged;
 
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar clientes: {ex.Message}"));
+        AbonarCommand = new RelayCommand(_ => RunSafe(AbonarAsync(), ex => Message = $"Error al registrar abono: {ex.Message}"), _ => CanAbonar);
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar cliente: {ex.Message}"));
         DeleteCommand = new RelayCommand(_ => RunSafe(DeleteAsync(), ex => Message = $"Error al eliminar cliente: {ex.Message}"), _ => SelectedCustomer is not null);
         NewCommand = new RelayCommand(_ => ClearForm());
@@ -63,6 +74,9 @@ public sealed class CustomersViewModel : ViewModelBase
     /// <summary>History entries restricted by <see cref="HistoryFilter"/> ("all" / "sale" / "quote") for display.</summary>
     public ObservableCollection<CustomerHistoryEntry> FilteredHistoryEntries { get; } = [];
 
+    /// <summary>Open (unpaid) receivables for the selected customer — the user picks one to register a payment against.</summary>
+    public ObservableCollection<ReceivableSummary> OpenReceivables { get; } = [];
+
     public ICommand LoadCommand { get; }
 
     public ICommand SaveCommand { get; }
@@ -74,6 +88,37 @@ public sealed class CustomersViewModel : ViewModelBase
     public ICommand OpenHistoryCommand { get; }
 
     public ICommand SetHistoryFilterCommand { get; }
+
+    public ICommand AbonarCommand { get; }
+
+    /// <summary>Receivable the payment will be applied to. Defaults to the newest open one when history loads.</summary>
+    public ReceivableSummary? SelectedReceivable
+    {
+        get => _selectedReceivable;
+        set
+        {
+            if (SetProperty(ref _selectedReceivable, value))
+            {
+                RaiseAbonarCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>Amount to abonar against <see cref="SelectedReceivable"/>. The use case rejects zero/overpayment.</summary>
+    public decimal AbonoAmount
+    {
+        get => _abonoAmount;
+        set
+        {
+            if (SetProperty(ref _abonoAmount, value))
+            {
+                RaiseAbonarCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>True when payments can be registered — needs the use case wired, a target receivable, and a positive amount.</summary>
+    public bool CanAbonar => _applyPayment is not null && SelectedReceivable is not null && AbonoAmount > 0m;
 
     public CustomerSearchResult? SelectedCustomer
     {
@@ -98,6 +143,9 @@ public sealed class CustomersViewModel : ViewModelBase
                     LoyaltyPoints = 0;
                     OutstandingBalance = 0m;
                     HistoryEntries.Clear();
+                    OpenReceivables.Clear();
+                    SelectedReceivable = null;
+                    AbonoAmount = 0m;
                 }
 
                 if (OpenHistoryCommand is RelayCommand openHistoryCommand)
@@ -325,6 +373,8 @@ public sealed class CustomersViewModel : ViewModelBase
                 HistoryEntries.Add(entry);
             }
 
+            await LoadOpenReceivablesAsync(SelectedCustomer.Id, cancellationToken).ConfigureAwait(true);
+
             Message = HistoryEntries.Count == 0
                 ? "Este cliente aún no tiene ventas o movimientos registrados."
                 : $"Historial cargado: {HistoryEntries.Count} movimiento(s).";
@@ -338,10 +388,63 @@ public sealed class CustomersViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Registers a payment (abono) against the selected receivable, then refreshes the history and balance
+    /// so the SALDO reflects the reduced debt. The use case rejects zero amounts and overpayment.
+    /// </summary>
+    public async Task AbonarAsync(CancellationToken cancellationToken = default)
+    {
+        if (_applyPayment is null || SelectedReceivable is null || AbonoAmount <= 0m)
+        {
+            return;
+        }
+
+        try
+        {
+            decimal abonado = AbonoAmount;
+            await _applyPayment.ExecuteAsync(SelectedReceivable.ReceivableId, abonado, cancellationToken).ConfigureAwait(true);
+            AbonoAmount = 0m;
+            await OpenHistoryAsync(cancellationToken).ConfigureAwait(true); // refresh SALDO + open receivables first
+            Message = $"Abono de ${abonado.ToString("N0", ColombianCulture)} registrado.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Overpayment or receivable-not-found: surface the clear domain message as-is.
+            Message = ex.Message;
+        }
+    }
+
     public void ResetView()
     {
         ClearForm();
         Message = "Busca o selecciona un cliente para actualizar sus datos.";
+    }
+
+    private async Task LoadOpenReceivablesAsync(Guid customerId, CancellationToken cancellationToken)
+    {
+        OpenReceivables.Clear();
+        SelectedReceivable = null;
+        if (_receivableQuery is null)
+        {
+            return;
+        }
+
+        var open = await _receivableQuery.GetOpenReceivablesAsync(customerId, 1, 100, cancellationToken).ConfigureAwait(true);
+        foreach (ReceivableSummary receivable in open)
+        {
+            OpenReceivables.Add(receivable);
+        }
+
+        SelectedReceivable = OpenReceivables.FirstOrDefault();
+    }
+
+    private void RaiseAbonarCanExecuteChanged()
+    {
+        OnPropertyChanged(nameof(CanAbonar));
+        if (AbonarCommand is RelayCommand abonarCommand)
+        {
+            abonarCommand.RaiseCanExecuteChanged();
+        }
     }
 
     private async Task LoadLoyaltyPointsAsync(Guid customerId, CancellationToken cancellationToken = default)
@@ -408,6 +511,9 @@ public sealed class CustomersViewModel : ViewModelBase
         LoyaltyPoints = 0;
         OutstandingBalance = 0m;
         HistoryEntries.Clear();
+        OpenReceivables.Clear();
+        SelectedReceivable = null;
+        AbonoAmount = 0m;
         HistoryFilter = "all";
     }
 }

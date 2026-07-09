@@ -1,5 +1,6 @@
 using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Loyalty;
+using POS.Application.DTOs.Receivables;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Loyalty;
@@ -170,6 +171,64 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public async Task AbonarAsync_RegistersPaymentAndReducesOutstandingBalance()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var store = new FakeReceivablesStore(customer.Id, receivableOutstanding: 42_000m);
+
+        var viewModel = new CustomersViewModel(
+            new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()),
+            new GetCustomerHistoryUseCase(store),
+            new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)),
+            getLoyaltyBalance: null,
+            receivableQuery: store,
+            applyPayment: store);
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+        await viewModel.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(42_000m, viewModel.OutstandingBalance);
+        Assert.Single(viewModel.OpenReceivables);
+        Assert.False(viewModel.CanAbonar); // no amount entered yet
+
+        viewModel.AbonoAmount = 10_000m;
+        Assert.True(viewModel.CanAbonar);
+        await viewModel.AbonarAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(32_000m, viewModel.OutstandingBalance); // SALDO dropped after the abono
+        Assert.Equal(0m, viewModel.AbonoAmount);
+        Assert.Contains("Abono", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AbonarAsync_WhenOverpaying_SurfacesDomainMessageAndKeepsBalance()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var store = new FakeReceivablesStore(customer.Id, receivableOutstanding: 5_000m);
+
+        var viewModel = new CustomersViewModel(
+            new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()),
+            new GetCustomerHistoryUseCase(store),
+            new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)),
+            getLoyaltyBalance: null,
+            receivableQuery: store,
+            applyPayment: store);
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+        await viewModel.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        viewModel.AbonoAmount = 9_000m; // more than owed
+        await viewModel.AbonarAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(5_000m, viewModel.OutstandingBalance); // unchanged
+        Assert.Contains("exceed", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task OpenHistoryAsync_WhenHistoryQueryFails_SetsRecoverableMessage()
     {
         var repository = new InMemoryCustomerRepository();
@@ -322,6 +381,49 @@ public sealed class CustomersViewModelTests
 
         public Task<CustomerHistoryResult> GetHistoryAsync(Guid customerId, CancellationToken cancellationToken = default)
             => Task.FromResult(_result with { CustomerId = customerId });
+    }
+
+    /// <summary>Backs history + open-receivables + apply-payment with a single mutable balance so the abono flow is exercised end to end.</summary>
+    private sealed class FakeReceivablesStore : ICustomerHistoryQueryService, IReceivableQueryService, IApplyReceivablePaymentUseCase
+    {
+        private readonly Guid _customerId;
+        private readonly Guid _receivableId = Guid.NewGuid();
+        private readonly decimal _original;
+        private decimal _outstanding;
+
+        public FakeReceivablesStore(Guid customerId, decimal receivableOutstanding)
+        {
+            _customerId = customerId;
+            _original = receivableOutstanding;
+            _outstanding = receivableOutstanding;
+        }
+
+        public Task<CustomerHistoryResult> GetHistoryAsync(Guid customerId, CancellationToken cancellationToken = default)
+            => Task.FromResult(new CustomerHistoryResult(customerId, [], _outstanding));
+
+        public Task<IReadOnlyList<ReceivableSummary>> GetOpenReceivablesAsync(Guid? customerId, int page, int pageSize, CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<ReceivableSummary> result = _outstanding > 0m
+                ? [new ReceivableSummary(_receivableId, _customerId, "Ana Gomez", Guid.NewGuid(), "POS-1", _original, _outstanding, DateTimeOffset.UtcNow)]
+                : [];
+            return Task.FromResult(result);
+        }
+
+        public Task ExecuteAsync(Guid receivableId, decimal paymentAmount, CancellationToken cancellationToken = default)
+        {
+            if (paymentAmount <= 0m)
+            {
+                throw new InvalidOperationException("Payment amount must be greater than zero.");
+            }
+
+            if (paymentAmount > _outstanding)
+            {
+                throw new InvalidOperationException($"Payment amount ({paymentAmount:N0}) exceeds outstanding balance ({_outstanding:N0}).");
+            }
+
+            _outstanding -= paymentAmount;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class InMemoryCustomerLookupQueryService : ICustomerLookupQueryService

@@ -305,6 +305,7 @@
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
           <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
           <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -359,7 +360,38 @@
                        Command="{Binding SetHistoryFilterCommand}" CommandParameter="quote" />
         </StackPanel>
 
-        <Grid Grid.Row="3">
+        <!-- Registrar abono: visible solo cuando el cliente tiene saldo pendiente -->
+        <Border Grid.Row="3" Margin="0,0,0,8" Padding="12,10" CornerRadius="6"
+                Background="{StaticResource BrushPrimaryContainer}"
+                Visibility="{Binding HasOutstandingBalance, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
+            <TextBlock Text="REGISTRAR ABONO" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <ComboBox ItemsSource="{Binding OpenReceivables}" SelectedItem="{Binding SelectedReceivable}" Margin="0,0,0,8">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock>
+                    <Run Text="Factura " /><Run Text="{Binding InvoiceNumber, Mode=OneWay}" />
+                    <Run Text=" — saldo " /><Run Text="{Binding OutstandingBalance, Mode=OneWay, StringFormat={}{0:C0}}" />
+                  </TextBlock>
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBox Grid.Column="0" VerticalContentAlignment="Center"
+                       materialDesign:HintAssist.Hint="Monto del abono"
+                       Text="{Binding AbonoAmount, UpdateSourceTrigger=PropertyChanged, StringFormat=N0}" />
+              <Button Grid.Column="1" Content="Abonar" Margin="8,0,0,0"
+                      Style="{StaticResource PrimaryButton}"
+                      Command="{Binding AbonarCommand}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Grid Grid.Row="4">
           <StackPanel VerticalAlignment="Center"
                       HorizontalAlignment="Center"
                       Visibility="{Binding SelectedCustomer, Converter={StaticResource InverseNullToVisibilityConverter}}">
