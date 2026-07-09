@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
 using POS.Domain.Entities;
@@ -16,6 +17,7 @@ public static class DatabaseSchemaRollout
         using IServiceScope scope = serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await dbContext.Database.MigrateAsync(cancellationToken);
+        await NormalizeLegacyUnixTimestampDateTimesAsync(dbContext, cancellationToken);
         await SeedDefaultAdminAsync(scope.ServiceProvider, dbContext, cancellationToken);
         await SeedDefaultLoyaltyProgramAsync(dbContext, cancellationToken);
         await BackfillMissingLoyaltyPointsAsync(dbContext, cancellationToken);
@@ -50,6 +52,62 @@ public static class DatabaseSchemaRollout
         dbContext.LoyaltyRules.Add(defaultRule);
         await dbContext.SaveChangesAsync(ct).ConfigureAwait(false);
     }
+
+    private static async Task NormalizeLegacyUnixTimestampDateTimesAsync(AppDbContext dbContext, CancellationToken ct)
+    {
+        var normalizedColumns = new HashSet<(string? Schema, string Table, string Column)>();
+
+        foreach (var entityType in dbContext.Model.GetEntityTypes())
+        {
+            string? tableName = entityType.GetTableName();
+            if (string.IsNullOrWhiteSpace(tableName))
+            {
+                continue;
+            }
+
+            string? schema = entityType.GetSchema();
+            var storeObject = StoreObjectIdentifier.Table(tableName, schema);
+
+            foreach (var property in entityType.GetProperties())
+            {
+                Type propertyType = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
+                if (propertyType != typeof(DateTimeOffset))
+                {
+                    continue;
+                }
+
+                string? columnName = property.GetColumnName(storeObject);
+                if (string.IsNullOrWhiteSpace(columnName) || !normalizedColumns.Add((schema, tableName, columnName)))
+                {
+                    continue;
+                }
+
+                string table = QualifySqliteIdentifier(schema, tableName);
+                string column = QuoteSqliteIdentifier(columnName);
+
+                // Some legacy rows were written as JavaScript/Unix milliseconds (e.g. 1783564088164)
+                // into TEXT DateTimeOffset columns. EF materialization parses those columns before
+                // startup backfills run, so normalize them in raw SQL first. The update is idempotent:
+                // only 13-digit numeric values are converted to the fixed UTC TEXT format used by the model.
+                string sql = $"""
+                    UPDATE {table}
+                    SET {column} = strftime('%Y-%m-%d %H:%M:%f', CAST(TRIM(CAST({column} AS TEXT)) AS INTEGER) / 1000.0, 'unixepoch') || '0000+00:00'
+                    WHERE {column} IS NOT NULL
+                      AND length(TRIM(CAST({column} AS TEXT))) = 13
+                      AND TRIM(CAST({column} AS TEXT)) NOT GLOB '*[^0-9]*'
+                    """;
+
+                await dbContext.Database.ExecuteSqlRawAsync(sql, ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static string QualifySqliteIdentifier(string? schema, string tableName) =>
+        string.IsNullOrWhiteSpace(schema)
+            ? QuoteSqliteIdentifier(tableName)
+            : $"{QuoteSqliteIdentifier(schema)}.{QuoteSqliteIdentifier(tableName)}";
+
+    private static string QuoteSqliteIdentifier(string identifier) => $"\"{identifier.Replace("\"", "\"\"")}\"";
 
     private static async Task BackfillMissingLoyaltyPointsAsync(AppDbContext dbContext, CancellationToken ct)
     {
