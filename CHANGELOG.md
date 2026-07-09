@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.0.1...v1.1.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **audit:** close audit-trail gaps and add log pagination ([#98](https://github.com/jab16jy/Sistema_Pos/issues/98)) ([77aa6f6](https://github.com/jab16jy/Sistema_Pos/commit/77aa6f6a9a4afca181992931aeae72d0f7da1119))
+* **dashboard:** load caja daily metrics ([#100](https://github.com/jab16jy/Sistema_Pos/issues/100)) ([5522065](https://github.com/jab16jy/Sistema_Pos/commit/552206569e4932e16826283b2ccd8085a27bd542))
+
+
+### Miscellaneous Chores
+
+* **release:** prepare EPOS 1.1.0 installer ([10a28b3](https://github.com/jab16jy/Sistema_Pos/commit/10a28b39117dcdd4d70fab570fb8b5d5186a6b57))
+
 ## [1.0.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.0.0...v1.0.1) (2026-07-09)
 
 
