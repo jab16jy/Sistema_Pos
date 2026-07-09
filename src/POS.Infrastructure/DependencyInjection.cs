@@ -45,6 +45,7 @@ public static class DependencyInjection
         services.AddSingleton<IWritableOperatorSession>(sp => sp.GetRequiredService<InMemoryUserSession>());
         services.AddScoped<IPasswordHashService, Pbkdf2PasswordHashService>();
         services.AddScoped<LoginUseCase>();
+        services.AddScoped<LogoutUseCase>();
         services.AddSingleton(runtimeOptions.Smtp);
         services.AddSingleton(runtimeOptions.WhatsAppScript);
         services.AddSingleton(runtimeOptions.Printer);

@@ -218,7 +218,7 @@ internal static class AppBootstrapper
 
         AuditLogViewModel? auditLog = TryCreateOptionalModule(
             "Auditoría",
-            () => new AuditLogViewModel(sp.GetRequiredService<GetAuditLogsUseCase>()),
+            () => new AuditLogViewModel(sp.GetRequiredService<GetAuditLogsUseCase>(), session),
             moduleWarnings);
 
         var shellViewModel = new MainShellViewModel(cashier, dashboardUseCase, role, username)

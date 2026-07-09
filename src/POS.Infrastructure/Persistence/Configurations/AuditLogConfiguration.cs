@@ -19,5 +19,7 @@ internal sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(l => l.Details).HasMaxLength(1000);
         builder.HasIndex(l => l.CreatedAt);
         builder.HasIndex(l => l.EntityName);
+        builder.HasIndex(l => l.UserId);
+        builder.HasIndex(l => l.Action);
     }
 }

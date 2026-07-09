@@ -11,44 +11,49 @@ public sealed class AuditLogRepository : IAuditLogRepository
 
     public AuditLogRepository(AppDbContext dbContext) => _dbContext = dbContext;
 
+    public async Task AddAsync(AuditLog auditLog, CancellationToken cancellationToken = default)
+        => await _dbContext.AuditLogs.AddAsync(auditLog, cancellationToken).ConfigureAwait(false);
+
     public async Task<IReadOnlyList<AuditLog>> GetRecentAsync(
         int limit = 100,
         AuditLogFilter? filter = null,
         CancellationToken cancellationToken = default)
     {
-        // EF Core's SQLite provider can't translate ORDER BY over a raw DateTimeOffset into SQL
-        // (throws NotSupportedException). Ordering client-side avoids that without adding a
-        // DB-level int conversion, which would silently misread already-persisted TEXT timestamps
-        // as garbage dates instead of erroring.
-        // Do not switch this to an INTEGER conversion without a migration/backfill.
-        // ponytail: fetches the whole table; add a date-bounded WHERE if AUDIT_LOGS grows large.
-        List<AuditLog> logs = await _dbContext.AuditLogs
-            .AsNoTracking()
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        int pageSize = Math.Clamp(limit, 1, 500);
+        int page = filter is null ? 1 : Math.Max(1, filter.Page);
 
-        IEnumerable<AuditLog> query = logs;
+        // Real SQL WHERE + ORDER BY + Skip/Take: AuditLog.CreatedAt now has the same INTEGER
+        // conversion as Sale.CreatedAt (see AppDbContext.OnModelCreating), which is what makes
+        // ORDER BY translatable for SQLite — without it EF throws NotSupportedException and this
+        // whole query would have to fall back to loading the table into memory to sort client-side.
+        IQueryable<AuditLog> query = _dbContext.AuditLogs.AsNoTracking();
+
         if (filter is { HasFilters: true })
         {
-            query = query.Where(log => MatchesFilter(log, filter));
+            if (!string.IsNullOrWhiteSpace(filter.Username))
+            {
+                string usernamePattern = $"%{filter.Username.Trim()}%";
+                query = query.Where(log => EF.Functions.Like(log.Username, usernamePattern));
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.Action))
+            {
+                string action = filter.Action.Trim();
+                query = query.Where(log => log.Action == action);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.EntityName))
+            {
+                string entityName = filter.EntityName.Trim();
+                query = query.Where(log => log.EntityName == entityName);
+            }
         }
 
-        return query
+        return await query
             .OrderByDescending(log => log.CreatedAt)
-            .Take(limit)
-            .ToList();
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
     }
-
-    private static bool MatchesFilter(AuditLog log, AuditLogFilter filter)
-    {
-        return MatchesContains(log.Username, filter.Username) &&
-            MatchesExact(log.Action, filter.Action) &&
-            MatchesExact(log.EntityName, filter.EntityName);
-    }
-
-    private static bool MatchesContains(string value, string? filter)
-        => string.IsNullOrWhiteSpace(filter) || value.Contains(filter.Trim(), StringComparison.OrdinalIgnoreCase);
-
-    private static bool MatchesExact(string value, string? filter)
-        => string.IsNullOrWhiteSpace(filter) || string.Equals(value, filter.Trim(), StringComparison.OrdinalIgnoreCase);
 }

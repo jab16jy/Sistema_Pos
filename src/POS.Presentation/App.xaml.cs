@@ -116,7 +116,29 @@ public partial class App : System.Windows.Application
         {
             ShellLogoutCoordinator.Execute(
                 () => ShutdownMode = System.Windows.ShutdownMode.OnExplicitShutdown,
-                () => _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>().ClearSession(),
+                () =>
+                {
+                    var session = _scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>();
+                    Guid operatorId = session.OperatorId;
+                    string username = session.Username;
+                    session.ClearSession();
+
+                    // Audit before the scope (and its AppDbContext) can be disposed by shutdown.
+                    // Local SQLite write, not network I/O — blocking the UI thread briefly here is
+                    // simpler and safer than a fire-and-forget task racing scope disposal.
+                    try
+                    {
+                        _scope.ServiceProvider.GetRequiredService<LogoutUseCase>()
+                            .ExecuteAsync(operatorId, username).GetAwaiter().GetResult();
+                    }
+                    catch (Exception ex)
+                    {
+                        // A failed audit write must not block the user from logging out, but must
+                        // not vanish silently either — this app has no logging framework/dependency,
+                        // so Trace is the stdlib option (rung 3) instead of adding one just for this.
+                        System.Diagnostics.Trace.TraceError($"Logout audit write failed for user '{username}': {ex}");
+                    }
+                },
                 shell.Close,
                 ShowLoginAndLaunchShell,
                 () => Shutdown(0));

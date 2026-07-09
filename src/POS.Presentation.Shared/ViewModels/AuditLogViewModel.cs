@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using POS.Application.DTOs.Audit;
+using POS.Application.Interfaces;
 using POS.Application.UseCases.Audit;
 using POS.Domain.ValueObjects;
 using POS.Presentation.Shared.Commands;
@@ -51,17 +52,25 @@ public sealed class AuditLogViewModel : ViewModelBase
         ["DocumentSendLog"] = "Envío de documento"
     };
 
+    private const int PageSize = 100;
+
     private readonly GetAuditLogsUseCase _getAuditLogs;
+    private readonly ICurrentOperatorSession _session;
     private string _message = "Carga los últimos movimientos del sistema.";
     private string _usernameFilter = string.Empty;
     private string _selectedActionFilter = AllFilterLabel;
     private string _selectedEntityFilter = AllFilterLabel;
+    private int _currentPage = 1;
+    private bool _hasMorePages;
 
-    public AuditLogViewModel(GetAuditLogsUseCase getAuditLogs)
+    public AuditLogViewModel(GetAuditLogsUseCase getAuditLogs, ICurrentOperatorSession session)
     {
         _getAuditLogs = getAuditLogs;
-        LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar auditoría: {ex.Message}"));
+        _session = session;
+        LoadCommand = new RelayCommand(_ => RunSafe(LoadFirstPageAsync(), ex => Message = $"Error al cargar auditoría: {ex.Message}"));
         ClearFiltersCommand = new RelayCommand(_ => RunSafe(ClearFiltersAsync(), ex => Message = $"Error al limpiar filtros: {ex.Message}"));
+        NextPageCommand = new RelayCommand(_ => RunSafe(NextPageAsync(), ex => Message = $"Error al cambiar de página: {ex.Message}"), _ => HasMorePages);
+        PreviousPageCommand = new RelayCommand(_ => RunSafe(PreviousPageAsync(), ex => Message = $"Error al cambiar de página: {ex.Message}"), _ => CurrentPage > 1);
     }
 
     public ObservableCollection<AuditLogDisplayEntry> Logs { get; } = [];
@@ -87,6 +96,8 @@ public sealed class AuditLogViewModel : ViewModelBase
 
     public ICommand LoadCommand { get; }
     public ICommand ClearFiltersCommand { get; }
+    public ICommand NextPageCommand { get; }
+    public ICommand PreviousPageCommand { get; }
 
     public string UsernameFilter
     {
@@ -112,21 +123,56 @@ public sealed class AuditLogViewModel : ViewModelBase
         private set => SetProperty(ref _message, value);
     }
 
+    public int CurrentPage
+    {
+        get => _currentPage;
+        private set
+        {
+            if (SetProperty(ref _currentPage, value < 1 ? 1 : value))
+            {
+                if (PreviousPageCommand is RelayCommand previous)
+                {
+                    previous.RaiseCanExecuteChanged();
+                }
+            }
+        }
+    }
+
+    public bool HasMorePages
+    {
+        get => _hasMorePages;
+        private set
+        {
+            if (SetProperty(ref _hasMorePages, value) && NextPageCommand is RelayCommand next)
+            {
+                next.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public Task LoadFirstPageAsync(CancellationToken ct = default)
+    {
+        CurrentPage = 1;
+        return LoadAsync(ct);
+    }
+
     public async Task LoadAsync(CancellationToken ct = default)
     {
         try
         {
             var filter = BuildFilter();
-            var logs = await _getAuditLogs.ExecuteAsync(100, filter, ct).ConfigureAwait(true);
+            var logs = await _getAuditLogs.ExecuteAsync(_session.OperatorId, PageSize, filter, ct).ConfigureAwait(true);
             Logs.Clear();
             foreach (var log in logs)
             {
                 Logs.Add(ToDisplayEntry(log));
             }
 
+            HasMorePages = logs.Count == PageSize;
+
             Message = Logs.Count == 0
                 ? "Aún no hay eventos de auditoría para los filtros seleccionados."
-                : $"Mostrando {Logs.Count} evento(s).";
+                : $"Mostrando {Logs.Count} evento(s) — página {CurrentPage}.";
         }
         catch (OperationCanceledException)
         {
@@ -137,18 +183,41 @@ public sealed class AuditLogViewModel : ViewModelBase
         }
     }
 
+    public async Task NextPageAsync(CancellationToken ct = default)
+    {
+        if (!HasMorePages)
+        {
+            return;
+        }
+
+        CurrentPage += 1;
+        await LoadAsync(ct).ConfigureAwait(true);
+    }
+
+    public async Task PreviousPageAsync(CancellationToken ct = default)
+    {
+        if (CurrentPage <= 1)
+        {
+            return;
+        }
+
+        CurrentPage -= 1;
+        await LoadAsync(ct).ConfigureAwait(true);
+    }
+
     private async Task ClearFiltersAsync()
     {
         UsernameFilter = string.Empty;
         SelectedActionFilter = AllFilterLabel;
         SelectedEntityFilter = AllFilterLabel;
-        await LoadAsync().ConfigureAwait(true);
+        await LoadFirstPageAsync().ConfigureAwait(true);
     }
 
     private AuditLogFilter BuildFilter() => new(
         NormalizeTextFilter(UsernameFilter),
         NormalizeActionFilter(SelectedActionFilter),
-        NormalizeEntityFilter(SelectedEntityFilter));
+        NormalizeEntityFilter(SelectedEntityFilter),
+        CurrentPage);
 
     private static string? NormalizeTextFilter(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
