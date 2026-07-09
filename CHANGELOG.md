@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.0.0...v1.0.1) (2026-07-09)
+
+
+### Bug Fixes
+
+* **loyalty:** apply point redemption as a payment tender on the sale ([#96](https://github.com/jab16jy/Sistema_Pos/issues/96)) ([45bc238](https://github.com/jab16jy/Sistema_Pos/commit/45bc238bd51315bafc65ef7b4f3b29dcb4130cce))
+
 ## [1.0.0](https://github.com/jab16jy/Sistema_Pos/compare/v0.26.0...v1.0.0) (2026-07-09)
 
 
