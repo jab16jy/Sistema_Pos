@@ -87,11 +87,11 @@ Requirements:
 - Windows 10/11 (x64)
 - [.NET 9 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/9.0) — `Microsoft.WindowsDesktop.App 9.0`
 
-Launch the app by double-clicking `POS.Presentation.exe` inside `build_output/`, or from a terminal:
+Launch the app by double-clicking `EPOS.exe` inside `build_output/`, or from a terminal:
 
 ```cmd
  dotnet build src/POS.Presentation/POS.Presentation.csproj -o build_output
-.\build_output\POS.Presentation.exe
+.\build_output\EPOS.exe
 ```
 
 The database file (`pos.db`) and any local configuration are created in the same directory on first run.

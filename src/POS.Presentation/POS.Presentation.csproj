@@ -5,6 +5,7 @@
     <UseWPF>true</UseWPF>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <ApplicationIcon>..\..\logo\AppIcon.ico</ApplicationIcon>
+    <AssemblyName>EPOS</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

@@ -414,7 +414,7 @@ public sealed class SettingsViewModel : ViewModelBase
 
             bool sent = await _emailService.SendAsync(
                 TestEmailRecipient,
-                "Prueba de configuración — Esthetic POS",
+                "Prueba de configuración — Esthetic Medical Store",
                 "Este es un correo de prueba enviado desde Configuración.",
                 [],
                 "prueba.txt",
@@ -455,7 +455,7 @@ public sealed class SettingsViewModel : ViewModelBase
         {
             bool sent = await _whatsAppService.SendAsync(
                 TestWhatsAppNumber,
-                "Prueba de configuración de Esthetic POS.",
+                "Prueba de configuración de Esthetic Medical Store.",
                 null,
                 cancellationToken).ConfigureAwait(true);
 

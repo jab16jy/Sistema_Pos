@@ -5,7 +5,7 @@
         xmlns:local="clr-namespace:POS.Presentation.Views"
         xmlns:shell="clr-namespace:POS.Presentation.Shared.Shell;assembly=POS.Presentation.Shared"
         xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-        Title="Esthetic POS"
+        Title="EPOS"
         Width="1360"
         Height="780"
         MinWidth="1280"
@@ -30,10 +30,10 @@
         </Grid.ColumnDefinitions>
 
         <Grid VerticalAlignment="Center">
-          <!-- Logo + Esthetic POS title (Visible when NOT in an admin submodule) -->
+          <!-- Logo + Esthetic Medical Store title (Visible when NOT in an admin submodule) -->
           <StackPanel Orientation="Horizontal"
                       Visibility="{Binding IsAdminSubmoduleSelected, Converter={StaticResource BooleanNegationToVisibilityConverter}}">
-            <TextBlock Text="Esthetic POS" FontWeight="Bold" Style="{StaticResource TextH3}" VerticalAlignment="Center" />
+            <TextBlock Text="Esthetic Medical Store" FontWeight="Bold" Style="{StaticResource TextH3}" VerticalAlignment="Center" />
           </StackPanel>
 
           <!-- Back to Admin Hub Button (Visible only when in an admin submodule) -->
