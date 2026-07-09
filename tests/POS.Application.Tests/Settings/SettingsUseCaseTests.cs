@@ -12,7 +12,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task LoadSettingsAsync_WhenSettingsExist_ReturnsSettings()
     {
-        var settings = new BusinessSettings("Store", "Address", "Tax", "smtp.host", 587, "mailer", "secret", true, "ventas@store.com", "print", "C:/POS", "C:/Backups", "COP");
+        var settings = new BusinessSettings("Store", "Address", "Tax", "3005550000", "smtp.host", 587, "mailer", "secret", true, "ventas@store.com", "print", "C:/POS", "C:/Backups", "COP");
         var useCase = new LoadSettingsUseCase(new InMemorySettingsRepository(settings));
 
         SettingsResult? result = await useCase.ExecuteAsync(TestContext.Current.CancellationToken);
@@ -37,6 +37,7 @@ public sealed class SettingsUseCaseTests
             "Esthetic Medical Store",
             "Main Street 1",
             "900123",
+            "301 5225337",
             "smtp.office365.com",
             587,
             "ventas@esthetic.com",
@@ -61,12 +62,13 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task SaveSettingsAsync_WhenSettingsExist_UpdatesSameSettings()
     {
-        var existing = new BusinessSettings("Old", null, null, null, null, null, null, false, null, null, null, null, "COP");
+        var existing = new BusinessSettings("Old", null, null, null, null, null, null, null, false, null, null, null, null, "COP");
         var repository = new InMemorySettingsRepository(existing);
         var useCase = new SaveSettingsUseCase(repository, new CountingUnitOfWork());
 
         SettingsResult result = await useCase.ExecuteAsync(new SaveSettingsRequest(
             "New",
+            null,
             null,
             null,
             "smtp.gmail.com",
@@ -106,6 +108,7 @@ public sealed class SettingsUseCaseTests
             null,
             null,
             null,
+            null,
             false,
             null,
             "/missing/print-receipt",
@@ -123,7 +126,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task TriggerManualBackupAsync_WithConfiguredDirectory_CreatesBackup()
     {
-        var settings = new BusinessSettings("Store", null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
+        var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
         var backupService = new StubManualBackupService("C:/Backups/backup-20260627.sqlite");
         var useCase = new TriggerManualBackupUseCase(new InMemorySettingsRepository(settings), backupService);
 
@@ -140,7 +143,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task TriggerManualBackupAsync_WhenNoDirectoryConfigured_ReturnsError()
     {
-        var settings = new BusinessSettings("Store", null, null, null, null, null, null, false, null, null, null, null, "COP");
+        var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, null, "COP");
         var backupService = new StubManualBackupService("unused");
         var useCase = new TriggerManualBackupUseCase(new InMemorySettingsRepository(settings), backupService);
 

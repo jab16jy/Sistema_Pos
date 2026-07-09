@@ -40,6 +40,13 @@ public sealed class AuditLogViewModel : ViewModelBase
         ["LoyaltyTransaction"] = "Movimiento de puntos",
         ["LoyaltyRule"] = "Regla de puntos",
         ["Category"] = "Categoría",
+        ["SubCategory"] = "Subcategoría",
+        ["UnitOfMeasure"] = "Unidad de medida",
+        ["TaxProfile"] = "Perfil de impuesto",
+        ["LoyaltyTier"] = "Nivel de fidelidad",
+        ["ProductSupplier"] = "Proveedor de producto",
+        ["ProductImportBatch"] = "Importación de productos",
+        ["ProductImportLine"] = "Línea de importación",
         ["AppSettings"] = "Configuración",
         ["DocumentSendLog"] = "Envío de documento"
     };
@@ -197,9 +204,16 @@ public sealed class AuditLogViewModel : ViewModelBase
             ? $"{entityLabel}: {actionLabel.ToLowerInvariant()}."
             : TranslateDetails(log.Details);
 
-        return string.IsNullOrWhiteSpace(log.EntityId)
-            ? baseText
-            : $"{baseText} ID: {log.EntityId}.";
+        // Solo mostramos una referencia que el administrador reconoce (cédula, N° de factura/cotización);
+        // ocultamos los GUID técnicos y cualquier dato que el detalle ya nombre.
+        if (string.IsNullOrWhiteSpace(log.EntityId)
+            || Guid.TryParse(log.EntityId, out _)
+            || baseText.Contains(log.EntityId, StringComparison.OrdinalIgnoreCase))
+        {
+            return baseText;
+        }
+
+        return $"{baseText} Ref.: {log.EntityId}.";
     }
 
     private static string TranslateDetails(string details)

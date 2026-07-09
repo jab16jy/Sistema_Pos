@@ -169,6 +169,28 @@ public sealed class AuthPersistenceTests
     }
 
     [Fact]
+    public async Task SaveChanges_AutoAudits_DeletedCustomerCapturesNameAtWriteTime()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection, new FakeSession("admin"));
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var customer = new Customer("Cristian Ramirez", "123456789");
+        await dbContext.Customers.AddAsync(customer, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.Customers.Remove(customer);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        IReadOnlyList<AuditLogEntry> logs =
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext)).ExecuteAsync(10, null, TestContext.Current.CancellationToken);
+
+        // The row is gone after delete, so the name must be baked into the detail when the delete is audited.
+        AuditLogEntry deleteLog = Assert.Single(logs, l => l.EntityName == "Customer" && l.Action == "Deleted");
+        Assert.Contains("Cristian Ramirez", deleteLog.Details);
+    }
+
+    [Fact]
     public async Task SaveChanges_AutoAudits_InventoryMovementDescribesWhatChanged()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

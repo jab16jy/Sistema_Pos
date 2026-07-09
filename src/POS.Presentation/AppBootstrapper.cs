@@ -67,7 +67,9 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<SaveCustomerUseCase>(),
                 sp.GetRequiredService<GetCustomerHistoryUseCase>(),
                 sp.GetRequiredService<SearchCustomersUseCase>(),
-                TryResolveOptional<GetLoyaltyBalanceUseCase>(sp)),
+                TryResolveOptional<GetLoyaltyBalanceUseCase>(sp),
+                TryResolveOptional<IReceivableQueryService>(sp),
+                TryResolveOptional<IApplyReceivablePaymentUseCase>(sp)),
             moduleWarnings);
 
         PurchasesViewModel? purchases = TryCreateOptionalModule(

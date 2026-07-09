@@ -24,6 +24,7 @@ public sealed class LoadSettingsUseCase
         settings.BusinessName,
         settings.BusinessAddress,
         settings.TaxId,
+        settings.BusinessPhone,
         settings.SmtpHost,
         settings.SmtpPort,
         settings.SmtpUser,

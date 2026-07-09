@@ -22,6 +22,7 @@ public sealed class ThermalPrinterIntegrationTests
             null,
             null,
             null,
+            null,
             false,
             null,
             "COM7",
@@ -57,6 +58,7 @@ public sealed class ThermalPrinterIntegrationTests
             null,
             null,
             null,
+            null,
             false,
             null,
             "COM5",
@@ -84,6 +86,7 @@ public sealed class ThermalPrinterIntegrationTests
         await using var fixture = await TestDbContextFactory.CreateAsync();
         fixture.DbContext.BusinessSettings.Add(new BusinessSettings(
             "Negocio",
+            null,
             null,
             null,
             null,

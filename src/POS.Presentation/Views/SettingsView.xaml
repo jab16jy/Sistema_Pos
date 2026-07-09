@@ -354,6 +354,8 @@
             <TextBox Text="{Binding BusinessName, Mode=TwoWay}" Tag="Esthetic Medical Store" Margin="0,0,0,8" />
             <TextBlock Text="NIT / identificación fiscal" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
             <TextBox Text="{Binding TaxId, Mode=TwoWay}" Tag="901.234.567-8" Margin="0,0,0,8" />
+            <TextBlock Text="Teléfono" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+            <TextBox Text="{Binding BusinessPhone, Mode=TwoWay}" Tag="301 5225337" Margin="0,0,0,8" />
             <TextBlock Text="Dirección" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
             <TextBox Text="{Binding BusinessAddress, Mode=TwoWay}" Tag="Cra 14 # 85-10 · Bogotá" AcceptsReturn="True" Height="70" Margin="0,0,0,8" />
             <TextBlock Text="Moneda" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />

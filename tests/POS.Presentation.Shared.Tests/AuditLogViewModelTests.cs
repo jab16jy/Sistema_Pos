@@ -60,6 +60,24 @@ public sealed class AuditLogViewModelTests
     }
 
     [Fact]
+    public async Task LoadAsync_HidesRawGuidIdsButKeepsBusinessReferences()
+    {
+        var repository = new CapturingAuditLogRepository(
+        [
+            new AuditLog(Guid.NewGuid(), "admin", "Deleted", "Product", Guid.NewGuid().ToString(), "Se eliminó: Coca-Cola."),
+            new AuditLog(Guid.NewGuid(), "admin", "Added", "Sale", "FAC-001", "Registro creado.")
+        ]);
+        var viewModel = new AuditLogViewModel(new GetAuditLogsUseCase(repository));
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        // Raw GUID is useless to the admin -> hidden; the invoice number is a real reference -> shown.
+        Assert.DoesNotContain("Ref.", viewModel.Logs[0].Details);
+        Assert.Contains("Coca-Cola", viewModel.Logs[0].Details);
+        Assert.Contains("FAC-001", viewModel.Logs[1].Details);
+    }
+
+    [Fact]
     public async Task LoadAsync_WithSpanishFilters_MapsThemToRawAuditValues()
     {
         var repository = new CapturingAuditLogRepository();

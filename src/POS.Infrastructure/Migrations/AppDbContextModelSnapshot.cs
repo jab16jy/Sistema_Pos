@@ -80,9 +80,21 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("BusinessPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("CurrencyCode")
                         .IsRequired()
                         .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrinterCommand")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrinterWorkingDirectory")
+                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SmtpHost")
@@ -105,14 +117,6 @@ namespace POS.Infrastructure.Migrations
 
                     b.Property<string>("SmtpUser")
                         .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PrinterCommand")
-                        .HasMaxLength(500)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PrinterWorkingDirectory")
-                        .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("TaxId")
@@ -269,6 +273,10 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Phone")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TempId")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -1091,6 +1099,10 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TempId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.ToTable("Suppliers", (string)null);
@@ -1176,7 +1188,7 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Customer", b =>
@@ -1192,6 +1204,7 @@ namespace POS.Infrastructure.Migrations
                     b.HasOne("POS.Domain.Entities.Customer", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")
+                        .HasPrincipalKey("TempId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1257,6 +1270,7 @@ namespace POS.Infrastructure.Migrations
                     b.HasOne("POS.Domain.Entities.Supplier", null)
                         .WithMany()
                         .HasForeignKey("SupplierId")
+                        .HasPrincipalKey("TempId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

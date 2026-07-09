@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.DTOs.Invoices;
+using POS.Application.DTOs.Receivables;
 using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
@@ -167,6 +168,43 @@ public sealed class SalePersistenceTests
             .SingleAsync(r => r.SaleId == result.SaleId, TestContext.Current.CancellationToken);
         Assert.Equal(customerId, receivable.CustomerId);
         Assert.Equal(150_000m, receivable.OutstandingBalance.Amount);
+    }
+
+    [Fact]
+    public async Task ReceivableLookupQueryService_WithOpenReceivable_ReturnsItWithoutTranslationError()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var product = new Product("Monitor", Guid.NewGuid(), new Money(200_000m), new Money(350_000m), new StockQuantity(5m), new StockQuantity(1m));
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var customerId = Guid.NewGuid();
+        var useCase = new CreateSaleUseCase(
+            new ProductRepository(dbContext),
+            new SaleRepository(dbContext),
+            dbContext,
+            new ReceivableRepository(dbContext));
+        var result = await useCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(),
+            customerId,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            new SaleSettlementPlan(200_000m, PaymentMethod.Cash, 150_000m)),
+            TestContext.Current.CancellationToken);
+
+        var lookup = new ReceivableLookupQueryService(dbContext);
+
+        // Before the fix this threw: SQLite could not translate .Where(r => r.OutstandingBalance.Amount > 0)
+        // because OutstandingBalance is a converted Money value object.
+        IReadOnlyList<ReceivableSummary> open = await lookup.GetOpenReceivablesAsync(
+            customerId, 1, 100, TestContext.Current.CancellationToken);
+
+        ReceivableSummary summary = Assert.Single(open);
+        Assert.Equal(150_000m, summary.OutstandingBalance);
+        Assert.Equal(result.InvoiceNumber, summary.InvoiceNumber);
     }
 
     [Fact]
