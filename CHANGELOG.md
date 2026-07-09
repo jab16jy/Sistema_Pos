@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.0.1...v1.0.2) (2026-07-09)
+
+
+### Bug Fixes
+
+* **audit:** close audit-trail gaps and add log pagination ([#98](https://github.com/jab16jy/Sistema_Pos/issues/98)) ([77aa6f6](https://github.com/jab16jy/Sistema_Pos/commit/77aa6f6a9a4afca181992931aeae72d0f7da1119))
+* **dashboard:** load caja daily metrics ([#100](https://github.com/jab16jy/Sistema_Pos/issues/100)) ([5522065](https://github.com/jab16jy/Sistema_Pos/commit/552206569e4932e16826283b2ccd8085a27bd542))
+
 ## [1.0.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.0.0...v1.0.1) (2026-07-09)
 
 
