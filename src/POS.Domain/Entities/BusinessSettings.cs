@@ -12,6 +12,7 @@ public sealed class BusinessSettings
         string businessName,
         string? businessAddress,
         string? taxId,
+        string? businessPhone,
         string? smtpHost,
         int? smtpPort,
         string? smtpUser,
@@ -28,6 +29,7 @@ public sealed class BusinessSettings
             businessName,
             businessAddress,
             taxId,
+            businessPhone,
             smtpHost,
             smtpPort,
             smtpUser,
@@ -44,6 +46,7 @@ public sealed class BusinessSettings
     public string BusinessName { get; private set; } = string.Empty;
     public string? BusinessAddress { get; private set; }
     public string? TaxId { get; private set; }
+    public string? BusinessPhone { get; private set; }
     public string? SmtpHost { get; private set; }
     public int? SmtpPort { get; private set; }
     public string? SmtpUser { get; private set; }
@@ -59,6 +62,7 @@ public sealed class BusinessSettings
         string businessName,
         string? businessAddress,
         string? taxId,
+        string? businessPhone,
         string? smtpHost,
         int? smtpPort,
         string? smtpUser,
@@ -74,6 +78,7 @@ public sealed class BusinessSettings
             businessName,
             businessAddress,
             taxId,
+            businessPhone,
             smtpHost,
             smtpPort,
             smtpUser,
@@ -90,6 +95,7 @@ public sealed class BusinessSettings
         string businessName,
         string? businessAddress,
         string? taxId,
+        string? businessPhone,
         string? smtpHost,
         int? smtpPort,
         string? smtpUser,
@@ -125,6 +131,7 @@ public sealed class BusinessSettings
         BusinessName = businessName.Trim();
         BusinessAddress = TrimToNull(businessAddress);
         TaxId = TrimToNull(taxId);
+        BusinessPhone = TrimToNull(businessPhone);
         SmtpHost = TrimToNull(smtpHost);
         SmtpPort = smtpPort;
         SmtpUser = TrimToNull(smtpUser);

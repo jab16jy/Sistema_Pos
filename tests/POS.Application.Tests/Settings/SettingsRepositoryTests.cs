@@ -23,7 +23,8 @@ public sealed class SettingsRepositoryTests
 
         Assert.NotNull(settings);
         Assert.Equal("ESTHETIC MEDICAL STORE", settings.BusinessName);
-        Assert.Equal("Barranquilla: cra 42f #76-77 local 1. Tel: +57 301 5225337", settings.BusinessAddress);
+        Assert.Equal("cra 42f #76-77 local 1.", settings.BusinessAddress);
+        Assert.Equal("301 5225337", settings.BusinessPhone);
         Assert.Equal("COP", settings.CurrencyCode);
     }
 

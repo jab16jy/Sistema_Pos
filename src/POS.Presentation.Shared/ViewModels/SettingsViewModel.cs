@@ -25,6 +25,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _businessName = string.Empty;
     private string? _businessAddress;
     private string? _taxId;
+    private string? _businessPhone;
     private string? _printerCommand;
     private string? _printerWorkingDirectory;
     private string? _backupDirectory;
@@ -100,6 +101,12 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         get => _taxId;
         set => SetProperty(ref _taxId, value);
+    }
+
+    public string? BusinessPhone
+    {
+        get => _businessPhone;
+        set => SetProperty(ref _businessPhone, value);
     }
 
     public string? PrinterCommand
@@ -308,6 +315,7 @@ public sealed class SettingsViewModel : ViewModelBase
             BusinessName = settings.BusinessName;
             BusinessAddress = settings.BusinessAddress;
             TaxId = settings.TaxId;
+            BusinessPhone = settings.BusinessPhone;
             SmtpHost = settings.SmtpHost ?? string.Empty;
             SmtpPort = settings.SmtpPort?.ToString() ?? "587";
             SmtpUser = settings.SmtpUser ?? string.Empty;
@@ -476,6 +484,7 @@ public sealed class SettingsViewModel : ViewModelBase
             BusinessName,
             BusinessAddress,
             TaxId,
+            BusinessPhone,
             SmtpHost,
             smtpPort,
             SmtpUser,

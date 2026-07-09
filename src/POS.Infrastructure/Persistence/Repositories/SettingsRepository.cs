@@ -25,6 +25,7 @@ public sealed class SettingsRepository : ISettingsRepository
             CompanyDefaults.BusinessName,
             CompanyDefaults.BusinessAddress,
             null,
+            CompanyDefaults.BusinessPhone,
             null,
             null,
             null,

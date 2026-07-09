@@ -28,6 +28,7 @@ public sealed class RuntimeGapDomainTests
             " Esthetic Medical Store ",
             "  Main Street 1 ",
             " 900123 ",
+            " 301 5225337 ",
             " smtp.office365.com ",
             587,
             " ventas ",
@@ -42,6 +43,7 @@ public sealed class RuntimeGapDomainTests
         Assert.Equal("Esthetic Medical Store", settings.BusinessName);
         Assert.Equal("Main Street 1", settings.BusinessAddress);
         Assert.Equal("900123", settings.TaxId);
+        Assert.Equal("301 5225337", settings.BusinessPhone);
         Assert.Equal("smtp.office365.com", settings.SmtpHost);
         Assert.Equal(587, settings.SmtpPort);
         Assert.Equal("ventas", settings.SmtpUser);

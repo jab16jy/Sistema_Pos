@@ -158,6 +158,7 @@ public sealed class RuntimeReadinessTests
             "Store",
             null,
             null,
+            null,
             "smtp.persisted.local",
             2525,
             null,
@@ -191,6 +192,7 @@ public sealed class RuntimeReadinessTests
             await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
             dbContext.BusinessSettings.Add(new BusinessSettings(
                 "Store",
+                null,
                 null,
                 null,
                 "smtp.gmail.com",
@@ -421,6 +423,7 @@ public sealed class RuntimeReadinessTests
             "Esthetic POS",
             "Calle 123 #45-67",
             "900123456-7",
+            null,
             null,
             null,
             null,
