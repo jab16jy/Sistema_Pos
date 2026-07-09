@@ -24,21 +24,22 @@ public sealed class ReceivableLookupQueryService : IReceivableQueryService
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        // OutstandingBalance is a Money value object — EF converts it to decimal for storage.
-        // We filter on the mapped column via the Amount property.
-        var query = _dbContext.Receivables
-            .Where(r => r.OutstandingBalance.Amount > 0m);
-
+        // CustomerId is a plain Guid column, so scope by it server-side.
+        var query = _dbContext.Receivables.AsNoTracking();
         if (customerId.HasValue)
         {
             query = query.Where(r => r.CustomerId == customerId.Value);
         }
 
-        var receivables = await query
+        // OutstandingBalance is a Money value object — SQLite cannot translate a filter/paging over the
+        // converted column (same limitation the reporting queries hit), so materialize the customer-scoped
+        // rows and filter + order + page in memory.
+        var receivables = (await query.ToListAsync(cancellationToken))
+            .Where(r => r.OutstandingBalance.Amount > 0m)
             .OrderByDescending(r => r.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .ToListAsync(cancellationToken);
+            .ToList();
 
         // Collect all unique sale and customer ids for denormalization
         var saleIds = receivables.Select(r => r.SaleId).Distinct().ToList();
