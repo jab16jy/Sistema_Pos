@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Loyalty;
@@ -573,8 +574,11 @@ public sealed record LoyaltyTierPresentation(
     decimal DiscountPercent,
     decimal PointsMultiplier)
 {
-    public string PointRange => $"Desde {MinPoints:N0} pts";
-    public string BenefitDescription => $"{DiscountPercent:0.##}% descuento · {PointsMultiplier:0.##}x puntos";
+    private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+
+    public string PointRange => $"Desde {MinPoints.ToString("N0", ColombianCulture)} pts";
+    public string BenefitDescription =>
+        $"{DiscountPercent.ToString("0.##", ColombianCulture)}% descuento · {PointsMultiplier.ToString("0.##", ColombianCulture)}x puntos";
     public string ChipKind => DiscountPercent > 0 ? "warning" : PointsMultiplier > 1 ? "primary" : "neutral";
 
     public static LoyaltyTierPresentation From(LoyaltyTierResult tier)
