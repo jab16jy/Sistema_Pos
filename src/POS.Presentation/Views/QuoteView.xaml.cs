@@ -41,11 +41,13 @@ public partial class QuoteView : UserControl
         if (e.OldValue is QuoteHistoryViewModel oldViewModel)
         {
             oldViewModel.FileExportRequested -= view.OnFileExportRequested;
+            oldViewModel.SaleConversionConfirmationRequested -= view.OnSaleConversionConfirmationRequested;
         }
 
         if (e.NewValue is QuoteHistoryViewModel newViewModel)
         {
             newViewModel.FileExportRequested += view.OnFileExportRequested;
+            newViewModel.SaleConversionConfirmationRequested += view.OnSaleConversionConfirmationRequested;
         }
     }
 
@@ -64,5 +66,24 @@ public partial class QuoteView : UserControl
         }
 
         File.WriteAllBytes(dialog.FileName, args.Data);
+    }
+
+    private async void OnSaleConversionConfirmationRequested(object? sender, POS.Presentation.Shared.Quotes.QuoteSummaryRow quote)
+    {
+        if (sender is not QuoteHistoryViewModel viewModel)
+        {
+            return;
+        }
+
+        if (MessageBox.Show(
+                QuoteHistoryViewModel.SaleConversionConfirmationMessage,
+                "Realizar venta",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        await viewModel.ConfirmSaleConversionAsync(quote);
     }
 }

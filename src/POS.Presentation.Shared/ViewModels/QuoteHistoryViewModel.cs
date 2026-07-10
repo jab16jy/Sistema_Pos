@@ -15,6 +15,8 @@ namespace POS.Presentation.Shared.ViewModels;
 
 public sealed class QuoteHistoryViewModel : ViewModelBase
 {
+    public const string SaleConversionConfirmationMessage = "¿Está seguro de transformar esta cotización en una venta?";
+
     private readonly GetQuoteHistoryUseCase _getHistoryUseCase;
     private readonly ConvertQuoteToSaleUseCase _convertUseCase;
     private readonly SendDocumentUseCase _sendUseCase;
@@ -49,13 +51,14 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => StatusMessage = $"Error al cargar cotizaciones: {ex.Message}"));
         NextPageCommand = new RelayCommand(_ => RunSafe(NextPageAsync(), ex => StatusMessage = $"Error al paginar cotizaciones: {ex.Message}"));
         PreviousPageCommand = new RelayCommand(_ => RunSafe(PreviousPageAsync(), ex => StatusMessage = $"Error al paginar cotizaciones: {ex.Message}"));
-        ConvertToSaleCommand = new RelayCommand(p => RunSafe(ConvertToSaleAsync(p as QuoteSummaryRow, ResolveCashierUserId()), ex => StatusMessage = $"Error al convertir la cotización: {ex.Message}"));
+        ConvertToSaleCommand = new RelayCommand(p => RequestSaleConversion(p as QuoteSummaryRow ?? SelectedQuote));
         ExportPdfCommand = new RelayCommand(p => RunSafe(ExportPdfAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al generar el PDF: {ex.Message}"));
         SendByEmailCommand = new RelayCommand(p => RunSafe(SendByEmailAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(p => RunSafe(SendByWhatsAppAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
     }
 
     public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
+    public event EventHandler<QuoteSummaryRow>? SaleConversionConfirmationRequested;
 
     public ObservableCollection<QuoteSummaryRow> Quotes { get; }
 
@@ -147,6 +150,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
                 cancellationToken).ConfigureAwait(true);
 
             Quotes.Clear();
+            SelectedQuote = null;
             foreach (QuoteSummary summary in result.Items)
             {
                 Quotes.Add(QuoteSummaryRow.FromSummary(summary));
@@ -253,8 +257,28 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Requests an explicit operator confirmation before creating a sale from the selected quote.
+    /// </summary>
+    public void RequestSaleConversion(QuoteSummaryRow? row)
+    {
+        if (row is null || !CanConvertToSale(row, ResolveCashierUserId()))
+        {
+            return;
+        }
+
+        SelectedQuote = row;
+        SaleConversionConfirmationRequested?.Invoke(this, row);
+    }
+
+    /// <summary>
+    /// Converts a quote only after the view has obtained operator confirmation.
+    /// </summary>
+    public Task ConfirmSaleConversionAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
+        => ConvertToSaleAsync(row, ResolveCashierUserId(), null, cancellationToken);
+
+    /// <summary>
     /// Converts an eligible (non-converted) quote to a sale using full cash payment.
-    /// Blocked when the quote status is already Converted.
+    /// This explicit overload supports non-WPF callers that have already confirmed the operation.
     /// </summary>
     public Task ConvertToSaleAsync(QuoteSummaryRow? row, Guid cashierUserId, CancellationToken cancellationToken = default)
         => ConvertToSaleAsync(row, cashierUserId, null, cancellationToken);
@@ -283,17 +307,8 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
             return;
         }
 
-        if (!row.CanConvertToSale)
+        if (!CanConvertToSale(row, cashierUserId))
         {
-            StatusMessage = row.Status == QuoteStatus.Converted
-                ? "Esta cotización ya fue convertida a venta."
-                : "Solo las cotizaciones activas o en borrador se pueden convertir a venta.";
-            return;
-        }
-
-        if (cashierUserId == Guid.Empty)
-        {
-            StatusMessage = "No hay cajero autenticado para convertir la cotización.";
             return;
         }
 
@@ -346,4 +361,28 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
 
     private Guid ResolveCashierUserId()
         => _operatorSession is { IsAuthenticated: true } ? _operatorSession.OperatorId : Guid.Empty;
+
+    private bool CanConvertToSale(QuoteSummaryRow? row, Guid cashierUserId)
+    {
+        if (row is null)
+        {
+            return false;
+        }
+
+        if (!row.CanConvertToSale)
+        {
+            StatusMessage = row.Status == QuoteStatus.Converted
+                ? "Esta cotización ya fue convertida a venta."
+                : "Solo las cotizaciones activas o en borrador se pueden convertir a venta.";
+            return false;
+        }
+
+        if (cashierUserId == Guid.Empty)
+        {
+            StatusMessage = "No hay cajero autenticado para convertir la cotización.";
+            return false;
+        }
+
+        return true;
+    }
 }

@@ -209,6 +209,7 @@
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
@@ -380,9 +381,35 @@
             <TextBlock Grid.Column="5" Text="Acciones" Style="{StaticResource MutedText}" FontSize="11" Margin="8" />
           </Grid>
 
-          <ScrollViewer Grid.Row="2">
-            <ItemsControl ItemsSource="{Binding Quotes}">
-              <ItemsControl.ItemTemplate>
+           <Border Grid.Row="2"
+                   Margin="14,10,14,0"
+                   Padding="10"
+                   Background="{StaticResource BrushPrimaryContainer}"
+                   CornerRadius="6"
+                   Visibility="{Binding SelectedQuote, Converter={StaticResource NullToVisibilityConverter}}">
+             <Grid>
+               <Grid.ColumnDefinitions>
+                 <ColumnDefinition Width="*" />
+                 <ColumnDefinition Width="Auto" />
+               </Grid.ColumnDefinitions>
+               <TextBlock VerticalAlignment="Center" Style="{StaticResource TextBody}">
+                 <Run Text="Cotización seleccionada: " />
+                 <Run Text="{Binding SelectedQuote.QuoteNumber}" FontWeight="SemiBold" />
+               </TextBlock>
+               <Button Grid.Column="1"
+                       Content="Realizar venta"
+                       Command="{Binding ConvertToSaleCommand}"
+                       CommandParameter="{Binding SelectedQuote}"
+                       Style="{StaticResource PrimaryButton}" />
+             </Grid>
+           </Border>
+
+           <ScrollViewer Grid.Row="3">
+             <ListBox ItemsSource="{Binding Quotes}"
+                      SelectedItem="{Binding SelectedQuote, Mode=TwoWay}"
+                      BorderThickness="0"
+                      Background="Transparent">
+               <ListBox.ItemTemplate>
                 <DataTemplate>
                   <Border Padding="0,6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
                     <Grid>
@@ -442,11 +469,11 @@
                     </Grid>
                   </Border>
                 </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </ScrollViewer>
+               </ListBox.ItemTemplate>
+             </ListBox>
+           </ScrollViewer>
 
-          <Grid Grid.Row="3" Margin="14,8">
+           <Grid Grid.Row="4" Margin="14,8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
