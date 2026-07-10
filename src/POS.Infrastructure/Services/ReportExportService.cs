@@ -12,6 +12,13 @@ public sealed class ReportExportService : IReportExportService
 {
     private static readonly CultureInfo Co = CultureInfo.GetCultureInfo("es-CO");
 
+    private const string BodyColor = "#1A1A1A";
+    private const string LabelColor = "#6B6B6B";
+    private const string BorderColor = "#D0D0D0";
+    private const string HeaderFillColor = "#F2F2F2";
+    private const string CurrencyFormat = "$ #,##0";
+    private const string PercentageFormat = "0.0%";
+
     // QuestPDF refuses to render without a license. ReportService sets this too, but it's never
     // instantiated in the running app, so PDF export here would throw unless we set it ourselves.
     static ReportExportService()
@@ -25,42 +32,25 @@ public sealed class ReportExportService : IReportExportService
         DateTimeOffset to,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(report);
+        ct.ThrowIfCancellationRequested();
+
+        string period = FormatPeriod(from, to);
+        DateTimeOffset generatedAt = DateTimeOffset.Now;
         var bytes = Document.Create(container =>
         {
             container.Page(page =>
             {
-                page.Size(PageSizes.A4);
-                page.Margin(2, QuestPDF.Infrastructure.Unit.Centimetre);
-                page.Content().Column(col =>
+                ConfigureReportPage(page, "Reporte operacional", period, generatedAt);
+                page.Content().Column(column =>
                 {
-                    col.Item().Text($"Reporte Operacional").FontSize(20).Bold();
-                    col.Item().Text($"Periodo: {from.ToLocalTime():yyyy-MM-dd HH:mm} — {to.ToLocalTime():yyyy-MM-dd HH:mm}").FontSize(10);
-                    col.Item().PaddingTop(12).Table(table =>
-                    {
-                        table.ColumnsDefinition(cd =>
-                        {
-                            cd.RelativeColumn(3);
-                            cd.RelativeColumn(2);
-                        });
-
-                        void Row(string label, decimal value)
-                        {
-                            table.Cell().Padding(4).Text(label);
-                            table.Cell().Padding(4).AlignRight().Text(value.ToString("C0", Co));
-                        }
-
-                        table.Header(header =>
-                        {
-                            header.Cell().Padding(4).Text("Concepto").Bold();
-                            header.Cell().Padding(4).AlignRight().Text("Monto").Bold();
-                        });
-
-                        Row("Total Facturado", report.BilledSalesTotal);
-                        Row("Efectivo de Ventas", report.SaleCashCollected);
-                        Row("Pagos Digitales", report.SaleDigitalCollected);
-                        Row("Abonos Cobrados", report.ReceivableSettlementTotal);
-                        Row("Efectivo Esperado en Caja", report.ExpectedDrawerCash);
-                    });
+                    column.Spacing(12);
+                    column.Item().Text("Resumen de recaudo y caja").FontSize(16).Bold();
+                    column.Item().Text("Consulta primero los indicadores clave y luego usa el detalle para conciliar los valores.")
+                        .FontSize(9).FontColor(LabelColor);
+                    column.Item().Element(card => ComposeOperationalKpis(card, report));
+                    column.Item().Element(section => ComposeOperationalBreakdown(section, report));
+                    column.Item().Element(section => ComposeOperationalGuide(section));
                 });
             });
         }).GeneratePdf();
@@ -74,35 +64,20 @@ public sealed class ReportExportService : IReportExportService
         DateTimeOffset to,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(report);
+        ct.ThrowIfCancellationRequested();
+
         using var workbook = new XLWorkbook();
-        var ws = workbook.Worksheets.Add("Operacional");
+        string period = FormatPeriod(from, to);
+        DateTimeOffset generatedAt = DateTimeOffset.Now;
 
-        ws.Cell("A1").Value = "Reporte Operacional";
-        ws.Cell("A1").Style.Font.Bold = true;
-        ws.Cell("A1").Style.Font.FontSize = 14;
-        ws.Cell("A2").Value = $"Periodo: {from.ToLocalTime():yyyy-MM-dd HH:mm} — {to.ToLocalTime():yyyy-MM-dd HH:mm}";
+        var summary = workbook.Worksheets.Add("Resumen");
+        ConfigureWorksheetTitle(summary, 4, "Reporte operacional", period, generatedAt);
+        AddOperationalSummary(summary, report);
 
-        ws.Cell("A4").Value = "Concepto";
-        ws.Cell("B4").Value = "Monto (COP)";
-        ws.Row(4).Style.Font.Bold = true;
-
-        var rows = new[]
-        {
-            ("Total Facturado", report.BilledSalesTotal),
-            ("Efectivo de Ventas", report.SaleCashCollected),
-            ("Pagos Digitales", report.SaleDigitalCollected),
-            ("Abonos Cobrados", report.ReceivableSettlementTotal),
-            ("Efectivo Esperado en Caja", report.ExpectedDrawerCash),
-        };
-
-        for (int i = 0; i < rows.Length; i++)
-        {
-            ws.Cell(5 + i, 1).Value = rows[i].Item1;
-            ws.Cell(5 + i, 2).Value = rows[i].Item2;
-            ws.Cell(5 + i, 2).Style.NumberFormat.Format = "#,##0";
-        }
-
-        ws.Columns().AdjustToContents();
+        var reconciliation = workbook.Worksheets.Add("Conciliación de caja");
+        ConfigureWorksheetTitle(reconciliation, 4, "Conciliación de caja", period, generatedAt);
+        AddOperationalReconciliation(reconciliation, report);
 
         using var ms = new MemoryStream();
         workbook.SaveAs(ms);
@@ -117,91 +92,28 @@ public sealed class ReportExportService : IReportExportService
         DateOnly to,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(topSellers);
+        ArgumentNullException.ThrowIfNull(comparison);
+        ArgumentNullException.ThrowIfNull(margins);
+        ct.ThrowIfCancellationRequested();
+
+        string period = FormatPeriod(from, to);
+        DateTimeOffset generatedAt = DateTimeOffset.Now;
         var bytes = Document.Create(container =>
         {
             container.Page(page =>
             {
-                page.Size(PageSizes.A4);
-                page.Margin(2, QuestPDF.Infrastructure.Unit.Centimetre);
-                page.Content().Column(col =>
+                ConfigureReportPage(page, "Reporte de rentabilidad", period, generatedAt);
+                page.Content().Column(column =>
                 {
-                    col.Item().Text("Reporte de Rentabilidad").FontSize(20).Bold();
-                    col.Item().Text($"Periodo: {from:yyyy-MM-dd} — {to:yyyy-MM-dd}").FontSize(10);
-
-                    col.Item().PaddingTop(12).Text("Top Vendidos").FontSize(14).Bold();
-                    col.Item().Table(table =>
-                    {
-                        table.ColumnsDefinition(cd =>
-                        {
-                            cd.RelativeColumn(3);
-                            cd.RelativeColumn(1);
-                            cd.RelativeColumn(2);
-                        });
-                        table.Header(h =>
-                        {
-                            h.Cell().Padding(3).Text("Producto").Bold();
-                            h.Cell().Padding(3).AlignRight().Text("Unidades").Bold();
-                            h.Cell().Padding(3).AlignRight().Text("Ingreso").Bold();
-                        });
-                        foreach (var s in topSellers)
-                        {
-                            table.Cell().Padding(3).Text(s.ProductName);
-                            table.Cell().Padding(3).AlignRight().Text(s.UnitsSold.ToString());
-                            table.Cell().Padding(3).AlignRight().Text(s.TotalRevenue.ToString("C0", Co));
-                        }
-                    });
-
-                    col.Item().PaddingTop(12).Text("Comparacion de Periodos").FontSize(14).Bold();
-                    col.Item().Table(table =>
-                    {
-                        table.ColumnsDefinition(cd =>
-                        {
-                            cd.RelativeColumn(2);
-                            cd.RelativeColumn(2);
-                            cd.RelativeColumn(2);
-                            cd.RelativeColumn(2);
-                        });
-                        table.Header(h =>
-                        {
-                            h.Cell().Padding(3).Text("Ingreso Actual").Bold();
-                            h.Cell().Padding(3).Text("Ingreso Anterior").Bold();
-                            h.Cell().Padding(3).Text("Margen Actual").Bold();
-                            h.Cell().Padding(3).Text("Crecimiento %").Bold();
-                        });
-                        table.Cell().Padding(3).Text(comparison.CurrentRevenue.ToString("C0", Co));
-                        table.Cell().Padding(3).Text(comparison.PriorRevenue.ToString("C0", Co));
-                        table.Cell().Padding(3).Text(comparison.CurrentMargin.ToString("C0", Co));
-                        table.Cell().Padding(3).Text($"{comparison.RevenueGrowthPercent.ToString("N1", Co)}%");
-                    });
-
-                    col.Item().PaddingTop(12).Text("Margen por Producto").FontSize(14).Bold();
-                    col.Item().Table(table =>
-                    {
-                        table.ColumnsDefinition(cd =>
-                        {
-                            cd.RelativeColumn(3);
-                            cd.RelativeColumn(2);
-                            cd.RelativeColumn(2);
-                            cd.RelativeColumn(2);
-                            cd.RelativeColumn(1);
-                        });
-                        table.Header(h =>
-                        {
-                            h.Cell().Padding(3).Text("Producto").Bold();
-                            h.Cell().Padding(3).AlignRight().Text("Ingreso").Bold();
-                            h.Cell().Padding(3).AlignRight().Text("Costo").Bold();
-                            h.Cell().Padding(3).AlignRight().Text("Margen").Bold();
-                            h.Cell().Padding(3).AlignRight().Text("%").Bold();
-                        });
-                        foreach (var m in margins)
-                        {
-                            table.Cell().Padding(3).Text(m.ProductName);
-                            table.Cell().Padding(3).AlignRight().Text(m.TotalRevenue.ToString("C0", Co));
-                            table.Cell().Padding(3).AlignRight().Text(m.TotalCost.ToString("C0", Co));
-                            table.Cell().Padding(3).AlignRight().Text(m.GrossMargin.ToString("C0", Co));
-                            table.Cell().Padding(3).AlignRight().Text($"{m.MarginPercent.ToString("N1", Co)}%");
-                        }
-                    });
+                    column.Spacing(12);
+                    column.Item().Text("Panorama de rentabilidad").FontSize(16).Bold();
+                    column.Item().Text("Los indicadores resumen el período; las tablas permiten identificar los productos que impulsan o reducen el margen.")
+                        .FontSize(9).FontColor(LabelColor);
+                    column.Item().Element(card => ComposeProfitKpis(card, topSellers, comparison, margins));
+                    column.Item().Element(section => ComposeTopSellersTable(section, topSellers, comparison.CurrentRevenue));
+                    column.Item().Element(section => ComposePeriodComparison(section, comparison));
+                    column.Item().Element(section => ComposeMarginTable(section, margins));
                 });
             });
         }).GeneratePdf();
@@ -217,77 +129,597 @@ public sealed class ReportExportService : IReportExportService
         DateOnly to,
         CancellationToken ct = default)
     {
+        ArgumentNullException.ThrowIfNull(topSellers);
+        ArgumentNullException.ThrowIfNull(comparison);
+        ArgumentNullException.ThrowIfNull(margins);
+        ct.ThrowIfCancellationRequested();
+
         using var workbook = new XLWorkbook();
+        string period = FormatPeriod(from, to);
+        DateTimeOffset generatedAt = DateTimeOffset.Now;
 
-        // Sheet 1: Top Sellers
-        var ws1 = workbook.Worksheets.Add("Top Vendidos");
-        ws1.Cell("A1").Value = $"Top Vendidos — {from:yyyy-MM-dd} / {to:yyyy-MM-dd}";
-        ws1.Cell("A1").Style.Font.Bold = true;
-        ws1.Cell("A1").Style.Font.FontSize = 13;
-        ws1.Cell("A3").Value = "Producto";
-        ws1.Cell("B3").Value = "Unidades";
-        ws1.Cell("C3").Value = "Ingreso (COP)";
-        ws1.Row(3).Style.Font.Bold = true;
-        for (int i = 0; i < topSellers.Count; i++)
-        {
-            ws1.Cell(4 + i, 1).Value = topSellers[i].ProductName;
-            ws1.Cell(4 + i, 2).Value = topSellers[i].UnitsSold;
-            ws1.Cell(4 + i, 3).Value = topSellers[i].TotalRevenue;
-            ws1.Cell(4 + i, 3).Style.NumberFormat.Format = "#,##0";
-        }
-        ws1.Columns().AdjustToContents();
+        var summary = workbook.Worksheets.Add("Resumen");
+        ConfigureWorksheetTitle(summary, 6, "Reporte de rentabilidad", period, generatedAt);
+        AddProfitSummary(summary, topSellers, comparison, margins);
 
-        // Sheet 2: Period Comparison
-        var ws2 = workbook.Worksheets.Add("Comparacion");
-        ws2.Cell("A1").Value = "Comparacion de Periodos";
-        ws2.Cell("A1").Style.Font.Bold = true;
-        ws2.Cell("A1").Style.Font.FontSize = 13;
-        ws2.Cell("A3").Value = "Concepto"; ws2.Cell("B3").Value = "Valor";
-        ws2.Row(3).Style.Font.Bold = true;
-        var compRows = new[]
-        {
-            ("Ingreso Actual", comparison.CurrentRevenue),
-            ("Ingreso Anterior", comparison.PriorRevenue),
-            ("Costo Actual", comparison.CurrentCost),
-            ("Costo Anterior", comparison.PriorCost),
-            ("Margen Actual", comparison.CurrentMargin),
-            ("Margen Anterior", comparison.PriorMargin),
-            ("Crecimiento % Ingresos", comparison.RevenueGrowthPercent),
-        };
-        for (int i = 0; i < compRows.Length; i++)
-        {
-            ws2.Cell(4 + i, 1).Value = compRows[i].Item1;
-            ws2.Cell(4 + i, 2).Value = compRows[i].Item2;
-            ws2.Cell(4 + i, 2).Style.NumberFormat.Format = "#,##0.00";
-        }
-        ws2.Columns().AdjustToContents();
+        var topSellersSheet = workbook.Worksheets.Add("Top vendidos");
+        ConfigureWorksheetTitle(topSellersSheet, 5, "Productos más vendidos", period, generatedAt);
+        AddTopSellersSheet(topSellersSheet, topSellers, comparison.CurrentRevenue);
 
-        // Sheet 3: Product Margins
-        var ws3 = workbook.Worksheets.Add("Margenes");
-        ws3.Cell("A1").Value = $"Margen por Producto — {from:yyyy-MM-dd} / {to:yyyy-MM-dd}";
-        ws3.Cell("A1").Style.Font.Bold = true;
-        ws3.Cell("A1").Style.Font.FontSize = 13;
-        ws3.Cell("A3").Value = "Producto";
-        ws3.Cell("B3").Value = "Ingreso";
-        ws3.Cell("C3").Value = "Costo";
-        ws3.Cell("D3").Value = "Margen";
-        ws3.Cell("E3").Value = "Margen %";
-        ws3.Row(3).Style.Font.Bold = true;
-        for (int i = 0; i < margins.Count; i++)
-        {
-            var m = margins[i];
-            ws3.Cell(4 + i, 1).Value = m.ProductName;
-            ws3.Cell(4 + i, 2).Value = m.TotalRevenue;
-            ws3.Cell(4 + i, 3).Value = m.TotalCost;
-            ws3.Cell(4 + i, 4).Value = m.GrossMargin;
-            ws3.Cell(4 + i, 5).Value = m.MarginPercent;
-            for (int c = 2; c <= 5; c++)
-                ws3.Cell(4 + i, c).Style.NumberFormat.Format = "#,##0.00";
-        }
-        ws3.Columns().AdjustToContents();
+        var marginsSheet = workbook.Worksheets.Add("Márgenes");
+        ConfigureWorksheetTitle(marginsSheet, 6, "Margen por producto", period, generatedAt);
+        AddMarginsSheet(marginsSheet, margins);
 
         using var ms = new MemoryStream();
         workbook.SaveAs(ms);
         return Task.FromResult(ms.ToArray());
     }
+
+    private static void ConfigureReportPage(PageDescriptor page, string title, string period, DateTimeOffset generatedAt)
+    {
+        page.Size(PageSizes.A4);
+        page.Margin(1.4f, Unit.Centimetre);
+        page.DefaultTextStyle(text => text.FontFamily("Segoe UI").FontSize(10).FontColor(BodyColor));
+        page.PageColor(Colors.White);
+        page.Header().Element(header => ComposeReportHeader(header, title, period, generatedAt));
+        page.Footer().Element(ComposeReportFooter);
+    }
+
+    private static void ComposeReportHeader(IContainer container, string title, string period, DateTimeOffset generatedAt)
+    {
+        container.PaddingBottom(12).BorderBottom(0.75f).BorderColor(BorderColor).Row(row =>
+        {
+            row.RelativeItem().Column(info =>
+            {
+                info.Spacing(2);
+                info.Item().Text("POS LOCAL").FontSize(9).Bold().FontColor(LabelColor);
+                info.Item().Text(title.ToUpperInvariant()).FontSize(20).Bold();
+                info.Item().Text($"Período: {period}").FontSize(9).FontColor(LabelColor);
+            });
+            row.ConstantItem(155).AlignRight().Column(meta =>
+            {
+                meta.Spacing(2);
+                meta.Item().Text("DOCUMENTO DE GESTIÓN").FontSize(8).Bold().FontColor(LabelColor);
+                meta.Item().Text($"Generado: {generatedAt.ToLocalTime():yyyy-MM-dd HH:mm}").FontSize(8).FontColor(LabelColor);
+            });
+        });
+    }
+
+    private static void ComposeReportFooter(IContainer container)
+    {
+        container.PaddingTop(10).BorderTop(0.5f).BorderColor(BorderColor).Row(row =>
+        {
+            row.RelativeItem().Text("Generado por POS Local").FontSize(8).FontColor(LabelColor);
+            row.ConstantItem(120).AlignRight().Text(text =>
+            {
+                text.Span("Página ").FontSize(8).FontColor(LabelColor);
+                text.CurrentPageNumber().FontSize(8).FontColor(LabelColor);
+            });
+        });
+    }
+
+    private static void ComposeOperationalKpis(IContainer container, OperationalReportDto report)
+    {
+        container.Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Indicadores clave").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn();
+                    columns.RelativeColumn();
+                    columns.RelativeColumn();
+                });
+
+                AddKpi(table, "Total facturado", report.BilledSalesTotal);
+                AddKpi(table, "Efectivo de ventas", report.SaleCashCollected);
+                AddKpi(table, "Pagos digitales", report.SaleDigitalCollected);
+                AddKpi(table, "Abonos cobrados", report.ReceivableSettlementTotal);
+                AddKpi(table, "Efectivo esperado", report.ExpectedDrawerCash);
+                AddKpi(table, "Recaudo de ventas", report.SaleCashCollected + report.SaleDigitalCollected);
+            });
+        });
+    }
+
+    private static void ComposeOperationalBreakdown(IContainer container, OperationalReportDto report)
+    {
+        container.Element(CardStyle).Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Detalle de recaudo y conciliación").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(3);
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(4);
+                });
+                AddTableHeader(table, "Grupo", "Concepto", "Monto", "Interpretación");
+                AddOperationalRow(table, "Ventas", "Total facturado", report.BilledSalesTotal, "Valor de los artículos facturados en el período.");
+                AddOperationalRow(table, "Ventas", "Efectivo recibido", report.SaleCashCollected, "Dinero físico ingresado por ventas.");
+                AddOperationalRow(table, "Ventas", "Pagos digitales", report.SaleDigitalCollected, "Ingreso registrado fuera de la caja física.");
+                AddOperationalRow(table, "Cartera", "Abonos en efectivo", report.ReceivableSettlementCash, "Abonos que aumentan el efectivo disponible.");
+                AddOperationalRow(table, "Cartera", "Abonos digitales", report.ReceivableSettlementDigital, "Abonos registrados en canales digitales.");
+                AddOperationalRow(table, "Caja", "Efectivo esperado", report.ExpectedDrawerCash, "Monto físico que debe conciliase contra el efectivo contado.", isEmphasized: true);
+            });
+        });
+    }
+
+    private static void ComposeOperationalGuide(IContainer container)
+    {
+        container.Element(CardStyle).Column(column =>
+        {
+            column.Spacing(4);
+            column.Item().Text("Cómo leer este reporte").FontSize(10).Bold().FontColor(LabelColor);
+            column.Item().Text("El efectivo esperado incluye efectivo de ventas y abonos en efectivo. Los pagos digitales son ingresos, pero no deben estar en el cajón de caja.")
+                .FontSize(9);
+        });
+    }
+
+    private static void ComposeProfitKpis(
+        IContainer container,
+        IReadOnlyList<TopSellerResult> topSellers,
+        PeriodComparisonResult comparison,
+        IReadOnlyList<ProductMarginResult> margins)
+    {
+        decimal marginPercentage = comparison.CurrentRevenue == 0m
+            ? 0m
+            : comparison.CurrentMargin / comparison.CurrentRevenue * 100m;
+
+        container.Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Indicadores clave").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn();
+                    columns.RelativeColumn();
+                    columns.RelativeColumn();
+                });
+
+                AddKpi(table, "Ingresos", comparison.CurrentRevenue);
+                AddKpi(table, "Costos", comparison.CurrentCost);
+                AddKpi(table, "Margen bruto", comparison.CurrentMargin);
+                AddKpi(table, "Margen sobre ventas", $"{marginPercentage.ToString("N1", Co)}%");
+                AddKpi(table, "Crecimiento ingresos", $"{comparison.RevenueGrowthPercent.ToString("N1", Co)}%");
+                AddKpi(table, "Productos analizados", margins.Count.ToString("N0", Co));
+            });
+
+            if (topSellers.Count > 0)
+            {
+                TopSellerResult topSeller = topSellers[0];
+                column.Item().Text($"Producto líder: {topSeller.ProductName} · {topSeller.UnitsSold.ToString("N0", Co)} unidades vendidas")
+                    .FontSize(9).FontColor(LabelColor);
+            }
+        });
+    }
+
+    private static void ComposeTopSellersTable(IContainer container, IReadOnlyList<TopSellerResult> topSellers, decimal totalRevenue)
+    {
+        container.Element(CardStyle).Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Productos más vendidos").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.ConstantColumn(34);
+                    columns.RelativeColumn(4);
+                    columns.RelativeColumn(1.3f);
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(1.2f);
+                });
+                AddTableHeader(table, "#", "Producto", "Unid.", "Ingreso", "% ventas");
+
+                if (topSellers.Count == 0)
+                {
+                    AddEmptyTableRow(table, 5, "Sin productos vendidos en el período seleccionado.");
+                    return;
+                }
+
+                for (int index = 0; index < topSellers.Count; index++)
+                {
+                    TopSellerResult seller = topSellers[index];
+                    decimal share = totalRevenue == 0m ? 0m : seller.TotalRevenue / totalRevenue * 100m;
+                    table.Cell().Element(CellStyle).AlignCenter().Text((index + 1).ToString(CultureInfo.InvariantCulture));
+                    table.Cell().Element(CellStyle).Text(seller.ProductName).Bold();
+                    table.Cell().Element(CellStyle).AlignRight().Text(seller.UnitsSold.ToString("N0", Co));
+                    table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(seller.TotalRevenue));
+                    table.Cell().Element(CellStyle).AlignRight().Text($"{share.ToString("N1", Co)}%");
+                }
+            });
+        });
+    }
+
+    private static void ComposePeriodComparison(IContainer container, PeriodComparisonResult comparison)
+    {
+        container.Element(CardStyle).Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Comparación con el período anterior").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(3);
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(2);
+                    columns.RelativeColumn(2);
+                });
+                AddTableHeader(table, "Indicador", "Actual", "Anterior", "Variación");
+                AddComparisonRow(table, "Ingresos", comparison.CurrentRevenue, comparison.PriorRevenue, comparison.RevenueGrowthPercent);
+                AddComparisonRow(table, "Costos", comparison.CurrentCost, comparison.PriorCost, PercentChange(comparison.CurrentCost, comparison.PriorCost));
+                AddComparisonRow(table, "Margen bruto", comparison.CurrentMargin, comparison.PriorMargin, PercentChange(comparison.CurrentMargin, comparison.PriorMargin));
+            });
+        });
+    }
+
+    private static void ComposeMarginTable(IContainer container, IReadOnlyList<ProductMarginResult> margins)
+    {
+        container.Element(CardStyle).Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Margen por producto").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(3);
+                    columns.RelativeColumn(1.8f);
+                    columns.RelativeColumn(1.8f);
+                    columns.RelativeColumn(1.8f);
+                    columns.RelativeColumn(1.2f);
+                });
+                AddTableHeader(table, "Producto", "Ingreso", "Costo", "Margen", "% margen");
+
+                if (margins.Count == 0)
+                {
+                    AddEmptyTableRow(table, 5, "Sin margen por producto para el período seleccionado.");
+                    return;
+                }
+
+                foreach (ProductMarginResult margin in margins)
+                {
+                    table.Cell().Element(CellStyle).Text(margin.ProductName).Bold();
+                    table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(margin.TotalRevenue));
+                    table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(margin.TotalCost));
+                    table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(margin.GrossMargin));
+                    table.Cell().Element(CellStyle).AlignRight().Text($"{margin.MarginPercent.ToString("N1", Co)}%");
+                }
+            });
+        });
+    }
+
+    private static void AddKpi(TableDescriptor table, string label, decimal value) => AddKpi(table, label, FormatCurrency(value));
+
+    private static void AddKpi(TableDescriptor table, string label, string value)
+    {
+        table.Cell().PaddingRight(4).Element(KpiCard).Column(column =>
+        {
+            column.Spacing(3);
+            column.Item().Text(label).FontSize(8).FontColor(LabelColor);
+            column.Item().Text(value).FontSize(12).Bold();
+        });
+    }
+
+    private static void AddTableHeader(TableDescriptor table, params string[] headers)
+    {
+        table.Header(headerRow =>
+        {
+            foreach (string header in headers)
+            {
+                headerRow.Cell().Element(HeaderCellStyle).Text(header).Bold();
+            }
+        });
+    }
+
+    private static void AddOperationalRow(
+        TableDescriptor table,
+        string group,
+        string concept,
+        decimal amount,
+        string interpretation,
+        bool isEmphasized = false)
+    {
+        table.Cell().Element(container => DataCellStyle(container, isEmphasized)).Text(group);
+        table.Cell().Element(container => DataCellStyle(container, isEmphasized)).Text(concept).Bold();
+        table.Cell().Element(container => DataCellStyle(container, isEmphasized)).AlignRight().Text(FormatCurrency(amount)).Bold();
+        table.Cell().Element(container => DataCellStyle(container, isEmphasized)).Text(interpretation).FontSize(8).FontColor(LabelColor);
+    }
+
+    private static void AddComparisonRow(TableDescriptor table, string label, decimal current, decimal prior, decimal percentage)
+    {
+        string variation = prior == 0m && current != 0m ? "N/A" : $"{percentage.ToString("N1", Co)}%";
+        table.Cell().Element(CellStyle).Text(label).Bold();
+        table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(current));
+        table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(prior));
+        table.Cell().Element(CellStyle).AlignRight().Text(variation).Bold();
+    }
+
+    private static void AddEmptyTableRow(TableDescriptor table, int columnCount, string message)
+    {
+        table.Cell().ColumnSpan((uint)columnCount).Element(CellStyle).AlignCenter().Text(message).Italic().FontColor(LabelColor);
+    }
+
+    private static void ConfigureWorksheetTitle(IXLWorksheet worksheet, int lastColumn, string title, string period, DateTimeOffset generatedAt)
+    {
+        worksheet.Range(1, 1, 1, lastColumn).Merge();
+        worksheet.Cell(1, 1).Value = title.ToUpperInvariant();
+        worksheet.Range(1, 1, 1, lastColumn).Style.Font.Bold = true;
+        worksheet.Range(1, 1, 1, lastColumn).Style.Font.FontSize = 16;
+        worksheet.Range(1, 1, 1, lastColumn).Style.Font.FontColor = XLColor.White;
+        worksheet.Range(1, 1, 1, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#1F4E78");
+        worksheet.Range(1, 1, 1, lastColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        worksheet.Row(1).Height = 28;
+
+        worksheet.Range(2, 1, 2, lastColumn).Merge();
+        worksheet.Cell(2, 1).Value = $"Período: {period}  |  Generado: {generatedAt.ToLocalTime():yyyy-MM-dd HH:mm}";
+        worksheet.Range(2, 1, 2, lastColumn).Style.Font.FontColor = XLColor.DimGray;
+        worksheet.Range(2, 1, 2, lastColumn).Style.Font.Italic = true;
+        worksheet.Range(2, 1, 2, lastColumn).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+    }
+
+    private static void AddOperationalSummary(IXLWorksheet worksheet, OperationalReportDto report)
+    {
+        AddExcelSectionTitle(worksheet, 4, 1, 4, "Indicadores clave");
+        AddExcelKpi(worksheet, 5, 1, "Total facturado", report.BilledSalesTotal);
+        AddExcelKpi(worksheet, 5, 3, "Efectivo esperado", report.ExpectedDrawerCash);
+        AddExcelKpi(worksheet, 7, 1, "Pagos digitales", report.SaleDigitalCollected);
+        AddExcelKpi(worksheet, 7, 3, "Abonos cobrados", report.ReceivableSettlementTotal);
+
+        AddExcelSectionTitle(worksheet, 10, 1, 4, "Resumen de recaudo");
+        AddExcelHeader(worksheet, 11, "Grupo", "Concepto", "Monto (COP)", "Qué representa");
+        AddExcelOperationalRow(worksheet, 12, "Ventas", "Total facturado", report.BilledSalesTotal, "Valor de los artículos facturados.");
+        AddExcelOperationalRow(worksheet, 13, "Ventas", "Efectivo recibido", report.SaleCashCollected, "Dinero físico ingresado por ventas.");
+        AddExcelOperationalRow(worksheet, 14, "Ventas", "Pagos digitales", report.SaleDigitalCollected, "Ingreso fuera de la caja física.");
+        AddExcelOperationalRow(worksheet, 15, "Cartera", "Abonos cobrados", report.ReceivableSettlementTotal, "Pagos aplicados a cuentas por cobrar.");
+        AddExcelOperationalRow(worksheet, 16, "Caja", "Efectivo esperado", report.ExpectedDrawerCash, "Monto que debe conciliase contra el efectivo contado.", isEmphasized: true);
+        FormatExcelTable(worksheet, 11, 16, 4, freezeRows: 11);
+        worksheet.Column(1).Width = 16;
+        worksheet.Column(2).Width = 25;
+        worksheet.Column(3).Width = 18;
+        worksheet.Column(4).Width = 46;
+    }
+
+    private static void AddOperationalReconciliation(IXLWorksheet worksheet, OperationalReportDto report)
+    {
+        AddExcelSectionTitle(worksheet, 4, 1, 4, "Entradas que afectan la conciliación");
+        AddExcelHeader(worksheet, 5, "Origen", "Canal", "Monto (COP)", "Impacto en caja física");
+        AddExcelOperationalRow(worksheet, 6, "Ventas", "Efectivo", report.SaleCashCollected, "Sí, aumenta el efectivo esperado.");
+        AddExcelOperationalRow(worksheet, 7, "Ventas", "Digital", report.SaleDigitalCollected, "No, se recauda fuera de la caja.");
+        AddExcelOperationalRow(worksheet, 8, "Abonos de cartera", "Efectivo", report.ReceivableSettlementCash, "Sí, aumenta el efectivo esperado.");
+        AddExcelOperationalRow(worksheet, 9, "Abonos de cartera", "Digital", report.ReceivableSettlementDigital, "No, se recauda fuera de la caja.");
+        AddExcelOperationalRow(worksheet, 10, "Conciliación", "Efectivo esperado", report.ExpectedDrawerCash, "Compare este valor con el dinero contado.", isEmphasized: true);
+        FormatExcelTable(worksheet, 5, 10, 4, freezeRows: 5);
+        worksheet.Column(1).Width = 22;
+        worksheet.Column(2).Width = 22;
+        worksheet.Column(3).Width = 18;
+        worksheet.Column(4).Width = 42;
+    }
+
+    private static void AddProfitSummary(
+        IXLWorksheet worksheet,
+        IReadOnlyList<TopSellerResult> topSellers,
+        PeriodComparisonResult comparison,
+        IReadOnlyList<ProductMarginResult> margins)
+    {
+        decimal marginPercentage = comparison.CurrentRevenue == 0m ? 0m : comparison.CurrentMargin / comparison.CurrentRevenue;
+        AddExcelSectionTitle(worksheet, 4, 1, 6, "Indicadores clave");
+        AddExcelKpi(worksheet, 5, 1, "Ingresos", comparison.CurrentRevenue);
+        AddExcelKpi(worksheet, 5, 3, "Costos", comparison.CurrentCost);
+        AddExcelKpi(worksheet, 5, 5, "Margen bruto", comparison.CurrentMargin);
+        AddExcelKpi(worksheet, 7, 1, "Margen sobre ventas", marginPercentage, PercentageFormat);
+        AddExcelKpi(worksheet, 7, 3, "Crecimiento ingresos", comparison.RevenueGrowthPercent / 100m, PercentageFormat);
+        AddExcelKpi(worksheet, 7, 5, "Productos analizados", margins.Count);
+
+        AddExcelSectionTitle(worksheet, 10, 1, 6, "Comparación con el período anterior");
+        AddExcelHeader(worksheet, 11, "Indicador", "Actual", "Anterior", "Variación", "Lectura", "");
+        AddExcelComparisonRow(worksheet, 12, "Ingresos", comparison.CurrentRevenue, comparison.PriorRevenue, comparison.RevenueGrowthPercent);
+        AddExcelComparisonRow(worksheet, 13, "Costos", comparison.CurrentCost, comparison.PriorCost, PercentChange(comparison.CurrentCost, comparison.PriorCost));
+        AddExcelComparisonRow(worksheet, 14, "Margen bruto", comparison.CurrentMargin, comparison.PriorMargin, PercentChange(comparison.CurrentMargin, comparison.PriorMargin));
+        FormatExcelTable(worksheet, 11, 14, 5, freezeRows: 11);
+
+        string topProduct = topSellers.Count == 0
+            ? "Sin ventas en el período seleccionado."
+            : $"Producto líder: {topSellers[0].ProductName} ({topSellers[0].UnitsSold.ToString("N0", Co)} unidades).";
+        worksheet.Range(17, 1, 17, 6).Merge();
+        worksheet.Cell(17, 1).Value = topProduct;
+        worksheet.Range(17, 1, 17, 6).Style.Font.Italic = true;
+        worksheet.Range(17, 1, 17, 6).Style.Font.FontColor = XLColor.DimGray;
+        worksheet.Column(1).Width = 24;
+        worksheet.Columns(2, 4).Width = 17;
+        worksheet.Columns(5, 6).Width = 20;
+    }
+
+    private static void AddTopSellersSheet(IXLWorksheet worksheet, IReadOnlyList<TopSellerResult> topSellers, decimal totalRevenue)
+    {
+        AddExcelHeader(worksheet, 4, "Ranking", "Producto", "Unidades", "Ingreso (COP)", "% de ventas");
+        if (topSellers.Count == 0)
+        {
+            worksheet.Range(5, 1, 5, 5).Merge();
+            worksheet.Cell(5, 1).Value = "Sin productos vendidos en el período seleccionado.";
+            worksheet.Cell(5, 1).Style.Font.Italic = true;
+            worksheet.Cell(5, 1).Style.Font.FontColor = XLColor.DimGray;
+        }
+        else
+        {
+            for (int index = 0; index < topSellers.Count; index++)
+            {
+                TopSellerResult seller = topSellers[index];
+                int row = 5 + index;
+                worksheet.Cell(row, 1).Value = index + 1;
+                worksheet.Cell(row, 2).Value = seller.ProductName;
+                worksheet.Cell(row, 3).Value = seller.UnitsSold;
+                worksheet.Cell(row, 4).Value = seller.TotalRevenue;
+                worksheet.Cell(row, 4).Style.NumberFormat.Format = CurrencyFormat;
+                worksheet.Cell(row, 5).Value = totalRevenue == 0m ? 0m : seller.TotalRevenue / totalRevenue;
+                worksheet.Cell(row, 5).Style.NumberFormat.Format = PercentageFormat;
+            }
+        }
+
+        int lastRow = Math.Max(5, 4 + topSellers.Count);
+        FormatExcelTable(worksheet, 4, lastRow, 5, freezeRows: 4);
+        worksheet.Column(1).Width = 12;
+        worksheet.Column(2).Width = 38;
+        worksheet.Column(3).Width = 14;
+        worksheet.Column(4).Width = 18;
+        worksheet.Column(5).Width = 14;
+    }
+
+    private static void AddMarginsSheet(IXLWorksheet worksheet, IReadOnlyList<ProductMarginResult> margins)
+    {
+        AddExcelHeader(worksheet, 4, "Producto", "Ingreso (COP)", "Costo (COP)", "Margen (COP)", "% margen", "Estado");
+        if (margins.Count == 0)
+        {
+            worksheet.Range(5, 1, 5, 6).Merge();
+            worksheet.Cell(5, 1).Value = "Sin margen por producto para el período seleccionado.";
+            worksheet.Cell(5, 1).Style.Font.Italic = true;
+            worksheet.Cell(5, 1).Style.Font.FontColor = XLColor.DimGray;
+        }
+        else
+        {
+            for (int index = 0; index < margins.Count; index++)
+            {
+                ProductMarginResult margin = margins[index];
+                int row = 5 + index;
+                worksheet.Cell(row, 1).Value = margin.ProductName;
+                worksheet.Cell(row, 2).Value = margin.TotalRevenue;
+                worksheet.Cell(row, 3).Value = margin.TotalCost;
+                worksheet.Cell(row, 4).Value = margin.GrossMargin;
+                worksheet.Cell(row, 5).Value = margin.MarginPercent / 100m;
+                worksheet.Cell(row, 6).Value = margin.GrossMargin >= 0m ? "Rentable" : "Revisar";
+                worksheet.Range(row, 2, row, 4).Style.NumberFormat.Format = CurrencyFormat;
+                worksheet.Cell(row, 5).Style.NumberFormat.Format = PercentageFormat;
+                worksheet.Cell(row, 6).Style.Font.FontColor = margin.GrossMargin >= 0m ? XLColor.DarkGreen : XLColor.DarkRed;
+            }
+        }
+
+        int lastRow = Math.Max(5, 4 + margins.Count);
+        FormatExcelTable(worksheet, 4, lastRow, 6, freezeRows: 4);
+        worksheet.Column(1).Width = 38;
+        worksheet.Columns(2, 4).Width = 18;
+        worksheet.Column(5).Width = 14;
+        worksheet.Column(6).Width = 14;
+    }
+
+    private static void AddExcelSectionTitle(IXLWorksheet worksheet, int row, int firstColumn, int lastColumn, string title)
+    {
+        worksheet.Range(row, firstColumn, row, lastColumn).Merge();
+        worksheet.Cell(row, firstColumn).Value = title;
+        worksheet.Range(row, firstColumn, row, lastColumn).Style.Font.Bold = true;
+        worksheet.Range(row, firstColumn, row, lastColumn).Style.Font.FontColor = XLColor.White;
+        worksheet.Range(row, firstColumn, row, lastColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("#5B9BD5");
+    }
+
+    private static void AddExcelKpi(IXLWorksheet worksheet, int row, int column, string label, decimal value, string numberFormat = CurrencyFormat)
+    {
+        worksheet.Range(row, column, row, column + 1).Merge();
+        worksheet.Cell(row, column).Value = label;
+        worksheet.Range(row, column, row, column + 1).Style.Font.Bold = true;
+        worksheet.Range(row, column, row, column + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#D9EAF7");
+        worksheet.Range(row + 1, column, row + 1, column + 1).Merge();
+        worksheet.Cell(row + 1, column).Value = value;
+        worksheet.Cell(row + 1, column).Style.Font.Bold = true;
+        worksheet.Cell(row + 1, column).Style.Font.FontSize = 13;
+        worksheet.Cell(row + 1, column).Style.NumberFormat.Format = numberFormat;
+        worksheet.Range(row, column, row + 1, column + 1).Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        worksheet.Range(row, column, row + 1, column + 1).Style.Border.OutsideBorderColor = XLColor.LightGray;
+    }
+
+    private static void AddExcelKpi(IXLWorksheet worksheet, int row, int column, string label, int value)
+    {
+        AddExcelKpi(worksheet, row, column, label, (decimal)value, "#,##0");
+    }
+
+    private static void AddExcelHeader(IXLWorksheet worksheet, int row, params string[] headers)
+    {
+        for (int index = 0; index < headers.Length; index++)
+        {
+            IXLCell cell = worksheet.Cell(row, index + 1);
+            cell.Value = headers[index];
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.FontColor = XLColor.White;
+            cell.Style.Fill.BackgroundColor = XLColor.FromHtml("#1F4E78");
+            cell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        }
+    }
+
+    private static void AddExcelOperationalRow(
+        IXLWorksheet worksheet,
+        int row,
+        string group,
+        string concept,
+        decimal amount,
+        string interpretation,
+        bool isEmphasized = false)
+    {
+        worksheet.Cell(row, 1).Value = group;
+        worksheet.Cell(row, 2).Value = concept;
+        worksheet.Cell(row, 3).Value = amount;
+        worksheet.Cell(row, 3).Style.NumberFormat.Format = CurrencyFormat;
+        worksheet.Cell(row, 4).Value = interpretation;
+
+        if (isEmphasized)
+        {
+            worksheet.Range(row, 1, row, 4).Style.Font.Bold = true;
+            worksheet.Range(row, 1, row, 4).Style.Fill.BackgroundColor = XLColor.FromHtml("#E2F0D9");
+        }
+    }
+
+    private static void AddExcelComparisonRow(IXLWorksheet worksheet, int row, string label, decimal current, decimal prior, decimal percentage)
+    {
+        worksheet.Cell(row, 1).Value = label;
+        worksheet.Cell(row, 2).Value = current;
+        worksheet.Cell(row, 3).Value = prior;
+        worksheet.Cell(row, 4).Value = percentage / 100m;
+        worksheet.Cell(row, 5).Value = prior == 0m && current != 0m
+            ? "Sin base anterior"
+            : percentage >= 0m ? "Mejora" : "Disminuye";
+        worksheet.Range(row, 2, row, 3).Style.NumberFormat.Format = CurrencyFormat;
+        worksheet.Cell(row, 4).Style.NumberFormat.Format = PercentageFormat;
+        worksheet.Cell(row, 5).Style.Font.FontColor = percentage >= 0m ? XLColor.DarkGreen : XLColor.DarkRed;
+    }
+
+    private static void FormatExcelTable(IXLWorksheet worksheet, int headerRow, int lastRow, int lastColumn, int freezeRows)
+    {
+        IXLRange range = worksheet.Range(headerRow, 1, lastRow, lastColumn);
+        range.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        range.Style.Border.InsideBorder = XLBorderStyleValues.Hair;
+        range.Style.Border.OutsideBorderColor = XLColor.LightGray;
+        range.Style.Border.InsideBorderColor = XLColor.LightGray;
+        worksheet.Range(headerRow, 1, headerRow, lastColumn).SetAutoFilter();
+        worksheet.SheetView.FreezeRows(freezeRows);
+    }
+
+    private static string FormatPeriod(DateTimeOffset from, DateTimeOffset to) =>
+        $"{from.ToLocalTime():yyyy-MM-dd HH:mm} — {to.ToLocalTime():yyyy-MM-dd HH:mm}";
+
+    private static string FormatPeriod(DateOnly from, DateOnly to) => $"{from:yyyy-MM-dd} — {to:yyyy-MM-dd}";
+
+    private static string FormatCurrency(decimal value) => value.ToString("C0", Co);
+
+    private static decimal PercentChange(decimal current, decimal prior) => prior == 0m ? 0m : (current - prior) / prior * 100m;
+
+    private static IContainer CardStyle(IContainer container) =>
+        container.Border(0.75f).BorderColor(BorderColor).Padding(12);
+
+    private static IContainer KpiCard(IContainer container) =>
+        container.Border(0.75f).BorderColor(BorderColor).Padding(8);
+
+    private static IContainer HeaderCellStyle(IContainer container) =>
+        container.Background(HeaderFillColor).BorderBottom(0.75f).BorderColor(BorderColor).PaddingVertical(6).PaddingHorizontal(6);
+
+    private static IContainer CellStyle(IContainer container) =>
+        container.BorderBottom(0.5f).BorderColor("#ECECEC").PaddingVertical(6).PaddingHorizontal(6);
+
+    private static IContainer DataCellStyle(IContainer container, bool isEmphasized) =>
+        (isEmphasized ? container.Background("#F2F2F2") : container)
+            .BorderBottom(0.5f).BorderColor("#ECECEC").PaddingVertical(6).PaddingHorizontal(6);
 }
