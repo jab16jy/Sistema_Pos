@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.2.0...v1.2.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **barcode:** use explicit es-CO culture in label price formatting ([f8b100d](https://github.com/jab16jy/Sistema_Pos/commit/f8b100d7ac3aed0eab083d0a5424007f28b13afe))
+* **cashier:** use explicit es-CO culture for decimal formatting ([e0c3e7a](https://github.com/jab16jy/Sistema_Pos/commit/e0c3e7a83236eb005c0fe2c45f89813ecc032d16))
+* **loyalty:** use explicit es-CO culture in LoyaltyViewModel formatting ([d4e13d4](https://github.com/jab16jy/Sistema_Pos/commit/d4e13d41fc9ab29b0323f954855e01002cb4e78a))
+* **printing,reports:** use explicit es-CO culture in receipt/report formatting ([afb84cc](https://github.com/jab16jy/Sistema_Pos/commit/afb84cc3804a5f4c3f5cf5d0d4c1b1436c8bbc34))
+
 ## [1.2.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.1.0...v1.2.0) (2026-07-10)
 
 
