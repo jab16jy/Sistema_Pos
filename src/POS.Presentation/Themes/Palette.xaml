@@ -7,10 +7,13 @@
   <Color x:Key="ColorPrimary">#0369A1</Color>
   <Color x:Key="ColorPrimaryDark">#075985</Color>
   <Color x:Key="ColorPrimaryContainer">#E0F2FE</Color>
+  <Color x:Key="ColorPrimaryAction">#66A3C2</Color>
   <Color x:Key="ColorAccent">#0F766E</Color>
+  <Color x:Key="ColorAccentAction">#579F9A</Color>
   <Color x:Key="ColorSecondaryContainer">#CCFBF1</Color>
   <Color x:Key="ColorSidebar">#1E293B</Color>
   <Color x:Key="ColorText">#18181B</Color>
+  <Color x:Key="ColorButtonText">#000000</Color>
   <Color x:Key="ColorMuted">#71717A</Color>
   <Color x:Key="ColorBorder">#D4D4D8</Color>
   <Color x:Key="ColorDanger">#DC2626</Color>
@@ -28,10 +31,13 @@
   <SolidColorBrush x:Key="BrushPrimary" Color="{StaticResource ColorPrimary}" />
   <SolidColorBrush x:Key="BrushPrimaryDark" Color="{StaticResource ColorPrimaryDark}" />
   <SolidColorBrush x:Key="BrushPrimaryContainer" Color="{StaticResource ColorPrimaryContainer}" />
+  <SolidColorBrush x:Key="BrushPrimaryAction" Color="{StaticResource ColorPrimaryAction}" />
   <SolidColorBrush x:Key="BrushAccent" Color="{StaticResource ColorAccent}" />
+  <SolidColorBrush x:Key="BrushAccentAction" Color="{StaticResource ColorAccentAction}" />
   <SolidColorBrush x:Key="BrushSecondaryContainer" Color="{StaticResource ColorSecondaryContainer}" />
   <SolidColorBrush x:Key="BrushSidebar" Color="{StaticResource ColorSidebar}" />
   <SolidColorBrush x:Key="BrushText" Color="{StaticResource ColorText}" />
+  <SolidColorBrush x:Key="BrushButtonText" Color="{StaticResource ColorButtonText}" />
   <SolidColorBrush x:Key="BrushMuted" Color="{StaticResource ColorMuted}" />
   <SolidColorBrush x:Key="BrushBorder" Color="{StaticResource ColorBorder}" />
   <SolidColorBrush x:Key="BrushDanger" Color="{StaticResource ColorDanger}" />
