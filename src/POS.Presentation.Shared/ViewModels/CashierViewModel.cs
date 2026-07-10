@@ -492,7 +492,7 @@ public sealed class CashierViewModel : ViewModelBase
 
     public decimal CartUnitCount => CartItems.Sum(item => item.Quantity);
 
-    public string CartSummaryText => $"{CartLineCount} productos · {CartUnitCount:0.##} unidades";
+    public string CartSummaryText => $"{CartLineCount} productos · {CartUnitCount.ToString("0.##", ColombianCulture)} unidades";
 
     public string SubtotalSummaryText => $"Subtotal: {TotalText}";
 
@@ -715,7 +715,7 @@ public sealed class CashierViewModel : ViewModelBase
         decimal requestedUnits = Quantity * unitsPerLine;
         if (requestedUnits > SelectedProduct.AvailableStock)
         {
-            Message = $"Solo hay {SelectedProduct.AvailableStock:0.##} unidades disponibles de {SelectedProduct.Name}.";
+            Message = $"Solo hay {SelectedProduct.AvailableStock.ToString("0.##", ColombianCulture)} unidades disponibles de {SelectedProduct.Name}.";
             return false;
         }
 
@@ -728,7 +728,7 @@ public sealed class CashierViewModel : ViewModelBase
             decimal requestedTotalUnits = (existingItem.Quantity + Quantity) * unitsPerLine;
             if (requestedTotalUnits > SelectedProduct.AvailableStock)
             {
-                Message = $"No puedes vender esa cantidad; solo hay {SelectedProduct.AvailableStock:0.##} unidades disponibles.";
+                Message = $"No puedes vender esa cantidad; solo hay {SelectedProduct.AvailableStock.ToString("0.##", ColombianCulture)} unidades disponibles.";
                 return false;
             }
 
@@ -1199,7 +1199,7 @@ public sealed class CashierViewModel : ViewModelBase
             var result = await _redeemLoyaltyPointsUseCase.PreviewAsync(request, cancellationToken).ConfigureAwait(true);
             LoyaltyPointsToRedeem = result.PointsRedeemed;
             LoyaltyDiscount = result.DiscountAmount;
-            Message = $"Descuento de lealtad aplicado: ${result.DiscountAmount:N0} ({result.PointsRedeemed} puntos). Se descontarán al confirmar la venta.";
+            Message = $"Descuento de lealtad aplicado: ${result.DiscountAmount.ToString("N0", ColombianCulture)} ({result.PointsRedeemed} puntos). Se descontarán al confirmar la venta.";
         }
         catch (InvalidOperationException ex)
         {

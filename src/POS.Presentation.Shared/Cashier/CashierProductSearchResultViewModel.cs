@@ -20,7 +20,7 @@ public sealed class CashierProductSearchResultViewModel
     public decimal AvailableStock => Product.AvailableStock;
     public decimal MinimumStock => Product.MinimumStock;
     public string UnitPriceText => FormatCurrency(UnitPrice);
-    public string StockText => $"Stock: {AvailableStock:0.##}";
+    public string StockText => $"Stock: {AvailableStock.ToString("0.##", ColombianCulture)}";
 
     // ── Box presentation (optional) ──
     public int? UnitsPerBox => Product.UnitsPerBox;
