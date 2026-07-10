@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.DTOs.Products;
@@ -14,6 +15,8 @@ namespace POS.Presentation.Shared.ViewModels;
 /// </summary>
 public sealed class BarcodeViewModel : ViewModelBase
 {
+    private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+
     private readonly GenerateBarcodeUseCase _generateBarcode;
     private readonly PrintLabelsUseCase _printLabels;
     private readonly IProductLookupService _productLookup;
@@ -187,7 +190,7 @@ public sealed class BarcodeViewModel : ViewModelBase
 
     public string PreviewLabel => string.IsNullOrWhiteSpace(LabelText) ? "PRODUCTO" : LabelText.ToUpperInvariant();
 
-    public string PreviewPriceFormatted => LabelPrice.HasValue && LabelPrice.Value > 0 ? $"${LabelPrice.Value:N0}" : string.Empty;
+    public string PreviewPriceFormatted => LabelPrice.HasValue && LabelPrice.Value > 0 ? $"${LabelPrice.Value.ToString("N0", ColombianCulture)}" : string.Empty;
 
     public bool HasPreviewPrice => LabelPrice.HasValue && LabelPrice.Value > 0;
 
@@ -416,6 +419,8 @@ public sealed class BarcodeViewModel : ViewModelBase
 /// <summary>Presentation-only batch item for barcode label printing.</summary>
 public sealed class BarcodeBatchItem : ViewModelBase
 {
+    private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+
     private int _copies;
 
     public BarcodeBatchItem(string productId, string name, string barcodeValue, decimal price, int copies)
@@ -438,6 +443,6 @@ public sealed class BarcodeBatchItem : ViewModelBase
         set => SetProperty(ref _copies, value < 1 ? 1 : value);
     }
 
-    public string PriceFormatted => Price > 0 ? $"${Price:N0}" : string.Empty;
-    public string MetaLine => Price > 0 ? $"{BarcodeValue} · ${Price:N0}" : BarcodeValue;
+    public string PriceFormatted => Price > 0 ? $"${Price.ToString("N0", ColombianCulture)}" : string.Empty;
+    public string MetaLine => Price > 0 ? $"{BarcodeValue} · ${Price.ToString("N0", ColombianCulture)}" : BarcodeValue;
 }

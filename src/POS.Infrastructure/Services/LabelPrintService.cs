@@ -1,3 +1,4 @@
+using System.Globalization;
 using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.Interfaces;
 using ZXing;
@@ -8,6 +9,8 @@ namespace POS.Infrastructure.Services;
 
 public sealed class LabelPrintService : ILabelPrintService
 {
+    private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+
     private static readonly byte[] CmdInit = [0x1B, 0x40];
     private static readonly byte[] CmdCenterAlign = [0x1B, 0x61, 0x01];
     private static readonly byte[] CmdLeftAlign = [0x1B, 0x61, 0x00];
@@ -87,7 +90,7 @@ public sealed class LabelPrintService : ILabelPrintService
                 if (label.Price > 0)
                 {
                     Write(CmdBoldOn);
-                    WriteLine($"${label.Price:N0}");
+                    WriteLine($"${label.Price.ToString("N0", ColombianCulture)}");
                     Write(CmdBoldOff);
                 }
 
