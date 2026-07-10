@@ -2,6 +2,7 @@ using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Settings;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 using Xunit;
 
@@ -128,16 +129,26 @@ public sealed class SettingsUseCaseTests
     {
         var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
         var backupService = new StubManualBackupService("C:/Backups/backup-20260627.sqlite");
-        var useCase = new TriggerManualBackupUseCase(new InMemorySettingsRepository(settings), backupService);
+        var repository = new InMemorySettingsRepository(settings);
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = new TriggerManualBackupUseCase(repository, backupService, unitOfWork, new StubOperatorSession("maria"));
 
         ManualBackupResult result = await useCase.ExecuteAsync(
             new ManualBackupRequest(),
             TestContext.Current.CancellationToken);
 
         Assert.True(result.Succeeded);
-        Assert.Equal("Backup created successfully", result.Message);
+        Assert.Equal("Backup created and validated successfully.", result.Message);
         Assert.Equal("C:/Backups", backupService.LastDestinationDirectory);
         Assert.Equal("C:/Backups/backup-20260627.sqlite", result.BackupFilePath);
+        Assert.NotNull(result.LastSuccessfulBackup);
+        Assert.Equal("maria", result.LastSuccessfulBackup.OperatorUsername);
+        Assert.Equal(1024, result.LastSuccessfulBackup.SizeBytes);
+        Assert.Equal(result.LastSuccessfulBackup.TimestampUtc, settings.LastBackupAtUtc);
+        Assert.Equal(result.LastSuccessfulBackup.Location, settings.LastBackupLocation);
+        Assert.Equal("maria", settings.LastBackupUsername);
+        Assert.Equal(1, repository.SaveCount);
+        Assert.Equal(1, unitOfWork.SaveCount);
     }
 
     [Fact]
@@ -145,7 +156,11 @@ public sealed class SettingsUseCaseTests
     {
         var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, null, "COP");
         var backupService = new StubManualBackupService("unused");
-        var useCase = new TriggerManualBackupUseCase(new InMemorySettingsRepository(settings), backupService);
+        var useCase = new TriggerManualBackupUseCase(
+            new InMemorySettingsRepository(settings),
+            backupService,
+            new CountingUnitOfWork(),
+            new StubOperatorSession("maria"));
 
         ManualBackupResult result = await useCase.ExecuteAsync(
             new ManualBackupRequest(),
@@ -205,19 +220,32 @@ public sealed class SettingsUseCaseTests
 
     private sealed class StubManualBackupService : IManualBackupService
     {
-        private readonly string _backupFilePath;
+        private readonly BackupFile _backupFile;
 
         public StubManualBackupService(string backupFilePath)
         {
-            _backupFilePath = backupFilePath;
+            _backupFile = new BackupFile(backupFilePath, new DateTimeOffset(2026, 6, 27, 10, 30, 0, TimeSpan.Zero), 1024);
         }
 
         public string? LastDestinationDirectory { get; private set; }
 
-        public Task<string> CreateBackupAsync(string destinationDirectory, CancellationToken cancellationToken = default)
+        public Task<BackupFile> CreateBackupAsync(string destinationDirectory, CancellationToken cancellationToken = default)
         {
             LastDestinationDirectory = destinationDirectory;
-            return Task.FromResult(_backupFilePath);
+            return Task.FromResult(_backupFile);
         }
+    }
+
+    private sealed class StubOperatorSession : ICurrentOperatorSession
+    {
+        public StubOperatorSession(string username)
+        {
+            Username = username;
+        }
+
+        public Guid OperatorId => Guid.NewGuid();
+        public string Username { get; }
+        public UserRole Role => UserRole.Administrator;
+        public bool IsAuthenticated => true;
     }
 }

@@ -56,6 +56,10 @@ public sealed class BusinessSettings
     public string? PrinterCommand { get; private set; }
     public string? PrinterWorkingDirectory { get; private set; }
     public string? BackupDirectory { get; private set; }
+    public DateTimeOffset? LastBackupAtUtc { get; private set; }
+    public long? LastBackupSizeBytes { get; private set; }
+    public string? LastBackupLocation { get; private set; }
+    public string? LastBackupUsername { get; private set; }
     public string CurrencyCode { get; private set; } = "COP";
 
     public void Update(
@@ -89,6 +93,28 @@ public sealed class BusinessSettings
             printerWorkingDirectory,
             backupDirectory,
             currencyCode);
+    }
+
+    public void RecordSuccessfulBackup(
+        DateTimeOffset timestampUtc,
+        long sizeBytes,
+        string location,
+        string? username)
+    {
+        if (sizeBytes <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(sizeBytes), "Backup size must be greater than zero.");
+        }
+
+        if (string.IsNullOrWhiteSpace(location))
+        {
+            throw new ArgumentException("Backup location is required.", nameof(location));
+        }
+
+        LastBackupAtUtc = timestampUtc.ToUniversalTime();
+        LastBackupSizeBytes = sizeBytes;
+        LastBackupLocation = location.Trim();
+        LastBackupUsername = TrimToNull(username);
     }
 
     private void Apply(

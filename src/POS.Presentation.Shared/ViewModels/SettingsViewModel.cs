@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Windows.Input;
 using POS.Application.DTOs.Settings;
@@ -29,6 +30,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private string? _printerCommand;
     private string? _printerWorkingDirectory;
     private string? _backupDirectory;
+    private ManualBackupMetadata? _lastSuccessfulBackup;
     private string _currencyCode = "COP";
     private string _message = "Carga la configuración del negocio o realiza un backup.";
 
@@ -136,7 +138,6 @@ public sealed class SettingsViewModel : ViewModelBase
             if (SetProperty(ref _backupDirectory, value))
             {
                 OnPropertyChanged(nameof(IsBackupConfigured));
-                OnPropertyChanged(nameof(LastBackupSummary));
             }
         }
     }
@@ -151,8 +152,19 @@ public sealed class SettingsViewModel : ViewModelBase
     /// <summary>"Turno actual" KPI — see <see cref="ActiveUsersSummary"/> remarks; no shift-status query is wired here.</summary>
     public string CurrentShiftSummary => "—";
 
-    /// <summary>"Último backup" KPI: reflects whether a backup directory is configured, not an actual last-run timestamp (no query for that exists).</summary>
-    public string LastBackupSummary => IsBackupConfigured ? "Configurado" : "Sin configurar";
+    public string LastBackupSummary => _lastSuccessfulBackup is null
+        ? "Sin backup exitoso"
+        : _lastSuccessfulBackup.TimestampUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm 'UTC'", CultureInfo.InvariantCulture);
+
+    public string LastBackupTimestampUtc => _lastSuccessfulBackup is null
+        ? "Sin datos"
+        : _lastSuccessfulBackup.TimestampUtc.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'", CultureInfo.InvariantCulture);
+
+    public string LastBackupSize => _lastSuccessfulBackup is null ? "Sin datos" : $"{_lastSuccessfulBackup.SizeBytes} bytes";
+
+    public string LastBackupLocation => _lastSuccessfulBackup?.Location ?? "Sin datos";
+
+    public string LastBackupOperator => _lastSuccessfulBackup?.OperatorUsername ?? "No disponible";
 
     public string CurrencyCode
     {
@@ -332,6 +344,7 @@ public sealed class SettingsViewModel : ViewModelBase
             }
             BackupDirectory = settings.BackupDirectory;
             CurrencyCode = settings.CurrencyCode;
+            UpdateLastSuccessfulBackup(settings.LastSuccessfulBackup);
 
             Warnings.Clear();
             if (settings.Warnings is not null)
@@ -380,9 +393,14 @@ public sealed class SettingsViewModel : ViewModelBase
         {
             var request = new ManualBackupRequest(BackupDirectory);
             ManualBackupResult result = await _triggerBackup.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-            Message = result.Succeeded
-                ? $"Backup creado exitosamente: {result.BackupFilePath}"
-                : $"Error al crear backup: {result.Message}";
+            if (result.Succeeded)
+            {
+                UpdateLastSuccessfulBackup(result.LastSuccessfulBackup);
+                Message = $"Backup validado y creado exitosamente: {result.BackupFilePath}";
+                return;
+            }
+
+            Message = $"Error al crear backup: {result.Message}";
         }
         catch (Exception ex)
         {
@@ -508,5 +526,15 @@ public sealed class SettingsViewModel : ViewModelBase
         }
 
         return result;
+    }
+
+    private void UpdateLastSuccessfulBackup(ManualBackupMetadata? metadata)
+    {
+        _lastSuccessfulBackup = metadata;
+        OnPropertyChanged(nameof(LastBackupSummary));
+        OnPropertyChanged(nameof(LastBackupTimestampUtc));
+        OnPropertyChanged(nameof(LastBackupSize));
+        OnPropertyChanged(nameof(LastBackupLocation));
+        OnPropertyChanged(nameof(LastBackupOperator));
     }
 }

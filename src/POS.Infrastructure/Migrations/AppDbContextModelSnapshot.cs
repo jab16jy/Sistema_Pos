@@ -89,6 +89,20 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(3)
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTimeOffset?>("LastBackupAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastBackupLocation")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("LastBackupSizeBytes")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastBackupUsername")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PrinterCommand")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");

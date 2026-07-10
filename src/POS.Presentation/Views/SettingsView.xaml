@@ -50,7 +50,7 @@
         <UniformGrid Columns="4" Margin="0,0,0,12">
           <controls:KpiCard Label="Usuarios activos" Value="{Binding ActiveUsersSummary}" Hint="Sin consulta agregada en esta fase" Margin="0,0,12,0" />
           <controls:KpiCard Label="Turno actual" Value="{Binding CurrentShiftSummary}" Hint="Sin consulta agregada en esta fase" Margin="0,0,12,0" />
-          <controls:KpiCard Label="Último backup" Value="{Binding LastBackupSummary}" Hint="Según carpeta configurada" Margin="0,0,12,0" />
+          <controls:KpiCard Label="Último backup" Value="{Binding LastBackupSummary}" Hint="Último respaldo validado" Margin="0,0,12,0" />
           <controls:KpiCard Label="Canales listos" Value="{Binding ReadyChannelsSummary}" Hint="Impresora, SMTP y WhatsApp" />
         </UniformGrid>
 
@@ -116,7 +116,7 @@
                       <materialDesign:PackIcon Kind="Backup" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Top" Margin="0,2,8,0" />
                       <StackPanel Grid.Column="1">
                         <TextBlock Text="Respaldos" FontWeight="SemiBold" />
-                        <TextBlock Text="Backup manual, carpeta destino y restauración guiada." Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0" />
+                         <TextBlock Text="Backup manual y carpeta destino. La restauración no está disponible en esta versión." Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0" />
                       </StackPanel>
                     </Grid>
                   </Border>
@@ -166,6 +166,18 @@
                     <TextBlock Text="Utilidad administrativa" Style="{StaticResource TextCaption}" />
                   </Border>
                 </Grid>
+              </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+              <StackPanel Margin="14">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                  <materialDesign:PackIcon Kind="Backup" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
+                  <TextBlock Text="Último respaldo exitoso" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Text="{Binding LastBackupTimestampUtc}" Style="{StaticResource TextSmall}" />
+                <TextBlock Text="{Binding LastBackupSize}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
+                <TextBlock Text="{Binding LastBackupLocation}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                <TextBlock Text="{Binding LastBackupOperator, StringFormat=Operador: {0}}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
               </StackPanel>
             </Border>
           </StackPanel>

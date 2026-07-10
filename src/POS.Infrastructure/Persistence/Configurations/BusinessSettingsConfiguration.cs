@@ -27,6 +27,10 @@ internal sealed class BusinessSettingsConfiguration : IEntityTypeConfiguration<B
         builder.Property(settings => settings.PrinterCommand).HasMaxLength(500);
         builder.Property(settings => settings.PrinterWorkingDirectory).HasMaxLength(500);
         builder.Property(settings => settings.BackupDirectory).HasMaxLength(500);
+        builder.Property(settings => settings.LastBackupAtUtc).HasColumnType("TEXT");
+        builder.Property(settings => settings.LastBackupSizeBytes);
+        builder.Property(settings => settings.LastBackupLocation).HasMaxLength(500);
+        builder.Property(settings => settings.LastBackupUsername).HasMaxLength(100);
         builder.Property(settings => settings.CurrencyCode).IsRequired().HasMaxLength(3);
     }
 }

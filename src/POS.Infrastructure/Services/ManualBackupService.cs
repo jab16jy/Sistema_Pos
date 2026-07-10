@@ -1,3 +1,5 @@
+using Microsoft.Data.Sqlite;
+using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
 
 namespace POS.Infrastructure.Services;
@@ -11,7 +13,7 @@ public sealed class ManualBackupService : IManualBackupService
         _connectionString = connectionString;
     }
 
-    public async Task<string> CreateBackupAsync(
+    public async Task<BackupFile> CreateBackupAsync(
         string destinationDirectory,
         CancellationToken cancellationToken = default)
     {
@@ -25,33 +27,60 @@ public sealed class ManualBackupService : IManualBackupService
             throw new DirectoryNotFoundException("Backup directory does not exist.");
         }
 
-        string sourcePath = ResolveDataSource(_connectionString);
+        string sourcePath = new SqliteConnectionStringBuilder(_connectionString).DataSource;
         if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
         {
             throw new FileNotFoundException("SQLite database file was not found.", sourcePath);
         }
 
-        string fileName = $"pos-backup-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.db";
+        DateTimeOffset createdAtUtc = DateTimeOffset.UtcNow;
+        string fileName = $"pos-backup-{createdAtUtc:yyyyMMddTHHmmssfffZ}.db";
         string destinationPath = Path.Combine(destinationDirectory, fileName);
 
-        await using FileStream source = File.Open(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        await using FileStream destination = File.Create(destinationPath);
-        await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await using (var source = new SqliteConnection(_connectionString))
+            await using (var destination = new SqliteConnection($"Data Source={destinationPath};Mode=ReadWriteCreate"))
+            {
+                await source.OpenAsync(cancellationToken).ConfigureAwait(false);
+                await destination.OpenAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
 
-        return destinationPath;
+                source.BackupDatabase(destination);
+            }
+
+            await ValidateBackupAsync(destinationPath, cancellationToken).ConfigureAwait(false);
+
+            long sizeBytes = new FileInfo(destinationPath).Length;
+            if (sizeBytes <= 0)
+            {
+                throw new InvalidDataException("SQLite backup file is empty.");
+            }
+
+            return new BackupFile(destinationPath, createdAtUtc, sizeBytes);
+        }
+        catch
+        {
+            if (File.Exists(destinationPath))
+            {
+                File.Delete(destinationPath);
+            }
+
+            throw;
+        }
     }
 
-    private static string ResolveDataSource(string connectionString)
+    private static async Task ValidateBackupAsync(string destinationPath, CancellationToken cancellationToken)
     {
-        const string dataSourceKey = "Data Source=";
-        foreach (string segment in connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-        {
-            if (segment.StartsWith(dataSourceKey, StringComparison.OrdinalIgnoreCase))
-            {
-                return segment[dataSourceKey.Length..].Trim().Trim('"');
-            }
-        }
+        await using var connection = new SqliteConnection($"Data Source={destinationPath};Mode=ReadOnly");
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA integrity_check;";
 
-        return connectionString;
+        string? result = (string?)await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        if (!string.Equals(result, "ok", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("SQLite backup integrity validation failed.");
+        }
     }
 }

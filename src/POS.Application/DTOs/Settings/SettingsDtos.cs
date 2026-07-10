@@ -16,7 +16,8 @@ public sealed record SettingsResult(
     string? PrinterWorkingDirectory,
     string? BackupDirectory,
     string CurrencyCode,
-    IReadOnlyList<SettingsWarning>? Warnings = null);
+    IReadOnlyList<SettingsWarning>? Warnings = null,
+    ManualBackupMetadata? LastSuccessfulBackup = null);
 
 public sealed record SaveSettingsRequest(
     string BusinessName,
@@ -38,4 +39,16 @@ public sealed record SettingsWarning(string Code, string Message);
 
 public sealed record ManualBackupRequest(string? DestinationDirectory = null);
 
-public sealed record ManualBackupResult(bool Succeeded, string Message, string? BackupFilePath);
+public sealed record BackupFile(string Location, DateTimeOffset CreatedAtUtc, long SizeBytes);
+
+public sealed record ManualBackupMetadata(
+    DateTimeOffset TimestampUtc,
+    long SizeBytes,
+    string Location,
+    string? OperatorUsername);
+
+public sealed record ManualBackupResult(
+    bool Succeeded,
+    string Message,
+    string? BackupFilePath,
+    ManualBackupMetadata? LastSuccessfulBackup = null);

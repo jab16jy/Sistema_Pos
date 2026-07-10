@@ -84,6 +84,13 @@ public sealed class SaveSettingsUseCase
             settings.PrinterWorkingDirectory,
             settings.BackupDirectory,
             settings.CurrencyCode,
-            warnings);
+            warnings,
+            settings.LastBackupAtUtc is null || settings.LastBackupSizeBytes is null || settings.LastBackupLocation is null
+                ? null
+                : new ManualBackupMetadata(
+                    settings.LastBackupAtUtc.Value,
+                    settings.LastBackupSizeBytes.Value,
+                    settings.LastBackupLocation,
+                    settings.LastBackupUsername));
     }
 }

@@ -14,7 +14,7 @@ public sealed class SettingsViewModelExceptionTests
         var viewModel = new SettingsViewModel(
             new LoadSettingsUseCase(new ThrowingSettingsRepository()),
             new SaveSettingsUseCase(new ThrowingSettingsRepository(), new NoOpUnitOfWork()),
-            new TriggerManualBackupUseCase(new ThrowingSettingsRepository(), new NoOpBackupService()));
+            new TriggerManualBackupUseCase(new ThrowingSettingsRepository(), new NoOpBackupService(), new NoOpUnitOfWork(), new NoOpOperatorSession()));
 
         viewModel.LoadCommand.Execute(null);
         await Task.Delay(50, TestContext.Current.CancellationToken);
@@ -38,7 +38,15 @@ public sealed class SettingsViewModelExceptionTests
 
     private sealed class NoOpBackupService : IManualBackupService
     {
-        public Task<string> CreateBackupAsync(string destinationDirectory, CancellationToken cancellationToken = default)
-            => Task.FromResult(destinationDirectory + "\\backup.sqlite");
+        public Task<POS.Application.DTOs.Settings.BackupFile> CreateBackupAsync(string destinationDirectory, CancellationToken cancellationToken = default)
+            => Task.FromResult(new POS.Application.DTOs.Settings.BackupFile(destinationDirectory + "\\backup.sqlite", DateTimeOffset.UtcNow, 1));
+    }
+
+    private sealed class NoOpOperatorSession : ICurrentOperatorSession
+    {
+        public Guid OperatorId => Guid.Empty;
+        public string Username => string.Empty;
+        public POS.Domain.Enums.UserRole Role => POS.Domain.Enums.UserRole.Cashier;
+        public bool IsAuthenticated => false;
     }
 }

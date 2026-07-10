@@ -60,7 +60,7 @@ public sealed class SettingsViewModelTests
         var viewModel = new SettingsViewModel(
             new LoadSettingsUseCase(new StubSettingsRepository(settings)),
             new SaveSettingsUseCase(new StubMutableSettingsRepository(), new StubUnitOfWork()),
-            new TriggerManualBackupUseCase(new StubMutableSettingsRepository(), new StubBackupService()),
+            new TriggerManualBackupUseCase(new StubMutableSettingsRepository(), new StubBackupService(), new StubUnitOfWork(), new StubOperatorSession()),
             null,
             new StubWhatsAppService());
 
@@ -72,6 +72,26 @@ public sealed class SettingsViewModelTests
         Assert.Equal("secret", viewModel.SmtpPassword);
         Assert.True(viewModel.SmtpUseSsl);
         Assert.True(viewModel.IsWhatsAppReady);
+    }
+
+    [Fact]
+    public async Task BackupAsync_WhenBackupSucceeds_UpdatesLastSuccessfulBackupMetadata()
+    {
+        var settings = new POS.Domain.Entities.BusinessSettings(
+            "Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
+        var repository = new StubMutableSettingsRepository(settings);
+        var viewModel = new SettingsViewModel(
+            new LoadSettingsUseCase(repository),
+            new SaveSettingsUseCase(repository, new StubUnitOfWork()),
+            new TriggerManualBackupUseCase(repository, new StubBackupService(), new StubUnitOfWork(), new StubOperatorSession()));
+
+        await viewModel.BackupAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("2026-06-27 10:30:00 UTC", viewModel.LastBackupTimestampUtc);
+        Assert.Equal("1024 bytes", viewModel.LastBackupSize);
+        Assert.Equal("C:/Backups/backup.sqlite", viewModel.LastBackupLocation);
+        Assert.Equal("maria", viewModel.LastBackupOperator);
+        Assert.Contains("validado", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class StubSettingsRepository : POS.Domain.Interfaces.ISettingsRepository
@@ -106,11 +126,21 @@ public sealed class SettingsViewModelTests
 
     private sealed class StubMutableSettingsRepository : POS.Domain.Interfaces.ISettingsRepository
     {
+        private POS.Domain.Entities.BusinessSettings? _settings;
+
+        public StubMutableSettingsRepository(POS.Domain.Entities.BusinessSettings? settings = null)
+        {
+            _settings = settings;
+        }
+
         public Task<POS.Domain.Entities.BusinessSettings?> GetAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<POS.Domain.Entities.BusinessSettings?>(null);
+            => Task.FromResult(_settings);
 
         public Task SaveAsync(POS.Domain.Entities.BusinessSettings settings, CancellationToken cancellationToken = default)
-            => Task.CompletedTask;
+        {
+            _settings = settings;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class StubUnitOfWork : IUnitOfWork
@@ -120,8 +150,16 @@ public sealed class SettingsViewModelTests
 
     private sealed class StubBackupService : IManualBackupService
     {
-        public Task<string> CreateBackupAsync(string destinationDirectory, CancellationToken cancellationToken = default)
-            => Task.FromResult(destinationDirectory + "\\backup.sqlite");
+        public Task<BackupFile> CreateBackupAsync(string destinationDirectory, CancellationToken cancellationToken = default)
+            => Task.FromResult(new BackupFile("C:/Backups/backup.sqlite", new DateTimeOffset(2026, 6, 27, 10, 30, 0, TimeSpan.Zero), 1024));
+    }
+
+    private sealed class StubOperatorSession : ICurrentOperatorSession
+    {
+        public Guid OperatorId => Guid.NewGuid();
+        public string Username => "maria";
+        public POS.Domain.Enums.UserRole Role => POS.Domain.Enums.UserRole.Administrator;
+        public bool IsAuthenticated => true;
     }
 
     private sealed class StubWhatsAppService : IWhatsAppService

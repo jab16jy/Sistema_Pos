@@ -9,39 +9,65 @@ public sealed class TriggerManualBackupUseCase
 {
     private readonly ISettingsRepository _settings;
     private readonly IManualBackupService _backupService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentOperatorSession _session;
 
-    public TriggerManualBackupUseCase(ISettingsRepository settings, IManualBackupService backupService)
+    public TriggerManualBackupUseCase(
+        ISettingsRepository settings,
+        IManualBackupService backupService,
+        IUnitOfWork unitOfWork,
+        ICurrentOperatorSession session)
     {
         _settings = settings;
         _backupService = backupService;
+        _unitOfWork = unitOfWork;
+        _session = session;
     }
 
     public async Task<ManualBackupResult> ExecuteAsync(
         ManualBackupRequest request,
         CancellationToken cancellationToken = default)
     {
-        string? destinationDirectory = Normalize(request.DestinationDirectory);
-
-        if (destinationDirectory is null)
-        {
-            BusinessSettings? settings = await _settings.GetAsync(cancellationToken).ConfigureAwait(false);
-            destinationDirectory = Normalize(settings?.BackupDirectory);
-        }
+        BusinessSettings? settings = await _settings.GetAsync(cancellationToken).ConfigureAwait(false);
+        string? destinationDirectory = Normalize(request.DestinationDirectory) ?? Normalize(settings?.BackupDirectory);
 
         if (destinationDirectory is null)
         {
             return new ManualBackupResult(false, "Backup directory is not configured.", null);
         }
 
+        if (settings is null)
+        {
+            return new ManualBackupResult(false, "Business settings must be saved before creating a backup.", null);
+        }
+
         try
         {
-            string backupFilePath = await _backupService
+            BackupFile backupFile = await _backupService
                 .CreateBackupAsync(destinationDirectory, cancellationToken)
                 .ConfigureAwait(false);
 
-            return new ManualBackupResult(true, "Backup created successfully", backupFilePath);
+            var metadata = new ManualBackupMetadata(
+                backupFile.CreatedAtUtc.ToUniversalTime(),
+                backupFile.SizeBytes,
+                backupFile.Location,
+                _session.IsAuthenticated ? _session.Username : null);
+
+            settings.RecordSuccessfulBackup(
+                metadata.TimestampUtc,
+                metadata.SizeBytes,
+                metadata.Location,
+                metadata.OperatorUsername);
+            await _settings.SaveAsync(settings, cancellationToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+            return new ManualBackupResult(true, "Backup created and validated successfully.", backupFile.Location, metadata);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
         {
             return new ManualBackupResult(false, ex.Message, null);
         }
