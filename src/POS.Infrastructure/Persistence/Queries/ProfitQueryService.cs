@@ -17,54 +17,29 @@ public sealed class ProfitQueryService : IProfitQueryService
     public async Task<IReadOnlyList<ProductMarginResult>> GetMarginByProductAsync(
         DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
     {
-        var fromOffset = new DateTimeOffset(from, TimeOnly.MinValue, TimeSpan.Zero);
-        var toOffset = new DateTimeOffset(to, TimeOnly.MaxValue, TimeSpan.Zero);
+        var items = await CompletedSaleItemsAsync(from, to, cancellationToken).ConfigureAwait(false);
 
-        var results = await _dbContext.Sales
-            .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
-            .Where(s => s.CreatedAt >= fromOffset && s.CreatedAt <= toOffset)
-            .SelectMany(s => s.Items)
-            .GroupBy(si => new { si.ProductId, si.ProductName })
-            .Select(g => new
+        return items
+            .GroupBy(si => (si.ProductId, si.ProductName))
+            .Select(g =>
             {
-                g.Key.ProductId,
-                g.Key.ProductName,
-                TotalRevenue = g.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount),
-                TotalCost = g.Sum(si => si.UnitCost.Amount * si.Quantity)
+                decimal totalRevenue = g.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount);
+                decimal totalCost = g.Sum(si => si.UnitCost.Amount * si.Quantity);
+                decimal margin = totalRevenue - totalCost;
+                decimal marginPercent = totalRevenue > 0 ? margin / totalRevenue * 100m : 0m;
+                return new ProductMarginResult(g.Key.ProductId, g.Key.ProductName, totalRevenue, totalCost, margin, marginPercent);
             })
-            .OrderByDescending(x => x.TotalRevenue - x.TotalCost)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
-
-        return results
-            .Select(x =>
-            {
-                var margin = x.TotalRevenue - x.TotalCost;
-                var marginPercent = x.TotalRevenue > 0 ? margin / x.TotalRevenue * 100m : 0m;
-                return new ProductMarginResult(
-                    x.ProductId,
-                    x.ProductName,
-                    x.TotalRevenue,
-                    x.TotalCost,
-                    margin,
-                    marginPercent);
-            })
+            .OrderByDescending(x => x.GrossMargin)
             .ToList();
     }
 
     public async Task<IReadOnlyList<TopSellerResult>> GetTopSellersAsync(
         DateOnly from, DateOnly to, int top = 10, CancellationToken cancellationToken = default)
     {
-        var fromOffset = new DateTimeOffset(from, TimeOnly.MinValue, TimeSpan.Zero);
-        var toOffset = new DateTimeOffset(to, TimeOnly.MaxValue, TimeSpan.Zero);
+        var items = await CompletedSaleItemsAsync(from, to, cancellationToken).ConfigureAwait(false);
 
-        return await _dbContext.Sales
-            .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
-            .Where(s => s.CreatedAt >= fromOffset && s.CreatedAt <= toOffset)
-            .SelectMany(s => s.Items)
-            .GroupBy(si => new { si.ProductId, si.ProductName })
+        return items
+            .GroupBy(si => (si.ProductId, si.ProductName))
             .Select(g => new TopSellerResult(
                 g.Key.ProductId,
                 g.Key.ProductName,
@@ -72,8 +47,7 @@ public sealed class ProfitQueryService : IProfitQueryService
                 g.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount)))
             .OrderByDescending(r => r.UnitsSold)
             .Take(top)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .ToList();
     }
 
     public async Task<PeriodComparisonResult> GetPeriodComparisonAsync(
@@ -81,45 +55,15 @@ public sealed class ProfitQueryService : IProfitQueryService
         DateOnly priorFrom, DateOnly priorTo,
         CancellationToken cancellationToken = default)
     {
-        var curFromOffset = new DateTimeOffset(currentFrom, TimeOnly.MinValue, TimeSpan.Zero);
-        var curToOffset = new DateTimeOffset(currentTo, TimeOnly.MaxValue, TimeSpan.Zero);
-        var priFromOffset = new DateTimeOffset(priorFrom, TimeOnly.MinValue, TimeSpan.Zero);
-        var priToOffset = new DateTimeOffset(priorTo, TimeOnly.MaxValue, TimeSpan.Zero);
+        var currentItems = await CompletedSaleItemsAsync(currentFrom, currentTo, cancellationToken).ConfigureAwait(false);
+        var priorItems = await CompletedSaleItemsAsync(priorFrom, priorTo, cancellationToken).ConfigureAwait(false);
 
-        // Server-side aggregation: SumAsync pushes aggregation to SQLite
-        var curRevenue = await _dbContext.Sales
-            .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
-            .Where(s => s.CreatedAt >= curFromOffset && s.CreatedAt <= curToOffset)
-            .SelectMany(s => s.Items)
-            .SumAsync(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount, cancellationToken)
-            .ConfigureAwait(false);
+        decimal curRevenue = currentItems.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount);
+        decimal curCost = currentItems.Sum(si => si.UnitCost.Amount * si.Quantity);
+        decimal priRevenue = priorItems.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount);
+        decimal priCost = priorItems.Sum(si => si.UnitCost.Amount * si.Quantity);
 
-        var curCost = await _dbContext.Sales
-            .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
-            .Where(s => s.CreatedAt >= curFromOffset && s.CreatedAt <= curToOffset)
-            .SelectMany(s => s.Items)
-            .SumAsync(si => si.UnitCost.Amount * si.Quantity, cancellationToken)
-            .ConfigureAwait(false);
-
-        var priRevenue = await _dbContext.Sales
-            .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
-            .Where(s => s.CreatedAt >= priFromOffset && s.CreatedAt <= priToOffset)
-            .SelectMany(s => s.Items)
-            .SumAsync(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount, cancellationToken)
-            .ConfigureAwait(false);
-
-        var priCost = await _dbContext.Sales
-            .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
-            .Where(s => s.CreatedAt >= priFromOffset && s.CreatedAt <= priToOffset)
-            .SelectMany(s => s.Items)
-            .SumAsync(si => si.UnitCost.Amount * si.Quantity, cancellationToken)
-            .ConfigureAwait(false);
-
-        var growthPercent = priRevenue > 0
+        decimal growthPercent = priRevenue > 0
             ? (curRevenue - priRevenue) / priRevenue * 100m
             : 0m;
 
@@ -133,21 +77,44 @@ public sealed class ProfitQueryService : IProfitQueryService
     public async Task<IReadOnlyList<PlatformBreakdownResult>> GetPlatformBreakdownAsync(
         DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
     {
-        var fromOffset = new DateTimeOffset(from, TimeOnly.MinValue, TimeSpan.Zero);
-        var toOffset = new DateTimeOffset(to, TimeOnly.MaxValue, TimeSpan.Zero);
+        var (fromOffset, toOffset) = ToRange(from, to);
 
-        return await _dbContext.Sales
+        var payments = await _dbContext.Sales
             .AsNoTracking()
             .Where(s => s.Status == SaleStatus.Completed)
             .Where(s => s.CreatedAt >= fromOffset && s.CreatedAt <= toOffset)
+            .Include(s => s.Payments)
             .SelectMany(s => s.Payments)
-            .GroupBy(p => p.BankOrPlatform ?? "Unknown")
-            .Select(g => new PlatformBreakdownResult(
-                g.Key,
-                g.Sum(p => p.Amount.Amount),
-                g.Count()))
-            .OrderByDescending(r => r.TotalAmount)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return payments
+            .GroupBy(p => p.BankOrPlatform ?? "Unknown")
+            .Select(g => new PlatformBreakdownResult(g.Key, g.Sum(p => p.Amount.Amount), g.Count()))
+            .OrderByDescending(r => r.TotalAmount)
+            .ToList();
+    }
+
+    private static (DateTimeOffset From, DateTimeOffset To) ToRange(DateOnly from, DateOnly to) =>
+        (new DateTimeOffset(from, TimeOnly.MinValue, TimeSpan.Zero), new DateTimeOffset(to, TimeOnly.MaxValue, TimeSpan.Zero));
+
+    // EF Core's SQLite provider cannot translate Sum/GroupBy over Money.Amount (a HasConversion-mapped
+    // value object, not an owned type) into SQL — it throws "could not be translated" regardless of the
+    // date range. The date/status filter still runs server-side; only the aggregation happens in-memory,
+    // same pattern as ReportService.GenerateDailySalesReportAsync.
+    private async Task<List<POS.Domain.Entities.SaleItem>> CompletedSaleItemsAsync(
+        DateOnly from, DateOnly to, CancellationToken cancellationToken)
+    {
+        var (fromOffset, toOffset) = ToRange(from, to);
+
+        var sales = await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= fromOffset && s.CreatedAt <= toOffset)
+            .Include(s => s.Items)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return sales.SelectMany(s => s.Items).ToList();
     }
 }

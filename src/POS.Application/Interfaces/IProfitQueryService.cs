@@ -3,7 +3,9 @@ using POS.Application.DTOs.Reporting;
 namespace POS.Application.Interfaces;
 
 /// <summary>
-/// Port for profit and analytics queries. Implementation must use DB-side aggregation (no in-memory LINQ).
+/// Port for profit and analytics queries. The date/status filter runs server-side; aggregation happens
+/// in-memory over the materialized rows, because EF Core's SQLite provider cannot translate Sum/GroupBy
+/// over Money.Amount (a value-converted type, not an owned type).
 /// </summary>
 public interface IProfitQueryService
 {
