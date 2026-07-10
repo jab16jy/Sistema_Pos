@@ -34,12 +34,16 @@ public sealed class InventoryRepository : IInventoryRepository
         Guid productId,
         CancellationToken cancellationToken = default)
     {
-        return await _dbContext.InventoryMovements
+        // SQLite can't ORDER BY DateTimeOffset — sort client-side.
+        List<InventoryMovement> movements = await _dbContext.InventoryMovements
             .AsNoTracking()
             .Where(movement => movement.ProductId == productId)
-            .OrderByDescending(movement => movement.CreatedAt)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return movements
+            .OrderByDescending(movement => movement.CreatedAt)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<Product>> GetLowStockProductsAsync(CancellationToken cancellationToken = default)

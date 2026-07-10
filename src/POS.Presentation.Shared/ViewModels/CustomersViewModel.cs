@@ -481,9 +481,12 @@ public sealed class CustomersViewModel : ViewModelBase
             var balance = await _getLoyaltyBalance.ExecuteAsync(customerId, recentTransactionCount: 1, cancellationToken).ConfigureAwait(true);
             LoyaltyPoints = balance?.Balance ?? 0;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            // Show the failure instead of silently reporting 0 points — a swallowed DB error
+            // here looks identical to "customer has no points" and hides real defects.
             LoyaltyPoints = 0;
+            Message = $"Error al consultar puntos del cliente: {ex.Message}";
         }
     }
 

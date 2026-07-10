@@ -3,6 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              MinWidth="900"
              MinHeight="620">
+  <UserControl.Resources>
+    <SolidColorBrush x:Key="BrushPrimary" Color="#0284C7" />
+    <SolidColorBrush x:Key="BrushAccent" Color="#0D9488" />
+  </UserControl.Resources>
+
   <Grid>
     <Grid.Background>
       <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">

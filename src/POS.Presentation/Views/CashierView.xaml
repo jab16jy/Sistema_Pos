@@ -92,6 +92,7 @@
                    FontSize="15"
                    Height="44"
                    KeyDown="SearchTextBox_OnKeyDown"
+                   TextChanged="SearchTextBox_OnTextChanged"
                    BorderBrush="{StaticResource BrushPrimary}"
                    BorderThickness="2" />
 
@@ -643,7 +644,10 @@
                               Margin="0,4,0,12"
                               Height="36"
                               FontSize="15"
-                              FormatString="N0" />
+                              FormatString="N0"
+                              PreviewTextInput="ReceivedAmount_PreviewTextInput"
+                              PreviewKeyDown="ReceivedAmount_PreviewKeyDown"
+                              DataObject.Pasting="ReceivedAmount_Pasting" />
 
           <Grid Margin="0,0,0,12">
             <Grid.RowDefinitions>

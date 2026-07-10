@@ -4,12 +4,20 @@ using POS.Application.DTOs.Reporting;
 using POS.Application.Interfaces;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace POS.Infrastructure.Services;
 
 public sealed class ReportExportService : IReportExportService
 {
     private static readonly CultureInfo Co = CultureInfo.GetCultureInfo("es-CO");
+
+    // QuestPDF refuses to render without a license. ReportService sets this too, but it's never
+    // instantiated in the running app, so PDF export here would throw unless we set it ourselves.
+    static ReportExportService()
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+    }
 
     public Task<byte[]> ExportOperationalReportPdfAsync(
         OperationalReportDto report,

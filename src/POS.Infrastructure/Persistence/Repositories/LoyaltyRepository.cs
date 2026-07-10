@@ -33,13 +33,17 @@ public sealed class LoyaltyRepository : ILoyaltyRepository
     public async Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(
         Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.LoyaltyTransactions
+        // SQLite can't ORDER BY DateTimeOffset — sort client-side like the sibling methods below.
+        List<LoyaltyTransaction> transactions = await _dbContext.LoyaltyTransactions
             .AsNoTracking()
             .Where(t => t.LoyaltyAccountId == loyaltyAccountId)
-            .OrderByDescending(t => t.CreatedAt)
-            .Take(maxCount)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return transactions
+            .OrderByDescending(t => t.CreatedAt)
+            .Take(maxCount)
+            .ToList();
     }
 
     public Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default)
@@ -176,11 +180,13 @@ public sealed class LoyaltyRepository : ILoyaltyRepository
     }
 
     public async Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
-        => await _dbContext.LoyaltyTiers
+        // SQLite can't ORDER BY decimal — sort client-side.
+        => (await _dbContext.LoyaltyTiers
             .AsNoTracking()
-            .OrderBy(tier => tier.MinPoints)
             .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+            .ConfigureAwait(false))
+            .OrderBy(tier => tier.MinPoints)
+            .ToList();
 
     public Task<LoyaltyTier?> GetTierByIdAsync(Guid tierId, CancellationToken cancellationToken = default)
         => _dbContext.LoyaltyTiers.FirstOrDefaultAsync(tier => tier.Id == tierId, cancellationToken);

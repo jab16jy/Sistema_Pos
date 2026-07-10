@@ -4,6 +4,11 @@
              xmlns:controls="clr-namespace:POS.Presentation.Controls"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              Loaded="SettingsView_OnLoaded">
+  <UserControl.Resources>
+    <SolidColorBrush x:Key="BrushPrimary" Color="#0284C7" />
+    <SolidColorBrush x:Key="BrushAccent" Color="#0D9488" />
+  </UserControl.Resources>
+
   <Grid Margin="0,8">
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
@@ -368,7 +373,16 @@
             <TextBlock Text="Dirección" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
             <TextBox Text="{Binding BusinessAddress, Mode=TwoWay}" Tag="Cra 14 # 85-10 · Bogotá" AcceptsReturn="True" Height="70" Margin="0,0,0,8" />
             <TextBlock Text="Moneda" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding CurrencyCode, Mode=TwoWay}" Tag="COP" Margin="0,0,0,12" />
+            <TextBox Text="{Binding CurrencyCode, Mode=TwoWay}" Tag="COP" Margin="0,0,0,8" />
+            <TextBlock Text="Carpeta de respaldo" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+            <Grid Margin="0,0,0,12">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <TextBox Text="{Binding BackupDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="C:\Respaldos\POS" VerticalAlignment="Center" />
+              <Button Grid.Column="1" Content="Examinar" Click="BrowseBackupFolder_OnClick" Margin="8,0,0,0" />
+            </Grid>
             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Margin="0,0,8,0">
                 <StackPanel Orientation="Horizontal">

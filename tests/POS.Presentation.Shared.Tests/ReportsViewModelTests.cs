@@ -45,6 +45,37 @@ public sealed class ReportsViewModelTests
     }
 
     [Fact]
+    public async Task LoadReportAsync_RaisesExportCommandCanExecuteChanged()
+    {
+        // Regression: export buttons stayed disabled forever because CanExecuteChanged never fired
+        // after a report loaded, so WPF never re-queried CanExecute and PDF/Excel export looked broken.
+        var stubReport = new OperationalReportDto(
+            BilledSalesTotal: 80_000m,
+            SaleCashCollected: 50_000m,
+            SaleDigitalCollected: 30_000m,
+            ReceivableSettlementCash: 20_000m,
+            ReceivableSettlementDigital: 0m,
+            ReceivableSettlementTotal: 20_000m,
+            ExpectedDrawerCash: 70_000m);
+
+        var vm = new ReportsViewModel(
+            new StubGetOperationalReportUseCase(stubReport),
+            profitQueryService: null,
+            exportService: new FakeReportExportService());
+
+        bool raised = false;
+        vm.ExportOperationalPdfCommand.CanExecuteChanged += (_, _) => raised = true;
+
+        await vm.LoadReportAsync(
+            from: DateTimeOffset.UtcNow.AddDays(-1),
+            to: DateTimeOffset.UtcNow.AddDays(1),
+            ct: TestContext.Current.CancellationToken);
+
+        Assert.True(raised);
+        Assert.True(vm.ExportOperationalPdfCommand.CanExecute(null));
+    }
+
+    [Fact]
     public async Task LoadReportAsync_WhenUseCaseFails_SetsErrorMessage()
     {
         var stub = new StubGetOperationalReportUseCase(error: "Date range is invalid.");
@@ -562,6 +593,14 @@ public sealed class ReportsViewModelTests
     // ─────────────────────────────────────────────────────
     // Stubs
     // ─────────────────────────────────────────────────────
+
+    private sealed class FakeReportExportService : IReportExportService
+    {
+        public Task<byte[]> ExportOperationalReportPdfAsync(OperationalReportDto report, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
+        public Task<byte[]> ExportOperationalReportExcelAsync(OperationalReportDto report, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
+        public Task<byte[]> ExportProfitReportPdfAsync(IReadOnlyList<TopSellerResult> topSellers, PeriodComparisonResult comparison, IReadOnlyList<ProductMarginResult> margins, DateOnly from, DateOnly to, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
+        public Task<byte[]> ExportProfitReportExcelAsync(IReadOnlyList<TopSellerResult> topSellers, PeriodComparisonResult comparison, IReadOnlyList<ProductMarginResult> margins, DateOnly from, DateOnly to, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
+    }
 
     private sealed class StubGetOperationalReportUseCase : IGetOperationalReportUseCase
     {

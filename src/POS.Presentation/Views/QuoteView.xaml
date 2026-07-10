@@ -4,6 +4,8 @@
              xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
   <UserControl.Resources>
+    <SolidColorBrush x:Key="BrushPrimary" Color="#0284C7" />
+    <SolidColorBrush x:Key="BrushAccent" Color="#0D9488" />
     <Style x:Key="GhostQuoteButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />

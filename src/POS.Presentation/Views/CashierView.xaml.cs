@@ -1,3 +1,5 @@
+using System.Linq;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using POS.Presentation.Shared.ViewModels;
@@ -6,9 +8,16 @@ namespace POS.Presentation.Views;
 
 public partial class CashierView : UserControl
 {
+    private bool _isSuggestionNavigated;
+
     public CashierView()
     {
         InitializeComponent();
+    }
+
+    private void SearchTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
+    {
+        _isSuggestionNavigated = false;
     }
 
     private async void SearchTextBox_OnKeyDown(object sender, KeyEventArgs e)
@@ -21,6 +30,7 @@ public partial class CashierView : UserControl
         if (e.Key is Key.Down or Key.Up)
         {
             e.Handled = true;
+            _isSuggestionNavigated = true;
             viewModel.MoveSelection(e.Key == Key.Down ? 1 : -1);
             if (viewModel.SelectedProduct is not null)
             {
@@ -38,7 +48,17 @@ public partial class CashierView : UserControl
         e.Handled = true;
         try
         {
-            await viewModel.HandleScannerInputAsync();
+            string query = SearchTextBox.Text.Trim();
+            bool isNumeric = query.Length > 0 && query.All(char.IsDigit);
+
+            if ((_isSuggestionNavigated || !isNumeric) && viewModel.SelectedProduct is not null)
+            {
+                viewModel.AddProductAndResetSearch(viewModel.SelectedProduct);
+            }
+            else
+            {
+                await viewModel.HandleScannerInputAsync();
+            }
         }
         catch (Exception ex)
         {
@@ -93,5 +113,39 @@ public partial class CashierView : UserControl
         {
             await viewModel.ConfirmCustomerSelectionAsync();
         }
+    }
+
+    private void ReceivedAmount_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        e.Handled = !IsTextAllowed(e.Text);
+    }
+
+    private void ReceivedAmount_PreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Space)
+        {
+            e.Handled = true;
+        }
+    }
+
+    private void ReceivedAmount_Pasting(object sender, DataObjectPastingEventArgs e)
+    {
+        if (e.DataObject.GetDataPresent(typeof(string)))
+        {
+            string text = (string)e.DataObject.GetData(typeof(string));
+            if (!IsTextAllowed(text))
+            {
+                e.CancelCommand();
+            }
+        }
+        else
+        {
+            e.CancelCommand();
+        }
+    }
+
+    private static bool IsTextAllowed(string text)
+    {
+        return text.All(char.IsDigit);
     }
 }

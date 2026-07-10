@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
   <UserControl.Resources>
+    <SolidColorBrush x:Key="BrushPrimary" Color="#0284C7" />
+    <SolidColorBrush x:Key="BrushAccent" Color="#0D9488" />
     <Style x:Key="ClientesLinkButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />
@@ -13,6 +15,7 @@
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
       <Setter Property="ToolTip" Value="Abrir factura" />
       <Style.Triggers>
@@ -425,13 +428,45 @@
                           CommandParameter="{Binding}">
                     <Border Padding="12,10" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
                       <Grid>
+                        <Grid.Style>
+                          <Style TargetType="Grid">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding Kind}" Value="Quote">
+                                <Setter Property="Margin" Value="24,0,0,0" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Grid.Style>
                         <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="32" />
                           <ColumnDefinition Width="*" />
                           <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        <Border Width="32" Height="32" CornerRadius="16" Background="{StaticResource BrushPrimaryContainer}">
-                          <materialDesign:PackIcon Kind="Receipt" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        <Border Width="32" Height="32" CornerRadius="16">
+                          <Border.Style>
+                            <Style TargetType="Border">
+                              <Setter Property="Background" Value="{StaticResource BrushPrimaryContainer}" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding Kind}" Value="Quote">
+                                  <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Border.Style>
+                          <materialDesign:PackIcon Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <materialDesign:PackIcon.Style>
+                              <Style TargetType="materialDesign:PackIcon">
+                                <Setter Property="Kind" Value="Receipt" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding Kind}" Value="Quote">
+                                    <Setter Property="Kind" Value="FileDocumentOutline" />
+                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </materialDesign:PackIcon.Style>
+                          </materialDesign:PackIcon>
                         </Border>
                         <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
                           <TextBlock Text="{Binding Reference}" FontWeight="Medium" />

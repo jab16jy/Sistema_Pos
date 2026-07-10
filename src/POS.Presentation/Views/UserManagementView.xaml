@@ -1,6 +1,11 @@
 <UserControl x:Class="POS.Presentation.Views.UserManagementView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <UserControl.Resources>
+    <SolidColorBrush x:Key="BrushPrimary" Color="#0284C7" />
+    <SolidColorBrush x:Key="BrushAccent" Color="#0D9488" />
+  </UserControl.Resources>
+
   <Grid>
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="*" />

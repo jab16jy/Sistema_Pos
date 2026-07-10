@@ -520,7 +520,19 @@ public sealed class ReportsViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+            RaiseExportCommandsCanExecuteChanged();
         }
+    }
+
+    // Sibling VMs (Products/Invoices/etc.) all re-raise CanExecuteChanged after state changes; the export
+    // buttons' CanExecute depends on _lastOperationalReport/_periodComparison, so without this they stay
+    // disabled forever after a load and exporting appears broken.
+    private void RaiseExportCommandsCanExecuteChanged()
+    {
+        ((RelayCommand)ExportOperationalPdfCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)ExportOperationalExcelCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)ExportProfitPdfCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)ExportProfitExcelCommand).RaiseCanExecuteChanged();
     }
 
     private void ClearTotals()
@@ -591,6 +603,7 @@ public sealed class ReportsViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+            RaiseExportCommandsCanExecuteChanged();
         }
     }
 
