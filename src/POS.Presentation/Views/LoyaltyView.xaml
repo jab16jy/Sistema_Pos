@@ -148,80 +148,47 @@
           </StackPanel>
         </Border>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-          <ItemsControl ItemsSource="{Binding Tiers}" Margin="16,12">
-            <ItemsControl.ItemTemplate>
+        <Grid Grid.Row="1" Margin="16,12">
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <ListBox ItemsSource="{Binding Tiers}" SelectedItem="{Binding SelectedTier, Mode=TwoWay}" BorderThickness="0">
+            <ListBox.ItemTemplate>
               <DataTemplate>
-                <Border BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,10">
-                  <Border.Style>
-                    <Style TargetType="Border">
-                      <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
-                      <Setter Property="Background" Value="Transparent" />
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding ChipKind}" Value="primary">
-                          <Setter Property="BorderBrush" Value="{StaticResource BrushPrimary}" />
-                          <Setter Property="Background" Value="{StaticResource BrushPrimaryContainer}" />
-                        </DataTrigger>
-                        <DataTrigger Binding="{Binding ChipKind}" Value="warning">
-                          <Setter Property="BorderBrush" Value="{StaticResource BrushWarning}" />
-                          <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Border.Style>
+                <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,8">
                   <StackPanel>
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                      </Grid.ColumnDefinitions>
-                      <TextBlock Text="{Binding Name}" FontWeight="Bold" Style="{StaticResource TextH3}" VerticalAlignment="Center" />
-                      <Border Grid.Column="1" CornerRadius="3" Padding="6,2">
-                        <Border.Style>
-                          <Style TargetType="Border">
-                            <Setter Property="Background" Value="{StaticResource BrushSurfaceContainer}" />
-                            <Style.Triggers>
-                              <DataTrigger Binding="{Binding ChipKind}" Value="primary">
-                                <Setter Property="Background" Value="{StaticResource BrushPrimaryContainer}" />
-                              </DataTrigger>
-                              <DataTrigger Binding="{Binding ChipKind}" Value="warning">
-                                <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
-                              </DataTrigger>
-                            </Style.Triggers>
-                          </Style>
-                        </Border.Style>
-                        <TextBlock Text="{Binding PointRange}" FontSize="11" FontWeight="SemiBold">
-                          <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                              <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
-                              <Style.Triggers>
-                                <DataTrigger Binding="{Binding ChipKind}" Value="primary">
-                                  <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding ChipKind}" Value="warning">
-                                  <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
-                                </DataTrigger>
-                              </Style.Triggers>
-                            </Style>
-                          </TextBlock.Style>
-                        </TextBlock>
-                      </Border>
-                    </Grid>
-                    <TextBlock Text="{Binding BenefitDescription}" Style="{StaticResource MutedText}" FontSize="12"
-                               TextWrapping="Wrap" Margin="0,4,0,0" />
+                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Style="{StaticResource TextH3}" />
+                    <TextBlock Text="{Binding PointRange}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
+                    <TextBlock Text="{Binding BenefitDescription}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" Margin="0,3,0,0" />
                   </StackPanel>
                 </Border>
               </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+          <StackPanel Grid.Row="1" Margin="0,8,0,0">
+            <TextBlock Text="Nombre del tier" Style="{StaticResource MutedText}" FontSize="11" />
+            <TextBox Text="{Binding TierName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
+            <TextBlock Text="Puntos mínimos" Style="{StaticResource MutedText}" FontSize="11" />
+            <TextBox Text="{Binding TierMinimumPoints, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
+            <TextBlock Text="Descuento (%)" Style="{StaticResource MutedText}" FontSize="11" />
+            <TextBox Text="{Binding TierDiscountPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
+            <TextBlock Text="Multiplicador de puntos" Style="{StaticResource MutedText}" FontSize="11" />
+            <TextBox Text="{Binding TierPointsMultiplier, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+              <Button Command="{Binding NewTierCommand}" Margin="0,0,8,0">Nuevo</Button>
+              <Button Command="{Binding DeleteTierCommand}" Margin="0,0,8,0">Eliminar</Button>
+              <Button Command="{Binding SaveTierCommand}" Style="{StaticResource PrimaryButton}">Guardar tier</Button>
+            </StackPanel>
+          </StackPanel>
+        </Grid>
 
         <Border Grid.Row="2" Padding="16,12" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0">
-          <Button Command="{Binding EditBenefitsCommand}" Background="Transparent" BorderThickness="0"
-                  HorizontalAlignment="Stretch">
+          <Button Command="{Binding LoadTiersCommand}" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-              <materialDesign:PackIcon Kind="Pencil" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
-              <TextBlock Text="Editar beneficios" />
+              <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+              <TextBlock Text="Actualizar tiers" />
             </StackPanel>
           </Button>
         </Border>
@@ -286,6 +253,8 @@
                     <StackPanel Grid.Column="1" Margin="8,0,8,0">
                       <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Style="{StaticResource TextBody}" TextWrapping="Wrap" />
                       <TextBlock Text="{Binding Meta}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0" />
+                      <TextBlock Text="{Binding Reason, StringFormat=Motivo: {0}}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0"
+                                 Visibility="{Binding Reason, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" />
                     </StackPanel>
 
                     <TextBlock Grid.Column="2" Text="{Binding ValueLabel}" FontFamily="Consolas" FontWeight="Bold" FontSize="13"

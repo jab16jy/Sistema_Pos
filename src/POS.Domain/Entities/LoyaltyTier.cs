@@ -9,24 +9,34 @@ public sealed class LoyaltyTier
 
     public LoyaltyTier(string name, decimal minPoints, decimal discountPercent = 0, decimal pointsMultiplier = 1.0m)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Tier name is required.", nameof(name));
-
         Id = Guid.NewGuid();
-        Name = name.Trim();
-        MinPoints = minPoints;
-        DiscountPercent = discountPercent;
-        PointsMultiplier = pointsMultiplier;
+        Update(name, minPoints, discountPercent, pointsMultiplier);
     }
 
     public Guid Id { get; private set; }
-    public string Name { get; private set; }
+    public string Name { get; private set; } = string.Empty;
     public decimal MinPoints { get; private set; }
     public decimal DiscountPercent { get; private set; }
     public decimal PointsMultiplier { get; private set; }
 
     public void Update(decimal minPoints, decimal discountPercent, decimal pointsMultiplier)
+        => Update(Name, minPoints, discountPercent, pointsMultiplier);
+
+    public void Update(string name, decimal minPoints, decimal discountPercent, decimal pointsMultiplier)
     {
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("Tier name is required.", nameof(name));
+
+        if (minPoints < 0)
+            throw new ArgumentOutOfRangeException(nameof(minPoints), "Tier minimum points cannot be negative.");
+
+        if (discountPercent is < 0 or > 100)
+            throw new ArgumentOutOfRangeException(nameof(discountPercent), "Tier discount must be between 0 and 100.");
+
+        if (pointsMultiplier <= 0)
+            throw new ArgumentOutOfRangeException(nameof(pointsMultiplier), "Tier points multiplier must be greater than zero.");
+
+        Name = name.Trim();
         MinPoints = minPoints;
         DiscountPercent = discountPercent;
         PointsMultiplier = pointsMultiplier;

@@ -160,6 +160,33 @@ public sealed class LoyaltyViewModelTests
         Assert.Contains("guardadas", vm.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task SaveTierAsync_CreatesTierWithPersistedBenefits()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var unitOfWork = new FakeUnitOfWork();
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, unitOfWork),
+            getTiers: new GetLoyaltyTiersUseCase(repo),
+            createTier: new CreateLoyaltyTierUseCase(repo, unitOfWork),
+            updateTier: new UpdateLoyaltyTierUseCase(repo, unitOfWork),
+            deleteTier: new DeleteLoyaltyTierUseCase(repo, unitOfWork))
+        {
+            TierName = "Oro",
+            TierMinimumPoints = 1_000,
+            TierDiscountPercent = 10m,
+            TierPointsMultiplier = 1.5m
+        };
+
+        await vm.SaveTierAsync(TestContext.Current.CancellationToken);
+
+        var tier = Assert.Single(vm.Tiers);
+        Assert.Equal("Oro", tier.Name);
+        Assert.Equal("10% descuento · 1,5x puntos", tier.BenefitDescription);
+        Assert.Contains("creado", vm.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static void SetEntityId(object entity, Guid id)
     {
         var prop = entity.GetType().GetProperty("Id");
@@ -188,6 +215,7 @@ public sealed class LoyaltyViewModelTests
         private LoyaltyRule? _activeRule;
 
         public List<LoyaltyRule> Rules { get; } = [];
+        public List<LoyaltyTier> Tiers { get; } = [];
 
         public FakeLoyaltyRepository(
             LoyaltyAccount? account,
@@ -247,6 +275,27 @@ public sealed class LoyaltyViewModelTests
 
         public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>(_transactions.Take(maxCount).ToList());
+
+        public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTier>>(Tiers.OrderBy(tier => tier.MinPoints).ToList());
+
+        public Task<LoyaltyTier?> GetTierByIdAsync(Guid tierId, CancellationToken cancellationToken = default)
+            => Task.FromResult<LoyaltyTier?>(Tiers.SingleOrDefault(tier => tier.Id == tierId));
+
+        public Task AddTierAsync(LoyaltyTier tier, CancellationToken cancellationToken = default)
+        {
+            Tiers.Add(tier);
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateTierAsync(LoyaltyTier tier, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task DeleteTierAsync(Guid tierId, CancellationToken cancellationToken = default)
+        {
+            Tiers.RemoveAll(tier => tier.Id == tierId);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeUnitOfWork : IUnitOfWork
