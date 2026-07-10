@@ -17,14 +17,14 @@ namespace POS.Infrastructure.Services;
 /// </summary>
 public sealed partial class EscPosPrinterService : IPrintService
 {
-    private static readonly byte[] CmdInit        = [0x1B, 0x40];
+    private static readonly byte[] CmdInit = [0x1B, 0x40];
     private static readonly byte[] CmdCenterAlign = [0x1B, 0x61, 0x01];
-    private static readonly byte[] CmdLeftAlign   = [0x1B, 0x61, 0x00];
-    private static readonly byte[] CmdBoldOn      = [0x1B, 0x45, 0x01];
-    private static readonly byte[] CmdBoldOff     = [0x1B, 0x45, 0x00];
-    private static readonly byte[] CmdDoubleSize  = [0x1D, 0x21, 0x11];
-    private static readonly byte[] CmdNormalSize  = [0x1D, 0x21, 0x00];
-    private static readonly byte[] CmdFullCut     = [0x1D, 0x56, 0x00];
+    private static readonly byte[] CmdLeftAlign = [0x1B, 0x61, 0x00];
+    private static readonly byte[] CmdBoldOn = [0x1B, 0x45, 0x01];
+    private static readonly byte[] CmdBoldOff = [0x1B, 0x45, 0x00];
+    private static readonly byte[] CmdDoubleSize = [0x1D, 0x21, 0x11];
+    private static readonly byte[] CmdNormalSize = [0x1D, 0x21, 0x00];
+    private static readonly byte[] CmdFullCut = [0x1D, 0x56, 0x00];
 
     private static readonly CultureInfo CopCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -110,7 +110,7 @@ public sealed partial class EscPosPrinterService : IPrintService
                 ? item.ProductName[..20]
                 : item.ProductName;
 
-            var qty      = $"x{item.Quantity.ToString("0.##", CopCulture)}";
+            var qty = $"x{item.Quantity.ToString("0.##", CopCulture)}";
             var subtotal = FormatCurrency(item.Subtotal().Amount);
 
             // 32-char line: name(20) qty(5) price(7)
@@ -131,7 +131,7 @@ public sealed partial class EscPosPrinterService : IPrintService
         if (cashPayment is not null)
         {
             var received = cashPayment.ReceivedAmount?.Amount ?? cashPayment.Amount.Amount;
-            var change   = cashPayment.ChangeAmount().Amount;
+            var change = cashPayment.ChangeAmount().Amount;
             WriteLine($"{"Efectivo:",-20}{FormatCurrency(received),12}");
             if (change > 0)
                 WriteLine($"{"Cambio:",-20}{FormatCurrency(change),12}");
@@ -140,12 +140,12 @@ public sealed partial class EscPosPrinterService : IPrintService
         var methods = sale.Payments
             .Select(p => p.Method switch
             {
-                PaymentMethod.Cash       => "Efectivo",
-                PaymentMethod.DebitCard  => "Tarjeta Débito",
+                PaymentMethod.Cash => "Efectivo",
+                PaymentMethod.DebitCard => "Tarjeta Débito",
                 PaymentMethod.CreditCard => "Tarjeta Crédito",
-                PaymentMethod.Transfer   => "Transferencia",
+                PaymentMethod.Transfer => "Transferencia",
                 PaymentMethod.LoyaltyPoints => "Puntos de lealtad",
-                _                        => p.Method.ToString()
+                _ => p.Method.ToString()
             })
             .Distinct();
         WriteLine($"Método: {string.Join(", ", methods)}");

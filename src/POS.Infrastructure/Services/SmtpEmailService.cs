@@ -68,7 +68,7 @@ public sealed class SmtpEmailService : IEmailService
                 "No se pudo enviar el correo. Verifica host, puerto, SSL/TLS, usuario, contraseña de aplicación y remitente SMTP.",
                 ex);
         }
-        }
+    }
 
     private async Task<ResolvedSmtpConfiguration> ResolveConfigurationAsync(CancellationToken ct)
     {
