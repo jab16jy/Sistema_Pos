@@ -79,7 +79,7 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     }
 
     public bool HasDiscount => Discount > 0m;
-    public string DiscountText => $"Dto. {Discount:0.##}%";
+    public string DiscountText => $"Dto. {Discount.ToString("0.##", ColombianCulture)}%";
     public decimal Subtotal => Quantity * UnitPrice * (1m - (Discount / 100m));
     public string UnitPriceText => FormatCurrency(UnitPrice);
     public string SubtotalText => FormatCurrency(Subtotal);
