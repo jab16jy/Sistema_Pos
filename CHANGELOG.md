@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.3.0...v1.4.0) (2026-07-10)
+
+
+### Features
+
+* **products:** add bulk category assignment use case ([294660f](https://github.com/jab16jy/Sistema_Pos/commit/294660f2606de147898387f780650ff772164690))
+* **products:** add bulk category assignment workspace ([8e0dabf](https://github.com/jab16jy/Sistema_Pos/commit/8e0dabfba65e44070dc9cdd0b4b3da8c31504b89))
+* **reports:** expand export detail and compact PDFs ([eddcd82](https://github.com/jab16jy/Sistema_Pos/commit/eddcd82ed8eaf3948bf1d0ed2b095948311f0038))
+
 ## [1.3.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.2.1...v1.3.0) (2026-07-10)
 
 
