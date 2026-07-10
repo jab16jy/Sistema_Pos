@@ -55,6 +55,7 @@ public sealed class CashierViewModel : ViewModelBase
     private CashierProductSearchResultViewModel? _selectedProduct;
     private CashierCartItemViewModel? _selectedCartItem;
     private decimal _quantity = 1m;
+    private bool _sellSelectedAsBox;
     private PaymentMethodOption _selectedPaymentMethod;
     private decimal _receivedAmount;
     private decimal _deferredAmount;
@@ -381,9 +382,26 @@ public sealed class CashierViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedProduct, value))
             {
+                // Reset the box toggle: it only applies to the product currently selected.
+                SellSelectedAsBox = false;
+                OnPropertyChanged(nameof(CanSellSelectedAsBox));
+                OnPropertyChanged(nameof(SelectedBoxLabel));
                 UpdateCommandState();
             }
         }
+    }
+
+    /// <summary>True when the selected product can be sold as a box (has box units + box price).</summary>
+    public bool CanSellSelectedAsBox => _selectedProduct?.SupportsBox == true;
+
+    /// <summary>Box description for the selected product, e.g. "Caja x12 · $110.000".</summary>
+    public string SelectedBoxLabel => _selectedProduct?.BoxLabel ?? string.Empty;
+
+    /// <summary>When true, the next Add uses the box presentation (price and stock by the box).</summary>
+    public bool SellSelectedAsBox
+    {
+        get => _sellSelectedAsBox;
+        set => SetProperty(ref _sellSelectedAsBox, value);
     }
 
     public CashierCartItemViewModel? SelectedCartItem
@@ -688,19 +706,29 @@ public sealed class CashierViewModel : ViewModelBase
             return false;
         }
 
-        if (Quantity > SelectedProduct.AvailableStock)
+        bool asBox = SellSelectedAsBox && SelectedProduct.SupportsBox;
+        ProductPresentation presentation = asBox ? ProductPresentation.Box : ProductPresentation.Unit;
+        int unitsPerLine = asBox ? SelectedProduct.UnitsPerBox!.Value : 1;
+        decimal unitPrice = asBox ? SelectedProduct.BoxPrice!.Value : SelectedProduct.UnitPrice;
+
+        // Stock is validated in base units: N boxes consume N * UnitsPerBox units.
+        decimal requestedUnits = Quantity * unitsPerLine;
+        if (requestedUnits > SelectedProduct.AvailableStock)
         {
             Message = $"Solo hay {SelectedProduct.AvailableStock:0.##} unidades disponibles de {SelectedProduct.Name}.";
             return false;
         }
 
-        CashierCartItemViewModel? existingItem = CartItems.FirstOrDefault(item => item.ProductId == SelectedProduct.ProductId);
+        // Only merge with a cart line of the same product AND presentation; a box line and a
+        // unit line for the same product are priced differently and must stay separate.
+        CashierCartItemViewModel? existingItem = CartItems.FirstOrDefault(item =>
+            item.ProductId == SelectedProduct.ProductId && item.Presentation == presentation);
         if (existingItem is not null)
         {
-            decimal requestedTotal = existingItem.Quantity + Quantity;
-            if (requestedTotal > SelectedProduct.AvailableStock)
+            decimal requestedTotalUnits = (existingItem.Quantity + Quantity) * unitsPerLine;
+            if (requestedTotalUnits > SelectedProduct.AvailableStock)
             {
-                Message = $"No puedes vender {requestedTotal:0.##}; solo hay {SelectedProduct.AvailableStock:0.##} unidades disponibles.";
+                Message = $"No puedes vender esa cantidad; solo hay {SelectedProduct.AvailableStock:0.##} unidades disponibles.";
                 return false;
             }
 
@@ -708,7 +736,15 @@ public sealed class CashierViewModel : ViewModelBase
         }
         else
         {
-            CartItems.Add(new CashierCartItemViewModel(SelectedProduct.ProductId, SelectedProduct.Name, SelectedProduct.Barcode, Quantity, SelectedProduct.UnitPrice));
+            CartItems.Add(new CashierCartItemViewModel(
+                SelectedProduct.ProductId,
+                SelectedProduct.Name,
+                SelectedProduct.Barcode,
+                Quantity,
+                unitPrice,
+                0m,
+                presentation,
+                unitsPerLine));
         }
 
         Quantity = 1m;
@@ -1178,7 +1214,7 @@ public sealed class CashierViewModel : ViewModelBase
     private CreateSaleRequest BuildCreateSaleRequest()
     {
         IReadOnlyCollection<CreateSaleItemRequest> items = CartItems
-            .Select(item => new CreateSaleItemRequest(item.ProductId, item.Quantity, item.Discount))
+            .Select(item => new CreateSaleItemRequest(item.ProductId, item.Quantity, item.Discount, item.Presentation))
             .ToArray();
 
         // Use settlement plan when a deferred amount is set; otherwise use legacy full-payment path

@@ -330,6 +330,24 @@
                 </StackPanel>
               </Grid>
 
+              <!-- Box presentation (optional): sell the same product by the box at an independent price -->
+              <TextBlock Text="Presentación por caja (opcional)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <Grid Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="12" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                  <TextBlock Text="Unidades por caja" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                  <TextBox Text="{Binding UnitsPerBox, Mode=TwoWay, TargetNullValue=''}" Tag="0" />
+                </StackPanel>
+                <StackPanel Grid.Column="2">
+                  <TextBlock Text="Precio por caja" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                  <TextBox Text="{Binding BoxPrice, Mode=TwoWay, TargetNullValue=''}" Tag="0" />
+                </StackPanel>
+              </Grid>
+
               <!-- Stock status preview -->
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10"
                           Visibility="{Binding HasStockStatusPreview, Converter={StaticResource BoolToVisibilityConverter}}">

@@ -49,7 +49,9 @@ public sealed class ProductLookupService : IProductLookupService
                 product.CategoryId,
                 SalePrice = product.SalePrice.Amount,
                 product.CurrentStock,
-                product.MinimumStock
+                product.MinimumStock,
+                product.UnitsPerBox,
+                BoxPrice = product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : (decimal?)null
             })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -69,7 +71,9 @@ public sealed class ProductLookupService : IProductLookupService
                 product.Barcode ?? product.SourceCode,
                 product.SalePrice,
                 product.CurrentStock,
-                product.MinimumStock))
+                product.MinimumStock,
+                product.UnitsPerBox,
+                product.BoxPrice))
             .ToList();
     }
 

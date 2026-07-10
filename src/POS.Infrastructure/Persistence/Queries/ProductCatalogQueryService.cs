@@ -59,7 +59,9 @@ public sealed class ProductCatalogQueryService : IProductCatalogQueryService
                 product.TaxRate,
                 product.Description,
                 product.Barcode,
-                product.IsActive))
+                product.IsActive,
+                product.UnitsPerBox,
+                product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : null))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }

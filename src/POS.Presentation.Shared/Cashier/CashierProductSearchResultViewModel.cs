@@ -22,6 +22,13 @@ public sealed class CashierProductSearchResultViewModel
     public string UnitPriceText => FormatCurrency(UnitPrice);
     public string StockText => $"Stock: {AvailableStock:0.##}";
 
+    // ── Box presentation (optional) ──
+    public int? UnitsPerBox => Product.UnitsPerBox;
+    public decimal? BoxPrice => Product.BoxPrice;
+    public bool SupportsBox => Product.UnitsPerBox is > 0 && Product.BoxPrice is not null;
+    public string BoxPriceText => BoxPrice is decimal price ? FormatCurrency(price) : string.Empty;
+    public string BoxLabel => SupportsBox ? $"Caja x{UnitsPerBox} · {BoxPriceText}" : string.Empty;
+
     public string StockStatusKind
     {
         get

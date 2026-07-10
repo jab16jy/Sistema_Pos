@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using POS.Application.DTOs.Inventory;
 using POS.Application.DTOs.Products;
 using POS.Application.UseCases.Categories;
+using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Products;
 using POS.Presentation.Shared.Commands;
 
@@ -16,6 +18,7 @@ public sealed class ProductsViewModel : ViewModelBase
     private readonly SearchProductsUseCase _searchProducts;
     private readonly ImportProductsCsvUseCase? _importProductsCsv;
     private readonly SearchCategoriesUseCase? _searchCategories;
+    private readonly AdjustStockUseCase? _adjustStock;
     private ProductSearchResult? _selectedProduct;
     private string _searchText = string.Empty;
     private string _name = string.Empty;
@@ -25,6 +28,8 @@ public sealed class ProductsViewModel : ViewModelBase
     private decimal _currentStock;
     private decimal _minimumStock;
     private decimal _taxRate = 19m;
+    private int? _unitsPerBox;
+    private decimal? _boxPrice;
     private string _csvPath = string.Empty;
     private string? _barcode;
     private Guid _categoryId;
@@ -48,7 +53,8 @@ public sealed class ProductsViewModel : ViewModelBase
         DeleteProductUseCase deleteProduct,
         SearchProductsUseCase searchProducts,
         SearchCategoriesUseCase? searchCategories,
-        ImportProductsCsvUseCase? importProductsCsv = null)
+        ImportProductsCsvUseCase? importProductsCsv = null,
+        AdjustStockUseCase? adjustStock = null)
     {
         _createProduct = createProduct;
         _updateProduct = updateProduct;
@@ -56,6 +62,7 @@ public sealed class ProductsViewModel : ViewModelBase
         _searchProducts = searchProducts;
         _searchCategories = searchCategories;
         _importProductsCsv = importProductsCsv;
+        _adjustStock = adjustStock;
         Categories = [];
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar productos: {ex.Message}"));
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar producto: {ex.Message}"));
@@ -125,6 +132,8 @@ public sealed class ProductsViewModel : ViewModelBase
                     TaxRate = value.TaxRate;
                     Barcode = value.Barcode;
                     CategoryId = value.CategoryId;
+                    UnitsPerBox = value.UnitsPerBox;
+                    BoxPrice = value.BoxPrice;
                 }
 
                 OnPropertyChanged(nameof(HasSelectedProduct));
@@ -268,6 +277,37 @@ public sealed class ProductsViewModel : ViewModelBase
         set => SetProperty(ref _taxRate, value);
     }
 
+    /// <summary>Units contained in one box; null/0 means the product is sold by unit only.</summary>
+    public int? UnitsPerBox
+    {
+        get => _unitsPerBox;
+        set
+        {
+            if (SetProperty(ref _unitsPerBox, value))
+            {
+                OnPropertyChanged(nameof(SellsByBox));
+            }
+        }
+    }
+
+    /// <summary>Independent price for one box (not necessarily UnitsPerBox * SalePrice).</summary>
+    public decimal? BoxPrice
+    {
+        get => _boxPrice;
+        set
+        {
+            if (SetProperty(ref _boxPrice, value))
+            {
+                OnPropertyChanged(nameof(SellsByBox));
+            }
+        }
+    }
+
+    public bool SellsByBox => _unitsPerBox is > 0 && _boxPrice is > 0m;
+
+    /// <summary>Operator applying stock adjustments, for audit traceability. Set by the shell after login.</summary>
+    public Guid OperatorUserId { get; set; }
+
     public string CsvPath
     {
         get => _csvPath;
@@ -377,6 +417,15 @@ public sealed class ProductsViewModel : ViewModelBase
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
+        // A box needs both values; a half-filled or "box of 1" config is treated as unit-only.
+        int? unitsPerBox = null;
+        decimal? boxPrice = null;
+        if (_unitsPerBox is int units && units >= 2 && _boxPrice is decimal price && price > 0m)
+        {
+            unitsPerBox = units;
+            boxPrice = price;
+        }
+
         try
         {
             if (SelectedProduct is null)
@@ -390,12 +439,15 @@ public sealed class ProductsViewModel : ViewModelBase
                     MinimumStock,
                     Description,
                     Barcode,
-                    TaxRate);
+                    TaxRate,
+                    unitsPerBox,
+                    boxPrice);
                 await _createProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
                 Message = "Producto guardado correctamente";
             }
             else
             {
+                decimal originalStock = SelectedProduct.CurrentStock;
                 var request = new UpdateProductRequest(
                     SelectedProduct.Id,
                     Name,
@@ -405,8 +457,11 @@ public sealed class ProductsViewModel : ViewModelBase
                     MinimumStock,
                     Description,
                     Barcode,
-                    TaxRate);
+                    TaxRate,
+                    unitsPerBox,
+                    boxPrice);
                 await _updateProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+                await ApplyStockAdjustmentAsync(SelectedProduct.Id, originalStock, CurrentStock, cancellationToken).ConfigureAwait(true);
                 Message = "Producto guardado correctamente";
             }
 
@@ -421,6 +476,27 @@ public sealed class ProductsViewModel : ViewModelBase
         {
             Message = ex.Message;
         }
+    }
+
+    /// <summary>
+    /// Persists an edit to an existing product's stock as an audited inventory adjustment
+    /// (UpdateProductUseCase intentionally does not touch stock). Reuses AdjustStockUseCase
+    /// so the change is recorded as an InventoryMovement for traceability.
+    /// </summary>
+    private async Task ApplyStockAdjustmentAsync(Guid productId, decimal originalStock, decimal newStock, CancellationToken cancellationToken)
+    {
+        decimal delta = newStock - originalStock;
+        if (delta == 0m || _adjustStock is null)
+        {
+            return;
+        }
+
+        var request = new AdjustStockRequest(
+            productId,
+            delta,
+            "Ajuste manual al editar el producto",
+            OperatorUserId);
+        await _adjustStock.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
     }
 
     public async Task DeleteAsync(CancellationToken cancellationToken = default)
@@ -484,6 +560,8 @@ public sealed class ProductsViewModel : ViewModelBase
         CurrentStock = 0;
         MinimumStock = 0;
         TaxRate = 19m;
+        UnitsPerBox = null;
+        BoxPrice = null;
         Barcode = null;
         CategoryId = ResolveDefaultCategoryId();
         OnPropertyChanged(nameof(HasSelectedProduct));

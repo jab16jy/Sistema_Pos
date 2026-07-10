@@ -122,6 +122,7 @@ internal static class AppBootstrapper
                 var searchProducts = sp.GetRequiredService<SearchProductsUseCase>();
                 var importProductsCsv = sp.GetRequiredService<ImportProductsCsvUseCase>();
                 SearchCategoriesUseCase? searchCategories = TryResolveOptional<SearchCategoriesUseCase>(sp);
+                AdjustStockUseCase? adjustStock = TryResolveOptional<AdjustStockUseCase>(sp);
 
                 CategoriesViewModel? categoriesEditor = TryCreateOptionalModule(
                     "Editor de categorías",
@@ -134,13 +135,17 @@ internal static class AppBootstrapper
 
                 if (categoriesEditor is not null)
                 {
-                    return new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv)
+                    return new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv, adjustStock)
                     {
-                        CategoriesEditor = categoriesEditor
+                        CategoriesEditor = categoriesEditor,
+                        OperatorUserId = cashier.CashierUserId
                     };
                 }
 
-                return new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv);
+                return new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv, adjustStock)
+                {
+                    OperatorUserId = cashier.CashierUserId
+                };
             },
             moduleWarnings);
 

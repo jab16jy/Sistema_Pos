@@ -54,6 +54,9 @@ public sealed class Sale
             : Money.Zero;
 
     public void AddItem(Product product, Quantity quantity, Money discount)
+        => AddItem(product, quantity, ProductPresentation.Unit, discount);
+
+    public void AddItem(Product product, Quantity quantity, ProductPresentation presentation, Money discount)
     {
         if (Status != SaleStatus.Draft)
         {
@@ -62,10 +65,11 @@ public sealed class Sale
 
         if (product.TracksInventory)
         {
-            product.DecreaseStock(quantity);
+            // Stock is always kept in base units: a box of N decrements N units.
+            product.DecreaseStock(new Quantity(product.InventoryUnitsFor(presentation, quantity.Value)));
         }
 
-        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.SalePrice, discount, product.CostPrice ?? Money.Zero, product.TaxRate));
+        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.PriceFor(presentation), discount, product.UnitCostFor(presentation), product.TaxRate));
     }
 
     public void AddPayment(Payment payment)

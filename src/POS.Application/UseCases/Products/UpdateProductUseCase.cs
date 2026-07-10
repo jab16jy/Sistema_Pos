@@ -42,7 +42,9 @@ public sealed class UpdateProductUseCase
             new StockQuantity(request.MinimumStock),
             request.Description,
             string.IsNullOrWhiteSpace(request.Barcode) ? null : new Barcode(request.Barcode),
-            request.TaxRate);
+            request.TaxRate,
+            request.UnitsPerBox,
+            request.BoxPrice.HasValue ? new Money(request.BoxPrice.Value) : null);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -60,7 +62,9 @@ public sealed class UpdateProductUseCase
         product.TaxRate,
         product.Description,
         product.Barcode,
-        product.IsActive);
+        product.IsActive,
+        product.UnitsPerBox,
+        product.BoxPrice?.Amount);
 
     private async Task EnsureCategoryExistsAsync(Guid categoryId, CancellationToken cancellationToken)
     {
