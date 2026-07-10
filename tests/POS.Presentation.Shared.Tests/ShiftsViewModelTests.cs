@@ -1,3 +1,4 @@
+using System.Linq;
 using POS.Application.DTOs.Shifts;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Shifts;
@@ -68,6 +69,15 @@ public sealed class ShiftsViewModelTests
 
         Assert.Null(viewModel.FromDate);
         Assert.Null(viewModel.ToDate);
+        // ShiftsView binds the grid's SelectedItem to SelectedShiftRow (a ShiftRowPresentation, the
+        // FilteredShifts element type) — not to SelectedShift (a ShiftSummary), which nothing in the
+        // View reads. Asserting SelectedShiftRow is the SAME instance already sitting in FilteredShifts
+        // is what actually proves the ListBox can resolve and highlight it; a different-but-equal
+        // instance would not satisfy WPF's SelectedItem match against ItemsSource.
+        Assert.NotNull(viewModel.SelectedShiftRow);
+        Assert.Equal(shift.Id, viewModel.SelectedShiftRow!.Id);
+        Assert.Contains(viewModel.SelectedShiftRow, viewModel.FilteredShifts);
+        Assert.Same(viewModel.FilteredShifts.Single(r => r.Id == shift.Id), viewModel.SelectedShiftRow);
         Assert.NotNull(viewModel.SelectedShift);
         Assert.Equal(shift.Id, viewModel.SelectedShift!.Id);
     }

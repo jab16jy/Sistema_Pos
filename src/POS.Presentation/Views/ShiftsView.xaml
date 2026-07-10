@@ -113,9 +113,20 @@
           </Border>
 
           <!-- Grid body -->
-          <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding FilteredShifts}">
-              <ItemsControl.ItemTemplate>
+          <ListBox x:Name="ShiftsListBox"
+                   Grid.Row="2"
+                   ItemsSource="{Binding FilteredShifts}"
+                   SelectedItem="{Binding SelectedShiftRow, Mode=TwoWay}"
+                   SelectionChanged="ShiftsListBox_SelectionChanged"
+                   BorderThickness="0"
+                   ScrollViewer.VerticalScrollBarVisibility="Auto">
+            <ListBox.ItemContainerStyle>
+              <Style TargetType="ListBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Padding" Value="0" />
+              </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
                 <DataTemplate>
                   <Border Padding="16,8" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
                     <Grid>
@@ -187,9 +198,8 @@
                     </Grid>
                   </Border>
                 </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </ScrollViewer>
+            </ListBox.ItemTemplate>
+          </ListBox>
 
           <!-- Empty state -->
           <TextBlock Grid.Row="2" Text="Sin turnos en el rango seleccionado"
