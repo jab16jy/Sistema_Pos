@@ -357,6 +357,40 @@ public sealed class ReportsViewModelTests
     }
 
     [Fact]
+    public async Task LoadClosingsAsync_PopulatesPendingShiftsFromOpenShiftsOnly()
+    {
+        var closedShift = new CashierShift(Guid.NewGuid(), "Ana", new Money(100_000m));
+        closedShift.Close(new Money(100_000m));
+        var openShift = new CashierShift(Guid.NewGuid(), "Luis", new Money(50_000m));
+
+        var repo = new StubCashierShiftRepository([closedShift, openShift]);
+        var getShifts = new GetShiftsUseCase(repo);
+        var vm = new ReportsViewModel(new StubGetOperationalReportUseCase(MakeReport()), null, null, getShifts);
+
+        await vm.LoadClosingsAsync(TestContext.Current.CancellationToken);
+
+        Assert.Single(vm.PendingShifts);
+        Assert.Equal("Luis", vm.PendingShifts[0].CashierUsername);
+        Assert.Equal(openShift.Id, vm.PendingShifts[0].Id);
+    }
+
+    [Fact]
+    public void OpenPendingShiftCommand_RaisesShiftOpenRequestedWithRowId()
+    {
+        var vm = new ReportsViewModel(new StubGetOperationalReportUseCase(MakeReport()));
+        var shiftId = Guid.NewGuid();
+        var row = new ShiftRowPresentation(shiftId, "Luis", "Abierto", "success", "2026-01-01 08:00", "—", "$50.000", "—", "—", "neutral", true);
+
+        Guid? raised = null;
+        vm.ShiftOpenRequested += id => raised = id;
+
+        Assert.True(vm.OpenPendingShiftCommand.CanExecute(row));
+        vm.OpenPendingShiftCommand.Execute(row);
+
+        Assert.Equal(shiftId, raised);
+    }
+
+    [Fact]
     public async Task LoadClosingsAsync_WithNoClosedShifts_LeavesHasLastClosedShiftFalse()
     {
         var repo = new StubCashierShiftRepository([]);

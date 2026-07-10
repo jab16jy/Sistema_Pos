@@ -53,6 +53,9 @@ public sealed class ReportsViewModel : ViewModelBase
 
     public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
 
+    /// <summary>Raised when the user picks an open (pending review) shift from <see cref="PendingShifts"/>.</summary>
+    public event Action<Guid>? ShiftOpenRequested;
+
     public ReportsViewModel(IGetOperationalReportUseCase reportUseCase)
         : this(reportUseCase, null, null, null)
     {
@@ -84,6 +87,7 @@ public sealed class ReportsViewModel : ViewModelBase
         PlatformBreakdown = [];
         ProductMargins = [];
         RecentClosings = [];
+        PendingShifts = [];
 
         LoadReportCommand = new RelayCommand(_ => RunSafe(
             LoadReportAsync(
@@ -135,6 +139,16 @@ public sealed class ReportsViewModel : ViewModelBase
         LoadClosingsCommand = new RelayCommand(
             _ => RunSafe(LoadClosingsAsync(), ex => SetUnhandledError($"Error al cargar cierres: {ex.Message}")),
             _ => _getShiftsUseCase is not null);
+
+        OpenPendingShiftCommand = new RelayCommand(
+            parameter =>
+            {
+                if (parameter is ShiftRowPresentation row)
+                {
+                    ShiftOpenRequested?.Invoke(row.Id);
+                }
+            },
+            parameter => parameter is ShiftRowPresentation);
     }
 
     // ── Date range properties ──
@@ -413,6 +427,12 @@ public sealed class ReportsViewModel : ViewModelBase
     /// <summary>Recent closed shifts, most recent first (real data via <see cref="GetShiftsUseCase"/>).</summary>
     public ObservableCollection<ShiftRowPresentation> RecentClosings { get; }
 
+    /// <summary>Open shifts pending review/close. Selecting one raises <see cref="ShiftOpenRequested"/>
+    /// so the shell can navigate to Turnos with that exact shift selected.</summary>
+    public ObservableCollection<ShiftRowPresentation> PendingShifts { get; }
+
+    public ICommand OpenPendingShiftCommand { get; }
+
     public bool HasLastClosedShift => _lastClosedShift is not null;
 
     public string LastClosedShiftCashier => _lastClosedShift?.CashierUsername ?? "—";
@@ -587,9 +607,10 @@ public sealed class ReportsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Loads the most recent closed shifts (13.6, read-only). Reuses <see cref="GetShiftsUseCase"/> —
-    /// the same real backend query already wired into Turnos — and <see cref="ShiftsViewModel.ToShiftRow"/>
-    /// for consistent difference-coloring conventions across both views.
+    /// Loads the most recent closed shifts (13.6, read-only) and the open shifts pending review.
+    /// Reuses <see cref="GetShiftsUseCase"/> — the same real backend query already wired into Turnos —
+    /// and <see cref="ShiftsViewModel.ToShiftRow"/> for consistent difference-coloring conventions
+    /// across both views.
     /// </summary>
     public async Task LoadClosingsAsync(CancellationToken ct = default)
     {
@@ -610,11 +631,21 @@ public sealed class ReportsViewModel : ViewModelBase
                 .OrderByDescending(s => s.ClosedAt)
                 .Take(MaxRecentClosingsDisplayed)
                 .ToList();
+            var pending = shifts
+                .Where(s => s.Status == ShiftStatus.Open)
+                .OrderBy(s => s.OpenedAt)
+                .ToList();
 
             RecentClosings.Clear();
             foreach (var shift in closed)
             {
                 RecentClosings.Add(ShiftsViewModel.ToShiftRow(shift));
+            }
+
+            PendingShifts.Clear();
+            foreach (var shift in pending)
+            {
+                PendingShifts.Add(ShiftsViewModel.ToShiftRow(shift));
             }
 
             _lastClosedShift = closed.FirstOrDefault();

@@ -252,6 +252,7 @@ internal static class AppBootstrapper
         }
 
         shellViewModel.ConnectCustomerInvoiceNavigation();
+        shellViewModel.ConnectReportsShiftNavigation();
 
         return shellViewModel;
     }

@@ -246,6 +246,19 @@ public sealed class ShiftsViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Loads and selects a specific shift by id, widening the date filter so it's guaranteed
+    /// visible regardless of whatever range was previously applied. Used by the "Ir a Turnos"
+    /// redirect from Reportes' pending-shifts list.
+    /// </summary>
+    public async Task SelectShiftAsync(Guid shiftId, CancellationToken ct = default)
+    {
+        FromDate = null;
+        ToDate = null;
+        await LoadAsync(ct).ConfigureAwait(true);
+        SelectedShift = Shifts.FirstOrDefault(s => s.Id == shiftId);
+    }
+
     private void ApplyDateFilter()
     {
         FilteredShifts.Clear();
