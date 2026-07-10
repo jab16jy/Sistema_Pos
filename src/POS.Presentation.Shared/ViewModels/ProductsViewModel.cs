@@ -105,11 +105,13 @@ public sealed class ProductsViewModel : ViewModelBase
             if (_categoriesEditor != null)
             {
                 _categoriesEditor.CategoriesChanged -= OnCategoriesChanged;
+                _categoriesEditor.ProductsAssigned -= OnProductsAssigned;
             }
             _categoriesEditor = value;
             if (_categoriesEditor != null)
             {
                 _categoriesEditor.CategoriesChanged += OnCategoriesChanged;
+                _categoriesEditor.ProductsAssigned += OnProductsAssigned;
             }
         }
     }
@@ -205,7 +207,13 @@ public sealed class ProductsViewModel : ViewModelBase
     public bool IsProductsSubtabActive
     {
         get => _isProductsSubtabActive;
-        set => SetProperty(ref _isProductsSubtabActive, value);
+        set
+        {
+            if (SetProperty(ref _isProductsSubtabActive, value))
+            {
+                OnPropertyChanged(nameof(IsCategoriesSubtabActive));
+            }
+        }
     }
 
     public bool IsCategoriesSubtabActive
@@ -706,5 +714,10 @@ public sealed class ProductsViewModel : ViewModelBase
     private void OnCategoriesChanged(object? sender, EventArgs e)
     {
         RunSafe(LoadCategoriesAsync(default), ex => Message = $"Error al sincronizar categorias: {ex.Message}");
+    }
+
+    private void OnProductsAssigned(object? sender, EventArgs e)
+    {
+        RunSafe(LoadAsync(), ex => Message = $"Error al actualizar productos: {ex.Message}");
     }
 }

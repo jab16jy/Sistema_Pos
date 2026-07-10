@@ -131,7 +131,9 @@ internal static class AppBootstrapper
                         sp.GetRequiredService<SearchCategoriesUseCase>(),
                         sp.GetRequiredService<CreateCategoryUseCase>(),
                         sp.GetRequiredService<UpdateCategoryUseCase>(),
-                        sp.GetRequiredService<DeleteCategoryUseCase>()),
+                        sp.GetRequiredService<DeleteCategoryUseCase>(),
+                        sp.GetRequiredService<SearchProductsUseCase>(),
+                        sp.GetRequiredService<AssignProductsToCategoryUseCase>()),
                     moduleWarnings);
 
                 if (categoriesEditor is not null)

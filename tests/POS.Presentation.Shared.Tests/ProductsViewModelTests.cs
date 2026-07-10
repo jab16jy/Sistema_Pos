@@ -62,6 +62,21 @@ public sealed class ProductsViewModelTests
     }
 
     [Fact]
+    public void SelectingCategoriesSubtab_NotifiesBothTabVisibilityBindings()
+    {
+        var viewModel = CreateViewModel(new StubProductCatalogQueryService([]), []);
+        var changedProperties = new List<string?>();
+        viewModel.PropertyChanged += (_, eventArgs) => changedProperties.Add(eventArgs.PropertyName);
+
+        viewModel.IsCategoriesSubtabActive = true;
+
+        Assert.False(viewModel.IsProductsSubtabActive);
+        Assert.True(viewModel.IsCategoriesSubtabActive);
+        Assert.Contains(nameof(ProductsViewModel.IsProductsSubtabActive), changedProperties);
+        Assert.Contains(nameof(ProductsViewModel.IsCategoriesSubtabActive), changedProperties);
+    }
+
+    [Fact]
     public async Task PrintLabelAsync_UsesTheSelectedProductSavedBarcodeNameAndPrice()
     {
         Category category = new("Sin categoría");

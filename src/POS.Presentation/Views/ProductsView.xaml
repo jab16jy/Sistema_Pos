@@ -474,7 +474,12 @@
 
     <!-- ══ TAB: Categorias ══ -->
     <Grid Grid.Row="1" DataContext="{Binding CategoriesEditor}"
-          Visibility="{Binding DataContext.IsCategoriesSubtabActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+           Visibility="{Binding DataContext.IsCategoriesSubtabActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibilityConverter}}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="240" />
+        <RowDefinition Height="12" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="*" />
         <ColumnDefinition Width="12" />
@@ -482,7 +487,7 @@
       </Grid.ColumnDefinitions>
 
       <!-- Left: Category grid -->
-      <Border Style="{StaticResource Card}">
+      <Border Grid.Row="0" Style="{StaticResource Card}">
         <Grid>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -545,7 +550,7 @@
       </Border>
 
       <!-- Right: Category form -->
-      <Border Grid.Column="2" Style="{StaticResource Card}">
+      <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource Card}">
         <StackPanel>
           <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
             <materialDesign:PackIcon Kind="Shape" Width="20" Height="20"
@@ -588,6 +593,66 @@
                        Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Center" Margin="12,0,0,0" />
           </StackPanel>
         </StackPanel>
+      </Border>
+
+      <Border Grid.Row="2" Grid.ColumnSpan="3" Style="{StaticResource Card}">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+            <materialDesign:PackIcon Kind="FolderMultiple" Width="20" Height="20"
+                                      Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Text="Agrupar productos por categoría" Style="{StaticResource TextH3}" FontWeight="SemiBold" VerticalAlignment="Center" />
+          </StackPanel>
+
+          <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="220" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="260" />
+              <ColumnDefinition Width="12" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox Grid.Column="0" ItemsSource="{Binding ActiveCategories}"
+                      DisplayMemberPath="Name" SelectedValuePath="Id"
+                      SelectedValue="{Binding AssignmentCategoryId, Mode=TwoWay}"
+                      Tag="Categoría destino" />
+            <TextBox Grid.Column="2" Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     Tag="Buscar productos por nombre o código" />
+            <Button Grid.Column="4" Command="{Binding LoadAssignmentProductsCommand}" Style="{StaticResource PrimaryButton}">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                <TextBlock Text="Buscar" />
+              </StackPanel>
+            </Button>
+          </Grid>
+
+          <DataGrid Grid.Row="2" ItemsSource="{Binding AssignmentProducts}" IsReadOnly="False"
+                    AutoGenerateColumns="False" MinHeight="120">
+            <DataGrid.Columns>
+              <DataGridCheckBoxColumn Header="Asignar" Binding="{Binding IsSelected, Mode=TwoWay}" Width="80" />
+              <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*" IsReadOnly="True" />
+              <DataGridTextColumn Header="Categoría actual" Binding="{Binding CategoryName}" Width="220" IsReadOnly="True" />
+            </DataGrid.Columns>
+          </DataGrid>
+
+          <Grid Grid.Row="3" Margin="0,12,0,0">
+            <TextBlock Text="{Binding SelectedProductCount, StringFormat=Seleccionados: {0}}"
+                       Style="{StaticResource MutedText}" VerticalAlignment="Center" />
+            <Button Command="{Binding AssignProductsCommand}" Style="{StaticResource PrimaryButton}"
+                    HorizontalAlignment="Right">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="FolderMove" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                <TextBlock Text="Asignar categoría" />
+              </StackPanel>
+            </Button>
+          </Grid>
+        </Grid>
       </Border>
     </Grid>
   </Grid>
