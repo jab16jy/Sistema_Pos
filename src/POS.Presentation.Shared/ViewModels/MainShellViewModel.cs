@@ -28,6 +28,7 @@ public sealed class MainShellViewModel : ViewModelBase
     private string _operatorMessage;
     private bool _openingInvoiceFromCustomer;
     private bool _customerInvoiceNavigationConnected;
+    private bool _reportsShiftNavigationConnected;
 
     public MainShellViewModel()
         : this(new CashierViewModel(new PrototypeProductLookupService()))
@@ -301,6 +302,39 @@ public sealed class MainShellViewModel : ViewModelBase
         {
             _openingInvoiceFromCustomer = false;
         }
+    }
+
+    public void ConnectReportsShiftNavigation()
+    {
+        if (_reportsShiftNavigationConnected || Reports is null)
+        {
+            return;
+        }
+
+        Reports.ShiftOpenRequested += shiftId => RunSafe(OpenShiftFromReportsAsync(shiftId), ex => OperatorMessage = $"Error al abrir turno: {ex.Message}");
+        _reportsShiftNavigationConnected = true;
+    }
+
+    public async Task OpenShiftFromReportsAsync(Guid shiftId, CancellationToken cancellationToken = default)
+    {
+        if (Shifts is null)
+        {
+            OperatorMessage = "El módulo Turnos no está disponible.";
+            return;
+        }
+
+        ModuleNavigationItem? shiftsModule = FuncbarModules.FirstOrDefault(module => module.Key == "shifts")
+            ?? Modules.FirstOrDefault(module => module.Key == "shifts")
+            ?? AdminHubModules.FirstOrDefault(module => module.Key == "shifts");
+        if (shiftsModule is null)
+        {
+            OperatorMessage = "No encontramos el acceso al módulo Turnos.";
+            return;
+        }
+
+        SelectedModule = shiftsModule;
+        await Shifts.SelectShiftAsync(shiftId, cancellationToken).ConfigureAwait(true);
+        OperatorMessage = "Turno abierto desde Reportes.";
     }
 
     public string MainActionText => IsCashierSelected ? "Cobrar" : "Abrir módulo";

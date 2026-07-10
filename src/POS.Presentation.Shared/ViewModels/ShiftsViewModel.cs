@@ -15,6 +15,7 @@ public sealed class ShiftsViewModel : ViewModelBase
     private readonly GetShiftsUseCase _getShifts;
     private readonly ICurrentOperatorSession _session;
     private ShiftSummary? _selectedShift;
+    private ShiftRowPresentation? _selectedShiftRow;
     private decimal _openingCash;
     private decimal _closingCash;
     private string _notes = string.Empty;
@@ -61,6 +62,13 @@ public sealed class ShiftsViewModel : ViewModelBase
                 command.RaiseCanExecuteChanged();
             }
         }
+    }
+
+    /// <summary>The row the grid actually highlights — bound as the ListBox's SelectedItem.</summary>
+    public ShiftRowPresentation? SelectedShiftRow
+    {
+        get => _selectedShiftRow;
+        set => SetProperty(ref _selectedShiftRow, value);
     }
 
     public decimal OpeningCash
@@ -244,6 +252,22 @@ public sealed class ShiftsViewModel : ViewModelBase
         {
             Message = $"Error al cargar turnos: {ex.Message}";
         }
+    }
+
+    /// <summary>
+    /// Loads and selects a specific shift by id, widening the date filter so it's guaranteed
+    /// visible regardless of whatever range was previously applied. Used by the "Ir a Turnos"
+    /// redirect from Reportes' pending-shifts list. Sets <see cref="SelectedShiftRow"/> (not just
+    /// <see cref="SelectedShift"/>) because the grid binds to <see cref="FilteredShifts"/>, whose
+    /// items are <see cref="ShiftRowPresentation"/>, a different type than <see cref="ShiftSummary"/>.
+    /// </summary>
+    public async Task SelectShiftAsync(Guid shiftId, CancellationToken ct = default)
+    {
+        FromDate = null;
+        ToDate = null;
+        await LoadAsync(ct).ConfigureAwait(true);
+        SelectedShift = Shifts.FirstOrDefault(s => s.Id == shiftId);
+        SelectedShiftRow = FilteredShifts.FirstOrDefault(r => r.Id == shiftId);
     }
 
     private void ApplyDateFilter()

@@ -1,3 +1,4 @@
+using System.Linq;
 using POS.Application.DTOs.Shifts;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Shifts;
@@ -46,6 +47,39 @@ public sealed class ShiftsViewModelTests
 
         Assert.Single(viewModel.FilteredShifts);
         Assert.DoesNotContain("Error", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SelectShiftAsync_ClearsDateFilterAndSelectsShiftById()
+    {
+        var shift = new CashierShift(Guid.NewGuid(), "cajero", new Money(100m), null);
+        var repository = new SingleShiftRepository(shift);
+        var viewModel = new ShiftsViewModel(
+            new StartShiftUseCase(repository, new NoOpUnitOfWork()),
+            new CloseShiftUseCase(repository, new NoOpUnitOfWork()),
+            new GetShiftsUseCase(repository),
+            new StubOperatorSession());
+
+        // Narrow the filter to a past window that would exclude today's shift, mirroring the redirect
+        // from Reportes landing on Turnos with whatever filter was left over from a previous visit.
+        viewModel.FromDate = DateTime.Today.AddDays(-30);
+        viewModel.ToDate = DateTime.Today.AddDays(-29);
+
+        await viewModel.SelectShiftAsync(shift.Id, TestContext.Current.CancellationToken);
+
+        Assert.Null(viewModel.FromDate);
+        Assert.Null(viewModel.ToDate);
+        // ShiftsView binds the grid's SelectedItem to SelectedShiftRow (a ShiftRowPresentation, the
+        // FilteredShifts element type) — not to SelectedShift (a ShiftSummary), which nothing in the
+        // View reads. Asserting SelectedShiftRow is the SAME instance already sitting in FilteredShifts
+        // is what actually proves the ListBox can resolve and highlight it; a different-but-equal
+        // instance would not satisfy WPF's SelectedItem match against ItemsSource.
+        Assert.NotNull(viewModel.SelectedShiftRow);
+        Assert.Equal(shift.Id, viewModel.SelectedShiftRow!.Id);
+        Assert.Contains(viewModel.SelectedShiftRow, viewModel.FilteredShifts);
+        Assert.Same(viewModel.FilteredShifts.Single(r => r.Id == shift.Id), viewModel.SelectedShiftRow);
+        Assert.NotNull(viewModel.SelectedShift);
+        Assert.Equal(shift.Id, viewModel.SelectedShift!.Id);
     }
 
     private sealed class SingleShiftRepository : ICashierShiftRepository

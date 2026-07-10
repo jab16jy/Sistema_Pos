@@ -476,6 +476,29 @@
               </StackPanel>
             </Border>
 
+            <!-- Pending shifts (open, awaiting review/close) — click opens Turnos with that exact shift selected -->
+            <TextBlock Text="Turnos pendientes por revisión" Style="{StaticResource TextSmall}" FontWeight="SemiBold" Margin="0,0,0,6"
+                       Visibility="{Binding PendingShifts.Count, Converter={StaticResource IntGreaterThanZeroToVisibilityConverter}}" />
+            <ItemsControl ItemsSource="{Binding PendingShifts}" Margin="0,0,0,8"
+                          Visibility="{Binding PendingShifts.Count, Converter={StaticResource IntGreaterThanZeroToVisibilityConverter}}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Command="{Binding DataContext.OpenPendingShiftCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          CommandParameter="{Binding}"
+                          Style="{StaticResource PrimaryButton}" HorizontalContentAlignment="Stretch" Margin="0,0,0,6">
+                    <Grid HorizontalAlignment="Stretch">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding CashierUsername}" Style="{StaticResource TextSmall}" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding OpenedAtFormatted}" FontFamily="Consolas" Style="{StaticResource TextCaption}" VerticalAlignment="Center" />
+                    </Grid>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
             <!-- Recent closings (real data via GetShiftsUseCase) -->
             <TextBlock Text="Cierres recientes" Style="{StaticResource TextSmall}" FontWeight="SemiBold" Margin="0,0,0,6" />
             <ItemsControl ItemsSource="{Binding RecentClosings}" MaxHeight="140" Margin="0,0,0,8">
