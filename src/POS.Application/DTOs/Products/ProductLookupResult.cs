@@ -6,4 +6,6 @@ public sealed record ProductLookupResult(
     string Barcode,
     decimal UnitPrice,
     decimal AvailableStock,
-    decimal MinimumStock = 0m);
+    decimal MinimumStock = 0m,
+    int? UnitsPerBox = null,
+    decimal? BoxPrice = null);

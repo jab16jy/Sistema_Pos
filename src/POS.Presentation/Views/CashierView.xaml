@@ -235,6 +235,18 @@
                      Style="{StaticResource CashHint}"
                      Margin="2,6,0,0"
                      Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVisibilityConverter}}" />
+
+          <!-- Box presentation toggle: only shown when the selected product supports box sales -->
+          <StackPanel Orientation="Horizontal" Margin="2,6,0,0"
+                      Visibility="{Binding CanSellSelectedAsBox, Converter={StaticResource BoolToVisibilityConverter}}">
+            <CheckBox Content="Vender por caja"
+                      IsChecked="{Binding SellSelectedAsBox, Mode=TwoWay}"
+                      VerticalAlignment="Center" />
+            <TextBlock Text="{Binding SelectedBoxLabel}"
+                       Style="{StaticResource CashHint}"
+                       VerticalAlignment="Center"
+                       Margin="8,0,0,0" />
+          </StackPanel>
           </StackPanel>
 
           <Button Grid.Column="1"

@@ -87,7 +87,7 @@ public sealed class CreateSaleUseCase
             var product = await _products.GetByIdAsync(item.ProductId, cancellationToken)
                 ?? throw new InvalidOperationException($"Product '{item.ProductId}' was not found.");
 
-            sale.AddItem(product, new Quantity(item.Quantity), new Money(item.Discount));
+            sale.AddItem(product, new Quantity(item.Quantity), item.Presentation, new Money(item.Discount));
         }
 
         // Loyalty redemption (tender): validate and cap the redemption, add it as a

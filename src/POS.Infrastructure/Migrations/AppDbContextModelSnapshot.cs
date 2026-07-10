@@ -513,6 +513,10 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal?>("BoxPrice")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("box_price");
+
                     b.Property<string>("CategoryId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -573,6 +577,10 @@ namespace POS.Infrastructure.Migrations
 
                     b.Property<string>("UnitOfMeasureId")
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("UnitsPerBox")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("units_per_box");
 
                     b.HasKey("Id");
 

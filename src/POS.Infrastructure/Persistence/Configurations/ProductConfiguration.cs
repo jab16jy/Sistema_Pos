@@ -37,6 +37,13 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.SalePrice)
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("sale_price");
+        builder.Property(p => p.UnitsPerBox)
+               .HasColumnName("units_per_box");
+        builder.Property(p => p.BoxPrice)
+               .HasConversion(
+                    value => value.HasValue ? value.Value.Amount : (decimal?)null,
+                    value => value.HasValue ? new Money(value.Value) : null)
+               .HasColumnName("box_price");
         builder.Property(p => p.TaxRate)
                .HasColumnName("tax_rate");
         builder.HasOne<SubCategory>()

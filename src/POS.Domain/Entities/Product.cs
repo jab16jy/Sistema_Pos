@@ -22,7 +22,9 @@ public sealed class Product
         StockQuantity minimumStock,
         string? description = null,
         Barcode? barcode = null,
-        decimal taxRate = 19m)
+        decimal taxRate = 19m,
+        int? unitsPerBox = null,
+        Money? boxPrice = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -43,6 +45,7 @@ public sealed class Product
         TracksInventory = true;
         TaxRate = ValidateTaxRate(taxRate);
         IsActive = true;
+        SetBoxPresentation(unitsPerBox, boxPrice);
     }
 
     public static Product CreateImportedCatalogItem(
@@ -109,6 +112,36 @@ public sealed class Product
     public decimal TaxRate { get; private set; }
     public bool IsActive { get; private set; }
 
+    /// <summary>Units contained in one box, when the product can also be sold by the box. Null = unit-only.</summary>
+    public int? UnitsPerBox { get; private set; }
+
+    /// <summary>Independent price for one box (not necessarily UnitsPerBox * SalePrice). Null = unit-only.</summary>
+    public Money? BoxPrice { get; private set; }
+
+    /// <summary>True when the product can be sold as a box, not just by unit.</summary>
+    public bool SupportsBoxSale => UnitsPerBox is int units && units > 0 && BoxPrice is not null;
+
+    /// <summary>Sale price for the chosen presentation.</summary>
+    public Money PriceFor(ProductPresentation presentation) =>
+        presentation == ProductPresentation.Box
+            ? RequireBox().BoxPrice!.Value
+            : SalePrice;
+
+    /// <summary>Base inventory units consumed when selling <paramref name="quantity"/> of the chosen presentation.</summary>
+    public decimal InventoryUnitsFor(ProductPresentation presentation, decimal quantity) =>
+        presentation == ProductPresentation.Box
+            ? quantity * RequireBox().UnitsPerBox!.Value
+            : quantity;
+
+    /// <summary>Cost snapshot for one sold unit of the chosen presentation (per box = per-unit cost * units).</summary>
+    public Money UnitCostFor(ProductPresentation presentation)
+    {
+        decimal unitCost = CostPrice?.Amount ?? 0m;
+        return presentation == ProductPresentation.Box
+            ? new Money(unitCost * RequireBox().UnitsPerBox!.Value)
+            : new Money(unitCost);
+    }
+
     public bool IsLowStock() => CurrentStock <= MinimumStock;
 
     public void Deactivate() => IsActive = false;
@@ -125,7 +158,9 @@ public sealed class Product
         StockQuantity minimumStock,
         string? description = null,
         Barcode? barcode = null,
-        decimal taxRate = 19m)
+        decimal taxRate = 19m,
+        int? unitsPerBox = null,
+        Money? boxPrice = null)
     {
         if (!IsActive)
         {
@@ -145,7 +180,38 @@ public sealed class Product
         MinimumStock = minimumStock.Value;
         Barcode = barcode?.Value;
         TaxRate = ValidateTaxRate(taxRate);
+        SetBoxPresentation(unitsPerBox, boxPrice);
     }
+
+    /// <summary>
+    /// Sets (or clears) the box presentation. Both values go together: a box needs a
+    /// unit count (at least 2) and its own price. Passing neither clears box selling.
+    /// </summary>
+    private void SetBoxPresentation(int? unitsPerBox, Money? boxPrice)
+    {
+        if (unitsPerBox is null && boxPrice is null)
+        {
+            UnitsPerBox = null;
+            BoxPrice = null;
+            return;
+        }
+
+        if (unitsPerBox is null || boxPrice is null)
+        {
+            throw new ArgumentException("A box presentation needs both the units per box and the box price.");
+        }
+
+        if (unitsPerBox.Value < 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(unitsPerBox), "A box must contain at least 2 units.");
+        }
+
+        UnitsPerBox = unitsPerBox.Value;
+        BoxPrice = boxPrice.Value;
+    }
+
+    private Product RequireBox() =>
+        SupportsBoxSale ? this : throw new InvalidOperationException($"Product '{Name}' is not configured for box sales.");
 
     public void AdjustStock(decimal delta)
     {

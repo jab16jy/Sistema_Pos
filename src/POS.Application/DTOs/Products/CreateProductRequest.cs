@@ -9,4 +9,6 @@ public sealed record CreateProductRequest(
     decimal MinimumStock,
     string? Description,
     string? Barcode,
-    decimal TaxRate = 19m);
+    decimal TaxRate = 19m,
+    int? UnitsPerBox = null,
+    decimal? BoxPrice = null);
