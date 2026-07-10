@@ -18,6 +18,7 @@ public sealed class ReportExportService : IReportExportService
     private const string HeaderFillColor = "#F2F2F2";
     private const string CurrencyFormat = "$ #,##0";
     private const string PercentageFormat = "0.0%";
+    private const float ReportContentScale = 0.75f;
 
     // QuestPDF refuses to render without a license. ReportService sets this too, but it's never
     // instantiated in the running app, so PDF export here would throw unless we set it ourselves.
@@ -42,7 +43,7 @@ public sealed class ReportExportService : IReportExportService
             container.Page(page =>
             {
                 ConfigureReportPage(page, "Reporte operacional", period, generatedAt);
-                page.Content().Column(column =>
+                page.Content().Scale(ReportContentScale).Column(column =>
                 {
                     column.Spacing(12);
                     column.Item().Text("Resumen de recaudo y caja").FontSize(16).Bold();
@@ -79,6 +80,10 @@ public sealed class ReportExportService : IReportExportService
         ConfigureWorksheetTitle(reconciliation, 4, "Conciliación de caja", period, generatedAt);
         AddOperationalReconciliation(reconciliation, report);
 
+        var detail = workbook.Worksheets.Add("Detalle de recaudo");
+        ConfigureWorksheetTitle(detail, 6, "Detalle de recaudo", period, generatedAt);
+        AddOperationalDetail(detail, report);
+
         using var ms = new MemoryStream();
         workbook.SaveAs(ms);
         return Task.FromResult(ms.ToArray());
@@ -104,7 +109,7 @@ public sealed class ReportExportService : IReportExportService
             container.Page(page =>
             {
                 ConfigureReportPage(page, "Reporte de rentabilidad", period, generatedAt);
-                page.Content().Column(column =>
+                page.Content().Scale(ReportContentScale).Column(column =>
                 {
                     column.Spacing(12);
                     column.Item().Text("Panorama de rentabilidad").FontSize(16).Bold();
@@ -149,6 +154,10 @@ public sealed class ReportExportService : IReportExportService
         var marginsSheet = workbook.Worksheets.Add("Márgenes");
         ConfigureWorksheetTitle(marginsSheet, 6, "Margen por producto", period, generatedAt);
         AddMarginsSheet(marginsSheet, margins);
+
+        var comparisonSheet = workbook.Worksheets.Add("Comparativo");
+        ConfigureWorksheetTitle(comparisonSheet, 6, "Comparativo de períodos", period, generatedAt);
+        AddPeriodComparisonSheet(comparisonSheet, comparison);
 
         using var ms = new MemoryStream();
         workbook.SaveAs(ms);
@@ -504,6 +513,28 @@ public sealed class ReportExportService : IReportExportService
         worksheet.Column(4).Width = 42;
     }
 
+    private static void AddOperationalDetail(IXLWorksheet worksheet, OperationalReportDto report)
+    {
+        AddExcelSectionTitle(worksheet, 4, 1, 6, "Componentes del recaudo");
+        AddExcelHeader(worksheet, 5, "Grupo", "Concepto", "Monto (COP)", "Cálculo", "Caja física", "Uso operativo");
+        AddExcelDetailedOperationalRow(worksheet, 6, "Ventas", "Total facturado", report.BilledSalesTotal, "Suma de artículos facturados", "No aplica", "Referencia comercial del período.");
+        AddExcelDetailedOperationalRow(worksheet, 7, "Ventas", "Recaudo de ventas", report.SaleCashCollected + report.SaleDigitalCollected, "Efectivo de ventas + pagos digitales", "Parcial", "Dinero efectivamente cobrado por ventas.");
+        AddExcelDetailedOperationalRow(worksheet, 8, "Ventas", "Efectivo de ventas", report.SaleCashCollected, "Cobros de venta en efectivo", "Sí", "Aumenta el efectivo esperado.");
+        AddExcelDetailedOperationalRow(worksheet, 9, "Ventas", "Pagos digitales", report.SaleDigitalCollected, "Cobros de venta digitales", "No", "Ingreso conciliado fuera del cajón.");
+        AddExcelDetailedOperationalRow(worksheet, 10, "Cartera", "Abonos cobrados", report.ReceivableSettlementTotal, "Abonos en efectivo + abonos digitales", "Parcial", "Recuperación de cuentas por cobrar.");
+        AddExcelDetailedOperationalRow(worksheet, 11, "Cartera", "Abonos en efectivo", report.ReceivableSettlementCash, "Pagos de cartera en efectivo", "Sí", "Aumenta el efectivo esperado.");
+        AddExcelDetailedOperationalRow(worksheet, 12, "Cartera", "Abonos digitales", report.ReceivableSettlementDigital, "Pagos de cartera digitales", "No", "Ingreso conciliado fuera del cajón.");
+        AddExcelDetailedOperationalRow(worksheet, 13, "Caja", "Efectivo esperado", report.ExpectedDrawerCash, "Efectivo de ventas + abonos en efectivo", "Sí", "Compare este total contra el efectivo contado.", isEmphasized: true);
+        AddExcelDetailedOperationalRow(worksheet, 14, "Recaudo", "Total cobrado", report.SaleCashCollected + report.SaleDigitalCollected + report.ReceivableSettlementTotal, "Recaudo de ventas + abonos cobrados", "Mixto", "Total de entradas cobradas, físicas y digitales.", isEmphasized: true);
+        FormatExcelTable(worksheet, 5, 14, 6, freezeRows: 5);
+        worksheet.Column(1).Width = 15;
+        worksheet.Column(2).Width = 24;
+        worksheet.Column(3).Width = 18;
+        worksheet.Column(4).Width = 34;
+        worksheet.Column(5).Width = 14;
+        worksheet.Column(6).Width = 40;
+    }
+
     private static void AddProfitSummary(
         IXLWorksheet worksheet,
         IReadOnlyList<TopSellerResult> topSellers,
@@ -609,6 +640,20 @@ public sealed class ReportExportService : IReportExportService
         worksheet.Column(6).Width = 14;
     }
 
+    private static void AddPeriodComparisonSheet(IXLWorksheet worksheet, PeriodComparisonResult comparison)
+    {
+        AddExcelSectionTitle(worksheet, 4, 1, 6, "Evolución frente al período anterior");
+        AddExcelHeader(worksheet, 5, "Indicador", "Actual (COP)", "Anterior (COP)", "Variación (COP)", "Variación (%)", "Lectura");
+        AddExcelDetailedComparisonRow(worksheet, 6, "Ingresos", comparison.CurrentRevenue, comparison.PriorRevenue, comparison.RevenueGrowthPercent);
+        AddExcelDetailedComparisonRow(worksheet, 7, "Costos", comparison.CurrentCost, comparison.PriorCost, PercentChange(comparison.CurrentCost, comparison.PriorCost));
+        AddExcelDetailedComparisonRow(worksheet, 8, "Margen bruto", comparison.CurrentMargin, comparison.PriorMargin, PercentChange(comparison.CurrentMargin, comparison.PriorMargin));
+        FormatExcelTable(worksheet, 5, 8, 6, freezeRows: 5);
+        worksheet.Column(1).Width = 22;
+        worksheet.Columns(2, 4).Width = 18;
+        worksheet.Column(5).Width = 16;
+        worksheet.Column(6).Width = 24;
+    }
+
     private static void AddExcelSectionTitle(IXLWorksheet worksheet, int row, int firstColumn, int lastColumn, string title)
     {
         worksheet.Range(row, firstColumn, row, lastColumn).Merge();
@@ -673,6 +718,32 @@ public sealed class ReportExportService : IReportExportService
         }
     }
 
+    private static void AddExcelDetailedOperationalRow(
+        IXLWorksheet worksheet,
+        int row,
+        string group,
+        string concept,
+        decimal amount,
+        string calculation,
+        string cashImpact,
+        string operationalUse,
+        bool isEmphasized = false)
+    {
+        worksheet.Cell(row, 1).Value = group;
+        worksheet.Cell(row, 2).Value = concept;
+        worksheet.Cell(row, 3).Value = amount;
+        worksheet.Cell(row, 3).Style.NumberFormat.Format = CurrencyFormat;
+        worksheet.Cell(row, 4).Value = calculation;
+        worksheet.Cell(row, 5).Value = cashImpact;
+        worksheet.Cell(row, 6).Value = operationalUse;
+
+        if (isEmphasized)
+        {
+            worksheet.Range(row, 1, row, 6).Style.Font.Bold = true;
+            worksheet.Range(row, 1, row, 6).Style.Fill.BackgroundColor = XLColor.FromHtml("#E2F0D9");
+        }
+    }
+
     private static void AddExcelComparisonRow(IXLWorksheet worksheet, int row, string label, decimal current, decimal prior, decimal percentage)
     {
         worksheet.Cell(row, 1).Value = label;
@@ -685,6 +756,22 @@ public sealed class ReportExportService : IReportExportService
         worksheet.Range(row, 2, row, 3).Style.NumberFormat.Format = CurrencyFormat;
         worksheet.Cell(row, 4).Style.NumberFormat.Format = PercentageFormat;
         worksheet.Cell(row, 5).Style.Font.FontColor = percentage >= 0m ? XLColor.DarkGreen : XLColor.DarkRed;
+    }
+
+    private static void AddExcelDetailedComparisonRow(IXLWorksheet worksheet, int row, string label, decimal current, decimal prior, decimal percentage)
+    {
+        decimal difference = current - prior;
+        worksheet.Cell(row, 1).Value = label;
+        worksheet.Cell(row, 2).Value = current;
+        worksheet.Cell(row, 3).Value = prior;
+        worksheet.Cell(row, 4).Value = difference;
+        worksheet.Cell(row, 5).Value = percentage / 100m;
+        worksheet.Cell(row, 6).Value = prior == 0m && current != 0m
+            ? "Sin base anterior"
+            : percentage >= 0m ? "Aumentó" : "Disminuyó";
+        worksheet.Range(row, 2, row, 4).Style.NumberFormat.Format = CurrencyFormat;
+        worksheet.Cell(row, 5).Style.NumberFormat.Format = PercentageFormat;
+        worksheet.Range(row, 4, row, 6).Style.Font.FontColor = percentage >= 0m ? XLColor.DarkGreen : XLColor.DarkRed;
     }
 
     private static void FormatExcelTable(IXLWorksheet worksheet, int headerRow, int lastRow, int lastColumn, int freezeRows)

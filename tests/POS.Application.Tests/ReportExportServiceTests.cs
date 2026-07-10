@@ -23,7 +23,7 @@ public sealed class ReportExportServiceTests
     }
 
     [Fact]
-    public async Task ExportOperationalReportExcelAsync_CreatesSummaryAndCashReconciliation()
+    public async Task ExportOperationalReportExcelAsync_CreatesSummaryReconciliationAndDetailedCollectionSheets()
     {
         byte[] document = await _service.ExportOperationalReportExcelAsync(
             OperationalReport(),
@@ -36,14 +36,20 @@ public sealed class ReportExportServiceTests
 
         IXLWorksheet summary = workbook.Worksheet("Resumen");
         Assert.NotNull(workbook.Worksheet("Conciliación de caja"));
+        IXLWorksheet detail = workbook.Worksheet("Detalle de recaudo");
         Assert.Equal("REPORTE OPERACIONAL", summary.Cell("A1").GetString());
         Assert.Equal("Total facturado", summary.Cell("A5").GetString());
         Assert.Equal(1_500_000m, summary.Cell("A6").GetValue<decimal>());
         Assert.Equal("Efectivo esperado", summary.Cell("B16").GetString());
+        Assert.Equal("DETALLE DE RECAUDO", detail.Cell("A1").GetString());
+        Assert.Equal("Recaudo de ventas", detail.Cell("B7").GetString());
+        Assert.Equal(1_500_000m, detail.Cell("C7").GetValue<decimal>());
+        Assert.Equal("Total cobrado", detail.Cell("B14").GetString());
+        Assert.Equal(1_650_000m, detail.Cell("C14").GetValue<decimal>());
     }
 
     [Fact]
-    public async Task ExportProfitReportExcelAsync_CreatesDashboardAndDetailedSheets()
+    public async Task ExportProfitReportExcelAsync_CreatesDashboardDetailedAndPeriodComparisonSheets()
     {
         byte[] document = await _service.ExportProfitReportExcelAsync(
             [new TopSellerResult(Guid.NewGuid(), "Crema hidratante", 12, 360_000m)],
@@ -59,8 +65,11 @@ public sealed class ReportExportServiceTests
         Assert.Equal("REPORTE DE RENTABILIDAD", workbook.Worksheet("Resumen").Cell("A1").GetString());
         Assert.Equal("PRODUCTOS MÁS VENDIDOS", workbook.Worksheet("Top vendidos").Cell("A1").GetString());
         Assert.Equal("MARGEN POR PRODUCTO", workbook.Worksheet("Márgenes").Cell("A1").GetString());
+        Assert.Equal("COMPARATIVO DE PERÍODOS", workbook.Worksheet("Comparativo").Cell("A1").GetString());
         Assert.Equal("Crema hidratante", workbook.Worksheet("Top vendidos").Cell("B5").GetString());
         Assert.Equal("Rentable", workbook.Worksheet("Márgenes").Cell("F5").GetString());
+        Assert.Equal(60_000m, workbook.Worksheet("Comparativo").Cell("D6").GetValue<decimal>());
+        Assert.Equal("Aumentó", workbook.Worksheet("Comparativo").Cell("F6").GetString());
     }
 
     [Fact]
