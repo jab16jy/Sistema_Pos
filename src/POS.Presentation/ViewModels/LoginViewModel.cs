@@ -22,7 +22,7 @@ public sealed class LoginViewModel : ViewModelBase
         _session = session;
         LoginCommand = new RelayCommand(
             execute: _ => RunSafe(ExecuteLoginAsync(), ex => Message = $"Error inesperado: {ex.Message}"),
-            canExecute: _ => !string.IsNullOrWhiteSpace(Username) && !string.IsNullOrWhiteSpace(Password) && !IsLoading);
+            canExecute: _ => !IsLoading);
     }
 
     public string Username
@@ -51,8 +51,20 @@ public sealed class LoginViewModel : ViewModelBase
 
     public RelayCommand LoginCommand { get; }
 
-    private async Task ExecuteLoginAsync()
+    internal async Task ExecuteLoginAsync()
     {
+        if (string.IsNullOrWhiteSpace(Username))
+        {
+            Message = "El usuario es requerido.";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Password))
+        {
+            Message = "La contraseña es requerida.";
+            return;
+        }
+
         IsLoading = true;
         Message = "Verificando credenciales...";
         try

@@ -70,7 +70,7 @@
                        HorizontalAlignment="Center"
                        VerticalAlignment="Top" />
             <TextBlock Grid.Column="1"
-                       Text="Ingresa con el usuario asignado. Si olvidaste tu clave, llama al administrador."
+                       Text="{Binding Message}"
                        Foreground="{StaticResource BrushPrimaryDark}"
                        TextWrapping="Wrap" />
           </Grid>
