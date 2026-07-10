@@ -519,14 +519,17 @@
           <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
             <materialDesign:PackIcon Kind="Shape" Width="20" Height="20"
                                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Text="Nueva categoria" Style="{StaticResource TextH3}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Text="Nueva categoria" Style="{StaticResource TextH3}" FontWeight="SemiBold" VerticalAlignment="Center"
+                       Visibility="{Binding SelectedCategory, Converter={StaticResource InverseNullToVisibilityConverter}}" />
+            <TextBlock Text="Editando categoria" Style="{StaticResource TextH3}" FontWeight="SemiBold" VerticalAlignment="Center"
+                       Visibility="{Binding SelectedCategory, Converter={StaticResource NullToVisibilityConverter}}" />
           </StackPanel>
 
           <TextBlock Text="Nombre de la categoria *" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
           <TextBox Text="{Binding Name, Mode=TwoWay}" Tag="Ej: Cosmeticos" Margin="0,0,0,12" />
 
           <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-            <CheckBox IsChecked="True" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <CheckBox IsChecked="{Binding IsActive, Mode=TwoWay}" VerticalAlignment="Center" Margin="0,0,8,0" />
             <TextBlock Text="Activa" VerticalAlignment="Center" />
           </StackPanel>
 
@@ -537,10 +540,17 @@
                 <TextBlock Text="Guardar" />
               </StackPanel>
             </Button>
-            <Button Command="{Binding ClearCommand}" Background="Transparent" BorderThickness="0">
+            <Button Command="{Binding ClearCommand}" Background="Transparent" BorderThickness="0" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal">
                 <materialDesign:PackIcon Kind="Close" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
                 <TextBlock Text="Limpiar" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding DeleteCommand}" Style="{StaticResource DangerButton}" Margin="0,0,8,0"
+                    Visibility="{Binding SelectedCategory, Converter={StaticResource NullToVisibilityConverter}}">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="Delete" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                <TextBlock Text="Eliminar" />
               </StackPanel>
             </Button>
             <TextBlock Text="{Binding Message}" Style="{StaticResource MutedText}" FontSize="12"

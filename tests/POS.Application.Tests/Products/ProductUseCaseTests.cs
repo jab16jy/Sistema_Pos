@@ -223,6 +223,12 @@ public sealed class ProductUseCaseTests
 
         public Task<bool> HasProductsAsync(Guid categoryId, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+
+        public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            _categories.Remove(id);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class CountingUnitOfWork : IUnitOfWork

@@ -11,4 +11,6 @@ public interface ICategoryRepository
 
     /// <summary>Returns true if any active product references this category.</summary>
     Task<bool> HasProductsAsync(Guid categoryId, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }

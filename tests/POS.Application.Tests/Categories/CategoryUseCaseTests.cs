@@ -37,19 +37,44 @@ public sealed class CategoryUseCaseTests
     }
 
     [Fact]
-    public async Task DeleteCategory_WhenProductsExist_ThrowsDeleteGuard()
+    public async Task DeleteCategory_WhenCategoryDoesNotExist_Throws()
+    {
+        var repo = new InMemCategoryRepository();
+        var uow = new CountingUow();
+        var useCase = new DeleteCategoryUseCase(repo, uow);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(Guid.NewGuid(), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DeleteCategory_WhenProductsExist_Throws()
     {
         var repo = new InMemCategoryRepository();
         var category = new Category("Tools");
         repo.Categories.Add(category);
         repo.CategoryHasProducts[category.Id] = true;
+        var uow = new CountingUow();
+        var useCase = new DeleteCategoryUseCase(repo, uow);
 
-        // There is no DeleteCategoryUseCase in Phase 2, but we test the guard via HasProductsAsync
-        // The business logic is: Application must check HasProductsAsync before deleting.
-        // This test verifies the repository contract enforcement at the use-case level.
-        var hasProducts = await repo.HasProductsAsync(category.Id, TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(category.Id, TestContext.Current.CancellationToken));
+    }
 
-        Assert.True(hasProducts);
+    [Fact]
+    public async Task DeleteCategory_WhenNoProductsExist_RemovesCategoryAndSaves()
+    {
+        var repo = new InMemCategoryRepository();
+        var category = new Category("Tools");
+        repo.Categories.Add(category);
+        repo.CategoryHasProducts[category.Id] = false;
+        var uow = new CountingUow();
+        var useCase = new DeleteCategoryUseCase(repo, uow);
+
+        await useCase.ExecuteAsync(category.Id, TestContext.Current.CancellationToken);
+
+        Assert.Empty(repo.Categories);
+        Assert.Equal(1, uow.SaveCount);
     }
 
     [Fact]
@@ -90,6 +115,16 @@ public sealed class CategoryUseCaseTests
 
         public Task<bool> HasProductsAsync(Guid categoryId, CancellationToken ct = default)
             => Task.FromResult(CategoryHasProducts.GetValueOrDefault(categoryId, false));
+
+        public Task DeleteAsync(Guid id, CancellationToken ct = default)
+        {
+            var category = Categories.FirstOrDefault(c => c.Id == id);
+            if (category != null)
+            {
+                Categories.Remove(category);
+            }
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class CountingUow : IUnitOfWork

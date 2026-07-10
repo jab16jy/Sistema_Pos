@@ -154,6 +154,7 @@ public static class DependencyInjection
         services.AddScoped<CreateCategoryUseCase>();
         services.AddScoped<UpdateCategoryUseCase>();
         services.AddScoped<SearchCategoriesUseCase>();
+        services.AddScoped<DeleteCategoryUseCase>();
         services.AddScoped<GenerateBarcodeUseCase>();
         services.AddScoped<PrintLabelsUseCase>();
 

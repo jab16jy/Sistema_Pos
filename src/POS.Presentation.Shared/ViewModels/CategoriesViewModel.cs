@@ -15,23 +15,32 @@ public sealed class CategoriesViewModel : ViewModelBase
     private readonly SearchCategoriesUseCase _searchCategories;
     private readonly CreateCategoryUseCase _createCategory;
     private readonly UpdateCategoryUseCase _updateCategory;
+    private readonly DeleteCategoryUseCase _deleteCategory;
 
     private CategoryResult? _selectedCategory;
     private string _name = string.Empty;
+    private bool _isActive = true;
     private string _message = string.Empty;
+
+    public event EventHandler? CategoriesChanged;
 
     public CategoriesViewModel(
         SearchCategoriesUseCase searchCategories,
         CreateCategoryUseCase createCategory,
-        UpdateCategoryUseCase updateCategory)
+        UpdateCategoryUseCase updateCategory,
+        DeleteCategoryUseCase deleteCategory)
     {
         _searchCategories = searchCategories ?? throw new ArgumentNullException(nameof(searchCategories));
         _createCategory = createCategory ?? throw new ArgumentNullException(nameof(createCategory));
         _updateCategory = updateCategory ?? throw new ArgumentNullException(nameof(updateCategory));
+        _deleteCategory = deleteCategory ?? throw new ArgumentNullException(nameof(deleteCategory));
 
         Categories = [];
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar categorias: {ex.Message}"));
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar categoria: {ex.Message}"));
+        DeleteCommand = new RelayCommand(
+            _ => RunSafe(DeleteAsync(), ex => Message = $"Error al eliminar categoria: {ex.Message}"),
+            _ => SelectedCategory is not null);
         ClearCommand = new RelayCommand(_ => ClearForm());
     }
 
@@ -41,6 +50,8 @@ public sealed class CategoriesViewModel : ViewModelBase
 
     public ICommand SaveCommand { get; }
 
+    public ICommand DeleteCommand { get; }
+
     public ICommand ClearCommand { get; }
 
     public CategoryResult? SelectedCategory
@@ -48,9 +59,19 @@ public sealed class CategoriesViewModel : ViewModelBase
         get => _selectedCategory;
         set
         {
-            if (SetProperty(ref _selectedCategory, value) && value is not null)
+            if (SetProperty(ref _selectedCategory, value))
             {
-                Name = value.Name;
+                if (value is not null)
+                {
+                    Name = value.Name;
+                    IsActive = value.IsActive;
+                }
+                else
+                {
+                    Name = string.Empty;
+                    IsActive = true;
+                }
+                (DeleteCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
@@ -59,6 +80,12 @@ public sealed class CategoriesViewModel : ViewModelBase
     {
         get => _name;
         set => SetProperty(ref _name, value);
+    }
+
+    public bool IsActive
+    {
+        get => _isActive;
+        set => SetProperty(ref _isActive, value);
     }
 
     public string Message
@@ -92,21 +119,24 @@ public sealed class CategoriesViewModel : ViewModelBase
     {
         try
         {
+            string successMessage;
             if (SelectedCategory is null)
             {
-                var request = new CreateCategoryRequest(Name);
+                var request = new CreateCategoryRequest(Name, IsActive);
                 await _createCategory.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-                Message = $"Categoria '{Name}' creada exitosamente.";
+                successMessage = $"Categoria '{Name}' creada exitosamente.";
             }
             else
             {
-                var request = new UpdateCategoryRequest(SelectedCategory.Id, Name);
+                var request = new UpdateCategoryRequest(SelectedCategory.Id, Name, IsActive);
                 await _updateCategory.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-                Message = $"Categoria '{Name}' actualizada exitosamente.";
+                successMessage = $"Categoria '{Name}' actualizada exitosamente.";
             }
 
             ClearForm();
             await LoadAsync(cancellationToken).ConfigureAwait(true);
+            Message = successMessage;
+            CategoriesChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (ArgumentException ex)
         {
@@ -122,9 +152,33 @@ public sealed class CategoriesViewModel : ViewModelBase
         }
     }
 
+    public async Task DeleteAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedCategory is null) return;
+
+        try
+        {
+            var categoryName = SelectedCategory.Name;
+            await _deleteCategory.ExecuteAsync(SelectedCategory.Id, cancellationToken).ConfigureAwait(true);
+            ClearForm();
+            await LoadAsync(cancellationToken).ConfigureAwait(true);
+            Message = $"Categoria '{categoryName}' eliminada exitosamente.";
+            CategoriesChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al eliminar categoria: {ex.Message}";
+        }
+    }
+
     private void ClearForm()
     {
         SelectedCategory = null;
         Name = string.Empty;
+        IsActive = true;
     }
 }
