@@ -47,6 +47,14 @@ public sealed class UpdateCategoryUseCase
         //
         // We must rename via a domain method. Check if Category has one; if not, we handle it inline:
         category.Rename(request.Name);
+        if (request.IsActive)
+        {
+            category.Activate();
+        }
+        else
+        {
+            category.Deactivate();
+        }
 
         await _categories.UpdateAsync(category, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

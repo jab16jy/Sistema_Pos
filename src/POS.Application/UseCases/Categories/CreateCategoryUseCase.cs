@@ -30,6 +30,10 @@ public sealed class CreateCategoryUseCase
         }
 
         var category = new Category(request.Name);
+        if (!request.IsActive)
+        {
+            category.Deactivate();
+        }
         await _categories.AddAsync(category, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 

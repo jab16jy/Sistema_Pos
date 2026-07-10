@@ -46,4 +46,15 @@ public sealed class CategoryRepository : ICategoryRepository
             .AnyAsync(p => p.CategoryId == categoryId, cancellationToken)
             .ConfigureAwait(false);
     }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var category = await _dbContext.Categories
+            .FirstOrDefaultAsync(c => c.Id == id, cancellationToken)
+            .ConfigureAwait(false);
+        if (category != null)
+        {
+            _dbContext.Categories.Remove(category);
+        }
+    }
 }

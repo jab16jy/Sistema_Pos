@@ -127,7 +127,8 @@ internal static class AppBootstrapper
                     () => new CategoriesViewModel(
                         sp.GetRequiredService<SearchCategoriesUseCase>(),
                         sp.GetRequiredService<CreateCategoryUseCase>(),
-                        sp.GetRequiredService<UpdateCategoryUseCase>()),
+                        sp.GetRequiredService<UpdateCategoryUseCase>(),
+                        sp.GetRequiredService<DeleteCategoryUseCase>()),
                     moduleWarnings);
 
                 if (categoriesEditor is not null)

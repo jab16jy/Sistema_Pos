@@ -70,11 +70,28 @@ public sealed class ProductsViewModel : ViewModelBase
 
     public ObservableCollection<CategoryResult> Categories { get; }
 
+    private CategoriesViewModel? _categoriesEditor;
+
     /// <summary>
     /// Optional sub-ViewModel for category CRUD operations.
     /// Set by App.xaml.cs when the category use cases are available.
     /// </summary>
-    public CategoriesViewModel? CategoriesEditor { get; init; }
+    public CategoriesViewModel? CategoriesEditor
+    {
+        get => _categoriesEditor;
+        set
+        {
+            if (_categoriesEditor != null)
+            {
+                _categoriesEditor.CategoriesChanged -= OnCategoriesChanged;
+            }
+            _categoriesEditor = value;
+            if (_categoriesEditor != null)
+            {
+                _categoriesEditor.CategoriesChanged += OnCategoriesChanged;
+            }
+        }
+    }
 
     public ICommand LoadCommand { get; }
 
@@ -535,5 +552,10 @@ public sealed class ProductsViewModel : ViewModelBase
             string.Equals(category.Name, "Sin categoría", StringComparison.OrdinalIgnoreCase));
 
         return preferredCategory?.Id ?? Categories.FirstOrDefault()?.Id ?? Guid.Empty;
+    }
+
+    private void OnCategoriesChanged(object? sender, EventArgs e)
+    {
+        RunSafe(LoadCategoriesAsync(default), ex => Message = $"Error al sincronizar categorias: {ex.Message}");
     }
 }
