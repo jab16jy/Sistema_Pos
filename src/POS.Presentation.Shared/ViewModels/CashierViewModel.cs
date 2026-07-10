@@ -51,6 +51,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _clearLoadedQuoteCommand;
     private CancellationTokenSource? _autocompleteSearchCts;
     private string _searchText = string.Empty;
+    private string _searchResultsQuery = string.Empty;
     private CashierProductSearchResultViewModel? _selectedProduct;
     private CashierCartItemViewModel? _selectedCartItem;
     private decimal _quantity = 1m;
@@ -62,6 +63,7 @@ public sealed class CashierViewModel : ViewModelBase
     private bool _canConfirm;
     private decimal _changeAmount;
     private CustomerSearchResult? _selectedCustomer;
+    private CustomerSearchResult? _selectedCustomerSearchResult;
     private Guid? _customerId;
     private string _customerSearchText = string.Empty;
     private decimal _loyaltyDiscount;
@@ -169,6 +171,7 @@ public sealed class CashierViewModel : ViewModelBase
         PrintReceiptNoCommand = _printReceiptNoCommand;
         SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => Message = $"Error al buscar clientes: {ex.Message}"));
         SelectCustomerCommand = new RelayCommand(parameter => RunSafe(SelectCustomerFromCommandAsync(parameter), ex => Message = $"Error al asignar cliente: {ex.Message}"), parameter => parameter is CustomerSearchResult);
+        ConfirmCustomerSelectionCommand = new RelayCommand(_ => RunSafe(ConfirmCustomerSelectionAsync(), ex => Message = $"Error al asignar cliente: {ex.Message}"), _ => SelectedCustomerSearchResult is not null);
         ContinueWithoutCustomerCommand = new RelayCommand(_ => RunSafe(ContinueWithoutCustomerAsync(), ex => Message = $"Error al continuar sin cliente: {ex.Message}"));
         _clearCustomerCommand = new RelayCommand(_ => ClearCustomerAssignment(), _ => CustomerId is not null || SelectedCustomer is not null);
         ClearCustomerCommand = _clearCustomerCommand;
@@ -188,6 +191,18 @@ public sealed class CashierViewModel : ViewModelBase
     public ObservableCollection<CustomerSearchResult> CustomerSearchResults { get; }
 
     public ObservableCollection<CustomerPayableQuote> CustomerQuotes { get; }
+
+    public CustomerSearchResult? SelectedCustomerSearchResult
+    {
+        get => _selectedCustomerSearchResult;
+        set
+        {
+            if (SetProperty(ref _selectedCustomerSearchResult, value))
+            {
+                (ConfirmCustomerSelectionCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+    }
 
     public ICommand SearchCommand { get; }
 
@@ -214,6 +229,8 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand SearchCustomerCommand { get; }
 
     public ICommand SelectCustomerCommand { get; }
+
+    public ICommand ConfirmCustomerSelectionCommand { get; }
 
     public ICommand ContinueWithoutCustomerCommand { get; }
 
@@ -345,6 +362,13 @@ public sealed class CashierViewModel : ViewModelBase
         {
             if (SetProperty(ref _searchText, value ?? string.Empty))
             {
+                if (!string.Equals(_searchResultsQuery, _searchText.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    SearchResults.Clear();
+                    SelectedProduct = null;
+                    HasNoMatches = false;
+                }
+
                 StartAutocompleteSearch();
             }
         }
@@ -525,11 +549,17 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
-        await SearchAsync(cancellationToken).ConfigureAwait(true);
-
         CashierProductSearchResultViewModel? exactBarcodeMatch = SearchResults.FirstOrDefault(result =>
             !string.IsNullOrWhiteSpace(result.Barcode) &&
             string.Equals(result.Barcode, normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (exactBarcodeMatch is null && SearchResults.Count == 0)
+        {
+            await SearchAsync(cancellationToken).ConfigureAwait(true);
+            exactBarcodeMatch = SearchResults.FirstOrDefault(result =>
+                !string.IsNullOrWhiteSpace(result.Barcode) &&
+                string.Equals(result.Barcode, normalized, StringComparison.OrdinalIgnoreCase));
+        }
 
         // Enter adds the exact scan match or, failing that, the highlighted suggestion
         CashierProductSearchResultViewModel? productToAdd = exactBarcodeMatch ?? SelectedProduct;
@@ -554,6 +584,7 @@ public sealed class CashierViewModel : ViewModelBase
 
         SearchText = string.Empty;
         SearchResults.Clear();
+        _searchResultsQuery = string.Empty;
         SelectedProduct = null;
         Message = $"Producto {product.Name} agregado al carrito.";
         return true;
@@ -580,6 +611,7 @@ public sealed class CashierViewModel : ViewModelBase
         if (query.Length == 0)
         {
             SearchResults.Clear();
+            _searchResultsQuery = string.Empty;
             SelectedProduct = null;
             HasNoMatches = false;
             return;
@@ -615,13 +647,17 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
+        Guid? selectedProductId = SelectedProduct?.ProductId;
         SearchResults.Clear();
         foreach (ProductLookupResult result in results)
         {
             SearchResults.Add(new CashierProductSearchResultViewModel(result));
         }
 
-        SelectedProduct = SearchResults.FirstOrDefault();
+        SelectedProduct = selectedProductId is { } id
+            ? SearchResults.FirstOrDefault(result => result.ProductId == id) ?? SearchResults.FirstOrDefault()
+            : SearchResults.FirstOrDefault();
+        _searchResultsQuery = query.Trim();
         HasNoMatches = SearchResults.Count == 0 && query.Trim().Length > 0;
 
         if (updateMessage)
@@ -860,6 +896,8 @@ public sealed class CashierViewModel : ViewModelBase
             CustomerSearchResults.Add(customer);
         }
 
+        SelectedCustomerSearchResult = CustomerSearchResults.FirstOrDefault();
+
         Message = CustomerSearchResults.Count == 0
             ? "No encontramos clientes activos con ese texto. Puedes facturar sin cliente o registrarlo en Clientes."
             : "Selecciona el cliente para acumular puntos en esta factura.";
@@ -872,6 +910,7 @@ public sealed class CashierViewModel : ViewModelBase
         SelectedCustomer = customer;
         CustomerSearchText = customer.FullName;
         CustomerSearchResults.Clear();
+        SelectedCustomerSearchResult = null;
         _customerAssignmentReviewed = true;
         IsCustomerAssignmentOpen = false;
         await LoadCustomerQuotesForSelectedCustomerAsync(cancellationToken).ConfigureAwait(true);
@@ -880,6 +919,30 @@ public sealed class CashierViewModel : ViewModelBase
             : $"Cliente asignado para puntos: {customer.FullName}.";
 
         await ContinueSaleIfCustomerGateWasOpenAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    public async Task ConfirmCustomerSelectionAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedCustomerSearchResult is null)
+        {
+            Message = "Selecciona un cliente para asignarlo.";
+            return;
+        }
+
+        await SelectCustomerAsync(SelectedCustomerSearchResult, cancellationToken).ConfigureAwait(true);
+    }
+
+    /// <summary>Moves the highlighted customer result for keyboard-only assignment.</summary>
+    public void MoveCustomerSelection(int delta)
+    {
+        if (CustomerSearchResults.Count == 0)
+        {
+            return;
+        }
+
+        int currentIndex = SelectedCustomerSearchResult is null ? -1 : CustomerSearchResults.IndexOf(SelectedCustomerSearchResult);
+        int nextIndex = Math.Clamp(currentIndex + delta, 0, CustomerSearchResults.Count - 1);
+        SelectedCustomerSearchResult = CustomerSearchResults[nextIndex];
     }
 
     public async Task ContinueWithoutCustomerAsync(CancellationToken cancellationToken = default)
@@ -939,6 +1002,7 @@ public sealed class CashierViewModel : ViewModelBase
         CustomerId = null;
         CustomerSearchText = string.Empty;
         CustomerSearchResults.Clear();
+        SelectedCustomerSearchResult = null;
         IsCustomerAssignmentOpen = false;
         if (IsQuoteLoaded)
         {

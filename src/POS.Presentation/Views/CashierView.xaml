@@ -489,9 +489,11 @@
                       <ColumnDefinition Width="*" />
                       <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBox Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                    <TextBox x:Name="CustomerSearchTextBox"
+                             Text="{Binding CustomerSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Tag="Nombre, cédula o teléfono..."
-                             Height="34" />
+                             Height="34"
+                             KeyDown="CustomerSearchTextBox_OnKeyDown" />
                     <Button Grid.Column="1"
                             Content="Buscar"
                             Style="{StaticResource PrimaryButton}"
@@ -500,39 +502,30 @@
                             Padding="10,4" />
                   </Grid>
 
-                  <ItemsControl ItemsSource="{Binding CustomerSearchResults}"
-                                MaxHeight="160"
-                                Margin="0,8,0,0">
-                    <ItemsControl.ItemTemplate>
+                  <ListBox x:Name="CustomerResultsListBox"
+                           ItemsSource="{Binding CustomerSearchResults}"
+                           SelectedItem="{Binding SelectedCustomerSearchResult, Mode=TwoWay}"
+                           MaxHeight="160"
+                           Margin="0,8,0,0"
+                           BorderThickness="0">
+                    <ListBox.ItemTemplate>
                       <DataTemplate>
                         <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,8">
-                          <Grid>
-                            <Grid.ColumnDefinitions>
-                              <ColumnDefinition Width="*" />
-                              <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel>
-                              <TextBlock Text="{Binding FullName}" FontWeight="SemiBold" />
-                              <TextBlock Style="{StaticResource CashHint}">
-                                <TextBlock.Text>
-                                  <MultiBinding StringFormat="ID {0} · {1}">
-                                    <Binding Path="Identification" />
-                                    <Binding Path="Phone" TargetNullValue="sin teléfono" />
-                                  </MultiBinding>
-                                </TextBlock.Text>
-                              </TextBlock>
-                            </StackPanel>
-                            <Button Grid.Column="1"
-                                    Content="Usar"
-                                    Style="{StaticResource PrimaryButton}"
-                                    Command="{Binding DataContext.SelectCustomerCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                    CommandParameter="{Binding}"
-                                    Padding="10,4" />
-                          </Grid>
+                          <StackPanel>
+                            <TextBlock Text="{Binding FullName}" FontWeight="SemiBold" />
+                            <TextBlock Style="{StaticResource CashHint}">
+                              <TextBlock.Text>
+                                <MultiBinding StringFormat="ID {0} · {1}">
+                                  <Binding Path="Identification" />
+                                  <Binding Path="Phone" TargetNullValue="sin teléfono" />
+                                </MultiBinding>
+                              </TextBlock.Text>
+                            </TextBlock>
+                          </StackPanel>
                         </Border>
                       </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                  </ItemsControl>
+                    </ListBox.ItemTemplate>
+                  </ListBox>
 
                   <Grid Margin="0,10,0,0">
                     <Grid.ColumnDefinitions>

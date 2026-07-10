@@ -96,4 +96,26 @@ public sealed class LoyaltyTests
         Assert.Equal(-10, tx.Points);
         Assert.Equal(LoyaltyTransactionType.Redeemed, tx.Type);
     }
+
+    [Fact]
+    public void LoyaltyTier_Update_ChangesThresholdAndBenefits()
+    {
+        var tier = new LoyaltyTier("Bronce", 0, 0, 1m);
+
+        tier.Update("Oro", 1_000, 12.5m, 1.5m);
+
+        Assert.Equal("Oro", tier.Name);
+        Assert.Equal(1_000, tier.MinPoints);
+        Assert.Equal(12.5m, tier.DiscountPercent);
+        Assert.Equal(1.5m, tier.PointsMultiplier);
+    }
+
+    [Theory]
+    [InlineData(-1, 0, 1)]
+    [InlineData(0, 101, 1)]
+    [InlineData(0, 0, 0)]
+    public void LoyaltyTier_Ctor_RejectsInvalidBenefits(decimal minPoints, decimal discountPercent, decimal multiplier)
+    {
+        Assert.ThrowsAny<ArgumentOutOfRangeException>(() => new LoyaltyTier("Tier", minPoints, discountPercent, multiplier));
+    }
 }

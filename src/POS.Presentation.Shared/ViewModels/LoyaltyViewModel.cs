@@ -19,6 +19,10 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private readonly RedeemLoyaltyPointsUseCase _redeemPoints;
     private readonly GetLoyaltyProgramOverviewUseCase? _getProgramOverview;
     private readonly SetLoyaltyRuleUseCase? _setLoyaltyRule;
+    private readonly GetLoyaltyTiersUseCase? _getTiers;
+    private readonly CreateLoyaltyTierUseCase? _createTier;
+    private readonly UpdateLoyaltyTierUseCase? _updateTier;
+    private readonly DeleteLoyaltyTierUseCase? _deleteTier;
 
     private int _balance;
     private CustomerResult? _selectedCustomer;
@@ -33,36 +37,52 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private string _enrolledCustomers = "0";
     private string _checkoutUsageRate = "Según ventas con cliente";
     private string _redemptionsThisMonth = "0";
+    private LoyaltyTierPresentation? _selectedTier;
+    private string _tierName = string.Empty;
+    private decimal _tierMinimumPoints;
+    private decimal _tierDiscountPercent;
+    private decimal _tierPointsMultiplier = 1m;
 
     public LoyaltyViewModel(
         GetLoyaltyBalanceUseCase getBalance,
         RedeemLoyaltyPointsUseCase redeemPoints,
         GetLoyaltyProgramOverviewUseCase? getProgramOverview = null,
-        SetLoyaltyRuleUseCase? setLoyaltyRule = null)
+        SetLoyaltyRuleUseCase? setLoyaltyRule = null,
+        GetLoyaltyTiersUseCase? getTiers = null,
+        CreateLoyaltyTierUseCase? createTier = null,
+        UpdateLoyaltyTierUseCase? updateTier = null,
+        DeleteLoyaltyTierUseCase? deleteTier = null)
     {
         _getBalance = getBalance ?? throw new ArgumentNullException(nameof(getBalance));
         _redeemPoints = redeemPoints ?? throw new ArgumentNullException(nameof(redeemPoints));
         _getProgramOverview = getProgramOverview;
         _setLoyaltyRule = setLoyaltyRule;
+        _getTiers = getTiers;
+        _createTier = createTier;
+        _updateTier = updateTier;
+        _deleteTier = deleteTier;
 
         Transactions = [];
         ProgramTransactions = [];
-        Tiers =
-        [
-            new LoyaltyTierPresentation("Bronce", "0-499 pts", "Acumula con la regla activa del programa.", "neutral"),
-            new LoyaltyTierPresentation("Plata", "500-999 pts", "Cliente frecuente: revisar beneficios comerciales antes de vender.", "primary"),
-            new LoyaltyTierPresentation("Oro", "1000+ pts", "Cliente de alto valor: priorizar canje y seguimiento.", "warning"),
-        ];
+        Tiers = [];
 
         LoadBalanceCommand = new RelayCommand(_ => RunSafe(LoadBalanceAsync(), ex => Message = $"Error al consultar saldo: {ex.Message}"));
         RedeemCommand = new RelayCommand(_ => RunSafe(RedeemAsync(), ex => Message = $"Error al redimir puntos: {ex.Message}"));
         LoadProgramCommand = new RelayCommand(_ => RunSafe(LoadProgramAsync(), ex => Message = $"Error al cargar puntos: {ex.Message}"));
         SaveRulesCommand = new RelayCommand(_ => RunSafe(SaveRulesAsync(), ex => Message = $"Error al guardar reglas: {ex.Message}"));
-        EditBenefitsCommand = new RelayCommand(_ => Message = "Editor de tiers no disponible en este entorno.");
+        LoadTiersCommand = new RelayCommand(_ => RunSafe(LoadTiersAsync(), ex => Message = $"Error al cargar tiers: {ex.Message}"));
+        SaveTierCommand = new RelayCommand(_ => RunSafe(SaveTierAsync(), ex => Message = $"Error al guardar tier: {ex.Message}"));
+        DeleteTierCommand = new RelayCommand(_ => RunSafe(DeleteTierAsync(), ex => Message = $"Error al eliminar tier: {ex.Message}"));
+        NewTierCommand = new RelayCommand(_ => BeginNewTier());
 
         if (_getProgramOverview is not null)
         {
             RunSafe(LoadProgramAsync(), ex => Message = $"Error al cargar puntos: {ex.Message}");
+        }
+
+        if (_getTiers is not null)
+        {
+            RunSafe(LoadTiersAsync(), ex => Message = $"Error al cargar tiers: {ex.Message}");
         }
     }
 
@@ -74,7 +94,10 @@ public sealed class LoyaltyViewModel : ViewModelBase
     public ICommand RedeemCommand { get; }
     public ICommand LoadProgramCommand { get; }
     public ICommand SaveRulesCommand { get; }
-    public ICommand EditBenefitsCommand { get; }
+    public ICommand LoadTiersCommand { get; }
+    public ICommand SaveTierCommand { get; }
+    public ICommand DeleteTierCommand { get; }
+    public ICommand NewTierCommand { get; }
 
     public int Balance
     {
@@ -174,6 +197,45 @@ public sealed class LoyaltyViewModel : ViewModelBase
 
     public string ExpirationPolicy => "Sin vencimiento configurado en esta versión.";
 
+    public LoyaltyTierPresentation? SelectedTier
+    {
+        get => _selectedTier;
+        set
+        {
+            if (SetProperty(ref _selectedTier, value) && value is not null)
+            {
+                TierName = value.Name;
+                TierMinimumPoints = value.MinPoints;
+                TierDiscountPercent = value.DiscountPercent;
+                TierPointsMultiplier = value.PointsMultiplier;
+            }
+        }
+    }
+
+    public string TierName
+    {
+        get => _tierName;
+        set => SetProperty(ref _tierName, value ?? string.Empty);
+    }
+
+    public decimal TierMinimumPoints
+    {
+        get => _tierMinimumPoints;
+        set => SetProperty(ref _tierMinimumPoints, value);
+    }
+
+    public decimal TierDiscountPercent
+    {
+        get => _tierDiscountPercent;
+        set => SetProperty(ref _tierDiscountPercent, value);
+    }
+
+    public decimal TierPointsMultiplier
+    {
+        get => _tierPointsMultiplier;
+        set => SetProperty(ref _tierPointsMultiplier, value);
+    }
+
     public async Task LoadProgramAsync(CancellationToken cancellationToken = default)
     {
         if (_getProgramOverview is null)
@@ -189,6 +251,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             var overview = await _getProgramOverview.ExecuteAsync(cancellationToken).ConfigureAwait(true);
             ApplyOverview(overview);
+            await LoadTiersAsync(cancellationToken).ConfigureAwait(true);
             Message = "Reglas y métricas de puntos cargadas desde la base de datos.";
         }
         catch (Exception ex)
@@ -199,6 +262,103 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             IsLoading = false;
         }
+    }
+
+    public async Task LoadTiersAsync(CancellationToken cancellationToken = default)
+    {
+        if (_getTiers is null)
+        {
+            return;
+        }
+
+        var tiers = await _getTiers.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+        var selectedId = SelectedTier?.Id;
+        Tiers.Clear();
+        foreach (var tier in tiers)
+        {
+            Tiers.Add(LoyaltyTierPresentation.From(tier));
+        }
+
+        SelectedTier = selectedId is { } id
+            ? Tiers.FirstOrDefault(tier => tier.Id == id)
+            : Tiers.FirstOrDefault();
+    }
+
+    public async Task SaveTierAsync(CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(TierName) || TierMinimumPoints < 0 || TierDiscountPercent is < 0 or > 100 || TierPointsMultiplier <= 0)
+        {
+            Message = "Revisa el tier: nombre obligatorio, mínimo no negativo, descuento entre 0 y 100 y multiplicador mayor a cero.";
+            return;
+        }
+
+        if (SelectedTier is null && _createTier is null || SelectedTier is not null && _updateTier is null)
+        {
+            Message = "La edición de tiers no está disponible en este entorno.";
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            if (SelectedTier is null)
+            {
+                await _createTier!.ExecuteAsync(new CreateLoyaltyTierRequest(TierName, TierMinimumPoints, TierDiscountPercent, TierPointsMultiplier), cancellationToken).ConfigureAwait(true);
+                Message = "Tier creado correctamente.";
+            }
+            else
+            {
+                await _updateTier!.ExecuteAsync(new UpdateLoyaltyTierRequest(SelectedTier.Id, TierName, TierMinimumPoints, TierDiscountPercent, TierPointsMultiplier), cancellationToken).ConfigureAwait(true);
+                Message = "Tier actualizado correctamente.";
+            }
+
+            await LoadTiersAsync(cancellationToken).ConfigureAwait(true);
+        }
+        catch (ArgumentException ex)
+        {
+            Message = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public async Task DeleteTierAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedTier is null)
+        {
+            Message = "Selecciona un tier para eliminarlo.";
+            return;
+        }
+
+        if (_deleteTier is null)
+        {
+            Message = "La edición de tiers no está disponible en este entorno.";
+            return;
+        }
+
+        IsLoading = true;
+        try
+        {
+            await _deleteTier.ExecuteAsync(SelectedTier.Id, cancellationToken).ConfigureAwait(true);
+            BeginNewTier();
+            await LoadTiersAsync(cancellationToken).ConfigureAwait(true);
+            Message = "Tier eliminado correctamente.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public void BeginNewTier()
+    {
+        SelectedTier = null;
+        TierName = string.Empty;
+        TierMinimumPoints = 0;
+        TierDiscountPercent = 0;
+        TierPointsMultiplier = 1m;
     }
 
     public async Task SaveRulesAsync(CancellationToken cancellationToken = default)
@@ -357,9 +517,14 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             ProgramTransactions.Add(new LoyaltyProgramTransactionEntry(
                 transaction.Type.Equals("Redeemed", StringComparison.OrdinalIgnoreCase) ? "Canje de puntos" : "Puntos acumulados",
-                transaction.Description,
+                BuildTransactionMeta(transaction),
                 transaction.Points > 0 ? $"+{transaction.Points:N0}" : transaction.Points.ToString("N0"),
-                transaction.Points >= 0 ? "earn" : "redeem"));
+                transaction.Points >= 0 ? "earn" : "redeem",
+                transaction.CustomerName,
+                transaction.InvoiceNumber,
+                transaction.CreatedAt,
+                transaction.Description,
+                transaction.ResponsibleUser));
         }
 
         if (ProgramTransactions.Count == 0)
@@ -368,8 +533,23 @@ public sealed class LoyaltyViewModel : ViewModelBase
                 "Sin movimientos todavía",
                 "Cuando Caja acumule o canjee puntos, aparecerá aquí con datos reales.",
                 "0",
-                "neutral"));
+                "neutral",
+                null,
+                null,
+                null,
+                null,
+                null));
         }
+    }
+
+    private static string BuildTransactionMeta(LoyaltyTransactionResult transaction)
+    {
+        var details = new List<string>();
+        if (!string.IsNullOrWhiteSpace(transaction.CustomerName)) details.Add($"Cliente: {transaction.CustomerName}");
+        if (!string.IsNullOrWhiteSpace(transaction.InvoiceNumber)) details.Add($"Factura: {transaction.InvoiceNumber}");
+        details.Add(transaction.CreatedAt.ToLocalTime().ToString("g"));
+        if (!string.IsNullOrWhiteSpace(transaction.ResponsibleUser)) details.Add($"Responsable: {transaction.ResponsibleUser}");
+        return string.Join(" · ", details);
     }
 
     private void ApplyRule(LoyaltyRuleResult rule)
@@ -387,14 +567,28 @@ public sealed class LoyaltyViewModel : ViewModelBase
 
 /// <summary>Presentation-only tier display record.</summary>
 public sealed record LoyaltyTierPresentation(
+    Guid Id,
     string Name,
-    string PointRange,
-    string BenefitDescription,
-    string ChipKind);
+    decimal MinPoints,
+    decimal DiscountPercent,
+    decimal PointsMultiplier)
+{
+    public string PointRange => $"Desde {MinPoints:N0} pts";
+    public string BenefitDescription => $"{DiscountPercent:0.##}% descuento · {PointsMultiplier:0.##}x puntos";
+    public string ChipKind => DiscountPercent > 0 ? "warning" : PointsMultiplier > 1 ? "primary" : "neutral";
+
+    public static LoyaltyTierPresentation From(LoyaltyTierResult tier)
+        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier);
+}
 
 /// <summary>Presentation row for real persisted program movements.</summary>
 public sealed record LoyaltyProgramTransactionEntry(
     string Title,
     string Meta,
     string ValueLabel,
-    string Kind);
+    string Kind,
+    string? CustomerName,
+    string? InvoiceNumber,
+    DateTimeOffset? Date,
+    string? Reason,
+    string? ResponsibleUser);

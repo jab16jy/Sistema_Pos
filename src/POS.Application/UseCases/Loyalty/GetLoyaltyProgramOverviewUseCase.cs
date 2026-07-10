@@ -18,7 +18,7 @@ public sealed class GetLoyaltyProgramOverviewUseCase
         var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, TimeSpan.Zero);
 
         var activeRule = await _loyalty.GetActiveRuleAsync(cancellationToken).ConfigureAwait(false);
-        var recentTransactions = await _loyalty.GetRecentProgramTransactionsAsync(12, cancellationToken).ConfigureAwait(false);
+        var recentTransactions = await _loyalty.GetRecentProgramTransactionDetailsAsync(12, cancellationToken).ConfigureAwait(false);
 
         return new LoyaltyProgramOverviewResult(
             activeRule is null
@@ -35,13 +35,16 @@ public sealed class GetLoyaltyProgramOverviewUseCase
             await _loyalty.GetEnrolledCustomerCountAsync(cancellationToken).ConfigureAwait(false),
             await _loyalty.GetRedemptionCountAsync(monthStart, now, cancellationToken).ConfigureAwait(false),
             recentTransactions
-                .Select(transaction => new LoyaltyTransactionResult(
-                    transaction.Id,
-                    transaction.Points,
-                    transaction.Type.ToString(),
-                    transaction.SaleId,
-                    transaction.Description,
-                    transaction.CreatedAt))
+                .Select(details => new LoyaltyTransactionResult(
+                    details.Transaction.Id,
+                    details.Transaction.Points,
+                    details.Transaction.Type.ToString(),
+                    details.Transaction.SaleId,
+                    details.Transaction.Description,
+                    details.Transaction.CreatedAt,
+                    details.CustomerName,
+                    details.InvoiceNumber,
+                    details.ResponsibleUser))
                 .ToList());
     }
 }

@@ -169,7 +169,7 @@ public sealed class QuoteHistoryViewModelTests
     }
 
     [Fact]
-    public async Task ConvertToSaleCommand_UsesAuthenticatedOperatorSessionInsteadOfEmptyGuid()
+    public async Task ConvertToSaleCommand_RequestsConfirmationBeforeUsingAuthenticatedOperatorSession()
     {
         var quoteRepo = new InMemoryQuoteRepository();
         var saleRepo = new InMemorySaleRepository();
@@ -185,10 +185,19 @@ public sealed class QuoteHistoryViewModelTests
         var vm = BuildHistoryVmWithProduct(summaries, quoteRepo, product, saleRepo, new FakeOperatorSession(cashierId));
         await vm.LoadAsync(TestContext.Current.CancellationToken);
 
-        vm.ConvertToSaleCommand.Execute(vm.Quotes.Single());
-        await Task.Delay(100, TestContext.Current.CancellationToken);
+        QuoteSummaryRow row = vm.Quotes.Single();
+        QuoteSummaryRow? confirmationRequest = null;
+        vm.SaleConversionConfirmationRequested += (_, requestedRow) => confirmationRequest = requestedRow;
 
+        vm.ConvertToSaleCommand.Execute(row);
+
+        Assert.Same(row, confirmationRequest);
+        Assert.Null(saleRepo.LastSale);
+
+        await vm.ConfirmSaleConversionAsync(row, TestContext.Current.CancellationToken);
         Assert.Equal(cashierId, saleRepo.LastSale?.CashierUserId);
+        Assert.Equal(QuoteStatus.Converted, quote.Status);
+        Assert.Equal(saleRepo.LastSale?.Id, quote.ConvertedSaleId);
     }
 
     [Fact]

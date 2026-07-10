@@ -188,7 +188,11 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<GetLoyaltyBalanceUseCase>(),
                 sp.GetRequiredService<RedeemLoyaltyPointsUseCase>(),
                 TryResolveOptional<GetLoyaltyProgramOverviewUseCase>(sp),
-                TryResolveOptional<SetLoyaltyRuleUseCase>(sp)),
+                TryResolveOptional<SetLoyaltyRuleUseCase>(sp),
+                TryResolveOptional<GetLoyaltyTiersUseCase>(sp),
+                TryResolveOptional<CreateLoyaltyTierUseCase>(sp),
+                TryResolveOptional<UpdateLoyaltyTierUseCase>(sp),
+                TryResolveOptional<DeleteLoyaltyTierUseCase>(sp)),
             moduleWarnings);
 
         BarcodeViewModel? barcode = TryCreateOptionalModule(

@@ -15,7 +15,31 @@ public sealed record LoyaltyTransactionResult(
     string Type,
     Guid? SaleId,
     string Description,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    string? CustomerName = null,
+    string? InvoiceNumber = null,
+    string? ResponsibleUser = null);
+
+/// <summary>Editable membership tier and its discount/multiplier benefits.</summary>
+public sealed record LoyaltyTierResult(
+    Guid Id,
+    string Name,
+    decimal MinPoints,
+    decimal DiscountPercent,
+    decimal PointsMultiplier);
+
+public sealed record CreateLoyaltyTierRequest(
+    string Name,
+    decimal MinPoints,
+    decimal DiscountPercent,
+    decimal PointsMultiplier);
+
+public sealed record UpdateLoyaltyTierRequest(
+    Guid Id,
+    string Name,
+    decimal MinPoints,
+    decimal DiscountPercent,
+    decimal PointsMultiplier);
 
 /// <summary>Request to accumulate points after a sale.</summary>
 public sealed record EarnPointsRequest(

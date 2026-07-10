@@ -36,4 +36,35 @@ public interface ILoyaltyRepository
     Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default);
     Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default);
+
+    /// <summary>Returns recent program movements enriched with the customer, invoice, and responsible cashier when available.</summary>
+    async Task<IReadOnlyList<LoyaltyProgramTransactionDetails>> GetRecentProgramTransactionDetailsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<LoyaltyTransaction> transactions = await GetRecentProgramTransactionsAsync(maxCount, cancellationToken).ConfigureAwait(false);
+        return transactions
+            .Select(transaction => new LoyaltyProgramTransactionDetails(transaction, null, null, null))
+            .ToList();
+    }
+
+    Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<LoyaltyTier>>([]);
+
+    Task<LoyaltyTier?> GetTierByIdAsync(Guid tierId, CancellationToken cancellationToken = default)
+        => Task.FromResult<LoyaltyTier?>(null);
+
+    Task AddTierAsync(LoyaltyTier tier, CancellationToken cancellationToken = default)
+        => Task.FromException(new NotSupportedException("Loyalty tier persistence is not implemented."));
+
+    Task UpdateTierAsync(LoyaltyTier tier, CancellationToken cancellationToken = default)
+        => Task.FromException(new NotSupportedException("Loyalty tier persistence is not implemented."));
+
+    Task DeleteTierAsync(Guid tierId, CancellationToken cancellationToken = default)
+        => Task.FromException(new NotSupportedException("Loyalty tier persistence is not implemented."));
 }
+
+/// <summary>Program-history projection that keeps persistence joins outside Presentation.</summary>
+public sealed record LoyaltyProgramTransactionDetails(
+    LoyaltyTransaction Transaction,
+    string? CustomerName,
+    string? InvoiceNumber,
+    string? ResponsibleUser);
