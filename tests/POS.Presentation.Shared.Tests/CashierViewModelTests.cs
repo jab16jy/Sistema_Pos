@@ -416,6 +416,46 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task HandleScannerInputAsync_AfterKeyboardSelection_AddsSelectedProductWithoutRerunningSearch()
+    {
+        var first = new ProductLookupResult(Guid.NewGuid(), "Arroz 500g", "ARR-1", 5_000m, 10m);
+        var second = new ProductLookupResult(Guid.NewGuid(), "Azúcar 500g", "AZU-1", 4_000m, 10m);
+        var viewModel = new CashierViewModel(new MultiProductLookupService(first, second))
+        {
+            SearchText = "a"
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+
+        viewModel.MoveSelection(1);
+        await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Azúcar 500g", Assert.Single(viewModel.CartItems).ProductName);
+    }
+
+    [Fact]
+    public async Task ConfirmCustomerSelectionAsync_AssignsKeyboardSelectedCustomer()
+    {
+        var first = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var second = new CustomerSearchResult(Guid.NewGuid(), "Beatriz Cliente", "1002", "301", null, null, true);
+        var viewModel = new CashierViewModel(
+            new PrototypeProductLookupService(),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([first, second])))
+        {
+            CustomerSearchText = "cliente"
+        };
+
+        await viewModel.SearchCustomersAsync(TestContext.Current.CancellationToken);
+        viewModel.MoveCustomerSelection(1);
+        await viewModel.ConfirmCustomerSelectionAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(second.Id, viewModel.SelectedCustomer?.Id);
+    }
+
+    [Fact]
     public async Task SelectCustomerAsync_WhenCustomerHasOpenQuote_ShowsPendingQuotesForCashier()
     {
         var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
@@ -516,6 +556,12 @@ public sealed class CashierViewModelTests
 
         public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ProductLookupResult>>([_product]);
+    }
+
+    private sealed class MultiProductLookupService(params ProductLookupResult[] products) : POS.Application.Interfaces.IProductLookupService
+    {
+        public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ProductLookupResult>>(products);
     }
 
     private sealed class InMemoryProductRepository : IProductRepository
