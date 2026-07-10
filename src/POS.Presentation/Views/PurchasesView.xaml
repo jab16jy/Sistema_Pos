@@ -230,7 +230,27 @@
             </Grid.ColumnDefinitions>
             <StackPanel>
               <TextBlock Text="Producto (nombre o barcode)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <TextBox Text="{Binding DraftProductId, Mode=TwoWay}" Tag="Buscar..." />
+              <TextBox Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar..." />
+              <ListBox ItemsSource="{Binding ProductResults}"
+                       SelectedItem="{Binding SelectedProductResult, Mode=TwoWay}"
+                       MaxHeight="140" Margin="0,4,0,0"
+                       BorderThickness="0" Background="Transparent">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="4,4">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Style="{StaticResource TextBody}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1" Style="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center">
+                        <Run Text="Stock:" />
+                        <Run Text="{Binding AvailableStock, Mode=OneWay}" />
+                      </TextBlock>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
             </StackPanel>
             <StackPanel Grid.Column="2">
               <TextBlock Text="Cantidad" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
@@ -307,7 +327,7 @@
                       <ColumnDefinition Width="120" />
                       <ColumnDefinition Width="40" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="{Binding ProductId, StringFormat='{}{0:D8}'}" FontWeight="SemiBold" Style="{StaticResource TextBody}"
+                    <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" Style="{StaticResource TextBody}"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" Text="{Binding Quantity}" FontFamily="Consolas" FontWeight="SemiBold"
                                TextAlignment="Center" VerticalAlignment="Center" />

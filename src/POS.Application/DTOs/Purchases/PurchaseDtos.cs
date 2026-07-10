@@ -9,4 +9,4 @@ public sealed record RegisterPurchaseRequest(
 
 public sealed record RegisterPurchaseResult(Guid PurchaseId, Guid SupplierId, decimal TotalCost, int ItemCount);
 
-public sealed record PurchaseDraftItem(Guid ProductId, decimal Quantity, decimal TotalCost);
+public sealed record PurchaseDraftItem(Guid ProductId, string ProductName, decimal Quantity, decimal TotalCost);

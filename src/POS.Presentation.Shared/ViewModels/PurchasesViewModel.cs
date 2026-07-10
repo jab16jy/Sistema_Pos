@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Purchases;
+using POS.Application.Interfaces;
 using POS.Application.UseCases.Purchases;
 using POS.Presentation.Shared.Commands;
 
@@ -12,6 +14,7 @@ public sealed class PurchasesViewModel : ViewModelBase
     private readonly SaveSupplierUseCase _saveSupplier;
     private readonly SearchSuppliersUseCase _searchSuppliers;
     private readonly RegisterPurchaseUseCase _registerPurchase;
+    private readonly IProductLookupService? _productLookup;
     private readonly Func<Guid> _currentOperatorIdProvider;
     private readonly RelayCommand _addDraftItemCommand;
     private SupplierSearchResult? _selectedSupplier;
@@ -20,6 +23,8 @@ public sealed class PurchasesViewModel : ViewModelBase
     private string _supplierPhone = string.Empty;
     private string _supplierEmail = string.Empty;
     private string _supplierSearchText = string.Empty;
+    private string _productSearchText = string.Empty;
+    private ProductLookupResult? _selectedProductResult;
     private string _draftProductId = string.Empty;
     private decimal _draftQuantity = 1m;
     private decimal _draftTotalCost;
@@ -33,11 +38,13 @@ public sealed class PurchasesViewModel : ViewModelBase
         SaveSupplierUseCase saveSupplier,
         SearchSuppliersUseCase searchSuppliers,
         RegisterPurchaseUseCase registerPurchase,
-        Func<Guid> currentOperatorIdProvider)
+        Func<Guid> currentOperatorIdProvider,
+        IProductLookupService? productLookup = null)
     {
         _saveSupplier = saveSupplier;
         _searchSuppliers = searchSuppliers;
         _registerPurchase = registerPurchase;
+        _productLookup = productLookup;
         _currentOperatorIdProvider = currentOperatorIdProvider;
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar proveedores: {ex.Message}"));
         SaveSupplierCommand = new RelayCommand(_ => RunSafe(SaveSupplierAsync(), ex => Message = $"Error al guardar proveedor: {ex.Message}"));
@@ -56,6 +63,8 @@ public sealed class PurchasesViewModel : ViewModelBase
     }
 
     public ObservableCollection<SupplierSearchResult> Suppliers { get; } = [];
+
+    public ObservableCollection<ProductLookupResult> ProductResults { get; } = [];
 
     public ObservableCollection<PurchaseDraftItem> Items { get; } = [];
 
@@ -120,7 +129,42 @@ public sealed class PurchasesViewModel : ViewModelBase
     public string SupplierSearchText
     {
         get => _supplierSearchText;
-        set => SetProperty(ref _supplierSearchText, value);
+        set
+        {
+            if (SetProperty(ref _supplierSearchText, value))
+            {
+                // Live search: the toolbar box has no "search" button, so typing must re-query.
+                RunSafe(LoadAsync(), ex => Message = $"Error al cargar proveedores: {ex.Message}");
+            }
+        }
+    }
+
+    // ── Product search (reuses the same lookup as Caja) ──
+
+    public string ProductSearchText
+    {
+        get => _productSearchText;
+        set
+        {
+            if (SetProperty(ref _productSearchText, value))
+            {
+                DraftProductId = string.Empty;
+                SelectedProductResult = null;
+                RunSafe(SearchProductsAsync(value), ex => Message = $"Error al buscar productos: {ex.Message}");
+            }
+        }
+    }
+
+    public ProductLookupResult? SelectedProductResult
+    {
+        get => _selectedProductResult;
+        set
+        {
+            if (SetProperty(ref _selectedProductResult, value))
+            {
+                _addDraftItemCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public bool IsNewSupplierFormOpen
@@ -294,15 +338,54 @@ public sealed class PurchasesViewModel : ViewModelBase
         }
     }
 
-    private void AddDraftItem()
+    private async Task SearchProductsAsync(string query, CancellationToken cancellationToken = default)
     {
-        if (!Guid.TryParse(DraftProductId, out Guid productId))
+        if (_productLookup is null)
         {
-            Message = "El identificador del producto no es válido.";
             return;
         }
 
-        Items.Add(new PurchaseDraftItem(productId, DraftQuantity, DraftTotalCost));
+        IReadOnlyList<ProductLookupResult> results = await _productLookup.SearchAsync(query, cancellationToken).ConfigureAwait(true);
+
+        // Drop a stale result set if the user kept typing while this search was in flight.
+        if (!string.Equals(ProductSearchText.Trim(), query.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        ProductResults.Clear();
+        foreach (ProductLookupResult result in results)
+        {
+            ProductResults.Add(result);
+        }
+
+        SelectedProductResult = ProductResults.FirstOrDefault();
+    }
+
+    private void AddDraftItem()
+    {
+        Guid productId;
+        string productName;
+
+        if (SelectedProductResult is not null)
+        {
+            productId = SelectedProductResult.ProductId;
+            productName = SelectedProductResult.Name;
+        }
+        else if (Guid.TryParse(DraftProductId, out productId))
+        {
+            productName = string.IsNullOrWhiteSpace(ProductSearchText) ? productId.ToString() : ProductSearchText.Trim();
+        }
+        else
+        {
+            Message = "Busca y selecciona un producto antes de agregarlo.";
+            return;
+        }
+
+        Items.Add(new PurchaseDraftItem(productId, productName, DraftQuantity, DraftTotalCost));
+        ProductSearchText = string.Empty;
+        ProductResults.Clear();
+        SelectedProductResult = null;
         DraftProductId = string.Empty;
         DraftQuantity = 1m;
         DraftTotalCost = 0m;
@@ -310,7 +393,9 @@ public sealed class PurchasesViewModel : ViewModelBase
         Message = "Producto agregado a la compra.";
     }
 
-    private bool CanAddDraftItem() => !string.IsNullOrWhiteSpace(DraftProductId) && DraftQuantity > 0m && DraftTotalCost >= 0m;
+    private bool CanAddDraftItem() =>
+        (SelectedProductResult is not null || !string.IsNullOrWhiteSpace(DraftProductId))
+        && DraftQuantity > 0m && DraftTotalCost >= 0m;
 
     private void RecalculateTotals()
     {

@@ -253,13 +253,16 @@ public sealed class ShiftsViewModel : ViewModelBase
 
         if (FromDate.HasValue)
         {
-            var from = new DateTimeOffset(FromDate.Value, TimeSpan.Zero);
+            // FromDate is Kind=Local; DateTimeOffset(local, Zero) throws when the local offset isn't 0.
+            // Use the real local offset, same as ReportsViewModel does.
+            var from = new DateTimeOffset(FromDate.Value.Date, TimeZoneInfo.Local.GetUtcOffset(FromDate.Value.Date));
             filtered = filtered.Where(s => s.OpenedAt >= from);
         }
 
         if (ToDate.HasValue)
         {
-            var to = new DateTimeOffset(ToDate.Value.Date.AddDays(1), TimeSpan.Zero);
+            var toDay = ToDate.Value.Date.AddDays(1);
+            var to = new DateTimeOffset(toDay, TimeZoneInfo.Local.GetUtcOffset(toDay));
             filtered = filtered.Where(s => s.OpenedAt < to);
         }
 

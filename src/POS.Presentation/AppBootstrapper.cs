@@ -78,7 +78,8 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<SaveSupplierUseCase>(),
                 sp.GetRequiredService<SearchSuppliersUseCase>(),
                 sp.GetRequiredService<RegisterPurchaseUseCase>(),
-                () => cashier.CashierUserId),
+                () => cashier.CashierUserId,
+                productLookup),
             moduleWarnings);
 
         QuoteHistoryViewModel? quoteHistory = TryCreateOptionalModule(
