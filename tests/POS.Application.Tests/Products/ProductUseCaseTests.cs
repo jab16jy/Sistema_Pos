@@ -187,6 +187,27 @@ public sealed class ProductUseCaseTests
         Assert.Equal(1, unitOfWork.SaveCount);
     }
 
+    [Fact]
+    public async Task ImportProductsCsvAsync_InvalidFirstRowDoesNotBlockValidRowWithSameBarcode()
+    {
+        var categoryId = Guid.NewGuid();
+        var products = new InMemoryProductRepository();
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = new ImportProductsCsvUseCase(products, unitOfWork);
+        // Row 2 has a valid barcode but Row 1 (same barcode) is missing the required "name" field.
+        var csv = string.Join('\n',
+            "name,categoryId,costPrice,salePrice,currentStock,minimumStock,taxRate,barcode",
+            $",{categoryId},2000,11900,5,1,19,ROW-BLOCK",
+            $"Valid,{categoryId},2000,11900,5,1,19,ROW-BLOCK");
+
+        ImportProductsCsvResult result = await useCase.ExecuteAsync(new ImportProductsCsvRequest(csv), TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, result.Imported);
+        Assert.Equal(1, result.Skipped);
+        Product imported = Assert.Single(products.Products);
+        Assert.Equal("ROW-BLOCK", imported.Barcode);
+    }
+
     private static Product CreateProduct(string name, string? barcode) => new(
         name,
         Guid.NewGuid(),

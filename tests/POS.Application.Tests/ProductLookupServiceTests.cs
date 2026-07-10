@@ -147,7 +147,12 @@ public sealed class ProductLookupServiceTests
             .Select(product => product.Barcode)
             .ToArrayAsync(TestContext.Current.CancellationToken);
         Assert.Equal(1, barcodes.Count(barcode => barcode == "DUPLICATE-CODE"));
-        Assert.Equal(2, barcodes.Count(barcode => barcode is null));
+        Assert.Single(barcodes, barcode => barcode is null); // only blank
+        Assert.Single(barcodes, barcode => barcode != null && barcode.StartsWith("INT-", StringComparison.Ordinal)); // duplicate remapped
+
+        int auditCount = await dbContext.AuditLogs
+            .CountAsync(log => log.Action == "BarcodeMigration", TestContext.Current.CancellationToken);
+        Assert.Equal(1, auditCount);
     }
 
     [Fact]

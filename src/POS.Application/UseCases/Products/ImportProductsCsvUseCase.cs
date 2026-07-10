@@ -51,32 +51,38 @@ public sealed class ImportProductsCsvUseCase
 
             try
             {
-                var barcode = Get(row, headers, "barcode");
-                if (!string.IsNullOrWhiteSpace(barcode) && !importedBarcodes.Add(barcode))
+                // Validate every field first so a malformed row never reserves a barcode
+                // that a later valid row with the same code would need.
+                string? rawBarcode = Get(row, headers, "barcode");
+                string name = Required(row, headers, "name", lineNo);
+                Guid categoryId = Guid.Parse(Required(row, headers, "categoryid", lineNo));
+                Money cost = new(ParseDecimal(Required(row, headers, "costprice", lineNo), lineNo, "costPrice"));
+                Money sale = new(ParseDecimal(Required(row, headers, "saleprice", lineNo), lineNo, "salePrice"));
+                StockQuantity currentStock = new(ParseDecimal(Get(row, headers, "currentstock") ?? "0", lineNo, "currentStock"));
+                StockQuantity minStock = new(ParseDecimal(Get(row, headers, "minimumstock") ?? "0", lineNo, "minimumStock"));
+                string? description = Get(row, headers, "description");
+                Barcode? barcodeVo = string.IsNullOrWhiteSpace(rawBarcode) ? null : new Barcode(rawBarcode);
+                decimal taxRate = ParseDecimal(Get(row, headers, "taxrate") ?? "19", lineNo, "taxRate");
+
+                // Only reserve the canonical barcode after the row is fully validated.
+                string? canonical = barcodeVo?.Value;
+                if (canonical is not null)
                 {
-                    errors.Add($"Línea {lineNo}: el código de barras '{barcode}' está duplicado en el archivo CSV.");
-                    skipped++;
-                    continue;
+                    if (!importedBarcodes.Add(canonical))
+                    {
+                        errors.Add($"Línea {lineNo}: el código de barras '{canonical}' está duplicado en el archivo CSV.");
+                        skipped++;
+                        continue;
+                    }
+
+                    if (await _products.GetByBarcodeAsync(canonical, ct).ConfigureAwait(false) is not null)
+                    {
+                        skipped++;
+                        continue;
+                    }
                 }
 
-                if (!string.IsNullOrWhiteSpace(barcode) &&
-                    await _products.GetByBarcodeAsync(barcode, ct).ConfigureAwait(false) is not null)
-                {
-                    skipped++;
-                    continue;
-                }
-
-                var product = new Product(
-                    Required(row, headers, "name", lineNo),
-                    Guid.Parse(Required(row, headers, "categoryid", lineNo)),
-                    new Money(ParseDecimal(Required(row, headers, "costprice", lineNo), lineNo, "costPrice")),
-                    new Money(ParseDecimal(Required(row, headers, "saleprice", lineNo), lineNo, "salePrice")),
-                    new StockQuantity(ParseDecimal(Get(row, headers, "currentstock") ?? "0", lineNo, "currentStock")),
-                    new StockQuantity(ParseDecimal(Get(row, headers, "minimumstock") ?? "0", lineNo, "minimumStock")),
-                    Get(row, headers, "description"),
-                    string.IsNullOrWhiteSpace(barcode) ? null : new Barcode(barcode),
-                    ParseDecimal(Get(row, headers, "taxrate") ?? "19", lineNo, "taxRate"));
-
+                var product = new Product(name, categoryId, cost, sale, currentStock, minStock, description, barcodeVo, taxRate);
                 await _products.AddAsync(product, ct).ConfigureAwait(false);
                 imported++;
             }

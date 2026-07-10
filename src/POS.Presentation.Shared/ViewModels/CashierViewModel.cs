@@ -52,6 +52,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _loadCustomerQuoteCommand;
     private readonly RelayCommand _clearLoadedQuoteCommand;
     private CancellationTokenSource? _autocompleteSearchCts;
+    private readonly SemaphoreSlim _querySemaphore = new(1, 1);
     private int _scannerInputInProgress;
     private string _searchText = string.Empty;
     private string _searchResultsQuery = string.Empty;
@@ -580,9 +581,18 @@ public sealed class CashierViewModel : ViewModelBase
             }
 
             CancelAutocompleteSearch();
-            ProductLookupResult? exactMatch = await _findProductByBarcodeUseCase
-                .ExecuteAsync(normalized, cancellationToken)
-                .ConfigureAwait(true);
+            ProductLookupResult? exactMatch;
+            await _querySemaphore.WaitAsync(cancellationToken).ConfigureAwait(true);
+            try
+            {
+                exactMatch = await _findProductByBarcodeUseCase
+                    .ExecuteAsync(normalized, cancellationToken)
+                    .ConfigureAwait(true);
+            }
+            finally
+            {
+                _querySemaphore.Release();
+            }
 
             if (exactMatch is null)
             {
@@ -667,7 +677,16 @@ public sealed class CashierViewModel : ViewModelBase
 
     private async Task SearchProductsAsync(string query, bool updateMessage, CancellationToken cancellationToken)
     {
-        IReadOnlyList<ProductLookupResult> results = await _productLookupService.SearchAsync(query, cancellationToken).ConfigureAwait(true);
+        IReadOnlyList<ProductLookupResult> results;
+        await _querySemaphore.WaitAsync(cancellationToken).ConfigureAwait(true);
+        try
+        {
+            results = await _productLookupService.SearchAsync(query, cancellationToken).ConfigureAwait(true);
+        }
+        finally
+        {
+            _querySemaphore.Release();
+        }
 
         if (cancellationToken.IsCancellationRequested || !string.Equals(SearchText.Trim(), query.Trim(), StringComparison.OrdinalIgnoreCase))
         {

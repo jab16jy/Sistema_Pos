@@ -483,6 +483,37 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task HandleScannerInputAsync_WhenAutocompleteHoldsSemaphore_WaitsAndAddsExactlyOneItem()
+    {
+        var scannerProduct = new ProductLookupResult(Guid.NewGuid(), "Scanner Product", "SCAN-CODE", 5_000m, 10m);
+        var searchBlocker = new TaskCompletionSource<IReadOnlyList<ProductLookupResult>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var searchStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var lookup = new BlockingSearchProductLookupService(scannerProduct, searchBlocker, searchStarted);
+        var viewModel = new CashierViewModel(lookup)
+        {
+            SearchText = "anything" // triggers autocomplete → SearchAsync blocks holding semaphore
+        };
+
+        // Wait until autocomplete's SearchAsync has started (and acquired the semaphore)
+        await searchStarted.Task;
+
+        // Scanner tries to acquire the semaphore — blocked
+        viewModel.SearchText = "SCAN-CODE";
+        Task scanTask = viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+
+        // Give the scanner a moment to reach the semaphore wait
+        await Task.Delay(80, TestContext.Current.CancellationToken);
+        Assert.Empty(viewModel.CartItems); // scanner hasn't added yet
+
+        // Release autocomplete, allowing scanner to proceed
+        searchBlocker.TrySetResult([]);
+        await scanTask;
+
+        Assert.Single(viewModel.CartItems);
+        Assert.Equal("Scanner Product", viewModel.CartItems[0].ProductName);
+    }
+
+    [Fact]
     public async Task HandleScannerInputAsync_WithExactBarcode_UsesFreshLookupAndAddsOnlyTheExactProduct()
     {
         var first = new ProductLookupResult(Guid.NewGuid(), "Arroz 500g", "ARR-1", 5_000m, 10m);
@@ -824,5 +855,31 @@ public sealed class CashierViewModelTests
             SaveCount++;
             return Task.FromResult(1);
         }
+    }
+
+    private sealed class BlockingSearchProductLookupService : IProductLookupService
+    {
+        private readonly ProductLookupResult _product;
+        private readonly TaskCompletionSource<IReadOnlyList<ProductLookupResult>> _searchBlocker;
+        private readonly TaskCompletionSource<bool> _searchStarted;
+
+        public BlockingSearchProductLookupService(
+            ProductLookupResult product,
+            TaskCompletionSource<IReadOnlyList<ProductLookupResult>> searchBlocker,
+            TaskCompletionSource<bool> searchStarted)
+        {
+            _product = product;
+            _searchBlocker = searchBlocker;
+            _searchStarted = searchStarted;
+        }
+
+        public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+        {
+            _searchStarted.TrySetResult(true);
+            return _searchBlocker.Task;
+        }
+
+        public Task<ProductLookupResult?> FindByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
+            => Task.FromResult<ProductLookupResult?>(string.Equals(_product.Barcode, barcode.Trim(), StringComparison.Ordinal) ? _product : null);
     }
 }
