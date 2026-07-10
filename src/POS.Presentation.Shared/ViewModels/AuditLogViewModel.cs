@@ -81,6 +81,7 @@ public sealed class AuditLogViewModel : ViewModelBase
         "Cliente",
         "Cotización",
         "Producto",
+        "Categoría",
         "Movimiento de inventario",
         "Venta",
         "Usuario",

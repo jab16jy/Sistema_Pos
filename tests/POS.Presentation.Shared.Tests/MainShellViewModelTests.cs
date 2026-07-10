@@ -309,6 +309,9 @@ public sealed class MainShellViewModelTests
 
         public Task<bool> HasProductsAsync(Guid categoryId, CancellationToken cancellationToken = default)
             => Task.FromResult(false);
+
+        public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class StubProductRepository : IProductRepository
