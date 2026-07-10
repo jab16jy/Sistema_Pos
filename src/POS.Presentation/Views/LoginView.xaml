@@ -56,28 +56,59 @@
         <PasswordBox x:Name="LoginPasswordBox"
                      ToolTip="Escribe tu contraseña de acceso." />
 
-        <Border Background="{StaticResource BrushPrimaryContainer}"
-                BorderBrush="#BAE6FD"
-                BorderThickness="1"
+        <Border BorderThickness="1"
                 CornerRadius="{StaticResource RadiusMd}"
                 Padding="12"
                 Margin="0,22,0,18">
+          <Border.Style>
+            <Style TargetType="Border">
+              <Setter Property="Background" Value="{StaticResource BrushPrimaryContainer}" />
+              <Setter Property="BorderBrush" Value="#BAE6FD" />
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding IsError}" Value="True">
+                  <Setter Property="Background" Value="{StaticResource BrushDangerSoft}" />
+                  <Setter Property="BorderBrush" Value="#FCA5A5" />
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
           <Grid>
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="i"
-                       Width="22"
+            <TextBlock Width="22"
                        Height="22"
                        FontWeight="Bold"
-                       Foreground="{StaticResource BrushPrimary}"
                        HorizontalAlignment="Center"
-                       VerticalAlignment="Top" />
+                       VerticalAlignment="Top">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Setter Property="Text" Value="i" />
+                  <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsError}" Value="True">
+                      <Setter Property="Text" Value="!" />
+                      <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
             <TextBlock Grid.Column="1"
                        Text="{Binding Message}"
-                       Foreground="{StaticResource BrushPrimaryDark}"
-                       TextWrapping="Wrap" />
+                       TextWrapping="Wrap">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Setter Property="Foreground" Value="{StaticResource BrushPrimaryDark}" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsError}" Value="True">
+                      <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
           </Grid>
         </Border>
 

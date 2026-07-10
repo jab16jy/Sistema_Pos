@@ -26,9 +26,12 @@ public sealed class LoginViewModelTests
             Password = "somepassword"
         };
 
+        Assert.False(viewModel.IsError);
+
         await viewModel.ExecuteLoginAsync();
 
         Assert.Equal("El usuario es requerido.", viewModel.Message);
+        Assert.True(viewModel.IsError);
         Assert.False(userRepository.GetByUsernameInvoked);
     }
 
@@ -47,9 +50,12 @@ public sealed class LoginViewModelTests
             Password = ""
         };
 
+        Assert.False(viewModel.IsError);
+
         await viewModel.ExecuteLoginAsync();
 
         Assert.Equal("La contraseña es requerida.", viewModel.Message);
+        Assert.True(viewModel.IsError);
         Assert.False(userRepository.GetByUsernameInvoked);
     }
 
@@ -68,10 +74,13 @@ public sealed class LoginViewModelTests
             Password = "password"
         };
 
+        Assert.False(viewModel.IsError);
+
         await viewModel.ExecuteLoginAsync();
 
         Assert.True(userRepository.GetByUsernameInvoked);
         Assert.NotEmpty(viewModel.Message);
+        Assert.True(viewModel.IsError);
         Assert.NotEqual("El usuario es requerido.", viewModel.Message);
         Assert.NotEqual("La contraseña es requerida.", viewModel.Message);
     }

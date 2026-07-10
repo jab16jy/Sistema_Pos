@@ -13,6 +13,7 @@ public sealed class LoginViewModel : ViewModelBase
     private string _password = string.Empty;
     private string _message = "Ingresa tus credenciales para iniciar.";
     private bool _isLoading;
+    private bool _isError;
 
     public event Action? LoginSucceeded;
 
@@ -21,7 +22,7 @@ public sealed class LoginViewModel : ViewModelBase
         _loginUseCase = loginUseCase;
         _session = session;
         LoginCommand = new RelayCommand(
-            execute: _ => RunSafe(ExecuteLoginAsync(), ex => Message = $"Error inesperado: {ex.Message}"),
+            execute: _ => RunSafe(ExecuteLoginAsync(), ex => { Message = $"Error inesperado: {ex.Message}"; IsError = true; }),
             canExecute: _ => !IsLoading);
     }
 
@@ -49,6 +50,12 @@ public sealed class LoginViewModel : ViewModelBase
         set { SetProperty(ref _isLoading, value); LoginCommand.RaiseCanExecuteChanged(); }
     }
 
+    public bool IsError
+    {
+        get => _isError;
+        set => SetProperty(ref _isError, value);
+    }
+
     public RelayCommand LoginCommand { get; }
 
     internal async Task ExecuteLoginAsync()
@@ -56,16 +63,19 @@ public sealed class LoginViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(Username))
         {
             Message = "El usuario es requerido.";
+            IsError = true;
             return;
         }
 
         if (string.IsNullOrWhiteSpace(Password))
         {
             Message = "La contraseña es requerida.";
+            IsError = true;
             return;
         }
 
         IsLoading = true;
+        IsError = false;
         Message = "Verificando credenciales...";
         try
         {
@@ -78,11 +88,13 @@ public sealed class LoginViewModel : ViewModelBase
             else
             {
                 Message = result.ErrorMessage ?? "Error de acceso.";
+                IsError = true;
             }
         }
         catch (Exception ex)
         {
             Message = $"Error inesperado: {ex.Message}";
+            IsError = true;
         }
         finally
         {
