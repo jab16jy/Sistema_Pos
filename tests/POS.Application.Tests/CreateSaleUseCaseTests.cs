@@ -1,4 +1,5 @@
 using POS.Application.DTOs.Sales;
+using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -185,6 +186,32 @@ public sealed class CreateSaleUseCaseTests
         Assert.Empty(sales.Sales);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithCustomerAndActiveLoyaltyRule_EarnsPointsInSingleSaleCommit()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var loyalty = new InMemoryLoyaltyRepository { ActiveRule = new LoyaltyRule(0.001m, 1m, 0) };
+        var accumulate = new AccumulateLoyaltyPointsUseCase(loyalty, unitOfWork);
+        var customerId = Guid.NewGuid();
+        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, null, accumulate);
+
+        var result = await useCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(),
+            customerId,
+            [new CreateSaleItemRequest(product.Id, 5m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 5_000m, 5_000m, null)]), TestContext.Current.CancellationToken);
+
+        Assert.Single(sales.Sales);
+        Assert.Single(loyalty.Accounts);
+        Assert.Equal(customerId, loyalty.Accounts[0].CustomerId);
+        LoyaltyTransaction transaction = Assert.Single(loyalty.Transactions);
+        Assert.Equal(5, transaction.Points);
+        Assert.Equal(result.SaleId, transaction.SaleId);
+        Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
     private sealed class InMemoryProductRepository : IProductRepository
     {
         private readonly Product _product;
@@ -226,5 +253,59 @@ public sealed class CreateSaleUseCaseTests
             SaveCount++;
             return Task.FromResult(1);
         }
+    }
+
+    private sealed class InMemoryLoyaltyRepository : ILoyaltyRepository
+    {
+        public LoyaltyRule? ActiveRule { get; set; }
+        public List<LoyaltyAccount> Accounts { get; } = [];
+        public List<LoyaltyTransaction> Transactions { get; } = [];
+
+        public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Accounts.FirstOrDefault(account => account.CustomerId == customerId));
+
+        public Task AddAccountAsync(LoyaltyAccount account, CancellationToken cancellationToken = default)
+        {
+            Accounts.Add(account);
+            return Task.CompletedTask;
+        }
+
+        public Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default)
+        {
+            Transactions.Add(transaction);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>(Transactions.Where(transaction => transaction.LoyaltyAccountId == loyaltyAccountId).Take(maxCount).ToList());
+
+        public Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(ActiveRule);
+
+        public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyRule>>(ActiveRule is null ? [] : [ActiveRule]);
+
+        public Task AddRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default)
+        {
+            ActiveRule = rule;
+            return Task.CompletedTask;
+        }
+
+        public Task UpdateRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default)
+            => Task.FromResult(Transactions.Where(transaction => transaction.LoyaltyAccountId == loyaltyAccountId).Sum(transaction => transaction.Points));
+
+        public Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(Transactions.Where(transaction => transaction.Points > 0).Sum(transaction => transaction.Points));
+
+        public Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(Accounts.Count);
+
+        public Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+            => Task.FromResult(Transactions.Count(transaction => transaction.Points < 0));
+
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>(Transactions.Take(maxCount).ToList());
     }
 }

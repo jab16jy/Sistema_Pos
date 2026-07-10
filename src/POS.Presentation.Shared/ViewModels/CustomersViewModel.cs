@@ -63,8 +63,11 @@ public sealed class CustomersViewModel : ViewModelBase
         DeleteCommand = new RelayCommand(_ => RunSafe(DeleteAsync(), ex => Message = $"Error al eliminar cliente: {ex.Message}"), _ => SelectedCustomer is not null);
         NewCommand = new RelayCommand(_ => ClearForm());
         OpenHistoryCommand = new RelayCommand(_ => RunSafe(OpenHistoryAsync(), ex => Message = $"Error al cargar historial: {ex.Message}"), _ => SelectedCustomer is not null);
+        OpenInvoiceCommand = new RelayCommand(OpenInvoiceFromHistory, CanOpenInvoiceFromHistory);
         SetHistoryFilterCommand = new RelayCommand(filter => HistoryFilter = filter as string ?? "all");
     }
+
+    public event Action<Guid>? InvoiceOpenRequested;
 
     public ObservableCollection<CustomerSearchResult> Customers { get; } = [];
 
@@ -86,6 +89,8 @@ public sealed class CustomersViewModel : ViewModelBase
     public ICommand NewCommand { get; }
 
     public ICommand OpenHistoryCommand { get; }
+
+    public ICommand OpenInvoiceCommand { get; }
 
     public ICommand SetHistoryFilterCommand { get; }
 
@@ -365,7 +370,8 @@ public sealed class CustomersViewModel : ViewModelBase
 
         try
         {
-            CustomerHistoryResult history = await _getHistory.ExecuteAsync(SelectedCustomer.Id, cancellationToken).ConfigureAwait(true);
+            Guid customerId = SelectedCustomer.Id;
+            CustomerHistoryResult history = await _getHistory.ExecuteAsync(customerId, cancellationToken).ConfigureAwait(true);
             OutstandingBalance = history.OutstandingBalance;
             HistoryEntries.Clear();
             foreach (CustomerHistoryEntry entry in history.Entries)
@@ -373,7 +379,8 @@ public sealed class CustomersViewModel : ViewModelBase
                 HistoryEntries.Add(entry);
             }
 
-            await LoadOpenReceivablesAsync(SelectedCustomer.Id, cancellationToken).ConfigureAwait(true);
+            await LoadOpenReceivablesAsync(customerId, cancellationToken).ConfigureAwait(true);
+            await LoadLoyaltyPointsAsync(customerId, cancellationToken).ConfigureAwait(true);
 
             Message = HistoryEntries.Count == 0
                 ? "Este cliente aún no tiene ventas o movimientos registrados."
@@ -413,6 +420,20 @@ public sealed class CustomersViewModel : ViewModelBase
             Message = ex.Message;
         }
     }
+
+    private void OpenInvoiceFromHistory(object? parameter)
+    {
+        if (parameter is not CustomerHistoryEntry entry || !CanOpenInvoiceFromHistory(entry) || entry.SaleId is null)
+        {
+            Message = "Selecciona una venta del historial para abrir su factura.";
+            return;
+        }
+
+        InvoiceOpenRequested?.Invoke(entry.SaleId.Value);
+    }
+
+    private static bool CanOpenInvoiceFromHistory(object? parameter)
+        => parameter is CustomerHistoryEntry entry && IsSaleKind(entry.Kind) && entry.SaleId.HasValue;
 
     public void ResetView()
     {

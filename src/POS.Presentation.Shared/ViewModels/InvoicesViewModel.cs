@@ -36,12 +36,15 @@ public sealed class InvoicesViewModel : ViewModelBase
     private readonly QuerySalesHistoryUseCase _querySalesHistory;
     private readonly ReprintReceiptUseCase _reprintReceipt;
     private readonly ProcessReturnUseCase _processReturn;
+    private readonly GetInvoiceDetailUseCase? _getInvoiceDetail;
     private readonly SendDocumentUseCase? _sendDocument;
     private readonly IPdfService? _pdfService;
     private readonly CancelSaleUseCase? _cancelSale;
     private readonly List<InvoiceSummaryRow> _allInvoices = [];
 
     private InvoiceSummaryRow? _selectedInvoice;
+    private InvoiceDetailResult? _selectedInvoiceDetail;
+    private bool _isInvoiceDetailLoading;
     private string _searchText = string.Empty;
     private string _statusFilter = string.Empty;
     private string _cashierFilter = string.Empty;
@@ -62,11 +65,13 @@ public sealed class InvoicesViewModel : ViewModelBase
         ProcessReturnUseCase processReturn,
         SendDocumentUseCase? sendDocument = null,
         IPdfService? pdfService = null,
-        CancelSaleUseCase? cancelSale = null)
+        CancelSaleUseCase? cancelSale = null,
+        GetInvoiceDetailUseCase? getInvoiceDetail = null)
     {
         _querySalesHistory = querySalesHistory;
         _reprintReceipt = reprintReceipt;
         _processReturn = processReturn;
+        _getInvoiceDetail = getInvoiceDetail;
         _sendDocument = sendDocument;
         _pdfService = pdfService;
         _cancelSale = cancelSale;
@@ -120,13 +125,39 @@ public sealed class InvoicesViewModel : ViewModelBase
                 ReturnDescription = string.Empty;
                 RefundType = "Efectivo";
                 RecipientContact = string.Empty;
+                SelectedInvoiceDetail = null;
                 OnPropertyChanged(nameof(HasSelectedInvoice));
                 RaiseSelectionDependentCommands();
+
+                if (value is not null && _getInvoiceDetail is not null)
+                {
+                    RunSafe(LoadSelectedInvoiceDetailAsync(value.SaleId), ex => Message = $"Error al cargar detalle de factura: {ex.Message}");
+                }
             }
         }
     }
 
     public bool HasSelectedInvoice => SelectedInvoice is not null;
+
+    public InvoiceDetailResult? SelectedInvoiceDetail
+    {
+        get => _selectedInvoiceDetail;
+        private set
+        {
+            if (SetProperty(ref _selectedInvoiceDetail, value))
+            {
+                OnPropertyChanged(nameof(HasSelectedInvoiceDetail));
+            }
+        }
+    }
+
+    public bool HasSelectedInvoiceDetail => SelectedInvoiceDetail is not null;
+
+    public bool IsInvoiceDetailLoading
+    {
+        get => _isInvoiceDetailLoading;
+        private set => SetProperty(ref _isInvoiceDetailLoading, value);
+    }
 
     public string SearchText
     {
@@ -320,6 +351,38 @@ public sealed class InvoicesViewModel : ViewModelBase
 
         CurrentPage -= 1;
         await LoadAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    public async Task OpenInvoiceAsync(Guid saleId, CancellationToken cancellationToken = default)
+    {
+        if (_getInvoiceDetail is null)
+        {
+            Message = "El detalle de factura no está disponible en este entorno.";
+            return;
+        }
+
+        InvoiceDetailResult? detail = await _getInvoiceDetail.ExecuteAsync(saleId, cancellationToken).ConfigureAwait(true);
+        if (detail is null)
+        {
+            Message = "No encontramos la factura solicitada.";
+            return;
+        }
+
+        SearchText = detail.InvoiceNumber;
+        CurrentPage = 1;
+        await LoadAsync(cancellationToken).ConfigureAwait(true);
+
+        InvoiceSummaryRow? row = FilteredInvoices.FirstOrDefault(invoice => invoice.SaleId == saleId);
+        if (row is null)
+        {
+            row = InvoiceSummaryRow.FromDetail(detail);
+            _allInvoices.Insert(0, row);
+            ApplyFilters();
+        }
+
+        SelectedInvoice = row;
+        SelectedInvoiceDetail = detail;
+        Message = $"Factura {detail.InvoiceNumber} abierta desde Clientes.";
     }
 
     public async Task ReprintAsync(CancellationToken cancellationToken = default)
@@ -522,6 +585,28 @@ public sealed class InvoicesViewModel : ViewModelBase
         foreach (InvoiceSummaryRow row in filtered)
         {
             FilteredInvoices.Add(row);
+        }
+    }
+
+    private async Task LoadSelectedInvoiceDetailAsync(Guid saleId, CancellationToken cancellationToken = default)
+    {
+        if (_getInvoiceDetail is null)
+        {
+            return;
+        }
+
+        try
+        {
+            IsInvoiceDetailLoading = true;
+            InvoiceDetailResult? detail = await _getInvoiceDetail.ExecuteAsync(saleId, cancellationToken).ConfigureAwait(true);
+            if (SelectedInvoice?.SaleId == saleId)
+            {
+                SelectedInvoiceDetail = detail;
+            }
+        }
+        finally
+        {
+            IsInvoiceDetailLoading = false;
         }
     }
 

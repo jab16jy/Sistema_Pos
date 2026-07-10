@@ -319,6 +319,42 @@ public sealed class SalePersistenceTests
         Assert.Equal(2_800m, result.Total);
     }
 
+    [Fact]
+    public async Task SalesHistoryQueryService_GetDetailAsync_ReturnsItemsPaymentsAndComputedChange()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m));
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        CreateSaleResult created = await saleUseCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 2m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 3_000m, null)]),
+            TestContext.Current.CancellationToken);
+
+        var historyService = new SalesHistoryQueryService(dbContext);
+
+        InvoiceDetailResult? detail = await historyService.GetDetailAsync(created.SaleId, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(detail);
+        Assert.Equal(created.InvoiceNumber, detail.InvoiceNumber);
+        InvoiceDetailItemResult item = Assert.Single(detail.Items);
+        Assert.Equal("Sugar", item.ProductName);
+        Assert.Equal(2_800m, item.Subtotal);
+        InvoicePaymentResult payment = Assert.Single(detail.Payments);
+        Assert.Equal(PaymentMethod.Cash, payment.Method);
+        Assert.Equal(2_800m, payment.Amount);
+        Assert.Equal(3_000m, payment.ReceivedAmount);
+        Assert.Equal(200m, payment.ChangeAmount);
+    }
+
     private static AppDbContext CreateDbContext(SqliteConnection connection)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

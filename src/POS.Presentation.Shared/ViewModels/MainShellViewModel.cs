@@ -26,6 +26,8 @@ public sealed class MainShellViewModel : ViewModelBase
     private readonly GetDashboardSummaryUseCase? _dashboardSummaryUseCase;
     private ModuleNavigationItem _selectedModule;
     private string _operatorMessage;
+    private bool _openingInvoiceFromCustomer;
+    private bool _customerInvoiceNavigationConnected;
 
     public MainShellViewModel()
         : this(new CashierViewModel(new PrototypeProductLookupService()))
@@ -210,7 +212,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(CurrentFuncbarModule));
                 OnPropertyChanged(nameof(IsPlannedModuleSelected));
 
-                if (IsInvoicesSelected)
+                if (IsInvoicesSelected && !_openingInvoiceFromCustomer)
                 {
                     if (Invoices is not null)
                     {
@@ -252,6 +254,46 @@ public sealed class MainShellViewModel : ViewModelBase
     }
 
     public void ShowOperatorWarning(string message) => OperatorMessage = message;
+
+    public void ConnectCustomerInvoiceNavigation()
+    {
+        if (_customerInvoiceNavigationConnected || Customers is null)
+        {
+            return;
+        }
+
+        Customers.InvoiceOpenRequested += saleId => RunSafe(OpenInvoiceFromCustomerAsync(saleId), ex => OperatorMessage = $"Error al abrir factura: {ex.Message}");
+        _customerInvoiceNavigationConnected = true;
+    }
+
+    public async Task OpenInvoiceFromCustomerAsync(Guid saleId, CancellationToken cancellationToken = default)
+    {
+        if (Invoices is null)
+        {
+            OperatorMessage = "El módulo Facturas no está disponible.";
+            return;
+        }
+
+        ModuleNavigationItem? invoicesModule = FuncbarModules.FirstOrDefault(module => module.Key == "invoices")
+            ?? Modules.FirstOrDefault(module => module.Key == "invoices");
+        if (invoicesModule is null)
+        {
+            OperatorMessage = "No encontramos el acceso al módulo Facturas.";
+            return;
+        }
+
+        try
+        {
+            _openingInvoiceFromCustomer = true;
+            SelectedModule = invoicesModule;
+            await Invoices.OpenInvoiceAsync(saleId, cancellationToken).ConfigureAwait(true);
+            OperatorMessage = "Factura abierta desde Clientes.";
+        }
+        finally
+        {
+            _openingInvoiceFromCustomer = false;
+        }
+    }
 
     public string MainActionText => IsCashierSelected ? "Cobrar" : "Abrir módulo";
 

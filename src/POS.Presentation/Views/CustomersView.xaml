@@ -9,6 +9,19 @@
       <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
       <Setter Property="Padding" Value="8,6" />
     </Style>
+    <Style x:Key="ClienteHistoryRowButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="ToolTip" Value="Abrir factura" />
+      <Style.Triggers>
+        <Trigger Property="IsEnabled" Value="False">
+          <Setter Property="Opacity" Value="0.75" />
+          <Setter Property="ToolTip" Value="Movimiento sin factura consultable" />
+        </Trigger>
+      </Style.Triggers>
+    </Style>
   </UserControl.Resources>
 
   <Grid Margin="0,8">
@@ -407,29 +420,48 @@
             <ItemsControl ItemsSource="{Binding FilteredHistoryEntries}">
               <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                  <Border Padding="12,10" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
-                    <Grid>
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="32" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                      </Grid.ColumnDefinitions>
-                      <Border Width="32" Height="32" CornerRadius="16" Background="{StaticResource BrushPrimaryContainer}">
-                        <materialDesign:PackIcon Kind="Receipt" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                      </Border>
-                      <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding Reference}" FontWeight="Medium" />
-                        <TextBlock Style="{StaticResource MutedText}" FontSize="11">
-                          <TextBlock.Text>
-                            <MultiBinding StringFormat="{}{0:d}">
-                              <Binding Path="OccurredAt" />
-                            </MultiBinding>
-                          </TextBlock.Text>
-                        </TextBlock>
-                      </StackPanel>
-                      <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat={}{0:C0}}" FontWeight="Bold" VerticalAlignment="Center" />
-                    </Grid>
-                  </Border>
+                  <Button Style="{StaticResource ClienteHistoryRowButton}"
+                          Command="{Binding DataContext.OpenInvoiceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                          CommandParameter="{Binding}">
+                    <Border Padding="12,10" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="32" />
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Border Width="32" Height="32" CornerRadius="16" Background="{StaticResource BrushPrimaryContainer}">
+                          <materialDesign:PackIcon Kind="Receipt" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Reference}" FontWeight="Medium" />
+                          <TextBlock Style="{StaticResource MutedText}" FontSize="11">
+                            <TextBlock.Text>
+                              <MultiBinding StringFormat="{}{0:d}">
+                                <Binding Path="OccurredAt" />
+                              </MultiBinding>
+                            </TextBlock.Text>
+                          </TextBlock>
+                          <TextBlock Text="Abrir factura" FontSize="10">
+                            <TextBlock.Style>
+                              <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding SaleId}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                  </DataTrigger>
+                                  <DataTrigger Binding="{Binding Kind}" Value="Sale">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat={}{0:C0}}" FontWeight="Bold" VerticalAlignment="Center" />
+                      </Grid>
+                    </Border>
+                  </Button>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>

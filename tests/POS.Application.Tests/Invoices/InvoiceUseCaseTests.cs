@@ -305,10 +305,12 @@ public sealed class InvoiceUseCaseTests
     private sealed class StubSalesHistoryQueryService : ISalesHistoryQueryService
     {
         private readonly IReadOnlyList<SaleHistoryResult> _results;
+        private readonly IReadOnlyDictionary<Guid, InvoiceDetailResult> _details;
 
-        public StubSalesHistoryQueryService(IReadOnlyList<SaleHistoryResult> results)
+        public StubSalesHistoryQueryService(IReadOnlyList<SaleHistoryResult> results, IReadOnlyList<InvoiceDetailResult>? details = null)
         {
             _results = results;
+            _details = (details ?? []).ToDictionary(detail => detail.SaleId);
         }
 
         public SalesHistoryRequest? LastRequest { get; private set; }
@@ -318,6 +320,9 @@ public sealed class InvoiceUseCaseTests
             LastRequest = request;
             return Task.FromResult(_results);
         }
+
+        public Task<InvoiceDetailResult?> GetDetailAsync(Guid saleId, CancellationToken cancellationToken = default)
+            => Task.FromResult(_details.TryGetValue(saleId, out InvoiceDetailResult? detail) ? detail : null);
     }
 
     private sealed class StubPrintService : IPrintService

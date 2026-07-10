@@ -164,22 +164,14 @@ public sealed class CreateSaleUseCase
             }
         }
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        // Accumulate loyalty points after the sale is saved (optional — no loyalty = skip)
         if (_accumulatePoints is not null && request.CustomerId.HasValue)
         {
-            try
-            {
-                await _accumulatePoints.ExecuteAsync(
-                    new EarnPointsRequest(request.CustomerId.Value, sale.Id, sale.Total().Amount),
-                    cancellationToken).ConfigureAwait(false);
-            }
-            catch
-            {
-                // Loyalty accumulation failure must not roll back the sale
-            }
+            await _accumulatePoints.RecordForSaleAsync(
+                new EarnPointsRequest(request.CustomerId.Value, sale.Id, sale.Total().Amount),
+                cancellationToken).ConfigureAwait(false);
         }
+
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return new CreateSaleResult(
             sale.Id,

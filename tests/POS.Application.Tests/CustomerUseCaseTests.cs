@@ -164,6 +164,7 @@ public sealed class CustomerUseCaseTests
 
         CustomerHistoryEntry saleEntry = Assert.Single(history.Entries);
         Assert.Equal("Sale", saleEntry.Kind);
+        Assert.Equal(sale.Id, saleEntry.SaleId);
         Assert.Equal(2_800m, saleEntry.Amount);
         Assert.Empty(empty.Entries);
     }
@@ -189,6 +190,7 @@ public sealed class CustomerUseCaseTests
 
         CustomerHistoryEntry entry = Assert.Single(history.Entries);
         Assert.Equal("Sale", entry.Kind);
+        Assert.Equal(draftSale.Id, entry.SaleId);
         Assert.Equal("Draft", entry.Status);
         Assert.Equal(1_500m, entry.Amount);
     }

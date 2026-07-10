@@ -76,6 +76,23 @@ public sealed class AccumulateLoyaltyPointsUseCaseTests
         Assert.Single(repo.Transactions);
     }
 
+    [Fact]
+    public async Task RecordForSaleAsync_WithActiveRule_StagesTransactionWithoutSaving()
+    {
+        var repo = new InMemLoyaltyRepository { ActiveRule = new LoyaltyRule(0.001m, 1m, 0) };
+        var uow = new CountingUow();
+        var useCase = new AccumulateLoyaltyPointsUseCase(repo, uow);
+
+        bool recorded = await useCase.RecordForSaleAsync(
+            new EarnPointsRequest(Guid.NewGuid(), Guid.NewGuid(), 7_500m),
+            TestContext.Current.CancellationToken);
+
+        Assert.True(recorded);
+        Assert.Single(repo.Transactions);
+        Assert.Equal(7, repo.Transactions[0].Points);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
     // --- Stubs ---
 
     private sealed class InMemLoyaltyRepository : ILoyaltyRepository

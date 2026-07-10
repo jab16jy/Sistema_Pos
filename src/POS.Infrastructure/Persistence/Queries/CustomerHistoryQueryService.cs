@@ -38,7 +38,8 @@ public sealed class CustomerHistoryQueryService : ICustomerHistoryQueryService
                 "Sale",
                 sale.InvoiceNumber,
                 sale.Items.Sum(item => (item.UnitPrice.Amount * item.Quantity) - item.Discount.Amount),
-                sale.Status.ToString())),
+                sale.Status.ToString(),
+                sale.Id)),
             .. customerQuotes.Select(quote => new CustomerHistoryEntry(
                 new DateTimeOffset(DateTime.SpecifyKind(quote.CreatedAt, DateTimeKind.Utc)),
                 "Quote",

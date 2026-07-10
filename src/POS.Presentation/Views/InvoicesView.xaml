@@ -228,6 +228,108 @@
                 </StackPanel>
               </Border>
 
+              <Border Background="{StaticResource BrushSurfaceContainer}"
+                      CornerRadius="6"
+                      Padding="12"
+                      Margin="0,0,0,10"
+                      Visibility="{Binding IsInvoiceDetailLoading, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
+                  <TextBlock Text="Cargando detalle de factura..." Style="{StaticResource MutedText}" FontSize="12" Margin="8,0,0,0" />
+                </StackPanel>
+              </Border>
+
+              <StackPanel Visibility="{Binding HasSelectedInvoiceDetail, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                  <StackPanel>
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <StackPanel>
+                        <TextBlock Text="Estado" Style="{StaticResource MutedText}" FontSize="11" />
+                        <TextBlock Text="{Binding SelectedInvoice.StatusLabel}" FontWeight="SemiBold" />
+                      </StackPanel>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="Trabajador" Style="{StaticResource MutedText}" FontSize="11" />
+                        <TextBlock Text="{Binding SelectedInvoice.CashierName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                      </StackPanel>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                  <StackPanel>
+                    <TextBlock Text="Productos" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <ItemsControl ItemsSource="{Binding SelectedInvoiceDetail.Items}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,6">
+                            <Grid>
+                              <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                              </Grid.RowDefinitions>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Text="{Binding ProductName}" FontWeight="Medium" TextWrapping="Wrap" />
+                              <TextBlock Grid.Column="1" Text="{Binding Subtotal, StringFormat={}{0:C0}}" FontWeight="Bold" FontFamily="Consolas" Margin="8,0,0,0" />
+                              <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource MutedText}" FontSize="11">
+                                <TextBlock.Text>
+                                  <MultiBinding StringFormat="{}{0:N0} x {1:C0} · Desc. {2:C0}">
+                                    <Binding Path="Quantity" />
+                                    <Binding Path="UnitPrice" />
+                                    <Binding Path="Discount" />
+                                  </MultiBinding>
+                                </TextBlock.Text>
+                              </TextBlock>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+
+                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                  <StackPanel>
+                    <TextBlock Text="Pagos" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <ItemsControl ItemsSource="{Binding SelectedInvoiceDetail.Payments}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,6">
+                            <Grid>
+                              <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                              </Grid.RowDefinitions>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Text="{Binding Method}" FontWeight="Medium" />
+                              <TextBlock Grid.Column="1" Text="{Binding Amount, StringFormat={}{0:C0}}" FontWeight="Bold" FontFamily="Consolas" />
+                              <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource MutedText}" FontSize="11">
+                                <TextBlock.Text>
+                                  <MultiBinding StringFormat="{}Recibido {0:C0} · Cambio {1:C0} {2}">
+                                    <Binding Path="ReceivedAmount" TargetNullValue="0" />
+                                    <Binding Path="ChangeAmount" />
+                                    <Binding Path="BankOrPlatform" TargetNullValue="" />
+                                  </MultiBinding>
+                                </TextBlock.Text>
+                              </TextBlock>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+
               <StackPanel Margin="0,0,0,4">
                 <TextBlock Text="Destino (email o WhatsApp)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
                 <TextBox Text="{Binding RecipientContact, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="cliente@email.com o 3001234567" Margin="0,0,0,8" />
