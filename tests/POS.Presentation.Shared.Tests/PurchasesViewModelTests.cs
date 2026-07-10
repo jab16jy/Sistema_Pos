@@ -1,3 +1,4 @@
+using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Purchases;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Purchases;
@@ -77,6 +78,33 @@ public sealed class PurchasesViewModelTests
     }
 
     [Fact]
+    public async Task ProductSearch_ThenAddDraftItem_UsesSelectedProductIdAndName()
+    {
+        var productId = Guid.NewGuid();
+        var lookup = new StaticProductLookupService([
+            new ProductLookupResult(productId, "Ampolla 350", "7701234", 10_000m, 24m)
+        ]);
+        var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([]), productLookup: lookup);
+
+        viewModel.ProductSearchText = "amp";
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        ProductLookupResult result = Assert.Single(viewModel.ProductResults);
+        Assert.Equal("Ampolla 350", result.Name);
+        Assert.Same(result, viewModel.SelectedProductResult);
+
+        viewModel.DraftQuantity = 2m;
+        viewModel.DraftTotalCost = 20_000m;
+        viewModel.AddDraftItemCommand.Execute(null);
+
+        PurchaseDraftItem item = Assert.Single(viewModel.Items);
+        Assert.Equal(productId, item.ProductId);
+        Assert.Equal("Ampolla 350", item.ProductName);
+        Assert.Equal(2m, item.Quantity);
+        Assert.Empty(viewModel.ProductResults);
+    }
+
+    [Fact]
     public void AddDraftItemCommand_UpdatesCanExecuteWhenDraftInputChanges()
     {
         var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([]));
@@ -129,14 +157,26 @@ public sealed class PurchasesViewModelTests
         ISupplierLookupQueryService supplierLookup,
         InMemorySupplierRepository? repository = null,
         StaticRegisterPurchaseUseCase? purchaseUseCase = null,
-        Func<Guid>? currentOperatorIdProvider = null)
+        Func<Guid>? currentOperatorIdProvider = null,
+        IProductLookupService? productLookup = null)
     {
         repository ??= new InMemorySupplierRepository();
         return new PurchasesViewModel(
             new SaveSupplierUseCase(repository, new InMemoryUnitOfWork()),
             new SearchSuppliersUseCase(supplierLookup),
             purchaseUseCase ?? new StaticRegisterPurchaseUseCase(new RegisterPurchaseResult(Guid.NewGuid(), Guid.NewGuid(), 0m, 0)),
-            currentOperatorIdProvider ?? (() => Guid.NewGuid()));
+            currentOperatorIdProvider ?? (() => Guid.NewGuid()),
+            productLookup);
+    }
+
+    private sealed class StaticProductLookupService : IProductLookupService
+    {
+        private readonly IReadOnlyList<ProductLookupResult> _products;
+
+        public StaticProductLookupService(IReadOnlyList<ProductLookupResult> products) => _products = products;
+
+        public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+            => Task.FromResult(_products);
     }
 
     private static string FindRepositoryFile(string relativePath)
