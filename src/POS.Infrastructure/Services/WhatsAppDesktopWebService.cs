@@ -107,12 +107,15 @@ public sealed class WhatsAppDesktopWebService : IWhatsAppService
             ? "Hola."
             : message.Trim();
 
+        // ponytail: never embed the local file path in the customer-facing message —
+        // it leaked the Windows username/folder structure and meant nothing to the
+        // recipient. RevealFile still opens the file locally for the operator to attach.
         if (string.IsNullOrWhiteSpace(attachmentPath))
         {
             return normalizedMessage;
         }
 
-        return $"{normalizedMessage}\n\nArchivo listo para adjuntar:\n{attachmentPath}";
+        return $"{normalizedMessage}\n\n(Adjunta el archivo que se abrió en el Explorador de Windows)";
     }
 
     public static string? PrepareAttachmentForManualAttach(string? attachmentPath, string documentsDirectory)
