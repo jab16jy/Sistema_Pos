@@ -16,6 +16,8 @@ namespace POS.Presentation.Shared.ViewModels;
 /// </summary>
 public sealed class LoyaltyViewModel : ViewModelBase
 {
+    private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+
     private readonly GetLoyaltyBalanceUseCase _getBalance;
     private readonly RedeemLoyaltyPointsUseCase _redeemPoints;
     private readonly GetLoyaltyProgramOverviewUseCase? _getProgramOverview;
@@ -190,9 +192,9 @@ public sealed class LoyaltyViewModel : ViewModelBase
         set => SetProperty(ref _ruleDescription, value ?? string.Empty);
     }
 
-    public string AccumulationRate => $"{PointsPerCurrencyUnit:0.####} punto(s) por cada $1 vendido";
+    public string AccumulationRate => $"{PointsPerCurrencyUnit.ToString("0.####", ColombianCulture)} punto(s) por cada $1 vendido";
 
-    public string RedemptionRate => $"Cada punto descuenta ${RedemptionValuePerPoint:N0}";
+    public string RedemptionRate => $"Cada punto descuenta ${RedemptionValuePerPoint.ToString("N0", ColombianCulture)}";
 
     public string CheckoutUsageMode => "Caja acumula y canjea usando la regla activa guardada.";
 
@@ -475,7 +477,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             var request = new RedeemPointsRequest(SelectedCustomer.Id, PointsToRedeem, SaleTotal: 0m);
             var result = await _redeemPoints.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-            Message = $"Redimidos {result.PointsRedeemed} puntos. Descuento aplicado: ${result.DiscountAmount:N0}.";
+            Message = $"Redimidos {result.PointsRedeemed} puntos. Descuento aplicado: ${result.DiscountAmount.ToString("N0", ColombianCulture)}.";
             PointsToRedeem = 0;
 
             // Reload balance after redemption
@@ -519,7 +521,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
             ProgramTransactions.Add(new LoyaltyProgramTransactionEntry(
                 transaction.Type.Equals("Redeemed", StringComparison.OrdinalIgnoreCase) ? "Canje de puntos" : "Puntos acumulados",
                 BuildTransactionMeta(transaction),
-                transaction.Points > 0 ? $"+{transaction.Points:N0}" : transaction.Points.ToString("N0"),
+                transaction.Points > 0 ? $"+{transaction.Points.ToString("N0", ColombianCulture)}" : transaction.Points.ToString("N0", ColombianCulture),
                 transaction.Points >= 0 ? "earn" : "redeem",
                 transaction.CustomerName,
                 transaction.InvoiceNumber,
