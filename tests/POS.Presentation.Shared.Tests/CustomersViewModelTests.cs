@@ -111,6 +111,30 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public void OpenInvoiceCommand_ForSaleHistoryEntry_RaisesInvoiceOpenRequestWithSaleId()
+    {
+        var saleId = Guid.NewGuid();
+        var viewModel = CreateViewModel(new InMemoryCustomerRepository());
+        Guid? requestedSaleId = null;
+        viewModel.InvoiceOpenRequested += id => requestedSaleId = id;
+        var entry = new CustomerHistoryEntry(DateTimeOffset.UtcNow, "Sale", "FAC-001", 12_000m, "Completed", saleId);
+
+        Assert.True(viewModel.OpenInvoiceCommand.CanExecute(entry));
+        viewModel.OpenInvoiceCommand.Execute(entry);
+
+        Assert.Equal(saleId, requestedSaleId);
+    }
+
+    [Fact]
+    public void OpenInvoiceCommand_ForNonSaleHistoryEntry_IsDisabled()
+    {
+        var viewModel = CreateViewModel(new InMemoryCustomerRepository());
+        var entry = new CustomerHistoryEntry(DateTimeOffset.UtcNow, "Quote", "COT-001", 12_000m, "Active");
+
+        Assert.False(viewModel.OpenInvoiceCommand.CanExecute(entry));
+    }
+
+    [Fact]
     public async Task DeleteAsync_ForSelectedCustomer_DeactivatesInsteadOfHardDeleting()
     {
         var repository = new InMemoryCustomerRepository();
@@ -263,6 +287,28 @@ public sealed class CustomersViewModelTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         Assert.Equal(0, viewModel.LoyaltyPoints);
+    }
+
+    [Fact]
+    public async Task OpenHistoryAsync_RefreshesLoyaltyPointsForSelectedCustomer()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var loyalty = new MutableLoyaltyQueryService(customer.Id, balance: 2);
+        var viewModel = new CustomersViewModel(
+            new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()),
+            new GetCustomerHistoryUseCase(new StaticCustomerHistoryQueryService(new CustomerHistoryResult(customer.Id, []))),
+            new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)),
+            new GetLoyaltyBalanceUseCase(loyalty));
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        loyalty.Balance = 15;
+        await viewModel.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(15, viewModel.LoyaltyPoints);
     }
 
     [Fact]
@@ -499,6 +545,58 @@ public sealed class CustomersViewModelTests
 
         public Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(0);
+
+        public Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
+            => Task.FromResult(0);
+
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
+    }
+
+    private sealed class MutableLoyaltyQueryService : ILoyaltyRepository
+    {
+        private readonly LoyaltyAccount _account;
+
+        public MutableLoyaltyQueryService(Guid customerId, int balance)
+        {
+            _account = new LoyaltyAccount(customerId);
+            Balance = balance;
+        }
+
+        public int Balance { get; set; }
+
+        public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default)
+            => Task.FromResult(_account.CustomerId == customerId ? _account : null);
+
+        public Task AddAccountAsync(LoyaltyAccount account, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
+
+        public Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<LoyaltyRule?>(null);
+
+        public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyRule>>([]);
+
+        public Task AddRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task UpdateRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default)
+            => Task.FromResult(loyaltyAccountId == _account.Id ? Balance : 0);
+
+        public Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(Balance);
+
+        public Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(1);
 
         public Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
             => Task.FromResult(0);

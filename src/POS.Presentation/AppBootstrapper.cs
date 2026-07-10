@@ -162,7 +162,8 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<ProcessReturnUseCase>(),
                 TryResolveOptional<POS.Application.UseCases.Communication.SendDocumentUseCase>(sp),
                 TryResolveOptional<POS.Application.Interfaces.IPdfService>(sp),
-                TryResolveOptional<POS.Application.UseCases.Invoices.CancelSaleUseCase>(sp))
+                TryResolveOptional<POS.Application.UseCases.Invoices.CancelSaleUseCase>(sp),
+                TryResolveOptional<GetInvoiceDetailUseCase>(sp))
             {
                 OperatorUserId = cashier.CashierUserId,
                 CurrentUserRole = session.Role
@@ -243,6 +244,8 @@ internal static class AppBootstrapper
         {
             shellViewModel.ShowOperatorWarning(BuildModuleWarningMessage(moduleWarnings));
         }
+
+        shellViewModel.ConnectCustomerInvoiceNavigation();
 
         return shellViewModel;
     }

@@ -24,18 +24,30 @@ public sealed class AccumulateLoyaltyPointsUseCase
 
     public async Task ExecuteAsync(EarnPointsRequest request, CancellationToken cancellationToken = default)
     {
+        if (await RecordForSaleAsync(request, cancellationToken).ConfigureAwait(false))
+        {
+            await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Records earned points tied to a sale WITHOUT saving — the caller's unit of work must
+    /// commit it atomically together with the sale, so points are only awarded if the sale succeeds.
+    /// </summary>
+    public async Task<bool> RecordForSaleAsync(EarnPointsRequest request, CancellationToken cancellationToken = default)
+    {
         var rule = await _loyalty.GetActiveRuleAsync(cancellationToken).ConfigureAwait(false);
         if (rule is null)
         {
             // No active rule — skip accumulation silently
-            return;
+            return false;
         }
 
         var points = rule.PointsFor(new Money(request.SaleTotal));
         if (points == 0)
         {
             // Below threshold — no transaction
-            return;
+            return false;
         }
 
         var account = await _loyalty.GetAccountByCustomerIdAsync(request.CustomerId, cancellationToken).ConfigureAwait(false);
@@ -53,6 +65,6 @@ public sealed class AccumulateLoyaltyPointsUseCase
             $"Points earned from sale {request.SaleId}");
 
         await _loyalty.AddTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        return true;
     }
 }

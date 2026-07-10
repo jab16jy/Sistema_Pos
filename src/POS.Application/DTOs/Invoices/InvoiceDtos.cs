@@ -19,6 +19,35 @@ public sealed record SaleHistoryResult(
     decimal Total,
     string? CashierName = null);
 
+public sealed record InvoiceDetailResult(
+    Guid SaleId,
+    string InvoiceNumber,
+    Guid? CustomerId,
+    string? CustomerName,
+    SaleStatus Status,
+    DateTimeOffset CreatedAt,
+    decimal Total,
+    string? CashierName,
+    IReadOnlyList<InvoiceDetailItemResult> Items,
+    IReadOnlyList<InvoicePaymentResult> Payments);
+
+public sealed record InvoiceDetailItemResult(
+    Guid SaleItemId,
+    Guid ProductId,
+    string ProductName,
+    decimal Quantity,
+    decimal UnitPrice,
+    decimal Discount,
+    decimal Subtotal);
+
+public sealed record InvoicePaymentResult(
+    Guid PaymentId,
+    POS.Domain.Enums.PaymentMethod Method,
+    decimal Amount,
+    decimal? ReceivedAmount,
+    decimal ChangeAmount,
+    string? BankOrPlatform);
+
 /// <summary>
 /// A single line in a partial return request.
 /// SaleItemId identifies the original sale item; QuantityReturned must be in [1, originalQty].

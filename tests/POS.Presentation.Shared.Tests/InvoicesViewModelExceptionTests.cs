@@ -34,6 +34,9 @@ public sealed class InvoicesViewModelExceptionTests
     {
         public Task<IReadOnlyList<SaleHistoryResult>> SearchAsync(SalesHistoryRequest request, CancellationToken cancellationToken = default)
             => Task.FromException<IReadOnlyList<SaleHistoryResult>>(new InvalidOperationException("DB caída"));
+
+        public Task<InvoiceDetailResult?> GetDetailAsync(Guid saleId, CancellationToken cancellationToken = default)
+            => Task.FromException<InvoiceDetailResult?>(new InvalidOperationException("DB caída"));
     }
 
     private sealed class NoOpPrintService : IPrintService

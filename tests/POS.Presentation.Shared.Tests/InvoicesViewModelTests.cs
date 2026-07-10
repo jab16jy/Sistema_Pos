@@ -13,6 +13,63 @@ namespace POS.Presentation.Shared.Tests;
 public sealed class InvoicesViewModelTests
 {
     [Fact]
+    public async Task SelectedInvoice_WhenDetailUseCaseIsAvailable_LoadsItemsAndPayments()
+    {
+        var saleId = Guid.NewGuid();
+        var detail = new InvoiceDetailResult(
+            saleId,
+            "FAC-DET-001",
+            null,
+            "Cliente Detalle",
+            SaleStatus.Completed,
+            DateTimeOffset.Now,
+            3_000m,
+            "ana",
+            [new InvoiceDetailItemResult(Guid.NewGuid(), Guid.NewGuid(), "Rice", 2m, 1_500m, 0m, 3_000m)],
+            [new InvoicePaymentResult(Guid.NewGuid(), PaymentMethod.Cash, 3_000m, 5_000m, 2_000m, null)]);
+        var history = new StaticSalesHistoryQueryService(
+            [new SaleHistoryResult(saleId, "FAC-DET-001", null, "Cliente Detalle", SaleStatus.Completed, DateTimeOffset.Now, 3_000m, "ana")],
+            [detail]);
+        var viewModel = CreateViewModel(history, getInvoiceDetail: new GetInvoiceDetailUseCase(history));
+
+        await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedInvoice = viewModel.FilteredInvoices.Single();
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(viewModel.SelectedInvoiceDetail);
+        Assert.Equal("Rice", viewModel.SelectedInvoiceDetail.Items.Single().ProductName);
+        Assert.Equal(2_000m, viewModel.SelectedInvoiceDetail.Payments.Single().ChangeAmount);
+    }
+
+    [Fact]
+    public async Task OpenInvoiceAsync_LoadsInvoiceBySaleIdAndSelectsIt()
+    {
+        var saleId = Guid.NewGuid();
+        var detail = new InvoiceDetailResult(
+            saleId,
+            "FAC-CUSTOMER-001",
+            Guid.NewGuid(),
+            "Cliente Navegable",
+            SaleStatus.Completed,
+            DateTimeOffset.Now,
+            4_500m,
+            "beto",
+            [new InvoiceDetailItemResult(Guid.NewGuid(), Guid.NewGuid(), "Coffee", 3m, 1_500m, 0m, 4_500m)],
+            []);
+        var history = new StaticSalesHistoryQueryService(
+            [new SaleHistoryResult(saleId, "FAC-CUSTOMER-001", detail.CustomerId, detail.CustomerName, SaleStatus.Completed, DateTimeOffset.Now, 4_500m, "beto")],
+            [detail]);
+        var viewModel = CreateViewModel(history, getInvoiceDetail: new GetInvoiceDetailUseCase(history));
+
+        await viewModel.OpenInvoiceAsync(saleId, TestContext.Current.CancellationToken);
+
+        Assert.Equal("FAC-CUSTOMER-001", viewModel.SearchText);
+        Assert.Equal(saleId, viewModel.SelectedInvoice?.SaleId);
+        Assert.Equal(detail, viewModel.SelectedInvoiceDetail);
+        Assert.Contains("abierta", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task ExportPdfAsync_WhenInvoiceIsSelected_RaisesFileExportWithInvoicePdf()
     {
         var saleId = Guid.NewGuid();
@@ -168,6 +225,21 @@ public sealed class InvoicesViewModelTests
         Assert.Contains("Solo un administrador", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    private static InvoicesViewModel CreateViewModel(
+        ISalesHistoryQueryService history,
+        GetInvoiceDetailUseCase? getInvoiceDetail = null)
+        => new(
+            new QuerySalesHistoryUseCase(history),
+            new ReprintReceiptUseCase(new EmptySaleRepository(), new NoOpPrintService()),
+            new ProcessReturnUseCase(
+                new EmptySaleRepository(),
+                new EmptyProductRepository(),
+                new EmptyInventoryRepository(),
+                new EmptySaleReturnRepository(),
+                new NoOpUnitOfWork(),
+                new EmptyUserRepository()),
+            getInvoiceDetail: getInvoiceDetail);
+
     private static Sale CreateCompletedSale(Product product)
     {
         var sale = new Sale(Guid.NewGuid());
@@ -180,13 +252,28 @@ public sealed class InvoicesViewModelTests
     private sealed class StaticSalesHistoryQueryService : ISalesHistoryQueryService
     {
         private readonly IReadOnlyList<SaleHistoryResult> _results;
+        private readonly IReadOnlyDictionary<Guid, InvoiceDetailResult> _details;
 
-        public StaticSalesHistoryQueryService(params SaleHistoryResult[] results) => _results = results;
+        public StaticSalesHistoryQueryService(params SaleHistoryResult[] results)
+            : this(results, [])
+        {
+        }
+
+        public StaticSalesHistoryQueryService(
+            IReadOnlyList<SaleHistoryResult> results,
+            IReadOnlyList<InvoiceDetailResult> details)
+        {
+            _results = results;
+            _details = details.ToDictionary(detail => detail.SaleId);
+        }
 
         public Task<IReadOnlyList<SaleHistoryResult>> SearchAsync(
             SalesHistoryRequest request,
             CancellationToken cancellationToken = default)
             => Task.FromResult(_results);
+
+        public Task<InvoiceDetailResult?> GetDetailAsync(Guid saleId, CancellationToken cancellationToken = default)
+            => Task.FromResult(_details.TryGetValue(saleId, out InvoiceDetailResult? detail) ? detail : null);
     }
 
     private sealed class FakePdfService : IPdfService

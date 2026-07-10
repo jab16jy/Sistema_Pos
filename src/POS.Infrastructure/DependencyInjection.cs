@@ -108,6 +108,7 @@ public static class DependencyInjection
         services.AddScoped<QueryMovementHistoryUseCase>();
         services.AddScoped<AdjustStockUseCase>();
         services.AddScoped<QuerySalesHistoryUseCase>();
+        services.AddScoped<GetInvoiceDetailUseCase>();
         services.AddScoped<ReprintReceiptUseCase>();
         services.AddScoped<ProcessReturnUseCase>();
         services.AddScoped<CancelSaleUseCase>();

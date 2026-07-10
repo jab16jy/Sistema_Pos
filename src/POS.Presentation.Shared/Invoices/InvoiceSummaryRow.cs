@@ -35,6 +35,18 @@ public sealed record InvoiceSummaryRow(
         sale.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
         string.IsNullOrWhiteSpace(sale.CashierName) ? "—" : sale.CashierName);
 
+    public static InvoiceSummaryRow FromDetail(InvoiceDetailResult detail) => new(
+        detail.SaleId,
+        detail.InvoiceNumber,
+        string.IsNullOrWhiteSpace(detail.CustomerName) ? "— Consumidor final —" : detail.CustomerName,
+        detail.Total,
+        $"${detail.Total.ToString("N0", ColombianCulture)}",
+        detail.Status,
+        ResolveStatusLabel(detail.Status),
+        detail.CreatedAt,
+        detail.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+        string.IsNullOrWhiteSpace(detail.CashierName) ? "—" : detail.CashierName);
+
     private static string ResolveStatusLabel(SaleStatus status) => status switch
     {
         SaleStatus.Completed => "Activa",

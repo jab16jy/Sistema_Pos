@@ -49,4 +49,5 @@ public sealed record CustomerHistoryEntry(
     string Kind,
     string Reference,
     decimal Amount,
-    string Status);
+    string Status,
+    Guid? SaleId = null);
