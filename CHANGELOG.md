@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.2.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.1.0...v1.2.0) (2026-07-10)
+
+
+### Features
+
+* **categories:** implement Category CRUD, UI validations, deletion rules, and ViewModel synchronization ([4335001](https://github.com/jab16jy/Sistema_Pos/commit/43350018148d98b1a872cc3f5fbdb19de8181f7d))
+* **login:** implement client-side validations and bind credentials error message feedback ([193238d](https://github.com/jab16jy/Sistema_Pos/commit/193238da3881df8bc8c70f3a793f71adebd11de8))
+* **loyalty:** manage tiers and enrich history ([f124c8a](https://github.com/jab16jy/Sistema_Pos/commit/f124c8a178397c2b129ef7feb5ac4e345e656241))
+* **products:** box presentation pricing and editable stock ([64dc0fc](https://github.com/jab16jy/Sistema_Pos/commit/64dc0fc467ec2230d8860c8e39b705b0cccb23b3))
+* **quotes:** confirm history quote conversion ([3c73be6](https://github.com/jab16jy/Sistema_Pos/commit/3c73be6e039771087f0b3e533473a46bb7938daf))
+* **reports:** redirect pending shifts from Reportes straight to Turnos ([4d05533](https://github.com/jab16jy/Sistema_Pos/commit/4d05533abc3da7ca00c3d5557de8e617b3ffd4c1))
+
+
+### Bug Fixes
+
+* **audit:** add vertical scrollbar to Audit Trail logs and register category filter ([159f626](https://github.com/jab16jy/Sistema_Pos/commit/159f6265fd43750f31b8050f0c833f7045b40764))
+* **cashier:** preserve keyboard selections ([c4002d9](https://github.com/jab16jy/Sistema_Pos/commit/c4002d9d809c4de8a4a258dc33d3a8769306ec07))
+* **invoices:** add detail preview and loyalty sync ([6ddbed7](https://github.com/jab16jy/Sistema_Pos/commit/6ddbed78303eb378d0772c76a7dff3cd6449abc0))
+* **purchases:** add product search so a purchase can be registered ([241c32a](https://github.com/jab16jy/Sistema_Pos/commit/241c32acaefd4952731eb528b33499d53c88bbe2))
+* **reports:** compute profitability aggregates in-memory, not in SQL ([7ee83fb](https://github.com/jab16jy/Sistema_Pos/commit/7ee83fbdd508fd0e6067116724063dd0e5312b0e))
+* **shifts:** actually highlight the shift selected from Reportes' redirect ([f1442f5](https://github.com/jab16jy/Sistema_Pos/commit/f1442f511067c12d94055131e86fedd5574d5d3c))
+* **shifts:** use local UTC offset in date filter to stop offset crash ([5d544e9](https://github.com/jab16jy/Sistema_Pos/commit/5d544e91bd0aa1e019020909c172416878df556d))
+* **whatsapp:** stop leaking local file path into customer message ([c11fd1d](https://github.com/jab16jy/Sistema_Pos/commit/c11fd1d9e26d87e95e2cd4badb78aa72030fbc73))
+
 ## [1.1.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.0.1...v1.1.0) (2026-07-09)
 
 
