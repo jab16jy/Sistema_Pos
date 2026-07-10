@@ -60,9 +60,8 @@ public sealed class SettingsViewModelTests
         var viewModel = new SettingsViewModel(
             new LoadSettingsUseCase(new StubSettingsRepository(settings)),
             new SaveSettingsUseCase(new StubMutableSettingsRepository(), new StubUnitOfWork()),
-            new TriggerManualBackupUseCase(new StubMutableSettingsRepository(), new StubBackupService(), new StubUnitOfWork(), new StubOperatorSession()),
-            null,
-            new StubWhatsAppService());
+            emailService: null,
+            whatsAppService: new StubWhatsAppService());
 
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
 
@@ -72,26 +71,6 @@ public sealed class SettingsViewModelTests
         Assert.Equal("secret", viewModel.SmtpPassword);
         Assert.True(viewModel.SmtpUseSsl);
         Assert.True(viewModel.IsWhatsAppReady);
-    }
-
-    [Fact]
-    public async Task BackupAsync_WhenBackupSucceeds_UpdatesLastSuccessfulBackupMetadata()
-    {
-        var settings = new POS.Domain.Entities.BusinessSettings(
-            "Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
-        var repository = new StubMutableSettingsRepository(settings);
-        var viewModel = new SettingsViewModel(
-            new LoadSettingsUseCase(repository),
-            new SaveSettingsUseCase(repository, new StubUnitOfWork()),
-            new TriggerManualBackupUseCase(repository, new StubBackupService(), new StubUnitOfWork(), new StubOperatorSession()));
-
-        await viewModel.BackupAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal("2026-06-27 10:30:00 UTC", viewModel.LastBackupTimestampUtc);
-        Assert.Equal("1024 bytes", viewModel.LastBackupSize);
-        Assert.Equal("C:/Backups/backup.sqlite", viewModel.LastBackupLocation);
-        Assert.Equal("maria", viewModel.LastBackupOperator);
-        Assert.Contains("validado", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class StubSettingsRepository : POS.Domain.Interfaces.ISettingsRepository

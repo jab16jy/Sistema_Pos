@@ -43,7 +43,7 @@ public sealed class MainShellViewModelTests
 
         Assert.Equal(["cashier", "customers", "quotes", "invoices", "admin"], viewModel.FuncbarModules.Select(module => module.Key));
         Assert.Equal(["F1", "F2", "F3", "F4", "F5"], viewModel.FuncbarModules.Select(module => module.Shortcut));
-        Assert.Equal(["products", "inventory", "suppliers", "reports", "shifts", "loyalty"], viewModel.AdminHubModules.Select(module => module.Key));
+        Assert.Equal(["products", "inventory", "suppliers", "reports", "shifts", "loyalty", "backup"], viewModel.AdminHubModules.Select(module => module.Key));
         Assert.DoesNotContain(viewModel.AdminHubModules, module => module.Key == "receivables");
         Assert.DoesNotContain(viewModel.AdminHubModules, module => module.Key == "barcode");
     }

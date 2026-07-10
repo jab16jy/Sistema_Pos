@@ -109,54 +109,10 @@
                   <controls:QuickLink TitleText="Auditoría operativa" Subtitle="Consulta cambios, devoluciones y movimientos críticos." IconKind="ClipboardCheck" Margin="0,0,8,0"
                                       Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                       CommandParameter="{Binding DataContext.AdminHubExtraModules[1], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <Border Style="{StaticResource Card}" Background="{StaticResource BrushSurfaceContainer}">
-                    <Grid Margin="10">
-                      <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                      </Grid.ColumnDefinitions>
-                      <materialDesign:PackIcon Kind="Backup" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Top" Margin="0,2,8,0" />
-                      <StackPanel Grid.Column="1">
-                        <TextBlock Text="Respaldos" FontWeight="SemiBold" />
-                         <TextBlock Text="Backup manual y restauración desde archivo disponibles abajo." Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,2,0,0" />
-                      </StackPanel>
-                    </Grid>
-                  </Border>
+                  <controls:QuickLink TitleText="Respaldos" Subtitle="Copias de seguridad y restauración de la base de datos." IconKind="Backup"
+                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                      CommandParameter="{Binding DataContext.AdminHubModules[6], RelativeSource={RelativeSource AncestorType=Window}}" />
                 </UniformGrid>
-              </StackPanel>
-            </Border>
-
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-              <StackPanel Margin="14">
-                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
-                  <materialDesign:PackIcon Kind="Backup" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
-                  <TextBlock Text="Respaldos" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
-                </StackPanel>
-                <TextBlock Text="Elige la carpeta destino y crea un respaldo manual de la base de datos. Requiere haber guardado la configuración del negocio al menos una vez." Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,10" />
-                <TextBlock Text="Carpeta de respaldo" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-                <Grid Margin="0,0,0,10">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                  </Grid.ColumnDefinitions>
-                  <TextBox Text="{Binding BackupDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="C:\Respaldos\POS" VerticalAlignment="Center" />
-                  <Button Grid.Column="1" Content="Examinar" Click="BrowseBackupFolder_OnClick" Margin="8,0,0,0" />
-                </Grid>
-                <StackPanel Orientation="Horizontal">
-                  <Button Style="{StaticResource PrimaryButton}" Command="{Binding BackupCommand}" Margin="0,0,8,0">
-                    <StackPanel Orientation="Horizontal">
-                      <materialDesign:PackIcon Kind="Download" Width="16" Height="16" Margin="0,0,4,0" />
-                      <TextBlock Text="Exportar respaldo" />
-                    </StackPanel>
-                  </Button>
-                  <Button Click="RestoreBackup_OnClick" IsEnabled="{Binding CanRestore}" ToolTip="Reemplaza los datos actuales con un archivo de respaldo (.db)">
-                    <StackPanel Orientation="Horizontal">
-                      <materialDesign:PackIcon Kind="Restore" Width="16" Height="16" Margin="0,0,4,0" />
-                      <TextBlock Text="Restaurar respaldo" />
-                    </StackPanel>
-                  </Button>
-                </StackPanel>
-                <TextBlock Text="{Binding Message}" Style="{StaticResource MutedText}" Margin="0,10,0,0" TextWrapping="Wrap" />
               </StackPanel>
             </Border>
 
@@ -407,27 +363,12 @@
             <TextBlock Text="Dirección" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
             <TextBox Text="{Binding BusinessAddress, Mode=TwoWay}" Tag="Cra 14 # 85-10 · Bogotá" AcceptsReturn="True" Height="70" Margin="0,0,0,8" />
             <TextBlock Text="Moneda" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding CurrencyCode, Mode=TwoWay}" Tag="COP" Margin="0,0,0,8" />
-            <TextBlock Text="Carpeta de respaldo" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <Grid Margin="0,0,0,12">
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <TextBox Text="{Binding BackupDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="C:\Respaldos\POS" VerticalAlignment="Center" />
-              <Button Grid.Column="1" Content="Examinar" Click="BrowseBackupFolder_OnClick" Margin="8,0,0,0" />
-            </Grid>
+            <TextBox Text="{Binding CurrencyCode, Mode=TwoWay}" Tag="COP" Margin="0,0,0,12" />
             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Margin="0,0,8,0">
                 <StackPanel Orientation="Horizontal">
                   <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" Margin="0,0,4,0" />
                   <TextBlock Text="Guardar" />
-                </StackPanel>
-              </Button>
-              <Button Command="{Binding BackupCommand}">
-                <StackPanel Orientation="Horizontal">
-                  <materialDesign:PackIcon Kind="Download" Width="16" Height="16" Margin="0,0,4,0" />
-                  <TextBlock Text="Exportar respaldo" />
                 </StackPanel>
               </Button>
             </StackPanel>

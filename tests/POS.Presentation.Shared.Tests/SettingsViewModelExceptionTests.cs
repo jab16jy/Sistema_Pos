@@ -13,8 +13,7 @@ public sealed class SettingsViewModelExceptionTests
     {
         var viewModel = new SettingsViewModel(
             new LoadSettingsUseCase(new ThrowingSettingsRepository()),
-            new SaveSettingsUseCase(new ThrowingSettingsRepository(), new NoOpUnitOfWork()),
-            new TriggerManualBackupUseCase(new ThrowingSettingsRepository(), new NoOpBackupService(), new NoOpUnitOfWork(), new NoOpOperatorSession()));
+            new SaveSettingsUseCase(new ThrowingSettingsRepository(), new NoOpUnitOfWork()));
 
         viewModel.LoadCommand.Execute(null);
         await Task.Delay(50, TestContext.Current.CancellationToken);

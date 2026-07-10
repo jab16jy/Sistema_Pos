@@ -234,6 +234,15 @@
         </Border>
       </Grid>
 
+      <Grid Visibility="{Binding IsBackupSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:BackupView DataContext="{Binding Backup}"
+                          Visibility="{Binding DataContext.Backup, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}"
+                Visibility="{Binding DataContext.Backup, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="El módulo de respaldos no está disponible en este entorno." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
       <Grid Visibility="{Binding IsPlannedModuleSelected, Converter={StaticResource BoolToVisibilityConverter}}">
         <Border Style="{StaticResource Card}" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
           <StackPanel>

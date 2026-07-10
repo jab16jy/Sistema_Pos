@@ -13,8 +13,6 @@ public sealed class SettingsViewModel : ViewModelBase
 {
     private readonly LoadSettingsUseCase _loadSettings;
     private readonly SaveSettingsUseCase _saveSettings;
-    private readonly TriggerManualBackupUseCase _triggerBackup;
-    private readonly RestoreBackupUseCase? _restoreBackup;
     private readonly IEmailService? _emailService;
     private readonly IWhatsAppService? _whatsAppService;
     private readonly IInstalledPrinterProvider? _printerProvider;
@@ -49,23 +47,18 @@ public sealed class SettingsViewModel : ViewModelBase
     public SettingsViewModel(
         LoadSettingsUseCase loadSettings,
         SaveSettingsUseCase saveSettings,
-        TriggerManualBackupUseCase triggerBackup,
         IEmailService? emailService = null,
         IWhatsAppService? whatsAppService = null,
-        IInstalledPrinterProvider? printerProvider = null,
-        RestoreBackupUseCase? restoreBackup = null)
+        IInstalledPrinterProvider? printerProvider = null)
     {
         _loadSettings = loadSettings;
         _saveSettings = saveSettings;
-        _triggerBackup = triggerBackup;
-        _restoreBackup = restoreBackup;
         _emailService = emailService;
         _whatsAppService = whatsAppService;
         _printerProvider = printerProvider;
 
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar configuración: {ex.Message}"));
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar configuración: {ex.Message}"));
-        BackupCommand = new RelayCommand(_ => RunSafe(BackupAsync(), ex => Message = $"Error inesperado al crear backup: {ex.Message}"));
         TestEmailCommand = new RelayCommand(_ => RunSafe(TestEmailAsync(), ex => Message = $"Error al enviar el correo de prueba: {GetSafeEmailErrorMessage(ex)}"));
         TestWhatsAppCommand = new RelayCommand(_ => RunSafe(TestWhatsAppAsync(), ex => Message = $"No se pudo abrir WhatsApp: {ex.Message}"));
         RefreshPrintersCommand = new RelayCommand(_ => RefreshPrinters());
@@ -83,8 +76,6 @@ public sealed class SettingsViewModel : ViewModelBase
     public ICommand LoadCommand { get; }
 
     public ICommand SaveCommand { get; }
-
-    public ICommand BackupCommand { get; }
 
     public ICommand TestEmailCommand { get; }
 
@@ -276,9 +267,6 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public bool IsBackupConfigured => !string.IsNullOrWhiteSpace(BackupDirectory);
 
-    /// <summary>True when a restore use case was injected (i.e. restore is available in this environment).</summary>
-    public bool CanRestore => _restoreBackup is not null;
-
     /// <summary>"Canales listos" KPI: how many of the 3 real integration channels this view manages are configured.</summary>
     public string ReadyChannelsSummary
     {
@@ -390,56 +378,6 @@ public sealed class SettingsViewModel : ViewModelBase
         catch (InvalidOperationException ex)
         {
             Message = ex.Message;
-        }
-    }
-
-    public async Task BackupAsync(CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var request = new ManualBackupRequest(BackupDirectory);
-            ManualBackupResult result = await _triggerBackup.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-            if (result.Succeeded)
-            {
-                UpdateLastSuccessfulBackup(result.LastSuccessfulBackup);
-                Message = $"Backup validado y creado exitosamente: {result.BackupFilePath}";
-                return;
-            }
-
-            Message = $"Error al crear backup: {result.Message}";
-        }
-        catch (Exception ex)
-        {
-            Message = $"Error inesperado al crear backup: {ex.Message}";
-        }
-    }
-
-    /// <summary>
-    /// Restores the live database from <paramref name="sourceFilePath"/> via <see cref="RestoreBackupUseCase"/>.
-    /// Returns true on success so the caller (view) can restart the app; the actual data replacement and the
-    /// pre-restore safety snapshot happen in the infrastructure layer.
-    /// </summary>
-    public async Task<bool> RestoreAsync(string sourceFilePath, CancellationToken cancellationToken = default)
-    {
-        if (_restoreBackup is null)
-        {
-            Message = "La restauración no está disponible en este entorno.";
-            return false;
-        }
-
-        try
-        {
-            RestoreBackupResult result = await _restoreBackup
-                .ExecuteAsync(new RestoreBackupRequest(sourceFilePath), cancellationToken)
-                .ConfigureAwait(true);
-
-            Message = result.Succeeded ? result.Message : $"Error al restaurar: {result.Message}";
-            return result.Succeeded;
-        }
-        catch (Exception ex)
-        {
-            Message = $"Error inesperado al restaurar: {ex.Message}";
-            return false;
         }
     }
 

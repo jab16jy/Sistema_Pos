@@ -201,10 +201,17 @@ internal static class AppBootstrapper
             () => new SettingsViewModel(
                 sp.GetRequiredService<LoadSettingsUseCase>(),
                 sp.GetRequiredService<SaveSettingsUseCase>(),
-                sp.GetRequiredService<TriggerManualBackupUseCase>(),
                 TryResolveOptional<POS.Application.Interfaces.IEmailService>(sp),
                 TryResolveOptional<POS.Application.Interfaces.IWhatsAppService>(sp),
-                TryResolveOptional<POS.Application.Interfaces.IInstalledPrinterProvider>(sp),
+                TryResolveOptional<POS.Application.Interfaces.IInstalledPrinterProvider>(sp)),
+            moduleWarnings);
+
+        BackupViewModel? backup = TryCreateOptionalModule(
+            "Respaldos",
+            () => new BackupViewModel(
+                sp.GetRequiredService<LoadSettingsUseCase>(),
+                sp.GetRequiredService<TriggerManualBackupUseCase>(),
+                TryResolveOptional<UpdateBackupDirectoryUseCase>(sp),
                 TryResolveOptional<RestoreBackupUseCase>(sp)),
             moduleWarnings);
 
@@ -256,6 +263,7 @@ internal static class AppBootstrapper
             Inventory = inventory,
             Invoices = invoices,
             Settings = settings,
+            Backup = backup,
             Loyalty = loyalty,
             UserManagement = userManagement,
             Shifts = shifts,

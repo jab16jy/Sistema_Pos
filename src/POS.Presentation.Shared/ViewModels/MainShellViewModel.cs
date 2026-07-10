@@ -15,7 +15,7 @@ public sealed class MainShellViewModel : ViewModelBase
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private static readonly IReadOnlySet<string> AdminHubModuleKeys = new HashSet<string>
     {
-        "products", "inventory", "suppliers", "reports", "shifts", "loyalty"
+        "products", "inventory", "suppliers", "reports", "shifts", "loyalty", "backup"
     };
 
     // Cashiers get an operational funcbar only (no admin hub). Turnos is reachable directly
@@ -66,6 +66,7 @@ public sealed class MainShellViewModel : ViewModelBase
             new ModuleNavigationItem("reports", "Reportes", "Revisa ventas, caja y utilidades.", "ADM", true),
             new ModuleNavigationItem("shifts", "Turnos", "Abre y cierra turnos de cajeros.", "ADM", true),
             new ModuleNavigationItem("loyalty", "Puntos", "Consulta saldo y redime puntos de lealtad.", "ADM", true),
+            new ModuleNavigationItem("backup", "Respaldos", "Crea y restaura copias de seguridad de la base de datos.", "ADM", true),
             new ModuleNavigationItem("users", "Usuarios", "Crea y gestiona usuarios del sistema.", "F1", true),
             new ModuleNavigationItem("audit", "Auditoría", "Consulta quién cambió qué y cuándo.", "Alt+A", true),
             new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true)
@@ -151,6 +152,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public SettingsViewModel? Settings { get; init; }
 
+    public BackupViewModel? Backup { get; init; }
+
     public LoyaltyViewModel? Loyalty { get; init; }
 
     public UserManagementViewModel? UserManagement { get; init; }
@@ -201,6 +204,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsInvoicesSelected));
                 OnPropertyChanged(nameof(IsReportsSelected));
                 OnPropertyChanged(nameof(IsLoyaltySelected));
+                OnPropertyChanged(nameof(IsBackupSelected));
                 OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsAdminHubSelected));
                 OnPropertyChanged(nameof(IsAdminSectionSelected));
@@ -385,6 +389,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsLoyaltySelected => SelectedModule.Key == "loyalty";
 
+    public bool IsBackupSelected => SelectedModule.Key == "backup";
+
     public bool IsSettingsSelected => SelectedModule.Key == "settings";
 
     public bool IsAdminHubSelected => SelectedModule.Key == "admin";
@@ -403,7 +409,7 @@ public sealed class MainShellViewModel : ViewModelBase
     /// </summary>
     public bool IsSettingsViewSelected => IsAdminHubSelected || IsSettingsSelected;
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsSettingsSelected && !IsAdminHubSelected;
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBackupSelected && !IsSettingsSelected && !IsAdminHubSelected;
 
     public void RefreshDashboardMetrics()
     {
@@ -468,7 +474,8 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "invoices", IsImplemented: true } => "Módulo Facturas activo. Reimprime recibos y procesa devoluciones.",
             { Key: "reports", IsImplemented: true } => "Módulo Reportes activo. Consulta totales operativos separados por efectivo, digital y abonos.",
             { Key: "loyalty", IsImplemented: true } => "Módulo Puntos activo. Consulta saldo y redime puntos de lealtad.",
-            { Key: "settings", IsImplemented: true } => "Módulo Configuración activo. Negocio, impresora, backup y moneda.",
+            { Key: "backup", IsImplemented: true } => "Módulo Respaldos activo. Crea y restaura copias de seguridad de la base de datos.",
+            { Key: "settings", IsImplemented: true } => "Módulo Configuración activo. Negocio, impresora y moneda.",
             { Key: "admin", IsImplemented: true } => "Centro de control activo. Elige un módulo administrativo para continuar.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
         };
