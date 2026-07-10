@@ -183,6 +183,21 @@ public sealed class Product
         SetBoxPresentation(unitsPerBox, boxPrice);
     }
 
+    public void AssignCategory(Guid categoryId)
+    {
+        if (!IsActive)
+        {
+            throw new InvalidOperationException("Cannot update an inactive product.");
+        }
+
+        if (categoryId == Guid.Empty)
+        {
+            throw new ArgumentException("Category is required.", nameof(categoryId));
+        }
+
+        CategoryId = categoryId;
+    }
+
     public void AssignBarcode(Barcode barcode)
     {
         if (!IsActive)

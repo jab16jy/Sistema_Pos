@@ -127,6 +127,48 @@ public sealed class ProductUseCaseTests
     }
 
     [Fact]
+    public async Task AssignProductsToCategoryAsync_UpdatesAllSelectedProductsWithOneSave()
+    {
+        var first = CreateProduct("Rice", "A100");
+        var second = CreateProduct("Beans", "B200");
+        var category = new Category("Pantry");
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = new AssignProductsToCategoryUseCase(
+            new InMemoryProductRepository(first, second),
+            new InMemoryCategoryRepository(category),
+            unitOfWork);
+
+        int updated = await useCase.ExecuteAsync(
+            new AssignProductsToCategoryRequest(category.Id, [first.Id, second.Id]),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, updated);
+        Assert.Equal(category.Id, first.CategoryId);
+        Assert.Equal(category.Id, second.CategoryId);
+        Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task AssignProductsToCategoryAsync_WithMissingProduct_LeavesOtherProductsUnchanged()
+    {
+        var product = CreateProduct("Rice", "A100");
+        var originalCategoryId = product.CategoryId;
+        var category = new Category("Pantry");
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = new AssignProductsToCategoryUseCase(
+            new InMemoryProductRepository(product),
+            new InMemoryCategoryRepository(category),
+            unitOfWork);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new AssignProductsToCategoryRequest(category.Id, [product.Id, Guid.NewGuid()]),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(originalCategoryId, product.CategoryId);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
     public async Task SearchProductsAsync_DelegatesToCatalogQuery()
     {
         Guid categoryId = Guid.NewGuid();

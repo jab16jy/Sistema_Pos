@@ -102,6 +102,7 @@ public static class DependencyInjection
         services.AddScoped<AssignInternalBarcodeUseCase>();
         services.AddScoped<FindProductByBarcodeUseCase>();
         services.AddScoped<ImportProductsCsvUseCase>();
+        services.AddScoped<AssignProductsToCategoryUseCase>();
         services.AddScoped<UpdateProductUseCase>();
         services.AddScoped<DeleteProductUseCase>();
         services.AddScoped<SearchProductsUseCase>();
