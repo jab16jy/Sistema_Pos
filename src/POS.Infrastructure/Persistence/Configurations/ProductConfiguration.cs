@@ -46,6 +46,11 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                .HasColumnName("box_price");
         builder.Property(p => p.TaxRate)
                .HasColumnName("tax_rate");
+        builder.HasOne<Category>()
+               .WithMany()
+               .HasForeignKey(p => p.CategoryId)
+               .IsRequired()
+               .OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<SubCategory>()
                .WithMany()
                .HasForeignKey(p => p.SubCategoryId)
@@ -59,6 +64,7 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                .HasForeignKey(p => p.TaxProfileId)
                .OnDelete(DeleteBehavior.SetNull);
         builder.HasIndex(p => p.SourceCode).IsUnique();
+        builder.HasIndex(p => p.CategoryId);
         builder.HasIndex(p => p.Name);
         builder.HasIndex(p => p.Barcode)
                .IsUnique()

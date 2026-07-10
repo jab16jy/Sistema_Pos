@@ -20,9 +20,7 @@ public sealed class ProfitQueryServiceReproTest
         await using var dbContext = new AppDbContext(options);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Widget", Guid.NewGuid(), new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Widget", new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var sale = new Sale(Guid.NewGuid());
         sale.AddItem(product, new Quantity(2m), Money.Zero);
@@ -47,9 +45,7 @@ public sealed class ProfitQueryServiceReproTest
         await using var dbContext = new AppDbContext(options);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Widget", Guid.NewGuid(), new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Widget", new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var sale = new Sale(Guid.NewGuid());
         sale.AddItem(product, new Quantity(2m), Money.Zero);
@@ -74,9 +70,7 @@ public sealed class ProfitQueryServiceReproTest
         await using var dbContext = new AppDbContext(options);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Widget", Guid.NewGuid(), new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Widget", new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var sale = new Sale(Guid.NewGuid());
         sale.AddItem(product, new Quantity(2m), Money.Zero);

@@ -8,7 +8,7 @@ Defines the product catalog domain: creation, editing, search, barcode managemen
 
 ### Requirement: Product creation
 
-The system MUST allow creating products with name, price, barcode, minimum stock level, and optional category.
+The system MUST allow creating products with name, price, barcode, minimum stock level, and a valid category.
 
 #### Scenario: Create product with all fields
 
@@ -102,6 +102,23 @@ A port interface `ICategoryRepository` MUST exist in POS.Application with method
 - GIVEN categories "Bebidas" and "Carnes" exist
 - WHEN `GetAllAsync` is called
 - THEN both categories MUST be returned
+
+### Requirement: Product category referential integrity
+
+Every Product MUST reference an existing Category. The SQLite schema MUST enforce `PRODUCTS.CategoryId` → `CATEGORIES.Id` with restrictive deletion and an index on `PRODUCTS.CategoryId`.
+
+#### Scenario: Reject an orphan product written directly to SQLite
+
+- GIVEN no Category exists for a product's CategoryId
+- WHEN a product is inserted directly into PRODUCTS
+- THEN SQLite MUST reject the write
+
+#### Scenario: Prevent deleting a referenced category
+
+- GIVEN a Category has one or more associated Products
+- WHEN a user attempts to delete the Category
+- THEN SQLite MUST reject the deletion
+- AND the associated Products MUST remain unchanged
 
 ### Requirement: CATEGORIES table canonical name
 

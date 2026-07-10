@@ -173,6 +173,32 @@ public sealed class ProductLookupServiceTests
     }
 
     [Fact]
+    public async Task ProductStorage_RequiresAnExistingCategoryAndRestrictsCategoryDeletion()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using var dbContext = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var orphan = new Product("Orphan", Guid.NewGuid(), new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m));
+        await dbContext.Products.AddAsync(orphan, TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync(TestContext.Current.CancellationToken));
+        dbContext.ChangeTracker.Clear();
+
+        var category = new Category("Integrity");
+        var product = new Product("Linked", category.Id, new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m));
+        await dbContext.Categories.AddAsync(category, TestContext.Current.CancellationToken);
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        dbContext.ChangeTracker.Clear();
+
+        await Assert.ThrowsAsync<SqliteException>(() => dbContext.Database.ExecuteSqlRawAsync(
+            "DELETE FROM \"CATEGORIES\" WHERE \"Id\" = {0}",
+            [category.Id.ToString()]));
+    }
+
+    [Fact]
     public async Task AssignInternalBarcodeAsync_PersistsWithoutChangingStockOrInventory()
     {
         await using SqliteConnection connection = await OpenConnectionAsync();
@@ -209,11 +235,12 @@ public sealed class ProductLookupServiceTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         var category = new Category("Granos");
-        await dbContext.Categories.AddAsync(category, TestContext.Current.CancellationToken);
+        var householdCategory = new Category("Limpieza");
+        await dbContext.Categories.AddRangeAsync([category, householdCategory], TestContext.Current.CancellationToken);
 
         // Explicit barcodes keep SourceCode deterministic (no random MANUAL-{guid} noise in matches)
         var sugar = new Product("Azúcar Manuelita", category.Id, new Money(3_000m), new Money(4_500m), new StockQuantity(10m), new StockQuantity(2m), barcode: new Barcode("7701001"));
-        var soap = new Product("Jabón Rey", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(5m), new StockQuantity(1m), barcode: new Barcode("7701002"));
+        var soap = new Product("Jabón Rey", householdCategory.Id, new Money(1_000m), new Money(2_000m), new StockQuantity(5m), new StockQuantity(1m), barcode: new Barcode("7701002"));
         await dbContext.Products.AddRangeAsync([sugar, soap], TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         return dbContext;

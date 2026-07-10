@@ -313,25 +313,12 @@ public sealed class RuntimeReadinessTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var active = new Product(
-            "Vitamin C",
-            Guid.NewGuid(),
-            new Money(8_000m),
-            new Money(12_000m),
-            new StockQuantity(7m),
-            new StockQuantity(2m),
-            barcode: new Barcode("VITC-001"));
-        var inactive = new Product(
-            "Vitamin D",
-            Guid.NewGuid(),
-            new Money(8_000m),
-            new Money(12_000m),
-            new StockQuantity(7m),
-            new StockQuantity(2m),
-            barcode: new Barcode("VITD-001"));
+        Product active = await TestProductFactory.CreateAndPersistAsync(
+            dbContext, "Vitamin C", new Money(8_000m), new Money(12_000m), new StockQuantity(7m), new StockQuantity(2m), TestContext.Current.CancellationToken, new Barcode("VITC-001"));
+        Product inactive = await TestProductFactory.CreateAndPersistAsync(
+            dbContext, "Vitamin D", new Money(8_000m), new Money(12_000m), new StockQuantity(7m), new StockQuantity(2m), TestContext.Current.CancellationToken, new Barcode("VITD-001"));
         inactive.Deactivate();
 
-        await dbContext.Products.AddRangeAsync([active, inactive], TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var service = new ProductLookupService(dbContext);
@@ -382,15 +369,8 @@ public sealed class RuntimeReadinessTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product(
-            "Serum",
-            Guid.NewGuid(),
-            new Money(20_000m),
-            new Money(35_000m),
-            new StockQuantity(5m),
-            new StockQuantity(1m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(
+            dbContext, "Serum", new Money(20_000m), new Money(35_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
         var saleUseCase = new CreateSaleUseCase(
             new ProductRepository(dbContext),
@@ -438,15 +418,8 @@ public sealed class RuntimeReadinessTests
             null,
             "COP"));
 
-        var product = new Product(
-            "Serum Premium",
-            Guid.NewGuid(),
-            new Money(20_000m),
-            new Money(45_000m),
-            new StockQuantity(5m),
-            new StockQuantity(1m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(
+            dbContext, "Serum Premium", new Money(20_000m), new Money(45_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
         var saleUseCase = new CreateSaleUseCase(
             new ProductRepository(dbContext),

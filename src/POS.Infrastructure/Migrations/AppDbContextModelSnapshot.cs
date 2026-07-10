@@ -28,7 +28,8 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(40)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Details")
@@ -54,9 +55,13 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Action");
+
                     b.HasIndex("CreatedAt");
 
                     b.HasIndex("EntityName");
+
+                    b.HasIndex("UserId");
 
                     b.ToTable("AUDIT_LOGS", (string)null);
                 });
@@ -81,7 +86,6 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("BusinessPhone")
-                        .HasMaxLength(50)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CurrencyCode")
@@ -262,7 +266,7 @@ namespace POS.Infrastructure.Migrations
 
             modelBuilder.Entity("POS.Domain.Entities.Customer", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
@@ -287,10 +291,6 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Phone")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("TempId")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
@@ -601,6 +601,8 @@ namespace POS.Infrastructure.Migrations
                     b.HasIndex("Barcode")
                         .IsUnique()
                         .HasFilter("\"Barcode\" IS NOT NULL");
+
+                    b.HasIndex("CategoryId");
 
                     b.HasIndex("Name");
 
@@ -942,7 +944,8 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("CustomerId")
@@ -1123,10 +1126,6 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("TempId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.HasKey("Id");
 
                     b.ToTable("Suppliers", (string)null);
@@ -1189,7 +1188,7 @@ namespace POS.Infrastructure.Migrations
 
             modelBuilder.Entity("POS.Domain.Entities.User", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
@@ -1228,7 +1227,6 @@ namespace POS.Infrastructure.Migrations
                     b.HasOne("POS.Domain.Entities.Customer", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")
-                        .HasPrincipalKey("TempId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -1253,6 +1251,12 @@ namespace POS.Infrastructure.Migrations
 
             modelBuilder.Entity("POS.Domain.Entities.Product", b =>
                 {
+                    b.HasOne("POS.Domain.Entities.Category", null)
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("POS.Domain.Entities.SubCategory", null)
                         .WithMany()
                         .HasForeignKey("SubCategoryId")
@@ -1294,7 +1298,6 @@ namespace POS.Infrastructure.Migrations
                     b.HasOne("POS.Domain.Entities.Supplier", null)
                         .WithMany()
                         .HasForeignKey("SupplierId")
-                        .HasPrincipalKey("TempId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

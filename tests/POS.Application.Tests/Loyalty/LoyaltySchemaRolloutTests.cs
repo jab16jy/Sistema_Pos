@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using POS.Application.Tests;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
@@ -34,9 +35,7 @@ public sealed class LoyaltySchemaRolloutTests
                 db.Customers.Add(customer);
                 await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-                var product = new Product("Tratamiento", Guid.NewGuid(), new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m));
-                db.Products.Add(product);
-                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+                Product product = await TestProductFactory.CreateAndPersistAsync(db, "Tratamiento", new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
                 var sale = new Sale(Guid.NewGuid(), customer.Id);
                 sale.AddItem(product, new Quantity(1m), Money.Zero);
@@ -91,9 +90,7 @@ public sealed class LoyaltySchemaRolloutTests
                 db.Customers.Add(customer);
                 await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-                var product = new Product("Tratamiento", Guid.NewGuid(), new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m));
-                db.Products.Add(product);
-                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+                Product product = await TestProductFactory.CreateAndPersistAsync(db, "Tratamiento", new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
                 var sale = new Sale(Guid.NewGuid(), customer.Id);
                 sale.AddItem(product, new Quantity(1m), Money.Zero);
@@ -163,9 +160,7 @@ public sealed class LoyaltySchemaRolloutTests
             {
                 var db = setupScope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                var product = new Product("Tratamiento", Guid.NewGuid(), new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m));
-                db.Products.Add(product);
-                await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+                Product product = await TestProductFactory.CreateAndPersistAsync(db, "Tratamiento", new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
                 // Simulates historical data where the referenced Customer row no longer exists.
                 var sale = new Sale(Guid.NewGuid(), orphanedCustomerId);

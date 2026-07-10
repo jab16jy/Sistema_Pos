@@ -60,9 +60,7 @@ public sealed class ReportingUseCaseTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         // Arrange: seed one cash sale (50_000), one digital sale (30_000), and one receivable settlement (20_000 cash)
-        var product = new Product("Widget", Guid.NewGuid(), new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Widget", new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var createSale = new CreateSaleUseCase(
             new ProductRepository(dbContext),
@@ -79,9 +77,7 @@ public sealed class ReportingUseCaseTests
             TestContext.Current.CancellationToken);
 
         // Digital sale: 30_000 (transfer)
-        var product2 = new Product("Gadget", Guid.NewGuid(), new Money(10_000m), new Money(30_000m), new StockQuantity(20m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product2, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product2 = await TestProductFactory.CreateAndPersistAsync(dbContext, "Gadget", new Money(10_000m), new Money(30_000m), new StockQuantity(20m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         await createSale.ExecuteAsync(new CreateSaleRequest(
             Guid.NewGuid(),
@@ -187,9 +183,7 @@ public sealed class ReportingUseCaseTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
         // Seed a cash sale of 50_000
-        var product = new Product("Item", Guid.NewGuid(), new Money(10_000m), new Money(50_000m), new StockQuantity(10m), new StockQuantity(1m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Item", new Money(10_000m), new Money(50_000m), new StockQuantity(10m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
         var createSale = new CreateSaleUseCase(
             new ProductRepository(dbContext),
@@ -237,10 +231,8 @@ public sealed class ReportingUseCaseTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var cashProduct = new Product("Cash Item", Guid.NewGuid(), new Money(5_000m), new Money(40_000m), new StockQuantity(10m), new StockQuantity(1m));
-        var digitalProduct = new Product("Digital Item", Guid.NewGuid(), new Money(5_000m), new Money(20_000m), new StockQuantity(10m), new StockQuantity(1m));
-        await dbContext.Products.AddRangeAsync([cashProduct, digitalProduct], TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product cashProduct = await TestProductFactory.CreateAndPersistAsync(dbContext, "Cash Item", new Money(5_000m), new Money(40_000m), new StockQuantity(10m), new StockQuantity(1m), TestContext.Current.CancellationToken);
+        Product digitalProduct = await TestProductFactory.CreateAndPersistAsync(dbContext, "Digital Item", new Money(5_000m), new Money(20_000m), new StockQuantity(10m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
         var createSale = new CreateSaleUseCase(
             new ProductRepository(dbContext),

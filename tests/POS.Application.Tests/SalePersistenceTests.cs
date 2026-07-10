@@ -26,9 +26,7 @@ public sealed class SalePersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var useCase = new CreateSaleUseCase(
             new ProductRepository(dbContext),
@@ -81,9 +79,7 @@ public sealed class SalePersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
         await saleUseCase.ExecuteAsync(new CreateSaleRequest(
@@ -120,11 +116,9 @@ public sealed class SalePersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(2_800m), new StockQuantity(10m), new StockQuantity(2m));
-        var noThresholdProduct = new Product("No threshold", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(0m), new StockQuantity(0m));
-        var lowStockProduct = new Product("Low stock", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(1m), new StockQuantity(2m));
-        await dbContext.Products.AddRangeAsync([product, noThresholdProduct, lowStockProduct], TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(2_800m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
+        Product noThresholdProduct = await TestProductFactory.CreateAndPersistAsync(dbContext, "No threshold", new Money(1_000m), new Money(1_400m), new StockQuantity(0m), new StockQuantity(0m), TestContext.Current.CancellationToken);
+        Product lowStockProduct = await TestProductFactory.CreateAndPersistAsync(dbContext, "Low stock", new Money(1_000m), new Money(1_400m), new StockQuantity(1m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var sale = new Sale(Guid.NewGuid());
         sale.AddItem(product, new Quantity(1m), Money.Zero);
@@ -155,10 +149,8 @@ public sealed class SalePersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m));
-        var lowStockProduct = new Product("Low stock", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(1m), new StockQuantity(2m));
-        await dbContext.Products.AddRangeAsync([product, lowStockProduct], TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
+        Product lowStockProduct = await TestProductFactory.CreateAndPersistAsync(dbContext, "Low stock", new Money(1_000m), new Money(1_400m), new StockQuantity(1m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
         await saleUseCase.ExecuteAsync(new CreateSaleRequest(
@@ -224,9 +216,7 @@ public sealed class SalePersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Monitor", Guid.NewGuid(), new Money(200_000m), new Money(350_000m), new StockQuantity(5m), new StockQuantity(1m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Monitor", new Money(200_000m), new Money(350_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
         var customerId = Guid.NewGuid();
 
@@ -260,9 +250,7 @@ public sealed class SalePersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Monitor", Guid.NewGuid(), new Money(200_000m), new Money(350_000m), new StockQuantity(5m), new StockQuantity(1m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Monitor", new Money(200_000m), new Money(350_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
         var customerId = Guid.NewGuid();
         var useCase = new CreateSaleUseCase(
@@ -297,9 +285,7 @@ public sealed class SalePersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
         await saleUseCase.ExecuteAsync(new CreateSaleRequest(
@@ -327,9 +313,7 @@ public sealed class SalePersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
 
-        var product = new Product("Sugar", Guid.NewGuid(), new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
         var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
         CreateSaleResult created = await saleUseCase.ExecuteAsync(new CreateSaleRequest(

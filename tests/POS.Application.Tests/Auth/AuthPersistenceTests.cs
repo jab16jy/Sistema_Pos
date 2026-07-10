@@ -5,6 +5,7 @@ using POS.Application.DTOs.Audit;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Audit;
 using POS.Application.UseCases.Auth;
+using POS.Application.Tests;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
@@ -206,8 +207,7 @@ public sealed class AuthPersistenceTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var userRepository = new UserRepository(dbContext);
         var admin = await SeedAdminAsync(dbContext, userRepository, TestContext.Current.CancellationToken);
-        var product = new Product("Azucar", Guid.NewGuid(), new Money(1_000m), new Money(1_500m), new StockQuantity(10m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Azucar", new Money(1_000m), new Money(1_500m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
         var movement = new InventoryMovement(product.Id, InventoryMovementType.Entry, new Quantity(5m), "Compra a proveedor", Guid.NewGuid());
         await dbContext.InventoryMovements.AddAsync(movement, TestContext.Current.CancellationToken);
 

@@ -66,9 +66,8 @@ public sealed class SupplierPurchaseUseCaseTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var supplier = new Supplier("Acme Foods", "900123");
-        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m));
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Rice", new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m), TestContext.Current.CancellationToken);
         await dbContext.Suppliers.AddAsync(supplier, TestContext.Current.CancellationToken);
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var useCase = CreateRegisterPurchaseUseCase(dbContext);
 
@@ -96,9 +95,7 @@ public sealed class SupplierPurchaseUseCaseTests
         await connection.OpenAsync(TestContext.Current.CancellationToken);
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
-        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m));
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Rice", new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m), TestContext.Current.CancellationToken);
         var useCase = CreateRegisterPurchaseUseCase(dbContext);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(new RegisterPurchaseRequest(
@@ -121,9 +118,8 @@ public sealed class SupplierPurchaseUseCaseTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var supplier = new Supplier("Acme Foods", "900123");
-        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m));
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Rice", new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m), TestContext.Current.CancellationToken);
         await dbContext.Suppliers.AddAsync(supplier, TestContext.Current.CancellationToken);
-        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var useCase = CreateRegisterPurchaseUseCase(dbContext);
 
@@ -147,9 +143,8 @@ public sealed class SupplierPurchaseUseCaseTests
         await using var setupContext = CreateDbContext(connection);
         await setupContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var supplier = new Supplier("Acme Foods", "900123");
-        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m));
+        Product product = await TestProductFactory.CreateAndPersistAsync(setupContext, "Rice", new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m), TestContext.Current.CancellationToken);
         await setupContext.Suppliers.AddAsync(supplier, TestContext.Current.CancellationToken);
-        await setupContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
         await setupContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         await using var failingContext = CreateDbContext(connection);
         var useCase = new RegisterPurchaseUseCase(
