@@ -152,6 +152,9 @@ public sealed class SettingsViewModelTests
     {
         public Task<BackupFile> CreateBackupAsync(string destinationDirectory, CancellationToken cancellationToken = default)
             => Task.FromResult(new BackupFile("C:/Backups/backup.sqlite", new DateTimeOffset(2026, 6, 27, 10, 30, 0, TimeSpan.Zero), 1024));
+
+        public Task RestoreBackupAsync(string sourceBackupPath, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class StubOperatorSession : ICurrentOperatorSession

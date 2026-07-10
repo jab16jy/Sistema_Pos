@@ -234,6 +234,9 @@ public sealed class SettingsUseCaseTests
             LastDestinationDirectory = destinationDirectory;
             return Task.FromResult(_backupFile);
         }
+
+        public Task RestoreBackupAsync(string sourceBackupPath, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class StubOperatorSession : ICurrentOperatorSession

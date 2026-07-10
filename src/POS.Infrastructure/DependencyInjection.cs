@@ -117,6 +117,7 @@ public static class DependencyInjection
         services.AddScoped<LoadSettingsUseCase>();
         services.AddScoped<SaveSettingsUseCase>();
         services.AddScoped<TriggerManualBackupUseCase>();
+        services.AddScoped<RestoreBackupUseCase>();
         services.AddScoped<SaveSupplierUseCase>();
         services.AddScoped<SearchSuppliersUseCase>();
         services.AddScoped<RegisterPurchaseUseCase>();

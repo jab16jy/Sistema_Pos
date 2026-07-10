@@ -14,6 +14,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly LoadSettingsUseCase _loadSettings;
     private readonly SaveSettingsUseCase _saveSettings;
     private readonly TriggerManualBackupUseCase _triggerBackup;
+    private readonly RestoreBackupUseCase? _restoreBackup;
     private readonly IEmailService? _emailService;
     private readonly IWhatsAppService? _whatsAppService;
     private readonly IInstalledPrinterProvider? _printerProvider;
@@ -51,11 +52,13 @@ public sealed class SettingsViewModel : ViewModelBase
         TriggerManualBackupUseCase triggerBackup,
         IEmailService? emailService = null,
         IWhatsAppService? whatsAppService = null,
-        IInstalledPrinterProvider? printerProvider = null)
+        IInstalledPrinterProvider? printerProvider = null,
+        RestoreBackupUseCase? restoreBackup = null)
     {
         _loadSettings = loadSettings;
         _saveSettings = saveSettings;
         _triggerBackup = triggerBackup;
+        _restoreBackup = restoreBackup;
         _emailService = emailService;
         _whatsAppService = whatsAppService;
         _printerProvider = printerProvider;
@@ -273,6 +276,9 @@ public sealed class SettingsViewModel : ViewModelBase
 
     public bool IsBackupConfigured => !string.IsNullOrWhiteSpace(BackupDirectory);
 
+    /// <summary>True when a restore use case was injected (i.e. restore is available in this environment).</summary>
+    public bool CanRestore => _restoreBackup is not null;
+
     /// <summary>"Canales listos" KPI: how many of the 3 real integration channels this view manages are configured.</summary>
     public string ReadyChannelsSummary
     {
@@ -405,6 +411,35 @@ public sealed class SettingsViewModel : ViewModelBase
         catch (Exception ex)
         {
             Message = $"Error inesperado al crear backup: {ex.Message}";
+        }
+    }
+
+    /// <summary>
+    /// Restores the live database from <paramref name="sourceFilePath"/> via <see cref="RestoreBackupUseCase"/>.
+    /// Returns true on success so the caller (view) can restart the app; the actual data replacement and the
+    /// pre-restore safety snapshot happen in the infrastructure layer.
+    /// </summary>
+    public async Task<bool> RestoreAsync(string sourceFilePath, CancellationToken cancellationToken = default)
+    {
+        if (_restoreBackup is null)
+        {
+            Message = "La restauración no está disponible en este entorno.";
+            return false;
+        }
+
+        try
+        {
+            RestoreBackupResult result = await _restoreBackup
+                .ExecuteAsync(new RestoreBackupRequest(sourceFilePath), cancellationToken)
+                .ConfigureAwait(true);
+
+            Message = result.Succeeded ? result.Message : $"Error al restaurar: {result.Message}";
+            return result.Succeeded;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error inesperado al restaurar: {ex.Message}";
+            return false;
         }
     }
 

@@ -204,7 +204,8 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<TriggerManualBackupUseCase>(),
                 TryResolveOptional<POS.Application.Interfaces.IEmailService>(sp),
                 TryResolveOptional<POS.Application.Interfaces.IWhatsAppService>(sp),
-                TryResolveOptional<POS.Application.Interfaces.IInstalledPrinterProvider>(sp)),
+                TryResolveOptional<POS.Application.Interfaces.IInstalledPrinterProvider>(sp),
+                TryResolveOptional<RestoreBackupUseCase>(sp)),
             moduleWarnings);
 
         LoyaltyViewModel? loyalty = TryCreateOptionalModule(

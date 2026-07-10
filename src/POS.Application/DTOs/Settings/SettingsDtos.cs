@@ -52,3 +52,7 @@ public sealed record ManualBackupResult(
     string Message,
     string? BackupFilePath,
     ManualBackupMetadata? LastSuccessfulBackup = null);
+
+public sealed record RestoreBackupRequest(string SourceFilePath);
+
+public sealed record RestoreBackupResult(bool Succeeded, string Message);

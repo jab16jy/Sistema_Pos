@@ -40,6 +40,9 @@ public sealed class SettingsViewModelExceptionTests
     {
         public Task<POS.Application.DTOs.Settings.BackupFile> CreateBackupAsync(string destinationDirectory, CancellationToken cancellationToken = default)
             => Task.FromResult(new POS.Application.DTOs.Settings.BackupFile(destinationDirectory + "\\backup.sqlite", DateTimeOffset.UtcNow, 1));
+
+        public Task RestoreBackupAsync(string sourceBackupPath, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class NoOpOperatorSession : ICurrentOperatorSession

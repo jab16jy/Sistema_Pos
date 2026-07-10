@@ -48,6 +48,57 @@ public partial class SettingsView
         }
     }
 
+    private async void RestoreBackup_OnClick(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (DataContext is not SettingsViewModel viewModel)
+        {
+            return;
+        }
+
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Selecciona el archivo de respaldo a restaurar",
+            Filter = "Respaldo POS (*.db)|*.db|Todos los archivos (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() != true)
+        {
+            return;
+        }
+
+        var confirm = System.Windows.MessageBox.Show(
+            "Esto reemplazará TODOS los datos actuales con el respaldo seleccionado y no se puede deshacer.\n\n" +
+            "Se guardará una copia de los datos actuales (pos-prerestore-*.db) antes de continuar.\n\n¿Deseas continuar?",
+            "Confirmar restauración",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning);
+
+        if (confirm != System.Windows.MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        bool restored = await viewModel.RestoreAsync(dialog.FileName).ConfigureAwait(true);
+        if (!restored)
+        {
+            return;
+        }
+
+        System.Windows.MessageBox.Show(
+            "Restauración completada. La aplicación se reiniciará ahora.",
+            "Restauración exitosa",
+            System.Windows.MessageBoxButton.OK,
+            System.Windows.MessageBoxImage.Information);
+
+        string? executablePath = Environment.ProcessPath;
+        if (!string.IsNullOrEmpty(executablePath))
+        {
+            System.Diagnostics.Process.Start(executablePath);
+        }
+
+        System.Windows.Application.Current.Shutdown();
+    }
+
     private void SmtpPasswordBox_OnPasswordChanged(object sender, System.Windows.RoutedEventArgs e)
     {
         if (DataContext is SettingsViewModel viewModel && sender is System.Windows.Controls.PasswordBox passwordBox)
