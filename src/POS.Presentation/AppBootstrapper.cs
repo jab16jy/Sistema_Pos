@@ -55,7 +55,8 @@ internal static class AppBootstrapper
                 TryResolveOptional<ReprintReceiptUseCase>(sp),
                 TryResolveOptional<SearchCustomersUseCase>(sp),
                 TryResolveOptional<GetCustomerPayableQuotesUseCase>(sp),
-                TryResolveOptional<ConvertQuoteToSaleUseCase>(sp)),
+                TryResolveOptional<ConvertQuoteToSaleUseCase>(sp),
+                sp.GetRequiredService<FindProductByBarcodeUseCase>()),
             () => new CashierViewModel(productLookup),
             moduleWarnings);
 

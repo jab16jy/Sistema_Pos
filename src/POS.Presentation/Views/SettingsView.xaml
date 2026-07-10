@@ -452,7 +452,7 @@
               <ComboBoxItem Content="A4 resumen" />
             </ComboBox>
             <TextBlock Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap">
-              La impresión de etiquetas y códigos se gestiona desde la utilidad administrativa, no desde la caja.
+              Las etiquetas y códigos se gestionan desde Productos, no desde la caja.
             </TextBlock>
           </StackPanel>
         </Border>

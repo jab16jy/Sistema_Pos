@@ -14,6 +14,24 @@ namespace POS.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("""
+                UPDATE "PRODUCTS"
+                SET "Barcode" = NULL
+                WHERE TRIM("Barcode") = '';
+                """);
+
+            migrationBuilder.Sql("""
+                UPDATE "PRODUCTS"
+                SET "Barcode" = NULL
+                WHERE "Barcode" IS NOT NULL
+                  AND rowid NOT IN (
+                      SELECT MIN(rowid)
+                      FROM "PRODUCTS"
+                      WHERE "Barcode" IS NOT NULL
+                      GROUP BY "Barcode"
+                  );
+                """);
+
             migrationBuilder.DropIndex(
                 name: "IX_PRODUCTS_Barcode",
                 table: "PRODUCTS");

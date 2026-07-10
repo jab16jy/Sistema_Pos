@@ -40,6 +40,7 @@ public sealed class ImportProductsCsvUseCase
             .ToDictionary(h => h.Name, h => h.Index, StringComparer.OrdinalIgnoreCase);
 
         var errors = new List<string>();
+        var importedBarcodes = new HashSet<string>(StringComparer.Ordinal);
         var imported = 0;
         var skipped = 0;
 
@@ -51,6 +52,13 @@ public sealed class ImportProductsCsvUseCase
             try
             {
                 var barcode = Get(row, headers, "barcode");
+                if (!string.IsNullOrWhiteSpace(barcode) && !importedBarcodes.Add(barcode))
+                {
+                    errors.Add($"Línea {lineNo}: el código de barras '{barcode}' está duplicado en el archivo CSV.");
+                    skipped++;
+                    continue;
+                }
+
                 if (!string.IsNullOrWhiteSpace(barcode) &&
                     await _products.GetByBarcodeAsync(barcode, ct).ConfigureAwait(false) is not null)
                 {

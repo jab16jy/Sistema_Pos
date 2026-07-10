@@ -447,16 +447,39 @@ public sealed class CashierViewModelTests
     [Fact]
     public async Task HandleScannerInputAsync_WithMissingCode_ShowsMessageAndLeavesCartUnchanged()
     {
-        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
-        {
-            SearchText = "MISSING-001"
-        };
+        var existing = new ProductLookupResult(Guid.NewGuid(), "Already in cart", "KNOWN-001", 5_000m, 10m);
+        var viewModel = new CashierViewModel(new StaticProductLookupService(existing));
+        viewModel.AddProductAndResetSearch(new CashierProductSearchResultViewModel(existing));
+        decimal totalBeforeScan = viewModel.TotalAmount;
+        viewModel.SearchText = "MISSING-001";
 
         await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
 
-        Assert.Empty(viewModel.CartItems);
+        Assert.Single(viewModel.CartItems);
+        Assert.Equal(totalBeforeScan, viewModel.TotalAmount);
         Assert.Equal("MISSING-001", viewModel.SearchText);
         Assert.Contains("No encontramos un producto activo", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task HandleScannerInputAsync_WhenReentered_AddsTheProductOnlyOnce()
+    {
+        var product = new ProductLookupResult(Guid.NewGuid(), "Scanner product", "RACE-001", 5_000m, 10m);
+        var lookup = new BlockingProductLookupService(product);
+        var viewModel = new CashierViewModel(lookup)
+        {
+            SearchText = "RACE-001"
+        };
+
+        Task firstScan = viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+        await lookup.LookupStarted.Task;
+        await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+        lookup.CompleteLookup();
+        await firstScan;
+
+        Assert.Equal(1, lookup.BarcodeLookupCount);
+        Assert.Single(viewModel.CartItems);
+        Assert.Equal(1m, viewModel.CartItems[0].Quantity);
     }
 
     [Fact]
@@ -598,12 +621,39 @@ public sealed class CashierViewModelTests
 
         public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ProductLookupResult>>([_product]);
+
+        public Task<ProductLookupResult?> FindByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
+            => Task.FromResult<ProductLookupResult?>(string.Equals(_product.Barcode, barcode.Trim(), StringComparison.Ordinal) ? _product : null);
     }
 
     private sealed class MultiProductLookupService(params ProductLookupResult[] products) : POS.Application.Interfaces.IProductLookupService
     {
         public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<ProductLookupResult>>(products);
+
+        public Task<ProductLookupResult?> FindByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
+            => Task.FromResult(products.SingleOrDefault(product => string.Equals(product.Barcode, barcode.Trim(), StringComparison.Ordinal)));
+    }
+
+    private sealed class BlockingProductLookupService(ProductLookupResult product) : IProductLookupService
+    {
+        private readonly TaskCompletionSource<ProductLookupResult?> _lookupCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> LookupStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public int BarcodeLookupCount { get; private set; }
+
+        public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ProductLookupResult>>([]);
+
+        public Task<ProductLookupResult?> FindByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
+        {
+            BarcodeLookupCount++;
+            LookupStarted.TrySetResult(true);
+            return _lookupCompletion.Task;
+        }
+
+        public void CompleteLookup() => _lookupCompletion.TrySetResult(product);
     }
 
     private sealed class InMemoryProductRepository : IProductRepository

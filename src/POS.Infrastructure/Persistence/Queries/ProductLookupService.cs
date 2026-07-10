@@ -77,6 +77,32 @@ public sealed class ProductLookupService : IProductLookupService
             .ToList();
     }
 
+    public async Task<ProductLookupResult?> FindByBarcodeAsync(
+        string barcode,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(barcode))
+        {
+            return null;
+        }
+
+        string exactBarcode = barcode.Trim();
+        return await _dbContext.Products
+            .AsNoTracking()
+            .Where(product => product.IsActive && product.Barcode == exactBarcode)
+            .Select(product => new ProductLookupResult(
+                product.Id,
+                product.Name,
+                product.Barcode!,
+                product.SalePrice.Amount,
+                product.CurrentStock,
+                product.MinimumStock,
+                product.UnitsPerBox,
+                product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : null))
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     /// <summary>Lowercases and strips accents so "azucar" matches "Azúcar".</summary>
     internal static string Normalize(string? value)
     {

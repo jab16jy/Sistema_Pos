@@ -12,6 +12,7 @@ using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Invoices;
 using POS.Application.UseCases.Loyalty;
+using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
@@ -26,6 +27,7 @@ public sealed class CashierViewModel : ViewModelBase
     private const int AutocompleteDelayMilliseconds = 180;
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private readonly IProductLookupService _productLookupService;
+    private readonly FindProductByBarcodeUseCase _findProductByBarcodeUseCase;
     private readonly PreviewPaymentUseCase _previewPaymentUseCase;
     private readonly CreateSaleUseCase? _createSaleUseCase;
     private readonly RedeemLoyaltyPointsUseCase? _redeemLoyaltyPointsUseCase;
@@ -50,6 +52,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _loadCustomerQuoteCommand;
     private readonly RelayCommand _clearLoadedQuoteCommand;
     private CancellationTokenSource? _autocompleteSearchCts;
+    private int _scannerInputInProgress;
     private string _searchText = string.Empty;
     private string _searchResultsQuery = string.Empty;
     private CashierProductSearchResultViewModel? _selectedProduct;
@@ -116,9 +119,11 @@ public sealed class CashierViewModel : ViewModelBase
         ReprintReceiptUseCase? printReceiptUseCase,
         SearchCustomersUseCase? searchCustomersUseCase = null,
         GetCustomerPayableQuotesUseCase? getCustomerPayableQuotesUseCase = null,
-        ConvertQuoteToSaleUseCase? convertQuoteToSaleUseCase = null)
+        ConvertQuoteToSaleUseCase? convertQuoteToSaleUseCase = null,
+        FindProductByBarcodeUseCase? findProductByBarcodeUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
+        _findProductByBarcodeUseCase = findProductByBarcodeUseCase ?? new FindProductByBarcodeUseCase(_productLookupService);
         _previewPaymentUseCase = previewPaymentUseCase ?? throw new ArgumentNullException(nameof(previewPaymentUseCase));
         _createSaleUseCase = createSaleUseCase;
         _redeemLoyaltyPointsUseCase = redeemLoyaltyPointsUseCase;
@@ -560,28 +565,37 @@ public sealed class CashierViewModel : ViewModelBase
 
     public async Task HandleScannerInputAsync(CancellationToken cancellationToken = default)
     {
-        string normalized = SearchText.Trim();
-        if (normalized.Length == 0)
+        if (Interlocked.CompareExchange(ref _scannerInputInProgress, 1, 0) != 0)
         {
-            Message = "Escanea un código o escribe un producto para buscar.";
             return;
         }
 
-        CancelAutocompleteSearch();
-        IReadOnlyList<ProductLookupResult> results = await _productLookupService
-            .SearchAsync(normalized, cancellationToken)
-            .ConfigureAwait(true);
-        ProductLookupResult? exactMatch = results.FirstOrDefault(result =>
-            !string.IsNullOrWhiteSpace(result.Barcode) &&
-            string.Equals(result.Barcode, normalized, StringComparison.OrdinalIgnoreCase));
-
-        if (exactMatch is null)
+        try
         {
-            Message = $"No encontramos un producto activo para el código '{normalized}'. Revisa el código e intenta de nuevo.";
-            return;
-        }
+            string normalized = SearchText.Trim();
+            if (normalized.Length == 0)
+            {
+                Message = "Escanea un código o escribe un producto para buscar.";
+                return;
+            }
 
-        AddProductAndResetSearch(new CashierProductSearchResultViewModel(exactMatch));
+            CancelAutocompleteSearch();
+            ProductLookupResult? exactMatch = await _findProductByBarcodeUseCase
+                .ExecuteAsync(normalized, cancellationToken)
+                .ConfigureAwait(true);
+
+            if (exactMatch is null)
+            {
+                Message = $"No encontramos un producto activo para el código '{normalized}'. Revisa el código e intenta de nuevo.";
+                return;
+            }
+
+            AddProductAndResetSearch(new CashierProductSearchResultViewModel(exactMatch));
+        }
+        finally
+        {
+            Volatile.Write(ref _scannerInputInProgress, 0);
+        }
     }
 
     /// <summary>Adds <paramref name="product"/> to the cart and clears the search box on success (Enter, double click).</summary>

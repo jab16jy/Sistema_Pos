@@ -33,4 +33,14 @@ public sealed class PrototypeProductLookupService : IProductLookupService
 
         return Task.FromResult(matches as IReadOnlyList<ProductLookupResult>);
     }
+
+    public Task<ProductLookupResult?> FindByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        ProductLookupResult? product = string.IsNullOrWhiteSpace(barcode)
+            ? null
+            : Products.SingleOrDefault(candidate => string.Equals(candidate.Barcode, barcode.Trim(), StringComparison.Ordinal));
+        return Task.FromResult(product);
+    }
 }

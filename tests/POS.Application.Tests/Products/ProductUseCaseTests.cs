@@ -165,6 +165,28 @@ public sealed class ProductUseCaseTests
         Assert.Equal(1, unitOfWork.SaveCount);
     }
 
+    [Fact]
+    public async Task ImportProductsCsvAsync_SkipsSameBatchDuplicateBarcodeUsingExactIdentity()
+    {
+        var categoryId = Guid.NewGuid();
+        var products = new InMemoryProductRepository();
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = new ImportProductsCsvUseCase(products, unitOfWork);
+        var csv = string.Join('\n',
+            "name,categoryId,costPrice,salePrice,currentStock,minimumStock,description,barcode,taxRate",
+            $"First,{categoryId},2000,11900,5,1,Bebida,CODE-001,19",
+            $"Duplicate,{categoryId},2000,11900,5,1,Bebida,CODE-001,19",
+            $"Case distinct,{categoryId},2000,11900,5,1,Bebida,code-001,19");
+
+        ImportProductsCsvResult result = await useCase.ExecuteAsync(new ImportProductsCsvRequest(csv), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, result.Imported);
+        Assert.Equal(1, result.Skipped);
+        Assert.Equal(["CODE-001", "code-001"], products.Products.Select(product => product.Barcode));
+        Assert.Contains(result.Errors, error => error.Contains("Línea 3", StringComparison.Ordinal));
+        Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
     private static Product CreateProduct(string name, string? barcode) => new(
         name,
         Guid.NewGuid(),
