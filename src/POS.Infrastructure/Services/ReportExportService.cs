@@ -163,7 +163,7 @@ public sealed class ReportExportService : IReportExportService
                         table.Cell().Padding(3).Text(comparison.CurrentRevenue.ToString("C0", Co));
                         table.Cell().Padding(3).Text(comparison.PriorRevenue.ToString("C0", Co));
                         table.Cell().Padding(3).Text(comparison.CurrentMargin.ToString("C0", Co));
-                        table.Cell().Padding(3).Text($"{comparison.RevenueGrowthPercent:N1}%");
+                        table.Cell().Padding(3).Text($"{comparison.RevenueGrowthPercent.ToString("N1", Co)}%");
                     });
 
                     col.Item().PaddingTop(12).Text("Margen por Producto").FontSize(14).Bold();
@@ -191,7 +191,7 @@ public sealed class ReportExportService : IReportExportService
                             table.Cell().Padding(3).AlignRight().Text(m.TotalRevenue.ToString("C0", Co));
                             table.Cell().Padding(3).AlignRight().Text(m.TotalCost.ToString("C0", Co));
                             table.Cell().Padding(3).AlignRight().Text(m.GrossMargin.ToString("C0", Co));
-                            table.Cell().Padding(3).AlignRight().Text($"{m.MarginPercent:N1}%");
+                            table.Cell().Padding(3).AlignRight().Text($"{m.MarginPercent.ToString("N1", Co)}%");
                         }
                     });
                 });

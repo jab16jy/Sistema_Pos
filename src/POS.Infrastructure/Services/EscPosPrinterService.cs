@@ -110,7 +110,7 @@ public sealed partial class EscPosPrinterService : IPrintService
                 ? item.ProductName[..20]
                 : item.ProductName;
 
-            var qty      = $"x{item.Quantity:0.##}";
+            var qty      = $"x{item.Quantity.ToString("0.##", CopCulture)}";
             var subtotal = FormatCurrency(item.Subtotal().Amount);
 
             // 32-char line: name(20) qty(5) price(7)
