@@ -114,8 +114,11 @@ public sealed class RuntimeReadinessTests
             string expectedDocumentPath = Path.Combine(documentsDirectory, "POS WhatsApp", "invoice.pdf");
             Assert.Equal(expectedDocumentPath, launcher.RevealedFile);
             Assert.True(File.Exists(expectedDocumentPath));
-            Assert.Contains("POS%20WhatsApp", launcher.AttemptedUris[1].OriginalString, StringComparison.Ordinal);
-            Assert.Contains("invoice.pdf", launcher.AttemptedUris[1].OriginalString, StringComparison.Ordinal);
+            // The local file path must never leak into the customer-facing message (it exposed
+            // the Windows username/folder structure); RevealedFile above confirms the operator
+            // still gets the file opened locally to attach manually.
+            Assert.DoesNotContain("POS%20WhatsApp", launcher.AttemptedUris[1].OriginalString, StringComparison.Ordinal);
+            Assert.DoesNotContain("invoice.pdf", launcher.AttemptedUris[1].OriginalString, StringComparison.Ordinal);
         }
         finally
         {
