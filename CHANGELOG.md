@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.2.1...v1.3.0) (2026-07-10)
+
+
+### Features
+
+* **backup:** implement database restore from a backup file ([824e7d8](https://github.com/jab16jy/Sistema_Pos/commit/824e7d8f2b785751fb6b79e0fb57a94c90ee2364))
+* **barcode:** integrate labels into products ([727ee62](https://github.com/jab16jy/Sistema_Pos/commit/727ee62983d7366426a5b6e8d226ce9a3005d8d6))
+* **catalog:** enforce PRODUCTS.CategoryId FK with restrictive delete and index ([6e52016](https://github.com/jab16jy/Sistema_Pos/commit/6e520162cde8c836d21d884d73b7276dfb37a115))
+* **login:** change error panel color to red on invalid credentials ([647112d](https://github.com/jab16jy/Sistema_Pos/commit/647112d2dbf67d489ccfabfff101c5069689c016))
+* **reports:** redesign PDF and Excel exports with KPIs, hierarchy, and cash-digital separation ([3275476](https://github.com/jab16jy/Sistema_Pos/commit/327547664cf2a250a6205afb1fd95fba2fc4b55d))
+
+
+### Bug Fixes
+
+* **backup:** add functional backup panel to default Settings tab ([6ca1adc](https://github.com/jab16jy/Sistema_Pos/commit/6ca1adc0390692e0ae35635ac5501851afefed03))
+* **backup:** create validated SQLite snapshots ([e4be42e](https://github.com/jab16jy/Sistema_Pos/commit/e4be42e237f44bf57d19fbf872e0fba2fc410062))
+* **barcode:** harden import validation, serialize lookup, audit migration ([12e40b0](https://github.com/jab16jy/Sistema_Pos/commit/12e40b062d2af6eba2e62426c942c22fe0150d4c))
+* **barcode:** harden scanner and migration integrity ([77e232e](https://github.com/jab16jy/Sistema_Pos/commit/77e232ee2dbdde2d93d9ddc8012ac33139dffbb6))
+* **reports,backup:** enable PDF/Excel export, fix status overlap, add backup folder config ([86b14b8](https://github.com/jab16jy/Sistema_Pos/commit/86b14b8fd375f98119d30c01b16ef297557370e1))
+
 ## [1.2.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.2.0...v1.2.1) (2026-07-10)
 
 
