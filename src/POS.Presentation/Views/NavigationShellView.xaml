@@ -234,15 +234,6 @@
         </Border>
       </Grid>
 
-      <Grid Visibility="{Binding IsBarcodeSelected, Converter={StaticResource BoolToVisibilityConverter}}">
-        <local:BarcodeView DataContext="{Binding Barcode}"
-                           Visibility="{Binding DataContext.Barcode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
-        <Border Style="{StaticResource Card}"
-                Visibility="{Binding DataContext.Barcode, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
-          <TextBlock Text="Barcode module is not available in this environment." Style="{StaticResource MutedText}" />
-        </Border>
-      </Grid>
-
       <Grid Visibility="{Binding IsPlannedModuleSelected, Converter={StaticResource BoolToVisibilityConverter}}">
         <Border Style="{StaticResource Card}" HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="520">
           <StackPanel>

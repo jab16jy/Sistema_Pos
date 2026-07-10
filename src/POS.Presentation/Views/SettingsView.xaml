@@ -98,9 +98,6 @@
                   <controls:QuickLink TitleText="Programa de lealtad" Subtitle="Reglas, tiers, canje y vigencias." IconKind="StarCircle" Margin="0,0,0,8"
                                       Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                       CommandParameter="{Binding DataContext.AdminHubModules[5], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <controls:QuickLink TitleText="Etiquetas y códigos" Subtitle="Generación e impresión en lote." IconKind="BarcodeScan" Margin="0,0,8,8"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubModules[6], RelativeSource={RelativeSource AncestorType=Window}}" />
                   <controls:QuickLink TitleText="Usuarios y permisos" Subtitle="Alta, baja, roles y bloqueo de acciones sensibles." IconKind="AccountCog" Margin="0,0,0,8"
                                       Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                                       CommandParameter="{Binding DataContext.AdminHubExtraModules[0], RelativeSource={RelativeSource AncestorType=Window}}" />

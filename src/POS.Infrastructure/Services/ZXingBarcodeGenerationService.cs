@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.Interfaces;
+using POS.Domain.ValueObjects;
 using ZXing;
 using ZXing.Common;
 
@@ -42,8 +43,9 @@ public sealed class ZXingBarcodeGenerationService : IBarcodeGenerationService
 
         try
         {
-            var format = ResolveSymbology(value);
-            return Task.FromResult(Encode(value, format));
+            var barcode = new Barcode(value);
+            var format = ResolveSymbology(barcode.Value);
+            return Task.FromResult(Encode(barcode.Value, format));
         }
         catch (ApplicationException)
         {
@@ -57,8 +59,7 @@ public sealed class ZXingBarcodeGenerationService : IBarcodeGenerationService
 
     private static BarcodeFormat ResolveSymbology(string value)
     {
-        // EAN-13 for exactly 12 or 13 numeric digits (13th is check digit, computed by ZXing)
-        if (value.Length is 12 or 13 && value.All(char.IsDigit))
+        if (Barcode.IsValidEan13(value))
         {
             return BarcodeFormat.EAN_13;
         }

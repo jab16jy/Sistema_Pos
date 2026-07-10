@@ -1,11 +1,12 @@
 using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.Interfaces;
+using POS.Domain.ValueObjects;
 
 namespace POS.Application.UseCases.BarcodeLabels;
 
 /// <summary>
 /// Generates a barcode image for the given value.
-/// Symbology is resolved automatically: EAN-13 for exactly 12 numeric digits, Code128 otherwise.
+/// Symbology is resolved automatically: valid EAN-13 values use EAN-13, all other valid values use Code 128.
 /// </summary>
 public sealed class GenerateBarcodeUseCase
 {
@@ -23,19 +24,19 @@ public sealed class GenerateBarcodeUseCase
             throw new ArgumentException("Barcode value is required.", nameof(value));
         }
 
-        var symbology = ResolveSymbology(value.Trim());
-        var pngBytes = await _barcodeService.GenerateAutoAsync(value.Trim(), cancellationToken).ConfigureAwait(false);
+        var barcode = new Barcode(value);
+        var symbology = ResolveSymbology(barcode.Value);
+        var pngBytes = await _barcodeService.GenerateAsync(barcode.Value, symbology, cancellationToken).ConfigureAwait(false);
 
         return new BarcodeResult(pngBytes, symbology);
     }
 
     /// <summary>
-    /// Resolves the barcode symbology based on content rules (R-BL-02):
-    /// EAN-13 iff value is exactly 12 numeric digits; Code128 otherwise.
+    /// Resolves the barcode symbology from an already validated barcode value.
     /// </summary>
     public static BarcodeSymbology ResolveSymbology(string value)
     {
-        if (value.Length == 12 && value.All(char.IsAsciiDigit))
+        if (Barcode.IsValidEan13(value))
         {
             return BarcodeSymbology.Ean13;
         }

@@ -73,6 +73,23 @@ public sealed class ProductLookupServiceTests
         Assert.Empty(await service.SearchAsync(string.Empty, TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task ProductStorage_RejectsDuplicateNonNullBarcodes()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using var dbContext = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var category = new Category("Granos");
+        await dbContext.Categories.AddAsync(category, TestContext.Current.CancellationToken);
+        await dbContext.Products.AddAsync(new Product("Rice", category.Id, new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m), barcode: new Barcode("RICE-001")), TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await dbContext.Products.AddAsync(new Product("Beans", category.Id, new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m), barcode: new Barcode("RICE-001")), TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => dbContext.SaveChangesAsync(TestContext.Current.CancellationToken));
+    }
+
     private static async Task<SqliteConnection> OpenConnectionAsync()
     {
         var connection = new SqliteConnection("Data Source=:memory:");

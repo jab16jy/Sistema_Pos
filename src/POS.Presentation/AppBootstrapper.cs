@@ -135,14 +135,32 @@ internal static class AppBootstrapper
 
                 if (categoriesEditor is not null)
                 {
-                    return new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv, adjustStock)
+                    return new ProductsViewModel(
+                        createProduct,
+                        updateProduct,
+                        deleteProduct,
+                        searchProducts,
+                        searchCategories,
+                        importProductsCsv,
+                        adjustStock,
+                        sp.GetRequiredService<AssignInternalBarcodeUseCase>(),
+                        sp.GetRequiredService<PrintLabelsUseCase>())
                     {
                         CategoriesEditor = categoriesEditor,
                         OperatorUserId = cashier.CashierUserId
                     };
                 }
 
-                return new ProductsViewModel(createProduct, updateProduct, deleteProduct, searchProducts, searchCategories, importProductsCsv, adjustStock)
+                return new ProductsViewModel(
+                    createProduct,
+                    updateProduct,
+                    deleteProduct,
+                    searchProducts,
+                    searchCategories,
+                    importProductsCsv,
+                    adjustStock,
+                    sp.GetRequiredService<AssignInternalBarcodeUseCase>(),
+                    sp.GetRequiredService<PrintLabelsUseCase>())
                 {
                     OperatorUserId = cashier.CashierUserId
                 };
@@ -201,14 +219,6 @@ internal static class AppBootstrapper
                 TryResolveOptional<DeleteLoyaltyTierUseCase>(sp)),
             moduleWarnings);
 
-        BarcodeViewModel? barcode = TryCreateOptionalModule(
-            "Códigos de barras",
-            () => new BarcodeViewModel(
-                sp.GetRequiredService<GenerateBarcodeUseCase>(),
-                sp.GetRequiredService<PrintLabelsUseCase>(),
-                productLookup),
-            moduleWarnings);
-
         UserManagementViewModel? userManagement = TryCreateOptionalModule(
             "Usuarios",
             () => new UserManagementViewModel(
@@ -245,7 +255,6 @@ internal static class AppBootstrapper
             Invoices = invoices,
             Settings = settings,
             Loyalty = loyalty,
-            Barcode = barcode,
             UserManagement = userManagement,
             Shifts = shifts,
             AuditLog = auditLog

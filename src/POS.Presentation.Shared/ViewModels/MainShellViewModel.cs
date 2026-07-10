@@ -15,7 +15,7 @@ public sealed class MainShellViewModel : ViewModelBase
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private static readonly IReadOnlySet<string> AdminHubModuleKeys = new HashSet<string>
     {
-        "products", "inventory", "suppliers", "reports", "shifts", "loyalty", "barcode"
+        "products", "inventory", "suppliers", "reports", "shifts", "loyalty"
     };
 
     // Cashiers get an operational funcbar only (no admin hub). Turnos is reachable directly
@@ -66,7 +66,6 @@ public sealed class MainShellViewModel : ViewModelBase
             new ModuleNavigationItem("reports", "Reportes", "Revisa ventas, caja y utilidades.", "ADM", true),
             new ModuleNavigationItem("shifts", "Turnos", "Abre y cierra turnos de cajeros.", "ADM", true),
             new ModuleNavigationItem("loyalty", "Puntos", "Consulta saldo y redime puntos de lealtad.", "ADM", true),
-            new ModuleNavigationItem("barcode", "Códigos de Barras", "Genera e imprime etiquetas con código de barras.", "ADM", true),
             new ModuleNavigationItem("users", "Usuarios", "Crea y gestiona usuarios del sistema.", "F1", true),
             new ModuleNavigationItem("audit", "Auditoría", "Consulta quién cambió qué y cuándo.", "Alt+A", true),
             new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true)
@@ -154,8 +153,6 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public LoyaltyViewModel? Loyalty { get; init; }
 
-    public BarcodeViewModel? Barcode { get; init; }
-
     public UserManagementViewModel? UserManagement { get; init; }
 
     public ShiftsViewModel? Shifts { get; init; }
@@ -204,7 +201,6 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsInvoicesSelected));
                 OnPropertyChanged(nameof(IsReportsSelected));
                 OnPropertyChanged(nameof(IsLoyaltySelected));
-                OnPropertyChanged(nameof(IsBarcodeSelected));
                 OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsAdminHubSelected));
                 OnPropertyChanged(nameof(IsAdminSectionSelected));
@@ -389,8 +385,6 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsLoyaltySelected => SelectedModule.Key == "loyalty";
 
-    public bool IsBarcodeSelected => SelectedModule.Key == "barcode";
-
     public bool IsSettingsSelected => SelectedModule.Key == "settings";
 
     public bool IsAdminHubSelected => SelectedModule.Key == "admin";
@@ -409,7 +403,7 @@ public sealed class MainShellViewModel : ViewModelBase
     /// </summary>
     public bool IsSettingsViewSelected => IsAdminHubSelected || IsSettingsSelected;
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBarcodeSelected && !IsSettingsSelected && !IsAdminHubSelected;
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsSettingsSelected && !IsAdminHubSelected;
 
     public void RefreshDashboardMetrics()
     {
@@ -474,7 +468,6 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "invoices", IsImplemented: true } => "Módulo Facturas activo. Reimprime recibos y procesa devoluciones.",
             { Key: "reports", IsImplemented: true } => "Módulo Reportes activo. Consulta totales operativos separados por efectivo, digital y abonos.",
             { Key: "loyalty", IsImplemented: true } => "Módulo Puntos activo. Consulta saldo y redime puntos de lealtad.",
-            { Key: "barcode", IsImplemented: true } => "Módulo Códigos de Barras activo. Genera e imprime etiquetas.",
             { Key: "settings", IsImplemented: true } => "Módulo Configuración activo. Negocio, impresora, backup y moneda.",
             { Key: "admin", IsImplemented: true } => "Centro de control activo. Elige un módulo administrativo para continuar.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."

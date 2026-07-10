@@ -1,5 +1,7 @@
 using POS.Application.DTOs.Products;
+using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.BarcodeLabels;
 using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Products;
 using POS.Domain.Entities;
@@ -57,6 +59,44 @@ public sealed class ProductsViewModelTests
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("Error al cargar productos", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task PrintLabelAsync_UsesTheSelectedProductSavedBarcodeNameAndPrice()
+    {
+        Category category = new("Sin categoría");
+        var product = new ProductSearchResult(
+            Guid.NewGuid(),
+            "Crema facial",
+            category.Id,
+            category.Name,
+            10_000m,
+            25_000m,
+            3m,
+            1m,
+            19m,
+            null,
+            "4006381333931",
+            true);
+        var printer = new RecordingLabelPrintService();
+        var productRepository = new StubProductRepository();
+        var viewModel = new ProductsViewModel(
+            new CreateProductUseCase(productRepository, new StubCategoryRepository([category]), new NoOpUnitOfWork()),
+            new UpdateProductUseCase(productRepository, new StubCategoryRepository([category]), new NoOpUnitOfWork()),
+            new DeleteProductUseCase(productRepository, new NoOpUnitOfWork()),
+            new SearchProductsUseCase(new StubProductCatalogQueryService([product])),
+            new SearchCategoriesUseCase(new StubCategoryRepository([category])),
+            printLabels: new PrintLabelsUseCase(printer));
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedProduct = Assert.Single(viewModel.Products);
+        await viewModel.PrintLabelAsync(TestContext.Current.CancellationToken);
+
+        LabelRequest label = Assert.Single(printer.Labels);
+        Assert.Equal("Crema facial", label.ProductName);
+        Assert.Equal(25_000m, label.Price);
+        Assert.Equal("4006381333931", label.BarcodeValue);
+        Assert.Equal(BarcodeSymbology.Ean13, label.Symbology);
     }
 
     private static ProductsViewModel CreateViewModel(
@@ -135,5 +175,16 @@ public sealed class ProductsViewModelTests
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(0);
+    }
+
+    private sealed class RecordingLabelPrintService : ILabelPrintService
+    {
+        public List<LabelRequest> Labels { get; } = [];
+
+        public Task PrintAsync(IEnumerable<LabelRequest> labels, int copies = 1, CancellationToken cancellationToken = default)
+        {
+            Labels.AddRange(labels);
+            return Task.CompletedTask;
+        }
     }
 }

@@ -20,7 +20,7 @@ public sealed class ProductRepository : IProductRepository
 
     public Task<Product?> GetByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
     {
-        return _dbContext.Products.FirstOrDefaultAsync(product => product.Barcode == barcode && product.IsActive, cancellationToken);
+        return _dbContext.Products.FirstOrDefaultAsync(product => product.Barcode == barcode, cancellationToken);
     }
 
     public async Task AddAsync(Product product, CancellationToken cancellationToken = default)

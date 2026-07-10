@@ -1,8 +1,10 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.DTOs.Inventory;
 using POS.Application.DTOs.Products;
+using POS.Application.UseCases.BarcodeLabels;
 using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Products;
@@ -19,6 +21,10 @@ public sealed class ProductsViewModel : ViewModelBase
     private readonly ImportProductsCsvUseCase? _importProductsCsv;
     private readonly SearchCategoriesUseCase? _searchCategories;
     private readonly AdjustStockUseCase? _adjustStock;
+    private readonly AssignInternalBarcodeUseCase? _assignInternalBarcode;
+    private readonly PrintLabelsUseCase? _printLabels;
+    private readonly RelayCommand _generateInternalBarcodeCommand;
+    private readonly RelayCommand _printLabelCommand;
     private ProductSearchResult? _selectedProduct;
     private string _searchText = string.Empty;
     private string _name = string.Empty;
@@ -43,7 +49,7 @@ public sealed class ProductsViewModel : ViewModelBase
         UpdateProductUseCase updateProduct,
         DeleteProductUseCase deleteProduct,
         SearchProductsUseCase searchProducts)
-        : this(createProduct, updateProduct, deleteProduct, searchProducts, null, null)
+        : this(createProduct, updateProduct, deleteProduct, searchProducts, null, null, null, null, null)
     {
     }
 
@@ -54,7 +60,9 @@ public sealed class ProductsViewModel : ViewModelBase
         SearchProductsUseCase searchProducts,
         SearchCategoriesUseCase? searchCategories,
         ImportProductsCsvUseCase? importProductsCsv = null,
-        AdjustStockUseCase? adjustStock = null)
+        AdjustStockUseCase? adjustStock = null,
+        AssignInternalBarcodeUseCase? assignInternalBarcode = null,
+        PrintLabelsUseCase? printLabels = null)
     {
         _createProduct = createProduct;
         _updateProduct = updateProduct;
@@ -63,6 +71,8 @@ public sealed class ProductsViewModel : ViewModelBase
         _searchCategories = searchCategories;
         _importProductsCsv = importProductsCsv;
         _adjustStock = adjustStock;
+        _assignInternalBarcode = assignInternalBarcode;
+        _printLabels = printLabels;
         Categories = [];
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar productos: {ex.Message}"));
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar producto: {ex.Message}"));
@@ -71,6 +81,10 @@ public sealed class ProductsViewModel : ViewModelBase
         ImportCsvCommand = new RelayCommand(_ => RunSafe(ImportCsvAsync(), ex => Message = $"Error al importar CSV: {ex.Message}"), _ => _importProductsCsv is not null);
         NewCommand = new RelayCommand(_ => NewProduct());
         ToggleCsvCommand = new RelayCommand(_ => IsCsvSectionOpen = !IsCsvSectionOpen);
+        _generateInternalBarcodeCommand = new RelayCommand(_ => RunSafe(GenerateInternalBarcodeAsync(), ex => Message = $"Error al asignar código interno: {ex.Message}"), _ => SelectedProduct is not null && string.IsNullOrWhiteSpace(SelectedProduct.Barcode));
+        _printLabelCommand = new RelayCommand(_ => RunSafe(PrintLabelAsync(), ex => Message = $"Error al imprimir la etiqueta: {ex.Message}"), _ => SelectedProduct is not null && !string.IsNullOrWhiteSpace(SelectedProduct.Barcode));
+        GenerateInternalBarcodeCommand = _generateInternalBarcodeCommand;
+        PrintLabelCommand = _printLabelCommand;
     }
 
     public ObservableCollection<ProductSearchResult> Products { get; } = [];
@@ -114,6 +128,10 @@ public sealed class ProductsViewModel : ViewModelBase
 
     public ICommand ToggleCsvCommand { get; }
 
+    public ICommand GenerateInternalBarcodeCommand { get; }
+
+    public ICommand PrintLabelCommand { get; }
+
     public ProductSearchResult? SelectedProduct
     {
         get => _selectedProduct;
@@ -146,6 +164,9 @@ public sealed class ProductsViewModel : ViewModelBase
                 {
                     command.RaiseCanExecuteChanged();
                 }
+
+                _generateInternalBarcodeCommand.RaiseCanExecuteChanged();
+                _printLabelCommand.RaiseCanExecuteChanged();
 
                 RecalculateMarginPreview();
                 RecalculateStockStatusPreview();
@@ -428,6 +449,7 @@ public sealed class ProductsViewModel : ViewModelBase
 
         try
         {
+            Guid savedProductId;
             if (SelectedProduct is null)
             {
                 var request = new CreateProductRequest(
@@ -442,8 +464,7 @@ public sealed class ProductsViewModel : ViewModelBase
                     TaxRate,
                     unitsPerBox,
                     boxPrice);
-                await _createProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-                Message = "Producto guardado correctamente";
+                savedProductId = await _createProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
             }
             else
             {
@@ -460,13 +481,14 @@ public sealed class ProductsViewModel : ViewModelBase
                     TaxRate,
                     unitsPerBox,
                     boxPrice);
-                await _updateProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+                ProductResult result = await _updateProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
                 await ApplyStockAdjustmentAsync(SelectedProduct.Id, originalStock, CurrentStock, cancellationToken).ConfigureAwait(true);
-                Message = "Producto guardado correctamente";
+                savedProductId = result.Id;
             }
 
-            NewProduct();
             await LoadAsync(cancellationToken).ConfigureAwait(true);
+            SelectedProduct = Products.FirstOrDefault(product => product.Id == savedProductId);
+            Message = "Producto guardado correctamente";
         }
         catch (ArgumentException ex)
         {
@@ -497,6 +519,52 @@ public sealed class ProductsViewModel : ViewModelBase
             "Ajuste manual al editar el producto",
             OperatorUserId);
         await _adjustStock.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+    }
+
+    public async Task GenerateInternalBarcodeAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedProduct is null)
+        {
+            Message = "Guarda el producto antes de asignarle un código interno.";
+            return;
+        }
+
+        if (_assignInternalBarcode is null)
+        {
+            Message = "La asignación de códigos internos no está disponible en este entorno.";
+            return;
+        }
+
+        Guid productId = SelectedProduct.Id;
+        string barcode = await _assignInternalBarcode.ExecuteAsync(productId, cancellationToken).ConfigureAwait(true);
+        await LoadAsync(cancellationToken).ConfigureAwait(true);
+        SelectedProduct = Products.FirstOrDefault(product => product.Id == productId);
+        Barcode = barcode;
+        Message = "Código interno asignado y guardado. Ya puedes imprimir la etiqueta.";
+    }
+
+    public async Task PrintLabelAsync(CancellationToken cancellationToken = default)
+    {
+        if (SelectedProduct is null || string.IsNullOrWhiteSpace(SelectedProduct.Barcode))
+        {
+            Message = "Guarda un código de barras antes de imprimir la etiqueta.";
+            return;
+        }
+
+        if (_printLabels is null)
+        {
+            Message = "La impresión de etiquetas no está disponible en este entorno.";
+            return;
+        }
+
+        string barcode = SelectedProduct.Barcode;
+        var label = new LabelRequest(
+            SelectedProduct.Name,
+            SelectedProduct.SalePrice,
+            barcode,
+            GenerateBarcodeUseCase.ResolveSymbology(barcode));
+        await _printLabels.ExecuteAsync([label], cancellationToken: cancellationToken).ConfigureAwait(true);
+        Message = "Etiqueta enviada a la impresora.";
     }
 
     public async Task DeleteAsync(CancellationToken cancellationToken = default)
@@ -576,6 +644,9 @@ public sealed class ProductsViewModel : ViewModelBase
         {
             command.RaiseCanExecuteChanged();
         }
+
+        _generateInternalBarcodeCommand.RaiseCanExecuteChanged();
+        _printLabelCommand.RaiseCanExecuteChanged();
     }
 
     private void RecalculateMarginPreview()

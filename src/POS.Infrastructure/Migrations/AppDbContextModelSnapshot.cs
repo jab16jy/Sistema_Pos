@@ -598,7 +598,9 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Barcode");
+                    b.HasIndex("Barcode")
+                        .IsUnique()
+                        .HasFilter("\"Barcode\" IS NOT NULL");
 
                     b.HasIndex("Name");
 

@@ -8,9 +8,9 @@ namespace POS.Application.Tests.BarcodeLabels;
 public sealed class BarcodeGenerationUseCaseTests
 {
     [Theory]
-    [InlineData("123456789012", BarcodeSymbology.Ean13)]   // exactly 12 digits → EAN-13
-    [InlineData("12345678901A", BarcodeSymbology.Code128)] // 12 chars but not all digits
-    [InlineData("1234567890123", BarcodeSymbology.Code128)] // 13 digits
+    [InlineData("4006381333931", BarcodeSymbology.Ean13)] // valid EAN-13 check digit
+    [InlineData("123456789012", BarcodeSymbology.Code128)] // 12 digits are Code 128
+    [InlineData("1234567890123", BarcodeSymbology.Code128)] // invalid EAN-13 is not EAN-13
     [InlineData("PROD-001", BarcodeSymbology.Code128)]     // product code
     [InlineData("", BarcodeSymbology.Code128)]             // empty treated as Code128 by resolver
     public void ResolveSymbology_MatchesRule(string value, BarcodeSymbology expected)
@@ -30,6 +30,7 @@ public sealed class BarcodeGenerationUseCaseTests
         Assert.NotNull(result.PngBytes);
         Assert.Equal(BarcodeSymbology.Code128, result.Symbology);
         Assert.Equal("PRODUCT-42", service.LastValue);
+        Assert.Equal(BarcodeSymbology.Code128, service.LastSymbology);
     }
 
     [Fact]
@@ -42,14 +43,15 @@ public sealed class BarcodeGenerationUseCaseTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_With12Digits_UsesEan13Symbology()
+    public async Task ExecuteAsync_WithValidEan13_UsesEan13Symbology()
     {
         var service = new StubBarcodeService();
         var useCase = new GenerateBarcodeUseCase(service);
 
-        var result = await useCase.ExecuteAsync("123456789012", TestContext.Current.CancellationToken);
+        var result = await useCase.ExecuteAsync("4006381333931", TestContext.Current.CancellationToken);
 
         Assert.Equal(BarcodeSymbology.Ean13, result.Symbology);
+        Assert.Equal(BarcodeSymbology.Ean13, service.LastSymbology);
     }
 
     // --- Stub ---
@@ -57,10 +59,12 @@ public sealed class BarcodeGenerationUseCaseTests
     private sealed class StubBarcodeService : IBarcodeGenerationService
     {
         public string? LastValue { get; private set; }
+        public BarcodeSymbology? LastSymbology { get; private set; }
 
         public Task<byte[]> GenerateAsync(string value, BarcodeSymbology symbology, CancellationToken ct = default)
         {
             LastValue = value;
+            LastSymbology = symbology;
             return Task.FromResult(new byte[] { 0xFF });
         }
 

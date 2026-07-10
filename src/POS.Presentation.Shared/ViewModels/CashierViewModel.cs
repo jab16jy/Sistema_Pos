@@ -567,26 +567,21 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
-        CashierProductSearchResultViewModel? exactBarcodeMatch = SearchResults.FirstOrDefault(result =>
+        CancelAutocompleteSearch();
+        IReadOnlyList<ProductLookupResult> results = await _productLookupService
+            .SearchAsync(normalized, cancellationToken)
+            .ConfigureAwait(true);
+        ProductLookupResult? exactMatch = results.FirstOrDefault(result =>
             !string.IsNullOrWhiteSpace(result.Barcode) &&
             string.Equals(result.Barcode, normalized, StringComparison.OrdinalIgnoreCase));
 
-        if (exactBarcodeMatch is null && SearchResults.Count == 0)
+        if (exactMatch is null)
         {
-            await SearchAsync(cancellationToken).ConfigureAwait(true);
-            exactBarcodeMatch = SearchResults.FirstOrDefault(result =>
-                !string.IsNullOrWhiteSpace(result.Barcode) &&
-                string.Equals(result.Barcode, normalized, StringComparison.OrdinalIgnoreCase));
-        }
-
-        // Enter adds the exact scan match or, failing that, the highlighted suggestion
-        CashierProductSearchResultViewModel? productToAdd = exactBarcodeMatch ?? SelectedProduct;
-        if (productToAdd is null)
-        {
+            Message = $"No encontramos un producto activo para el código '{normalized}'. Revisa el código e intenta de nuevo.";
             return;
         }
 
-        AddProductAndResetSearch(productToAdd);
+        AddProductAndResetSearch(new CashierProductSearchResultViewModel(exactMatch));
     }
 
     /// <summary>Adds <paramref name="product"/> to the cart and clears the search box on success (Enter, double click).</summary>

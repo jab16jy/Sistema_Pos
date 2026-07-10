@@ -183,6 +183,21 @@ public sealed class Product
         SetBoxPresentation(unitsPerBox, boxPrice);
     }
 
+    public void AssignBarcode(Barcode barcode)
+    {
+        if (!IsActive)
+        {
+            throw new InvalidOperationException("Cannot assign a barcode to an inactive product.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(Barcode))
+        {
+            throw new InvalidOperationException("Product already has a barcode.");
+        }
+
+        Barcode = barcode.Value;
+    }
+
     /// <summary>
     /// Sets (or clears) the box presentation. Both values go together: a box needs a
     /// unit count (at least 2) and its own price. Passing neither clears box selling.

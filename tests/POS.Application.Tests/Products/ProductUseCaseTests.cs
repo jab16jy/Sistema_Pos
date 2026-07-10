@@ -99,6 +99,21 @@ public sealed class ProductUseCaseTests
     }
 
     [Fact]
+    public async Task AssignInternalBarcodeAsync_PersistsAUniqueCode128Value()
+    {
+        var product = CreateProduct("Rice", null);
+        var products = new InMemoryProductRepository(product);
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = new AssignInternalBarcodeUseCase(products, unitOfWork);
+
+        string barcode = await useCase.ExecuteAsync(product.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal($"INT-{product.Id:N}", barcode);
+        Assert.Equal(barcode, product.Barcode);
+        Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
+    [Fact]
     public async Task DeleteProductAsync_DeactivatesProductAndSaves()
     {
         var product = CreateProduct("Rice", "A100");

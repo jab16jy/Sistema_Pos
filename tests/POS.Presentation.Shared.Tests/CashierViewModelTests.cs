@@ -445,36 +445,33 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
-    public async Task HandleScannerInputAsync_WithNameQuery_AddsHighlightedSuggestionAndClearsSearch()
+    public async Task HandleScannerInputAsync_WithMissingCode_ShowsMessageAndLeavesCartUnchanged()
     {
         var viewModel = new CashierViewModel(new PrototypeProductLookupService())
         {
-            SearchText = "arroz"
+            SearchText = "MISSING-001"
         };
 
         await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
 
-        CashierCartItemViewModel item = Assert.Single(viewModel.CartItems);
-        Assert.Equal("Arroz 500g", item.ProductName);
-        Assert.Equal(string.Empty, viewModel.SearchText);
-        Assert.Empty(viewModel.SearchResults);
+        Assert.Empty(viewModel.CartItems);
+        Assert.Equal("MISSING-001", viewModel.SearchText);
+        Assert.Contains("No encontramos un producto activo", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task HandleScannerInputAsync_AfterKeyboardSelection_AddsSelectedProductWithoutRerunningSearch()
+    public async Task HandleScannerInputAsync_WithExactBarcode_UsesFreshLookupAndAddsOnlyTheExactProduct()
     {
         var first = new ProductLookupResult(Guid.NewGuid(), "Arroz 500g", "ARR-1", 5_000m, 10m);
         var second = new ProductLookupResult(Guid.NewGuid(), "Azúcar 500g", "AZU-1", 4_000m, 10m);
         var viewModel = new CashierViewModel(new MultiProductLookupService(first, second))
         {
-            SearchText = "a"
+            SearchText = "AZU-1"
         };
-        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
-
-        viewModel.MoveSelection(1);
         await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal("Azúcar 500g", Assert.Single(viewModel.CartItems).ProductName);
+        Assert.Equal(string.Empty, viewModel.SearchText);
     }
 
     [Fact]

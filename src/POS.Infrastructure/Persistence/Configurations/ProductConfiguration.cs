@@ -60,6 +60,8 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                .OnDelete(DeleteBehavior.SetNull);
         builder.HasIndex(p => p.SourceCode).IsUnique();
         builder.HasIndex(p => p.Name);
-        builder.HasIndex(p => p.Barcode);
+        builder.HasIndex(p => p.Barcode)
+               .IsUnique()
+               .HasFilter("\"Barcode\" IS NOT NULL");
     }
 }
