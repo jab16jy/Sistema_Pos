@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.4.0...v1.4.1) (2026-07-11)
+
+
+### Bug Fixes
+
+* **cashier:** keep cart item removal visible ([af02100](https://github.com/jab16jy/Sistema_Pos/commit/af021008a5792913eea7ac30342b4403cb9e2cef))
+* **quotes:** repair history layout and gate sale conversion by status ([04b977f](https://github.com/jab16jy/Sistema_Pos/commit/04b977f7cc481e8c99fc057786705ef4fc396a41))
+
 ## [1.4.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.3.0...v1.4.0) (2026-07-10)
 
 
