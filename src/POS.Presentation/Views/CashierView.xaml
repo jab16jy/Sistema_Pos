@@ -511,6 +511,11 @@
                            MaxHeight="160"
                            Margin="0,8,0,0"
                            BorderThickness="0">
+                    <ListBox.ItemContainerStyle>
+                      <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                        <EventSetter Event="PreviewMouseLeftButtonUp" Handler="CustomerResultItem_OnClick" />
+                      </Style>
+                    </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                       <DataTemplate>
                         <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,8">

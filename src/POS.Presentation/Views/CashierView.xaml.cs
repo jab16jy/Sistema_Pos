@@ -2,6 +2,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using POS.Application.DTOs.Customers;
 using POS.Presentation.Shared.ViewModels;
 
 namespace POS.Presentation.Views;
@@ -112,6 +113,19 @@ public partial class CashierView : UserControl
         else
         {
             await viewModel.ConfirmCustomerSelectionAsync();
+        }
+    }
+
+    private async void CustomerResultItem_OnClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not CashierViewModel viewModel)
+        {
+            return;
+        }
+
+        if (sender is FrameworkElement { DataContext: CustomerSearchResult customer })
+        {
+            await viewModel.SelectCustomerAsync(customer);
         }
     }
 
