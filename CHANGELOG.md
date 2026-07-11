@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.4.1...v1.4.2) (2026-07-11)
+
+
+### Bug Fixes
+
+* **cashier:** assign customer on single click in search results ([5b690c6](https://github.com/jab16jy/Sistema_Pos/commit/5b690c6d1d034df4944d62ee6906ae3049c2a274))
+
 ## [1.4.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.4.0...v1.4.1) (2026-07-11)
 
 
