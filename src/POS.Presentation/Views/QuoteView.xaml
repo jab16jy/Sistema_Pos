@@ -346,6 +346,7 @@
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
@@ -402,6 +403,7 @@
                        Content="Realizar venta"
                        Command="{Binding ConvertToSaleCommand}"
                        CommandParameter="{Binding SelectedQuote}"
+                       IsEnabled="{Binding SelectedQuote.CanConvertToSale}"
                        Style="{StaticResource PrimaryButton}" />
              </Grid>
            </Border>
@@ -410,7 +412,14 @@
              <ListBox ItemsSource="{Binding Quotes}"
                       SelectedItem="{Binding SelectedQuote, Mode=TwoWay}"
                       BorderThickness="0"
-                      Background="Transparent">
+                      Background="Transparent"
+                      HorizontalContentAlignment="Stretch">
+               <ListBox.ItemContainerStyle>
+                 <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+                   <Setter Property="Padding" Value="0" />
+                   <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                 </Style>
+               </ListBox.ItemContainerStyle>
                <ListBox.ItemTemplate>
                 <DataTemplate>
                   <Border Padding="0,6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
