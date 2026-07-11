@@ -369,7 +369,7 @@
 
           <Grid Grid.Row="1" Background="{StaticResource BrushSurfaceContainer}">
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="100" />
+              <ColumnDefinition Width="170" />
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="120" />
               <ColumnDefinition Width="100" />
@@ -425,7 +425,7 @@
                   <Border Padding="0,6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
                     <Grid>
                       <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition Width="170" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="120" />
                         <ColumnDefinition Width="100" />
