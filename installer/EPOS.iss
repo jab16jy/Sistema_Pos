@@ -1,7 +1,7 @@
-; Inno Setup script for EPOS (Sistema POS) — builds EPOS-setup.exe
-; ponytail: single-file self-contained publish + Inno Setup, no MSI/WiX — smallest path to a real Windows installer.
+; Inno Setup script for EPOS (Sistema POS) — builds EPOS-setup.exe.
+; The release process publishes a fresh, self-contained single-file executable to build_output.
 #define MyAppName "EPOS"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "EPOS"
 #define MyAppExeName "EPOS.exe"
 
@@ -29,7 +29,7 @@ Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
 Name: "desktopicon"; Description: "Crear un acceso directo en el escritorio"; GroupDescription: "Accesos directos:"
 
 [Files]
-Source: "..\publish\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\build_output\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
