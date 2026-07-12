@@ -25,7 +25,8 @@ public sealed class ReportsViewModelTests
             ReceivableSettlementCash: 20_000m,
             ReceivableSettlementDigital: 0m,
             ReceivableSettlementTotal: 20_000m,
-            ExpectedDrawerCash: 70_000m);
+            ExpectedDrawerCash: 70_000m,
+            ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 
         var stub = new StubGetOperationalReportUseCase(stubReport);
         var vm = new ReportsViewModel(stub);
@@ -56,7 +57,8 @@ public sealed class ReportsViewModelTests
             ReceivableSettlementCash: 20_000m,
             ReceivableSettlementDigital: 0m,
             ReceivableSettlementTotal: 20_000m,
-            ExpectedDrawerCash: 70_000m);
+            ExpectedDrawerCash: 70_000m,
+            ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 
         var vm = new ReportsViewModel(
             new StubGetOperationalReportUseCase(stubReport),
@@ -106,7 +108,7 @@ public sealed class ReportsViewModelTests
         // IsLoading is not reliably observable from synchronous code due to async nature;
         // we assert that after completion, IsLoading is false
         tcs.SetResult(new OperationalReportResult(true, new OperationalReportDto(
-            100m, 100m, 0m, 0m, 0m, 0m, 100m), null));
+            100m, 100m, 0m, 0m, 0m, 0m, 100m, Array.Empty<OperationalReportChartPointDto>()), null));
         await loadTask;
 
         Assert.False(vm.IsLoading);
@@ -122,7 +124,8 @@ public sealed class ReportsViewModelTests
             ReceivableSettlementCash: 0m,
             ReceivableSettlementDigital: 0m,
             ReceivableSettlementTotal: 0m,
-            ExpectedDrawerCash: 0m);
+            ExpectedDrawerCash: 0m,
+            ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 
         var stub = new StubGetOperationalReportUseCase(stubReport);
         var vm = new ReportsViewModel(stub);
@@ -242,7 +245,8 @@ public sealed class ReportsViewModelTests
             ReceivableSettlementCash: 0m,
             ReceivableSettlementDigital: 0m,
             ReceivableSettlementTotal: 0m,
-            ExpectedDrawerCash: 60_000m);
+            ExpectedDrawerCash: 60_000m,
+            ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 
         var vm = new ReportsViewModel(new StubGetOperationalReportUseCase(stubReport));
 
@@ -264,7 +268,8 @@ public sealed class ReportsViewModelTests
             ReceivableSettlementCash: 10_000m,
             ReceivableSettlementDigital: 0m,
             ReceivableSettlementTotal: 10_000m,
-            ExpectedDrawerCash: 70_000m);
+            ExpectedDrawerCash: 70_000m,
+            ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 
         var vm = new ReportsViewModel(new StubGetOperationalReportUseCase(stubReport));
 
@@ -286,7 +291,8 @@ public sealed class ReportsViewModelTests
             ReceivableSettlementCash: 0m,
             ReceivableSettlementDigital: 0m,
             ReceivableSettlementTotal: 0m,
-            ExpectedDrawerCash: 75_000m);
+            ExpectedDrawerCash: 75_000m,
+            ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 
         var vm = new ReportsViewModel(new StubGetOperationalReportUseCase(stubReport));
 
@@ -311,7 +317,8 @@ public sealed class ReportsViewModelTests
             ReceivableSettlementCash: 0m,
             ReceivableSettlementDigital: 0m,
             ReceivableSettlementTotal: 0m,
-            ExpectedDrawerCash: 0m);
+            ExpectedDrawerCash: 0m,
+            ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 
         var vm = new ReportsViewModel(new StubGetOperationalReportUseCase(stubReport));
 
@@ -588,7 +595,8 @@ public sealed class ReportsViewModelTests
         ReceivableSettlementCash: 20_000m,
         ReceivableSettlementDigital: 0m,
         ReceivableSettlementTotal: 20_000m,
-        ExpectedDrawerCash: 70_000m);
+        ExpectedDrawerCash: 70_000m,
+        ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 
     // ─────────────────────────────────────────────────────
     // Stubs

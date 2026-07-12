@@ -1,4 +1,11 @@
+using System.Collections.Generic;
+
 namespace POS.Application.DTOs.Reporting;
+
+public sealed record OperationalReportChartPointDto(
+    string Label,
+    decimal Value,
+    string ToolTip);
 
 /// <summary>
 /// Read model returned by GetOperationalReportUseCase.
@@ -11,4 +18,5 @@ public sealed record OperationalReportDto(
     decimal ReceivableSettlementCash,
     decimal ReceivableSettlementDigital,
     decimal ReceivableSettlementTotal,
-    decimal ExpectedDrawerCash);
+    decimal ExpectedDrawerCash,
+    IReadOnlyList<OperationalReportChartPointDto> ChartPoints);

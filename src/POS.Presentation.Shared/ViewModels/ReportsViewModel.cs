@@ -88,6 +88,7 @@ public sealed class ReportsViewModel : ViewModelBase
         ProductMargins = [];
         RecentClosings = [];
         PendingShifts = [];
+        SalesChartPoints = [];
 
         LoadReportCommand = new RelayCommand(_ => RunSafe(
             LoadReportAsync(
@@ -422,6 +423,8 @@ public sealed class ReportsViewModel : ViewModelBase
 
     public ObservableCollection<ProductMarginResult> ProductMargins { get; }
 
+    public ObservableCollection<SalesChartPointViewModel> SalesChartPoints { get; }
+
     // ── Cierres y arqueos (13.6, read-only) ──
 
     /// <summary>Recent closed shifts, most recent first (real data via <see cref="GetShiftsUseCase"/>).</summary>
@@ -491,6 +494,29 @@ public sealed class ReportsViewModel : ViewModelBase
             ReportReceivableSettlements = report.ReceivableSettlementTotal;
             ReportExpectedDrawerCash = report.ExpectedDrawerCash;
 
+            SalesChartPoints.Clear();
+            if (report.ChartPoints != null && report.ChartPoints.Count > 0)
+            {
+                decimal maxValue = report.ChartPoints.Max(p => p.Value);
+                foreach (var point in report.ChartPoints)
+                {
+                    double barHeight = maxValue > 0m ? (double)(point.Value / maxValue) * 100 : 0;
+                    if (point.Value > 0m && barHeight < 4)
+                    {
+                        barHeight = 4;
+                    }
+
+                    SalesChartPoints.Add(new SalesChartPointViewModel
+                    {
+                        Label = point.Label,
+                        Value = point.Value,
+                        BarHeight = barHeight,
+                        ToolTipText = point.ToolTip,
+                        IsMax = maxValue > 0m && point.Value == maxValue
+                    });
+                }
+            }
+
             _lastOperationalReport = report;
             _lastOperationalFrom = from;
             _lastOperationalTo = to;
@@ -542,6 +568,7 @@ public sealed class ReportsViewModel : ViewModelBase
         ReportDigitalCollected = 0m;
         ReportReceivableSettlements = 0m;
         ReportExpectedDrawerCash = 0m;
+        SalesChartPoints.Clear();
         _lastOperationalReport = null;
         OnPropertyChanged(nameof(HasOperationalTotalsForClosing));
     }
@@ -749,3 +776,12 @@ public sealed class ReportsViewModel : ViewModelBase
 
 /// <summary>Presentation row for the Top-10 best-selling products list (13.5).</summary>
 public sealed record TopSellerRow(int Rank, string ProductName, int UnitsSold, decimal TotalRevenue, double BarPercent);
+
+public sealed class SalesChartPointViewModel
+{
+    public string Label { get; set; } = string.Empty;
+    public decimal Value { get; set; }
+    public double BarHeight { get; set; }
+    public string ToolTipText { get; set; } = string.Empty;
+    public bool IsMax { get; set; }
+}

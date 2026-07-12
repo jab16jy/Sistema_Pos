@@ -94,5 +94,6 @@ public sealed class ReportExportServiceTests
         ReceivableSettlementCash: 100_000m,
         ReceivableSettlementDigital: 50_000m,
         ReceivableSettlementTotal: 150_000m,
-        ExpectedDrawerCash: 1_000_000m);
+        ExpectedDrawerCash: 1_000_000m,
+        ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 }

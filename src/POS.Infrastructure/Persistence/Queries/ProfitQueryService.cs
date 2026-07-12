@@ -89,7 +89,22 @@ public sealed class ProfitQueryService : IProfitQueryService
             .ConfigureAwait(false);
 
         return payments
-            .GroupBy(p => p.BankOrPlatform ?? "Unknown")
+            .GroupBy(p => 
+            {
+                if (!string.IsNullOrWhiteSpace(p.BankOrPlatform))
+                {
+                    return p.BankOrPlatform;
+                }
+                return p.Method switch
+                {
+                    PaymentMethod.Cash => "Efectivo",
+                    PaymentMethod.DebitCard => "Tarjeta Débito",
+                    PaymentMethod.CreditCard => "Tarjeta Crédito",
+                    PaymentMethod.Transfer => "Transferencia",
+                    PaymentMethod.LoyaltyPoints => "Puntos",
+                    _ => "Otro"
+                };
+            })
             .Select(g => new PlatformBreakdownResult(g.Key, g.Sum(p => p.Amount.Amount), g.Count()))
             .OrderByDescending(r => r.TotalAmount)
             .ToList();

@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.DTOs.Reporting;
 using POS.Application.Interfaces;
@@ -73,6 +76,79 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
         decimal receivableSettlementDigital = 0m;
         decimal expectedDrawerCash = saleCashCollected + receivableSettlementCash;
 
+        // Generate chart points based on the date range
+        var chartPoints = new List<OperationalReportChartPointDto>();
+        double totalDays = (request.To - request.From).TotalDays;
+
+        if (totalDays <= 1.5)
+        {
+            // Group by hour
+            var start = request.From;
+            var end = request.To;
+            var current = new DateTimeOffset(start.Year, start.Month, start.Day, start.Hour, 0, 0, start.Offset);
+            while (current <= end)
+            {
+                var next = current.AddHours(1);
+                var salesInBucket = filteredSales.Where(s => s.CreatedAt >= current && s.CreatedAt < next).ToList();
+                decimal amount = salesInBucket.Sum(s => s.Items.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount));
+                string label = current.ToString("HH:00");
+                string toolTip = $"{label}: ${amount:N0} ({salesInBucket.Count} trans.)";
+                chartPoints.Add(new OperationalReportChartPointDto(label, amount, toolTip));
+                current = next;
+            }
+        }
+        else if (totalDays <= 31)
+        {
+            // Group by day
+            var start = request.From.Date;
+            var end = request.To.Date;
+            var current = new DateTimeOffset(start, TimeSpan.Zero);
+            var limit = new DateTimeOffset(end, TimeSpan.Zero).AddDays(1);
+            while (current < limit)
+            {
+                var next = current.AddDays(1);
+                var salesInBucket = filteredSales.Where(s => s.CreatedAt >= current && s.CreatedAt < next).ToList();
+                decimal amount = salesInBucket.Sum(s => s.Items.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount));
+                string label = current.ToString("dd/MM");
+                string toolTip = $"{current:dd/MM/yyyy}: ${amount:N0} ({salesInBucket.Count} trans.)";
+                chartPoints.Add(new OperationalReportChartPointDto(label, amount, toolTip));
+                current = next;
+            }
+        }
+        else if (totalDays <= 90)
+        {
+            // Group by week
+            var current = request.From;
+            int weekNum = 1;
+            while (current <= request.To)
+            {
+                var next = current.AddDays(7);
+                var salesInBucket = filteredSales.Where(s => s.CreatedAt >= current && s.CreatedAt < next).ToList();
+                decimal amount = salesInBucket.Sum(s => s.Items.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount));
+                string label = $"Sem {weekNum}";
+                string toolTip = $"{current:dd/MM} - {next.AddDays(-1):dd/MM}: ${amount:N0} ({salesInBucket.Count} trans.)";
+                chartPoints.Add(new OperationalReportChartPointDto(label, amount, toolTip));
+                current = next;
+                weekNum++;
+            }
+        }
+        else
+        {
+            // Group by month
+            var start = new DateTimeOffset(request.From.Year, request.From.Month, 1, 0, 0, 0, request.From.Offset);
+            var current = start;
+            while (current <= request.To)
+            {
+                var next = current.AddMonths(1);
+                var salesInBucket = filteredSales.Where(s => s.CreatedAt >= current && s.CreatedAt < next).ToList();
+                decimal amount = salesInBucket.Sum(s => s.Items.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount));
+                string label = current.ToString("MMM-yy");
+                string toolTip = $"{current:MMMM yyyy}: ${amount:N0} ({salesInBucket.Count} trans.)";
+                chartPoints.Add(new OperationalReportChartPointDto(label, amount, toolTip));
+                current = next;
+            }
+        }
+
         return new OperationalReportDto(
             BilledSalesTotal: billedSalesTotal,
             SaleCashCollected: saleCashCollected,
@@ -80,6 +156,7 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
             ReceivableSettlementCash: receivableSettlementCash,
             ReceivableSettlementDigital: receivableSettlementDigital,
             ReceivableSettlementTotal: receivableSettlementTotal,
-            ExpectedDrawerCash: expectedDrawerCash);
+            ExpectedDrawerCash: expectedDrawerCash,
+            ChartPoints: chartPoints);
     }
 }
