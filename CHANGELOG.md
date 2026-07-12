@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.5.1...v1.6.0) (2026-07-12)
+
+
+### Features
+
+* **ventas:** auditar presentaciones unidad y caja ([632f705](https://github.com/jab16jy/Sistema_Pos/commit/632f705b79adbb8b52045f2e4a797dd12217e0f3))
+
+
+### Bug Fixes
+
+* **caja:** usar binding OneWay en toggle de presentacion unidad/caja ([fbfecb8](https://github.com/jab16jy/Sistema_Pos/commit/fbfecb8ff06a9615af271bba1bdbbb1338a07eb3))
+
 ## [1.5.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.5.0...v1.5.1) (2026-07-12)
 
 
