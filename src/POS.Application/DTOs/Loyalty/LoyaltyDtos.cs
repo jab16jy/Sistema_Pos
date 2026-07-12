@@ -6,7 +6,9 @@ public sealed record LoyaltyBalanceResult(
     Guid LoyaltyAccountId,
     int Balance,
     bool IsActive,
-    IReadOnlyList<LoyaltyTransactionResult> RecentTransactions);
+    IReadOnlyList<LoyaltyTransactionResult> RecentTransactions,
+    decimal RedemptionValuePerPoint = 0m,
+    int MinimumRedeemPoints = 0);
 
 /// <summary>Summary of a single loyalty point event.</summary>
 public sealed record LoyaltyTransactionResult(

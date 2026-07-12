@@ -26,6 +26,7 @@ public sealed class GetLoyaltyBalanceUseCase
 
         var balance = await _loyalty.GetBalanceAsync(account.Id, cancellationToken).ConfigureAwait(false);
         var transactions = await _loyalty.GetTransactionsAsync(account.Id, recentTransactionCount, cancellationToken).ConfigureAwait(false);
+        var activeRule = await _loyalty.GetActiveRuleAsync(cancellationToken).ConfigureAwait(false);
 
         var transactionResults = transactions
             .Select(t => new LoyaltyTransactionResult(
@@ -38,6 +39,13 @@ public sealed class GetLoyaltyBalanceUseCase
             .ToList()
             .AsReadOnly();
 
-        return new LoyaltyBalanceResult(customerId, account.Id, balance, account.IsActive, transactionResults);
+        return new LoyaltyBalanceResult(
+            customerId,
+            account.Id,
+            balance,
+            account.IsActive,
+            transactionResults,
+            activeRule?.RedemptionValuePerPoint ?? 0m,
+            activeRule?.MinimumRedeemPoints ?? 0);
     }
 }

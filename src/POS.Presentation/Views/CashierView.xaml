@@ -455,6 +455,13 @@
                 <StackPanel>
                   <TextBlock Text="Cliente para puntos" Style="{StaticResource CashHint}" FontWeight="Medium" />
                   <TextBlock Text="{Binding AssignedCustomerLabel}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,2,0,0" />
+                  <TextBlock Text="{Binding CustomerLoyaltyInfo}"
+                             Style="{StaticResource CashHint}"
+                             Foreground="{StaticResource BrushPrimary}"
+                             FontWeight="Medium"
+                             TextWrapping="Wrap"
+                             Margin="0,4,0,0"
+                             Visibility="{Binding HasCustomerLoyaltyInfo, Converter={StaticResource BoolToVisibilityConverter}}" />
                   <TextBlock Text="Antes de facturar puedes asignar cliente o continuar sin cliente."
                              Style="{StaticResource CashHint}"
                              TextWrapping="Wrap"

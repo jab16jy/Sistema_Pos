@@ -16,9 +16,9 @@ public partial class ProductsView
 
     private void AssignmentGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (AssignmentGrid != null && AssignmentGrid.SelectedItems.Count <= 1 && GroupPopup != null)
+        if (AssignmentGrid != null && GroupSelectedBtn != null)
         {
-            GroupPopup.IsOpen = false;
+            GroupSelectedBtn.IsEnabled = AssignmentGrid.SelectedItems.Count > 1;
         }
     }
 
@@ -40,14 +40,6 @@ public partial class ProductsView
         }
     }
 
-    private void AssignmentGrid_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (AssignmentGrid != null && AssignmentGrid.SelectedItems.Count > 1 && GroupPopup != null)
-        {
-            GroupPopup.IsOpen = true;
-        }
-    }
-
     private void GroupSelectedPopup_Click(object sender, RoutedEventArgs e)
     {
         if (AssignmentGrid != null)
@@ -57,10 +49,6 @@ public partial class ProductsView
             {
                 item.IsSelected = true;
             }
-        }
-        if (GroupPopup != null)
-        {
-            GroupPopup.IsOpen = false;
         }
     }
 

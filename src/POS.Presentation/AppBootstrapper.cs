@@ -56,7 +56,8 @@ internal static class AppBootstrapper
                 TryResolveOptional<SearchCustomersUseCase>(sp),
                 TryResolveOptional<GetCustomerPayableQuotesUseCase>(sp),
                 TryResolveOptional<ConvertQuoteToSaleUseCase>(sp),
-                sp.GetRequiredService<FindProductByBarcodeUseCase>()),
+                sp.GetRequiredService<FindProductByBarcodeUseCase>(),
+                TryResolveOptional<GetLoyaltyBalanceUseCase>(sp)),
             () => new CashierViewModel(productLookup),
             moduleWarnings);
 

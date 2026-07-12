@@ -651,8 +651,7 @@
           <DataGrid x:Name="AssignmentGrid" Grid.Row="2" ItemsSource="{Binding AssignmentProducts}" IsReadOnly="False"
                     AutoGenerateColumns="False" MinHeight="120"
                     SelectionChanged="AssignmentGrid_SelectionChanged"
-                    PreviewKeyDown="AssignmentGrid_PreviewKeyDown"
-                    MouseLeftButtonUp="AssignmentGrid_MouseLeftButtonUp">
+                    PreviewKeyDown="AssignmentGrid_PreviewKeyDown">
             <DataGrid.ContextMenu>
               <ContextMenu>
                 <MenuItem Header="Agrupar seleccionados" Click="GroupSelectedPopup_Click">
@@ -674,27 +673,23 @@
             </DataGrid.Columns>
           </DataGrid>
 
-          <Popup x:Name="GroupPopup" Placement="MousePoint" StaysOpen="False">
-            <Border Background="{StaticResource BrushCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6">
-              <Button Click="GroupSelectedPopup_Click" Style="{StaticResource PrimaryButton}">
-                <StackPanel Orientation="Horizontal">
-                  <materialDesign:PackIcon Kind="FolderMultiple" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,4,0" />
-                  <TextBlock Text="Agrupar seleccionados" VerticalAlignment="Center" />
-                </StackPanel>
-              </Button>
-            </Border>
-          </Popup>
-
           <Grid Grid.Row="3" Margin="0,12,0,0">
             <TextBlock Text="{Binding SelectedProductCount, StringFormat=Seleccionados: {0}}"
                        Style="{StaticResource MutedText}" VerticalAlignment="Center" />
-            <Button Command="{Binding AssignProductsCommand}" Style="{StaticResource PrimaryButton}"
-                    HorizontalAlignment="Right">
-              <StackPanel Orientation="Horizontal">
-                <materialDesign:PackIcon Kind="FolderMove" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
-                <TextBlock Text="Asignar categoría" />
-              </StackPanel>
-            </Button>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+              <Button x:Name="GroupSelectedBtn" Click="GroupSelectedPopup_Click" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0" IsEnabled="False">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="FolderMultiple" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                  <TextBlock Text="Agrupar seleccionados" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding AssignProductsCommand}" Style="{StaticResource PrimaryButton}">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="FolderMove" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                  <TextBlock Text="Asignar categoría" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
           </Grid>
         </Grid>
       </Border>

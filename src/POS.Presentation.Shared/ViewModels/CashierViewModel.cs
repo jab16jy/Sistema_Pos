@@ -35,6 +35,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly SearchCustomersUseCase? _searchCustomersUseCase;
     private readonly GetCustomerPayableQuotesUseCase? _getCustomerPayableQuotesUseCase;
     private readonly ConvertQuoteToSaleUseCase? _convertQuoteToSaleUseCase;
+    private readonly GetLoyaltyBalanceUseCase? _getLoyaltyBalanceUseCase;
     private readonly RelayCommand _printReceiptYesCommand;
     private readonly RelayCommand _printReceiptNoCommand;
     private Guid? _pendingPrintSaleId;
@@ -79,6 +80,8 @@ public sealed class CashierViewModel : ViewModelBase
     private bool _customerAssignmentReviewed;
     private CustomerPayableQuote? _selectedCustomerQuote;
     private CustomerPayableQuote? _loadedQuote;
+    private int? _customerLoyaltyBalance;
+    private decimal _customerMaxDiscount;
 
     public CashierViewModel(IProductLookupService productLookupService)
         : this(productLookupService, new PreviewPaymentUseCase())
@@ -121,7 +124,8 @@ public sealed class CashierViewModel : ViewModelBase
         SearchCustomersUseCase? searchCustomersUseCase = null,
         GetCustomerPayableQuotesUseCase? getCustomerPayableQuotesUseCase = null,
         ConvertQuoteToSaleUseCase? convertQuoteToSaleUseCase = null,
-        FindProductByBarcodeUseCase? findProductByBarcodeUseCase = null)
+        FindProductByBarcodeUseCase? findProductByBarcodeUseCase = null,
+        GetLoyaltyBalanceUseCase? getLoyaltyBalanceUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _findProductByBarcodeUseCase = findProductByBarcodeUseCase ?? new FindProductByBarcodeUseCase(_productLookupService);
@@ -132,6 +136,7 @@ public sealed class CashierViewModel : ViewModelBase
         _searchCustomersUseCase = searchCustomersUseCase;
         _getCustomerPayableQuotesUseCase = getCustomerPayableQuotesUseCase;
         _convertQuoteToSaleUseCase = convertQuoteToSaleUseCase;
+        _getLoyaltyBalanceUseCase = getLoyaltyBalanceUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -285,6 +290,53 @@ public sealed class CashierViewModel : ViewModelBase
     public string AssignedCustomerLabel => SelectedCustomer is not null
         ? $"{SelectedCustomer.FullName} · ID {SelectedCustomer.Identification}"
         : CustomerId.HasValue ? "Cliente asignado" : "Sin cliente asignado";
+
+    /// <summary>Current loyalty point balance for the assigned customer, or null if unavailable.</summary>
+    public int? CustomerLoyaltyBalance
+    {
+        get => _customerLoyaltyBalance;
+        private set
+        {
+            if (SetProperty(ref _customerLoyaltyBalance, value))
+            {
+                OnPropertyChanged(nameof(CustomerLoyaltyInfo));
+                OnPropertyChanged(nameof(HasCustomerLoyaltyInfo));
+            }
+        }
+    }
+
+    /// <summary>Maximum COP discount the assigned customer can get from their points.</summary>
+    public decimal CustomerMaxDiscount
+    {
+        get => _customerMaxDiscount;
+        private set
+        {
+            if (SetProperty(ref _customerMaxDiscount, value))
+            {
+                OnPropertyChanged(nameof(CustomerLoyaltyInfo));
+            }
+        }
+    }
+
+    /// <summary>True when the assigned customer has loyalty info to display.</summary>
+    public bool HasCustomerLoyaltyInfo => _customerLoyaltyBalance.HasValue;
+
+    /// <summary>Human-readable summary of the assigned customer's loyalty points and their money value.</summary>
+    public string CustomerLoyaltyInfo
+    {
+        get
+        {
+            if (_customerLoyaltyBalance is not { } balance)
+            {
+                return string.Empty;
+            }
+
+            string pointsLabel = balance == 1 ? "1 punto" : $"{balance} puntos";
+            return _customerMaxDiscount > 0m
+                ? $"{pointsLabel} · equivale a {FormatCurrency(_customerMaxDiscount)} de descuento"
+                : $"{pointsLabel} · sin regla de canje activa";
+        }
+    }
 
     public string CustomerSearchText
     {
@@ -978,6 +1030,7 @@ public sealed class CashierViewModel : ViewModelBase
         _customerAssignmentReviewed = true;
         IsCustomerAssignmentOpen = false;
         await LoadCustomerQuotesForSelectedCustomerAsync(cancellationToken).ConfigureAwait(true);
+        await LoadCustomerLoyaltyBalanceAsync(cancellationToken).ConfigureAwait(true);
         Message = HasCustomerQuotes
             ? $"Cliente asignado: {customer.FullName}. Tiene {CustomerQuoteCount} cotización(es) pendiente(s); puedes cargar una en Caja."
             : $"Cliente asignado para puntos: {customer.FullName}.";
@@ -1074,6 +1127,7 @@ public sealed class CashierViewModel : ViewModelBase
         }
 
         ClearCustomerQuoteCandidates();
+        ClearCustomerLoyaltyInfo();
         if (resetReviewedFlag)
         {
             _customerAssignmentReviewed = false;
@@ -1101,6 +1155,43 @@ public sealed class CashierViewModel : ViewModelBase
 
         SelectedCustomerQuote = CustomerQuotes.FirstOrDefault();
         NotifyCustomerQuotesChanged();
+    }
+
+    private async Task LoadCustomerLoyaltyBalanceAsync(CancellationToken cancellationToken)
+    {
+        ClearCustomerLoyaltyInfo();
+
+        if (_getLoyaltyBalanceUseCase is null || CustomerId is not { } customerId)
+        {
+            return;
+        }
+
+        try
+        {
+            LoyaltyBalanceResult? balance = await _getLoyaltyBalanceUseCase
+                .ExecuteAsync(customerId, recentTransactionCount: 0, cancellationToken)
+                .ConfigureAwait(true);
+
+            if (balance is null)
+            {
+                return;
+            }
+
+            CustomerLoyaltyBalance = balance.Balance;
+            CustomerMaxDiscount = balance.RedemptionValuePerPoint > 0m
+                ? balance.Balance * balance.RedemptionValuePerPoint
+                : 0m;
+        }
+        catch (Exception)
+        {
+            // Loyalty balance is supplementary info — never block customer assignment on failure.
+        }
+    }
+
+    private void ClearCustomerLoyaltyInfo()
+    {
+        CustomerLoyaltyBalance = null;
+        CustomerMaxDiscount = 0m;
     }
 
     private async Task LoadCustomerQuoteFromCommandAsync(object? parameter)
