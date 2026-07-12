@@ -239,13 +239,13 @@
 
            <StackPanel Orientation="Horizontal" Margin="2,6,0,0">
              <TextBlock Text="Presentación:" Style="{StaticResource CashHint}" VerticalAlignment="Center" Margin="0,0,8,0" />
-             <RadioButton Content="Unidad"
-                          IsChecked="{Binding IsUnitPresentationSelected}"
-                          Command="{Binding SelectUnitPresentationCommand}"
-                          VerticalAlignment="Center" />
-             <RadioButton Command="{Binding SelectBoxPresentationCommand}"
-                          IsChecked="{Binding IsBoxPresentationSelected}"
-                          IsEnabled="{Binding CanSellSelectedAsBox}"
+              <RadioButton Content="Unidad"
+                           IsChecked="{Binding IsUnitPresentationSelected, Mode=OneWay}"
+                           Command="{Binding SelectUnitPresentationCommand}"
+                           VerticalAlignment="Center" />
+              <RadioButton Command="{Binding SelectBoxPresentationCommand}"
+                           IsChecked="{Binding IsBoxPresentationSelected, Mode=OneWay}"
+                           IsEnabled="{Binding CanSellSelectedAsBox}"
                           VerticalAlignment="Center"
                           Margin="12,0,0,0">
                <StackPanel Orientation="Horizontal">
