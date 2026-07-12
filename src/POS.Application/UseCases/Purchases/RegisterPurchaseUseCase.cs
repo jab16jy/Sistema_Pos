@@ -66,7 +66,7 @@ public class RegisterPurchaseUseCase
 
             await _purchases.AddAsync(purchase, movements, transactionToken).ConfigureAwait(false);
             await _unitOfWork.SaveChangesAsync(transactionToken).ConfigureAwait(false);
-            result = new RegisterPurchaseResult(purchase.Id, supplier.Id, purchase.Total!.Value.Amount, purchase.Items.Count, purchase.VatAmount!.Value.Amount);
+            result = new RegisterPurchaseResult(purchase.Id, supplier.Id, purchase.Total!.Value.Amount, purchase.Items.Count, purchase.VatAmount!.Value.Amount, purchase.InvoiceNumber);
         }, cancellationToken).ConfigureAwait(false);
 
         return result!;

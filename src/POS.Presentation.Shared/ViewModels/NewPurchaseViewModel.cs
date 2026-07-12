@@ -93,7 +93,8 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     private decimal _draftQuantity = 1m;
     private decimal _draftCostOverride;
     private bool _useDraftCostOverride;
-    private string _purchaseInvoiceNumber = string.Empty;
+    private NewPurchaseLineViewModel? _lastAddedLine;
+    private string _lastGeneratedInvoiceNumber = string.Empty;
     private DateTime? _purchaseDate = DateTime.Today;
     private string _paymentMethod = "Contado";
     private string _paymentTerms = string.Empty;
@@ -123,7 +124,10 @@ public sealed class NewPurchaseViewModel : ViewModelBase
         _changeSupplierCommand = new RelayCommand(_ => ChangeSupplier(), _ => SelectedSupplier is not null);
         ChangeSupplierCommand = _changeSupplierCommand;
         _addDraftItemCommand = new RelayCommand(_ => AddSelectedCatalogItem(),
-            _ => SelectedCatalogItem is { IsEligibleForPurchase: true } && DraftQuantity > 0m && (!UseDraftCostOverride || DraftCostOverride > 0m));
+            _ => SelectedCatalogItem is { IsEligibleForPurchase: true } item
+                && !Items.Any(line => line.ProductId == item.ProductId)
+                && DraftQuantity > 0m
+                && (!UseDraftCostOverride || DraftCostOverride > 0m));
         AddDraftItemCommand = _addDraftItemCommand;
         _removeDraftItemCommand = new RelayCommand(parameter =>
         {
@@ -139,6 +143,12 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     public ObservableCollection<SupplierSearchResult> Suppliers { get; } = [];
     public ObservableCollection<SupplierCatalogItemResult> CatalogSuggestions { get; } = [];
     public ObservableCollection<NewPurchaseLineViewModel> Items { get; } = [];
+
+    /// <summary>Last line added to the draft, kept visible so successful selection is not reduced to a status message.</summary>
+    public NewPurchaseLineViewModel? LastAddedLine { get => _lastAddedLine; private set => SetProperty(ref _lastAddedLine, value); }
+
+    /// <summary>System-generated reference for the most recently completed purchase.</summary>
+    public string LastGeneratedInvoiceNumber { get => _lastGeneratedInvoiceNumber; private set => SetProperty(ref _lastGeneratedInvoiceNumber, value); }
 
     public ICommand GoToStepCommand { get; }
     public ICommand ChangeSupplierCommand { get; }
@@ -263,12 +273,14 @@ public sealed class NewPurchaseViewModel : ViewModelBase
         }
 
         decimal confirmedCost = UseDraftCostOverride ? DraftCostOverride : item.PurchaseUnitCost!.Value;
-        Items.Add(new NewPurchaseLineViewModel(item, DraftQuantity, confirmedCost));
+        var line = new NewPurchaseLineViewModel(item, DraftQuantity, confirmedCost);
+        Items.Add(line);
+        LastAddedLine = line;
+        RefreshFlowState();
         DraftQuantity = 1m;
         DraftCostOverride = 0m;
         UseDraftCostOverride = false;
         CatalogSearchText = string.Empty;
-        SelectedCatalogItem = null;
         Message = $"'{item.ProductName}' agregado a la compra.";
         return true;
     }
@@ -287,12 +299,6 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     }
 
     // --- Step 3: review header ---
-
-    public string PurchaseInvoiceNumber
-    {
-        get => _purchaseInvoiceNumber;
-        set { if (SetProperty(ref _purchaseInvoiceNumber, value)) RefreshFlowState(); }
-    }
 
     public DateTime? PurchaseDate
     {
@@ -357,7 +363,6 @@ public sealed class NewPurchaseViewModel : ViewModelBase
             if (Items.Count == 0) return "Agrega al menos un producto del catálogo elegible.";
             if (Items.Any(line => !line.IsValid)) return "Hay líneas con cantidad o costo en cero.";
             if (PurchaseDate is null) return "Selecciona la fecha de la compra.";
-            if (string.IsNullOrWhiteSpace(PurchaseInvoiceNumber)) return "La referencia de factura es obligatoria.";
             if (IsCreditPayment && string.IsNullOrWhiteSpace(PaymentTerms)) return "Indica el plazo para compras a crédito.";
             return null;
         }
@@ -373,7 +378,7 @@ public sealed class NewPurchaseViewModel : ViewModelBase
             SelectedSupplier!.Id,
             operatorId,
             DateOnly.FromDateTime(PurchaseDate!.Value),
-            PurchaseInvoiceNumber.Trim(),
+            null,
             Normalize(PaymentTerms),
             PaymentMethod,
             Normalize(Observations),
@@ -382,13 +387,15 @@ public sealed class NewPurchaseViewModel : ViewModelBase
         RegisterPurchaseResult result = await _registerPurchase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 
         Items.Clear();
-        PurchaseInvoiceNumber = string.Empty;
+        LastGeneratedInvoiceNumber = result.InvoiceNumber ?? string.Empty;
         PurchaseDate = DateTime.Today;
         PaymentMethod = "Contado";
         PaymentTerms = string.Empty;
         Observations = string.Empty;
         CurrentStep = 1;
-        Message = $"Compra registrada. Total: {result.TotalCost:N2}.";
+        Message = string.IsNullOrWhiteSpace(LastGeneratedInvoiceNumber)
+            ? $"Compra registrada. Total: {result.TotalCost:N2}."
+            : $"Compra registrada con referencia {LastGeneratedInvoiceNumber}. Total: {result.TotalCost:N2}.";
     }
 
     // --- Internals ---
@@ -430,6 +437,7 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     private void ResetDraftState()
     {
         Items.Clear();
+        LastAddedLine = null;
         _catalogSearchText = string.Empty;
         OnPropertyChanged(nameof(CatalogSearchText));
         SelectedCatalogItem = null;

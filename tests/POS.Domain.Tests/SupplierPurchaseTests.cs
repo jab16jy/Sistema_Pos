@@ -41,6 +41,18 @@ public sealed class SupplierPurchaseTests
     }
 
     [Fact]
+    public void Purchase_WithoutInvoiceNumber_GeneratesUniqueAuditableReference()
+    {
+        var effectiveDate = new DateOnly(2026, 7, 11);
+        var first = new Purchase(Guid.NewGuid(), Guid.NewGuid(), effectiveDate, null, null, "Cash", null, 0m);
+        var second = new Purchase(Guid.NewGuid(), Guid.NewGuid(), effectiveDate, null, null, "Cash", null, 0m);
+
+        Assert.Matches("^CMP-20260711-[0-9a-f]{32}$", first.InvoiceNumber);
+        Assert.Matches("^CMP-20260711-[0-9a-f]{32}$", second.InvoiceNumber);
+        Assert.NotEqual(first.InvoiceNumber, second.InvoiceNumber);
+    }
+
+    [Fact]
     public void Product_ReceiptCost_UsesWeightedAverageAndDoesNotInventMissingPriorCost()
     {
         Product knownCost = MakeProduct(10m, 100m);

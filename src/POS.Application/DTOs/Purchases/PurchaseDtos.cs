@@ -18,7 +18,7 @@ public sealed record RegisterPurchaseRequest(
         : this(supplierId, userId, DateOnly.FromDateTime(DateTime.Today), null, null, "Contado", null, 19m, items) { }
 }
 
-public sealed record RegisterPurchaseResult(Guid PurchaseId, Guid SupplierId, decimal TotalCost, int ItemCount, decimal VatAmount = 0m);
+public sealed record RegisterPurchaseResult(Guid PurchaseId, Guid SupplierId, decimal TotalCost, int ItemCount, decimal VatAmount = 0m, string? InvoiceNumber = null);
 
 public sealed record SupplierCatalogItemResult(Guid SupplierId, string SupplierName, Guid ProductId, string ProductName, string? ProductReference, string? SupplierSku, string? PurchaseUnitName, decimal? UnitsPerPurchaseUnit, decimal? PurchaseUnitCost, bool IsActive)
 {

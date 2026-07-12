@@ -93,7 +93,7 @@ public sealed class NewPurchaseViewModelTests
     }
 
     [Fact]
-    public async Task AddSelectedCatalogItem_AddsLineWithOverrideAndResetsInputs()
+    public async Task AddSelectedCatalogItem_AddsLineWithOverrideAndKeepsVisibleSelectionFeedback()
     {
         var supplierId = Guid.NewGuid();
         var viewModel = await CreateLoadedViewModel([CatalogItem(supplierId, cost: 12_000m)], supplierId);
@@ -111,7 +111,8 @@ public sealed class NewPurchaseViewModelTests
         Assert.Equal(24m, line.UnitsReceived);
         Assert.Equal(26_000m, line.Subtotal);
         Assert.Equal(string.Empty, viewModel.CatalogSearchText);
-        Assert.Null(viewModel.SelectedCatalogItem);
+        Assert.Equal(viewModel.CatalogSuggestions.Single(), viewModel.SelectedCatalogItem);
+        Assert.Same(line, viewModel.LastAddedLine);
         Assert.Equal(1m, viewModel.DraftQuantity);
         Assert.False(viewModel.UseDraftCostOverride);
     }
@@ -205,17 +206,13 @@ public sealed class NewPurchaseViewModelTests
     }
 
     [Fact]
-    public async Task ConfirmPurchaseCommand_RequiresInvoiceAndCreditTerms()
+    public async Task ConfirmPurchaseCommand_GeneratesInvoiceAndStillRequiresCreditTerms()
     {
         var supplierId = Guid.NewGuid();
         var viewModel = await CreateLoadedViewModel([CatalogItem(supplierId)], supplierId);
         viewModel.SelectedCatalogItem = viewModel.CatalogSuggestions.Single();
         viewModel.AddSelectedCatalogItem();
 
-        Assert.False(viewModel.ConfirmPurchaseCommand.CanExecute(null));
-        Assert.Contains("factura", viewModel.ConfirmBlockReason, StringComparison.OrdinalIgnoreCase);
-
-        viewModel.PurchaseInvoiceNumber = "FAC-9";
         Assert.True(viewModel.ConfirmPurchaseCommand.CanExecute(null));
 
         viewModel.PaymentMethod = "Crédito";
@@ -231,7 +228,7 @@ public sealed class NewPurchaseViewModelTests
     {
         var supplierId = Guid.NewGuid();
         var operatorId = Guid.NewGuid();
-        var purchaseUseCase = new StaticRegisterPurchaseUseCase(new RegisterPurchaseResult(Guid.NewGuid(), supplierId, 26_000m, 1));
+        var purchaseUseCase = new StaticRegisterPurchaseUseCase(new RegisterPurchaseResult(Guid.NewGuid(), supplierId, 26_000m, 1, 4_940m, "CMP-20260711-test"));
         var viewModel = CreateViewModel([ActiveSupplier(supplierId)], [CatalogItem(supplierId, cost: 12_000m)], purchaseUseCase, () => operatorId);
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
         viewModel.SelectedSupplier = viewModel.Suppliers.Single();
@@ -241,7 +238,6 @@ public sealed class NewPurchaseViewModelTests
         viewModel.DraftCostOverride = 13_000m;
         viewModel.AddSelectedCatalogItem();
         viewModel.GoToStepCommand.Execute("3");
-        viewModel.PurchaseInvoiceNumber = "  FAC-3  ";
         viewModel.VatRate = 19m;
 
         await viewModel.ConfirmPurchaseAsync(TestContext.Current.CancellationToken);
@@ -249,20 +245,20 @@ public sealed class NewPurchaseViewModelTests
         Assert.NotNull(purchaseUseCase.LastRequest);
         Assert.Equal(supplierId, purchaseUseCase.LastRequest!.SupplierId);
         Assert.Equal(operatorId, purchaseUseCase.LastRequest.UserId);
-        Assert.Equal("FAC-3", purchaseUseCase.LastRequest.InvoiceNumber);
+        Assert.Null(purchaseUseCase.LastRequest.InvoiceNumber);
         Assert.Equal(19m, purchaseUseCase.LastRequest.VatRate);
         RegisterPurchaseItemRequest item = Assert.Single(purchaseUseCase.LastRequest.Items);
         Assert.Equal(2m, item.Quantity);
         Assert.Equal(13_000m, item.PurchaseUnitCostOverride);
 
         Assert.Empty(viewModel.Items);
-        Assert.Equal(string.Empty, viewModel.PurchaseInvoiceNumber);
+        Assert.Equal("CMP-20260711-test", viewModel.LastGeneratedInvoiceNumber);
         Assert.Equal(1, viewModel.CurrentStep);
-        Assert.Contains("Compra registrada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("CMP-20260711-test", viewModel.Message, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task ConfirmPurchaseAsync_WithoutInvoice_DoesNotCallUseCase()
+    public async Task ConfirmPurchaseAsync_WithoutManualInvoice_CallsUseCase()
     {
         var supplierId = Guid.NewGuid();
         var purchaseUseCase = new StaticRegisterPurchaseUseCase(new RegisterPurchaseResult(Guid.NewGuid(), supplierId, 0m, 0));
@@ -274,8 +270,8 @@ public sealed class NewPurchaseViewModelTests
 
         await viewModel.ConfirmPurchaseAsync(TestContext.Current.CancellationToken);
 
-        Assert.Null(purchaseUseCase.LastRequest);
-        Assert.Contains("factura", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(purchaseUseCase.LastRequest);
+        Assert.Null(purchaseUseCase.LastRequest!.InvoiceNumber);
     }
 
     [Fact]

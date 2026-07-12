@@ -122,6 +122,23 @@ public sealed class SupplierPurchaseUseCaseTests
     }
 
     [Fact]
+    public async Task RegisterPurchase_WithoutInvoice_ReturnsAndPersistsGeneratedReference()
+    {
+        await using var connection = await OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 0m, null, 1m, 100m);
+
+        RegisterPurchaseResult result = await CreateRegisterUseCase(db).ExecuteAsync(
+            new RegisterPurchaseRequest(supplier.Id, Guid.NewGuid(), new DateOnly(2026, 7, 11), null, null, "Cash", null, 0m, [new RegisterPurchaseItemRequest(product.Id, 1m)]),
+            TestContext.Current.CancellationToken);
+
+        Purchase purchase = await db.Purchases.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(purchase.InvoiceNumber, result.InvoiceNumber);
+        Assert.Matches("^CMP-20260711-[0-9a-f]{32}$", result.InvoiceNumber);
+    }
+
+    [Fact]
     public async Task RegisterPurchase_RejectsMissingOrInactiveCatalogWithoutPersistingPartialReceipt()
     {
         await using var connection = await OpenAsync();
