@@ -11,8 +11,8 @@ using POS.Infrastructure.Persistence;
 namespace POS.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260712023023_SupplierPurchasingRefactor")]
-    partial class SupplierPurchasingRefactor
+    [Migration("20260712034743_SupplierCatalogEditSupport")]
+    partial class SupplierCatalogEditSupport
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -769,7 +769,8 @@ namespace POS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("CreatedAt")
+                    b.Property<string>("CreatedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<DateOnly?>("EffectiveDate")
@@ -804,6 +805,10 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SupplierQuotationId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("supplier_quotation_id");
+
                     b.Property<decimal?>("Total")
                         .HasColumnType("TEXT")
                         .HasColumnName("total");
@@ -815,6 +820,10 @@ namespace POS.Infrastructure.Migrations
                     b.Property<decimal?>("VatAmount")
                         .HasColumnType("TEXT")
                         .HasColumnName("vat_amount");
+
+                    b.Property<int?>("VatPolicy")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("vat_policy");
 
                     b.Property<decimal?>("VatRate")
                         .HasColumnType("TEXT")
@@ -1233,6 +1242,84 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("Suppliers", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.SupplierQuotation", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Observations")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentTerms")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SupplierId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierId", "EffectiveDate", "Status");
+
+                    b.ToTable("SUPPLIER_QUOTATIONS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.SupplierQuotationItem", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProductReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("PurchaseUnitCost")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PurchaseUnitName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SupplierQuotationId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("UnitsPerPurchaseUnit")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierQuotationId");
+
+                    b.ToTable("SUPPLIER_QUOTATION_ITEMS", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.TaxProfile", b =>
                 {
                     b.Property<string>("Id")
@@ -1460,6 +1547,15 @@ namespace POS.Infrastructure.Migrations
                     b.Navigation("Category");
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.SupplierQuotationItem", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.SupplierQuotation", null)
+                        .WithMany("Items")
+                        .HasForeignKey("SupplierQuotationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Purchase", b =>
                 {
                     b.Navigation("Items");
@@ -1483,6 +1579,11 @@ namespace POS.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.SaleReturn", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.SupplierQuotation", b =>
                 {
                     b.Navigation("Items");
                 });

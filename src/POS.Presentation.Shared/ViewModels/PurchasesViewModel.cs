@@ -211,10 +211,17 @@ public sealed class PurchasesViewModel : ViewModelBase
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<SupplierSearchResult> suppliers = await _searchSuppliers.ExecuteAsync(new SupplierSearchRequest(SupplierSearchText, true), cancellationToken).ConfigureAwait(true);
-        Suppliers.Clear();
-        foreach (SupplierSearchResult supplier in suppliers) Suppliers.Add(supplier);
-        Message = Suppliers.Count == 0 ? "No hay proveedores. Crea uno para continuar." : "Selecciona un proveedor para editar su perfil o catálogo.";
+        try
+        {
+            IReadOnlyList<SupplierSearchResult> suppliers = await _searchSuppliers.ExecuteAsync(new SupplierSearchRequest(SupplierSearchText, true), cancellationToken).ConfigureAwait(true);
+            Suppliers.Clear();
+            foreach (SupplierSearchResult supplier in suppliers) Suppliers.Add(supplier);
+            Message = Suppliers.Count == 0 ? "No hay proveedores. Crea uno para continuar." : "Selecciona un proveedor para editar su perfil o catálogo.";
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al cargar proveedores: {ex.Message}";
+        }
     }
 
     public async Task SaveSupplierAsync(CancellationToken cancellationToken = default)
