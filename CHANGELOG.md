@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.5.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.4.2...v1.5.0) (2026-07-12)
+
+
+### Features
+
+* **products:** agregar soporte de teclado (Enter) y popup/menú contextual para agrupar productos ([902c459](https://github.com/jab16jy/Sistema_Pos/commit/902c4595f1407db23a0105a809f0fa92c6015902))
+* **purchasing:** auditable supplier catalog flow with weighted cost, VAT, quotations, and history ([ffabbde](https://github.com/jab16jy/Sistema_Pos/commit/ffabbdef9399169c404125ec63fd2528afbe7f74))
+* **purchasing:** auditable supplier catalog flow with weighted cost, VAT, quotations, and history ([0c73d1a](https://github.com/jab16jy/Sistema_Pos/commit/0c73d1a97579ff9bb148e299db591bb4450bd0c1))
+* **quotes:** reuse cashier's autocomplete search, flag walk-in customers, add no-PDF quote preview ([6da9669](https://github.com/jab16jy/Sistema_Pos/commit/6da9669e5478cd14dc9389fe66f12faa056d4811))
+
 ## [1.4.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.4.1...v1.4.2) (2026-07-11)
 
 
