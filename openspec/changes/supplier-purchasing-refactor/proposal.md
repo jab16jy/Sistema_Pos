@@ -47,7 +47,8 @@ Complete the supplier-facing purchase workflow so operators maintain supplier de
 
 ### Out of Scope
 
-- Supplier quotations, accounts payable, invoices/payment settlement, returns, credit notes, and retrospective recalculation of historic purchases.
+- Building new supplier-quotation, accounts-payable, invoice/payment-settlement, returns, or credit-note functionality. (Supplier quotations already shipped to `main` via a parallel change before this one merged — see Reconciliation Note below. This proposal does not add or modify that feature, only coexists with it.)
+- Retrospective recalculation of historic purchases.
 - Editing supplier catalog relationships from product screens.
 - Reinterpreting legacy unit quantities or historical costs to synthesize new catalog values.
 - Changes to customer quotations, sales, or unrelated inventory workflows.
@@ -73,11 +74,11 @@ WPF **MUST NOT** access SQLite directly and **MUST NOT** own business rules such
 - `src/POS.Presentation/Views/PurchasesView.xaml` (and product view only for read-only visibility)
 - Domain, Application, Infrastructure/SQLite, Presentation.Shared, and Windows smoke-test projects
 
-## Feature-Branch Reference Policy
+## Reconciliation Note
 
-`feat/supplier-purchasing-refactor` at `0c73d1a` is evidence only. Its expanded `ProductSupplier` invariants, catalog repository/query pattern, catalog membership check in purchase registration, transaction wrapper, receipt snapshots, and cost-update approach are candidates for reuse **only after verification against this proposal and current `main`**.
+Commit `0c73d1a` (merged to `main` as PR #111, "auditable supplier catalog flow with weighted cost, VAT, quotations, and history") landed before this change's implementation was rebased. It shipped a broader, independently-designed version of the same underlying problem — weighted-average cost, VAT, supplier quotations, and purchase-history search — with its own migration (`20260712014458_SupplierPurchasingRefactor`).
 
-In particular, do not blindly reuse its migration: it changes legacy supplier key handling, drops/recreates constraints, and assigns defaults to existing pair rows, which can conflict with the no-inference compatibility rule. Its supplier-quotation behavior is explicitly outside this proposal. Any reused code must be reconciled with current contracts, DI, migration history, and focused tests before adoption.
+This change's implementation was rebased onto that merged `main` and reconciled rather than replacing it: `main`'s quotation-acceptance flow, weighted-cost/VAT logic, and purchase-history search remain fully wired (DI, use cases, and the PurchasesView History/Quotation tabs), and this proposal's catalog-edit scope (supplier profile catalog editing, product-screen read-only visibility, catalog-driven purchase-line validation) was layered on top in the same transaction path — `RegisterPurchaseUseCase` now enforces both the quotation-acceptance check and the catalog eligibility guard together. The original migration this branch authored (`20260712023023_SupplierPurchasingRefactor`, written against the pre-#111 schema) was discarded and replaced with a small incremental migration (`20260712034743_SupplierCatalogEditSupport`) on top of `main`'s already-shipped schema.
 
 ## Risks and Rollback
 
