@@ -968,14 +968,15 @@
           <Border Grid.Column="0" Style="{StaticResource Card}">
             <DataGrid x:Name="PurchaseHistoryDataGrid" ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MouseDoubleClick="PurchaseHistoryDataGrid_OnMouseDoubleClick" FrozenColumnCount="1" ScrollViewer.HorizontalScrollBarVisibility="Auto">
               <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Acción" Width="Auto" MinWidth="90">
+                <DataGridTemplateColumn Header="Acción" Width="Auto" MinWidth="110">
                   <DataGridTemplateColumn.CellTemplate>
                     <DataTemplate>
-                      <Button Content="Detalle" 
+                      <Button Content="Ver detalles" 
                               Command="{Binding DataContext.OpenPurchaseDetailCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                               CommandParameter="{Binding}" 
-                              Style="{StaticResource GhostButton}"
-                              Padding="4,2"
+                              Style="{StaticResource SecondaryButton}"
+                              Height="26"
+                              Padding="8,2"
                               FontSize="11"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
