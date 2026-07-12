@@ -89,7 +89,7 @@ public sealed class ProfitQueryService : IProfitQueryService
             .ConfigureAwait(false);
 
         return payments
-            .GroupBy(p => 
+            .GroupBy(p =>
             {
                 if (!string.IsNullOrWhiteSpace(p.BankOrPlatform))
                 {
