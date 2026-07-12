@@ -1,3 +1,4 @@
+using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 
 namespace POS.Domain.Entities;
@@ -9,7 +10,16 @@ public sealed class SaleItem
         ProductName = string.Empty;
     }
 
-    public SaleItem(Guid productId, string productName, Quantity quantity, Money unitPrice, Money discount, Money unitCost = default, decimal taxRate = 19m)
+    public SaleItem(
+        Guid productId,
+        string productName,
+        Quantity quantity,
+        Money unitPrice,
+        Money discount,
+        Money unitCost = default,
+        decimal taxRate = 19m,
+        ProductPresentation presentation = ProductPresentation.Unit,
+        int unitsPerPresentation = 1)
     {
         Id = Guid.NewGuid();
         ProductId = productId;
@@ -19,6 +29,8 @@ public sealed class SaleItem
         Discount = discount;
         UnitCost = unitCost;
         TaxRate = ValidateTaxRate(taxRate);
+        Presentation = presentation;
+        UnitsPerPresentation = ValidateUnitsPerPresentation(presentation, unitsPerPresentation);
     }
 
     public Guid Id { get; private set; }
@@ -29,6 +41,8 @@ public sealed class SaleItem
     public Money UnitPrice { get; private set; }
     public Money Discount { get; private set; }
     public decimal TaxRate { get; private set; }
+    public ProductPresentation Presentation { get; private set; }
+    public int UnitsPerPresentation { get; private set; }
 
     /// <summary>
     /// Cost price snapshot captured at sale time from product.CostPrice.
@@ -90,5 +104,20 @@ public sealed class SaleItem
         }
 
         return taxRate;
+    }
+
+    private static int ValidateUnitsPerPresentation(ProductPresentation presentation, int unitsPerPresentation)
+    {
+        if (presentation == ProductPresentation.Unit)
+        {
+            return 1;
+        }
+
+        if (presentation != ProductPresentation.Box || unitsPerPresentation < 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A box presentation must contain at least 2 base units.");
+        }
+
+        return unitsPerPresentation;
     }
 }

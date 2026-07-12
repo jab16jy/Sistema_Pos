@@ -21,7 +21,15 @@ public sealed class GetQuoteDetailUseCase
         }
 
         var items = quote.Items
-            .Select(i => new QuoteDetailItemResult(i.ProductId, i.ProductName, i.Quantity.Value, i.UnitPrice.Amount, i.Discount, i.Subtotal().Amount))
+            .Select(i => new QuoteDetailItemResult(
+                i.ProductId,
+                i.ProductName,
+                i.Quantity.Value,
+                i.UnitPrice.Amount,
+                i.Discount,
+                i.Subtotal().Amount,
+                i.Presentation,
+                i.UnitsPerPresentation))
             .ToList();
 
         return new QuoteDetailResult(

@@ -58,6 +58,29 @@ public sealed class SendDocumentUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WhenEmailAdapterReturnsFalse_ProvidesMeaningfulFailureAndPersistsIt()
+    {
+        var sendLogs = new InMemoryDocumentSendLogRepository();
+        var useCase = new SendDocumentUseCase(
+            new FakePdfService([1, 2, 3]),
+            new FakeEmailService(returnsSuccess: false),
+            new FakeWhatsAppService(returnsSuccess: true),
+            sendLogs,
+            new InMemoryUnitOfWork());
+
+        var result = await useCase.ExecuteAsync(new SendDocumentRequest(
+            DocumentType.Quote,
+            Guid.NewGuid(),
+            SendChannel.Email,
+            "client@example.com"),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+        Assert.Equal(result.ErrorMessage, Assert.Single(sendLogs.Logs).ErrorMessage);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhatsAppChannel_CallsWhatsAppServiceAndSavesLog()
     {
         var pdfService = new FakePdfService([1, 2, 3]);

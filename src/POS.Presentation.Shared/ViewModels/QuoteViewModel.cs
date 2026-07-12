@@ -58,6 +58,8 @@ public sealed class QuoteViewModel : ViewModelBase
         SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => ValidationMessage = $"Error al buscar clientes: {ex.Message}"));
         SelectCustomerCommand = new RelayCommand(p => SelectCustomer(p as CustomerSearchResult));
         AddToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel));
+        AddUnitToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, ProductPresentation.Unit));
+        AddBoxToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, ProductPresentation.Box));
         RemoveFromCartCommand = new RelayCommand(p => RemoveFromCart(p as QuoteCartItemViewModel));
         ConfirmCommand = new RelayCommand(_ => RunSafe(ConfirmAsync(), ex => ValidationMessage = $"Error al crear la cotización: {ex.Message}"));
         SendByEmailCommand = new RelayCommand(_ => RunSafe(SendByEmailAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
@@ -72,6 +74,8 @@ public sealed class QuoteViewModel : ViewModelBase
     public ICommand SearchCustomerCommand { get; }
     public ICommand SelectCustomerCommand { get; }
     public ICommand AddToCartCommand { get; }
+    public ICommand AddUnitToCartCommand { get; }
+    public ICommand AddBoxToCartCommand { get; }
     public ICommand RemoveFromCartCommand { get; }
     public ICommand ConfirmCommand { get; }
     public ICommand SendByEmailCommand { get; }
@@ -310,21 +314,36 @@ public sealed class QuoteViewModel : ViewModelBase
         ValidationMessage = "Cliente registrado vinculado a la cotización.";
     }
 
-    private void AddToCart(CashierProductSearchResultViewModel? product)
+    private void AddToCart(CashierProductSearchResultViewModel? product, ProductPresentation presentation = ProductPresentation.Unit)
     {
         if (product is null)
         {
             return;
         }
 
-        QuoteCartItemViewModel? existing = CartItems.FirstOrDefault(i => i.ProductId == product.ProductId);
+        if (presentation == ProductPresentation.Box && !product.SupportsBox)
+        {
+            ValidationMessage = $"{product.Name} no está configurado para venta por caja.";
+            return;
+        }
+
+        int unitsPerPresentation = presentation == ProductPresentation.Box ? product.UnitsPerBox!.Value : 1;
+        decimal unitPrice = presentation == ProductPresentation.Box ? product.BoxPrice!.Value : product.UnitPrice;
+        QuoteCartItemViewModel? existing = CartItems.FirstOrDefault(i =>
+            i.ProductId == product.ProductId && i.Presentation == presentation);
         if (existing is not null)
         {
             existing.Quantity += 1m;
         }
         else
         {
-            QuoteCartItemViewModel item = new(product.ProductId, product.Name, product.UnitPrice, product.AvailableStock);
+            QuoteCartItemViewModel item = new(
+                product.ProductId,
+                product.Name,
+                unitPrice,
+                product.AvailableStock,
+                presentation,
+                unitsPerPresentation);
             item.PropertyChanged += (_, _) => RecalculateTotal();
             CartItems.Add(item);
         }
@@ -496,7 +515,7 @@ public sealed class QuoteViewModel : ViewModelBase
         }
 
         IReadOnlyCollection<CreateQuoteItemRequest> items = CartItems
-            .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount))
+            .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount, i.Presentation))
             .ToList();
 
         CreateQuoteRequest request = new(

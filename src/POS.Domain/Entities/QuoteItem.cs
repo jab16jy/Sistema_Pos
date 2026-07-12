@@ -1,3 +1,4 @@
+using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 
 namespace POS.Domain.Entities;
@@ -9,7 +10,14 @@ public sealed class QuoteItem
         ProductName = string.Empty;
     }
 
-    public QuoteItem(Guid productId, string productName, Money unitPrice, Quantity quantity, decimal discount)
+    public QuoteItem(
+        Guid productId,
+        string productName,
+        Money unitPrice,
+        Quantity quantity,
+        decimal discount,
+        ProductPresentation presentation = ProductPresentation.Unit,
+        int unitsPerPresentation = 1)
     {
         if (string.IsNullOrWhiteSpace(productName))
         {
@@ -27,6 +35,8 @@ public sealed class QuoteItem
         UnitPrice = unitPrice;
         Quantity = quantity;
         Discount = discount;
+        Presentation = presentation;
+        UnitsPerPresentation = ValidateUnitsPerPresentation(presentation, unitsPerPresentation);
     }
 
     public Guid Id { get; private set; }
@@ -36,6 +46,23 @@ public sealed class QuoteItem
     public Money UnitPrice { get; private set; }
     public Quantity Quantity { get; private set; }
     public decimal Discount { get; private set; }
+    public ProductPresentation Presentation { get; private set; }
+    public int UnitsPerPresentation { get; private set; }
 
     public Money Subtotal() => new(UnitPrice.Amount * Quantity.Value * (1m - Discount / 100m));
+
+    private static int ValidateUnitsPerPresentation(ProductPresentation presentation, int unitsPerPresentation)
+    {
+        if (presentation == ProductPresentation.Unit)
+        {
+            return 1;
+        }
+
+        if (presentation != ProductPresentation.Box || unitsPerPresentation < 2)
+        {
+            throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A box presentation must contain at least 2 base units.");
+        }
+
+        return unitsPerPresentation;
+    }
 }

@@ -116,6 +116,7 @@ public sealed partial class EscPosPrinterService : IPrintService
             // 32-char line: name(20) qty(5) price(7)
             var line = $"{name,-20}{qty,5} {subtotal,6}";
             WriteLine(line);
+            WriteLine($"  {PresentationLabel(item.Presentation, item.UnitsPerPresentation)}");
         }
 
         Separator();
@@ -167,6 +168,9 @@ public sealed partial class EscPosPrinterService : IPrintService
 
     private static string FormatCurrency(decimal amount) =>
         $"${amount.ToString("N0", CopCulture)}";
+
+    private static string PresentationLabel(ProductPresentation presentation, int unitsPerPresentation) =>
+        presentation == ProductPresentation.Box ? $"Caja x{unitsPerPresentation}" : "Unidad";
 
     private static async Task PrintViaProcessAsync(ThermalPrinterTarget target, Guid saleId, CancellationToken ct)
     {

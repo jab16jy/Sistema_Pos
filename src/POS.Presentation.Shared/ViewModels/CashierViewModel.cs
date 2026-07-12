@@ -170,6 +170,8 @@ public sealed class CashierViewModel : ViewModelBase
         _printReceiptYesCommand = new RelayCommand(_ => RunSafe(PrintPendingReceiptAsync(), ex => Message = $"Error al imprimir el recibo: {ex.Message}"), _ => IsAwaitingPrintChoice);
         _printReceiptNoCommand = new RelayCommand(_ => DeclinePendingReceipt(), _ => IsAwaitingPrintChoice);
         AddSelectedProductCommand = _addSelectedProductCommand;
+        SelectUnitPresentationCommand = new RelayCommand(_ => SellSelectedAsBox = false);
+        SelectBoxPresentationCommand = new RelayCommand(_ => SellSelectedAsBox = true, _ => CanSellSelectedAsBox);
         AppendReceivedAmountCommand = _appendReceivedAmountCommand;
         BackspaceReceivedAmountCommand = _backspaceReceivedAmountCommand;
         SetExactAmountCommand = _setExactAmountCommand;
@@ -222,6 +224,10 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand SearchCommand { get; }
 
     public ICommand AddSelectedProductCommand { get; }
+
+    public ICommand SelectUnitPresentationCommand { get; }
+
+    public ICommand SelectBoxPresentationCommand { get; }
 
     public ICommand AppendReceivedAmountCommand { get; }
 
@@ -458,6 +464,7 @@ public sealed class CashierViewModel : ViewModelBase
                 SellSelectedAsBox = false;
                 OnPropertyChanged(nameof(CanSellSelectedAsBox));
                 OnPropertyChanged(nameof(SelectedBoxLabel));
+                (SelectBoxPresentationCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 UpdateCommandState();
             }
         }
@@ -473,8 +480,20 @@ public sealed class CashierViewModel : ViewModelBase
     public bool SellSelectedAsBox
     {
         get => _sellSelectedAsBox;
-        set => SetProperty(ref _sellSelectedAsBox, value);
+        set
+        {
+            bool normalized = value && CanSellSelectedAsBox;
+            if (SetProperty(ref _sellSelectedAsBox, normalized))
+            {
+                OnPropertyChanged(nameof(IsUnitPresentationSelected));
+                OnPropertyChanged(nameof(IsBoxPresentationSelected));
+            }
+        }
     }
+
+    public bool IsUnitPresentationSelected => !SellSelectedAsBox;
+
+    public bool IsBoxPresentationSelected => SellSelectedAsBox;
 
     public CashierCartItemViewModel? SelectedCartItem
     {

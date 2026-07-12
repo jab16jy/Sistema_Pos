@@ -237,17 +237,23 @@
                      Margin="2,6,0,0"
                      Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-          <!-- Box presentation toggle: only shown when the selected product supports box sales -->
-          <StackPanel Orientation="Horizontal" Margin="2,6,0,0"
-                      Visibility="{Binding CanSellSelectedAsBox, Converter={StaticResource BoolToVisibilityConverter}}">
-            <CheckBox Content="Vender por caja"
-                      IsChecked="{Binding SellSelectedAsBox, Mode=TwoWay}"
-                      VerticalAlignment="Center" />
-            <TextBlock Text="{Binding SelectedBoxLabel}"
-                       Style="{StaticResource CashHint}"
-                       VerticalAlignment="Center"
-                       Margin="8,0,0,0" />
-          </StackPanel>
+           <StackPanel Orientation="Horizontal" Margin="2,6,0,0">
+             <TextBlock Text="Presentación:" Style="{StaticResource CashHint}" VerticalAlignment="Center" Margin="0,0,8,0" />
+             <RadioButton Content="Unidad"
+                          IsChecked="{Binding IsUnitPresentationSelected}"
+                          Command="{Binding SelectUnitPresentationCommand}"
+                          VerticalAlignment="Center" />
+             <RadioButton Command="{Binding SelectBoxPresentationCommand}"
+                          IsChecked="{Binding IsBoxPresentationSelected}"
+                          IsEnabled="{Binding CanSellSelectedAsBox}"
+                          VerticalAlignment="Center"
+                          Margin="12,0,0,0">
+               <StackPanel Orientation="Horizontal">
+                 <TextBlock Text="Caja" />
+                 <TextBlock Text="{Binding SelectedBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
+               </StackPanel>
+             </RadioButton>
+           </StackPanel>
           </StackPanel>
 
           <Button Grid.Column="1"
@@ -346,7 +352,14 @@
 
                       <StackPanel VerticalAlignment="Center">
                         <TextBlock Text="{Binding ProductName}" FontWeight="SemiBold" />
-                        <TextBlock Text="{Binding ProductCode, StringFormat=COD: {0}}" Style="{StaticResource CashHint}" />
+                         <TextBlock Style="{StaticResource CashHint}">
+                           <TextBlock.Text>
+                             <MultiBinding StringFormat="COD: {0} · {1}">
+                               <Binding Path="ProductCode" />
+                               <Binding Path="PresentationLabel" />
+                             </MultiBinding>
+                           </TextBlock.Text>
+                         </TextBlock>
                       </StackPanel>
 
                       <xctk:DecimalUpDown Grid.Column="1"

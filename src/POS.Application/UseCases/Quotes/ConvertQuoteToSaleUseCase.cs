@@ -36,7 +36,7 @@ public sealed class ConvertQuoteToSaleUseCase
         var quote = await _quotes.GetByIdAsync(request.QuoteId, ct)
             ?? throw new InvalidOperationException($"Cotización {request.QuoteId} no encontrada.");
 
-        if (quote.ExpiresAt < DateTime.UtcNow && quote.Status != QuoteStatus.Expired)
+        if (quote.ExpiresAt.Date < DateTime.Today && quote.Status != QuoteStatus.Expired)
         {
             quote.Expire();
         }
@@ -54,19 +54,24 @@ public sealed class ConvertQuoteToSaleUseCase
         var saleItems = quote.Items.Select(i => new CreateSaleItemRequest(
             i.ProductId,
             i.Quantity.Value,
-            i.Discount)).ToList();
+            decimal.Round(i.UnitPrice.Amount * i.Quantity.Value * i.Discount / 100m, 2, MidpointRounding.AwayFromZero),
+            i.Presentation,
+            i.UnitPrice.Amount,
+            i.UnitsPerPresentation)).ToList();
 
         CreateSaleRequest saleRequest = settlementPlan is not null
             ? new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, settlementPlan)
             : new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, request.Payments);
 
-        var saleResult = await _createSale.ExecuteAsync(saleRequest, ct);
+        CreateSaleResult? saleResult = null;
+        await _unitOfWork.ExecuteInTransactionAsync(async transactionCt =>
+        {
+            saleResult = await _createSale.ExecuteAsync(saleRequest, transactionCt).ConfigureAwait(false);
+            quote.Convert(saleResult.SaleId);
+            await _quotes.UpdateAsync(quote, transactionCt).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(transactionCt).ConfigureAwait(false);
+        }, ct).ConfigureAwait(false);
 
-        quote.Convert(saleResult.SaleId);
-
-        await _quotes.UpdateAsync(quote, ct);
-        await _unitOfWork.SaveChangesAsync(ct);
-
-        return saleResult;
+        return saleResult!;
     }
 }

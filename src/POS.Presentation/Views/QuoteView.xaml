@@ -228,12 +228,17 @@
                             </TextBlock.Style>
                           </TextBlock>
                         </Border>
-                        <Button Grid.Column="3"
-                                Style="{StaticResource AddToCartIconButton}"
-                                Command="{Binding DataContext.AddToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                CommandParameter="{Binding}">
-                          <materialDesign:PackIcon Kind="PlusCircle" Foreground="{StaticResource BrushPrimary}" />
-                        </Button>
+                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                           <Button Content="Unidad"
+                                   Style="{StaticResource GhostQuoteButton}"
+                                   Command="{Binding DataContext.AddUnitToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                   CommandParameter="{Binding}" />
+                           <Button Content="{Binding BoxLabel}"
+                                   Style="{StaticResource GhostQuoteButton}"
+                                   Visibility="{Binding SupportsBox, Converter={StaticResource BoolToVisibilityConverter}}"
+                                   Command="{Binding DataContext.AddBoxToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                   CommandParameter="{Binding}" />
+                         </StackPanel>
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -312,7 +317,10 @@
                           <ColumnDefinition Width="110" />
                           <ColumnDefinition Width="36" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding ProductName}" FontWeight="Medium" VerticalAlignment="Center" />
+                         <StackPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center">
+                           <TextBlock Text="{Binding ProductName}" FontWeight="Medium" />
+                           <TextBlock Text="{Binding PresentationLabel}" Style="{StaticResource MutedText}" FontSize="11" />
+                         </StackPanel>
                         <xctk:DecimalUpDown Grid.Row="0" Grid.Column="1" Value="{Binding Quantity, Mode=TwoWay}" Minimum="0.01" Height="28" HorizontalContentAlignment="Center" />
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding UnitPrice, StringFormat={}{0:C0}}" VerticalAlignment="Center" HorizontalAlignment="Right" />
                         <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding Subtotal, StringFormat={}{0:C0}}" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
@@ -555,7 +563,21 @@
                         </Border.Style>
                         <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource TextCaption}" FontWeight="Medium" />
                       </Border>
-                      <TextBlock Grid.Column="4" Text="{Binding ExpiresAt}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
+                       <StackPanel Grid.Column="4" VerticalAlignment="Center">
+                         <TextBlock Text="{Binding ExpiresAt}" Style="{StaticResource MutedText}" FontSize="12" />
+                         <Border Style="{StaticResource ChipStyle}"
+                                 Background="{StaticResource BrushWarningContainer}"
+                                 BorderBrush="{StaticResource BrushWarning}"
+                                 Margin="0,3,0,0"
+                                 Visibility="{Binding HasReminder, Converter={StaticResource BoolToVisibilityConverter}}">
+                           <TextBlock Text="{Binding ReminderLabel}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushWarning}" />
+                         </Border>
+                         <TextBlock Text="{Binding ExpirationGuidance}"
+                                    Style="{StaticResource TextCaption}"
+                                    Foreground="{StaticResource BrushDanger}"
+                                    TextWrapping="Wrap"
+                                    Visibility="{Binding ExpirationGuidance, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" />
+                       </StackPanel>
                       <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button ToolTip="Ver cotización"
                                 Background="Transparent" BorderBrush="Transparent" Padding="4"

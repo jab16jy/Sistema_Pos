@@ -11,4 +11,6 @@ public sealed record QuoteSummary(
     decimal Total,
     QuoteStatus Status,
     string ExpiresAt,
-    Guid? CustomerId = null);
+    Guid? CustomerId = null,
+    bool HasSuccessfulEmail = false,
+    string? ReminderLabel = null);

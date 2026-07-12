@@ -62,6 +62,39 @@ public sealed class CreateQuoteUseCaseTests
                 TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithBoxPresentation_SnapshotsBoxPriceAndEquivalenceWithoutChangingStock()
+    {
+        var product = new Product(
+            "Boxed widget",
+            Guid.NewGuid(),
+            new Money(500m),
+            new Money(1_000m),
+            new StockQuantity(20m),
+            new StockQuantity(2m),
+            unitsPerBox: 6,
+            boxPrice: new Money(5_400m));
+        var products = new InMemoryProductRepository(product);
+        var quotes = new InMemoryQuoteRepository("COT-2026-0002");
+        var useCase = new CreateQuoteUseCase(quotes, products, new InMemoryUnitOfWork());
+
+        await useCase.ExecuteAsync(new CreateQuoteRequest(
+            null,
+            "Test Customer",
+            null,
+            null,
+            30,
+            null,
+            [new CreateQuoteItemRequest(product.Id, 2m, 0m, ProductPresentation.Box)]),
+            TestContext.Current.CancellationToken);
+
+        QuoteItem item = Assert.Single(Assert.Single(quotes.Quotes).Items);
+        Assert.Equal(ProductPresentation.Box, item.Presentation);
+        Assert.Equal(6, item.UnitsPerPresentation);
+        Assert.Equal(5_400m, item.UnitPrice.Amount);
+        Assert.Equal(20m, product.CurrentStock);
+    }
+
     private sealed class InMemoryProductRepository : IProductRepository
     {
         private readonly Product? _product;

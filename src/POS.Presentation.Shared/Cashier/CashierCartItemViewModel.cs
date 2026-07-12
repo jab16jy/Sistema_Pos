@@ -37,7 +37,7 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     /// <summary>Whether this line is sold by unit or by box.</summary>
     public ProductPresentation Presentation { get; }
 
-    /// <summary>Base inventory units consumed per line quantity (1 for a unit line, UnitsPerBox for a box line).</summary>
+    /// <summary>Base inventory units consumed per presentation (1 for a unit line, UnitsPerBox for a box line).</summary>
     public int UnitsPerLine { get; }
 
     public bool IsBox => Presentation == ProductPresentation.Box;

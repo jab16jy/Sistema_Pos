@@ -59,10 +59,11 @@
                 <TextBlock Grid.Column="1" Text="{Binding Subtotal, StringFormat={}{0:C0}}" FontWeight="Bold" FontFamily="Consolas" Margin="8,0,0,0" />
                 <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource MutedText}" FontSize="11">
                   <TextBlock.Text>
-                    <MultiBinding StringFormat="{}{0:N0} x {1:C0} · Desc. {2:N0}%">
-                      <Binding Path="Quantity" />
-                      <Binding Path="UnitPrice" />
-                      <Binding Path="Discount" />
+                     <MultiBinding StringFormat="{}{0:N0} {1} x {2:C0} · Desc. {3:N0}%">
+                       <Binding Path="Quantity" />
+                       <Binding Path="PresentationLabel" />
+                       <Binding Path="UnitPrice" />
+                       <Binding Path="Discount" />
                     </MultiBinding>
                   </TextBlock.Text>
                 </TextBlock>

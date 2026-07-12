@@ -104,12 +104,14 @@ public sealed class ProcessReturnUseCase
             Product product = await _products.GetByIdAsync(saleItem.ProductId, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException($"Product '{saleItem.ProductId}' was not found.");
 
-            var qty = new Quantity(line.QuantityReturned);
-            product.IncreaseStock(qty);
-
-            await _inventory.AddMovementAsync(
-                new InventoryMovement(product.Id, InventoryMovementType.Return, qty, "Partial sale return", request.ProcessedByUserId, sale.Id),
-                cancellationToken).ConfigureAwait(false);
+            var qty = new Quantity(line.QuantityReturned * saleItem.UnitsPerPresentation);
+            if (product.TracksInventory)
+            {
+                product.IncreaseStock(qty);
+                await _inventory.AddMovementAsync(
+                    new InventoryMovement(product.Id, InventoryMovementType.Return, qty, "Partial sale return", request.ProcessedByUserId, sale.Id),
+                    cancellationToken).ConfigureAwait(false);
+            }
 
             var returnItem = new SaleReturnItem(
                 saleReturn.Id,
@@ -134,12 +136,14 @@ public sealed class ProcessReturnUseCase
             Product product = await _products.GetByIdAsync(item.ProductId, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException($"Product '{item.ProductId}' was not found.");
 
-            var quantity = new Quantity(item.Quantity);
-            product.IncreaseStock(quantity);
-
-            await _inventory.AddMovementAsync(
-                new InventoryMovement(product.Id, InventoryMovementType.Return, quantity, "Full sale return", request.ProcessedByUserId, sale.Id),
-                cancellationToken).ConfigureAwait(false);
+            var quantity = new Quantity(item.Quantity * item.UnitsPerPresentation);
+            if (product.TracksInventory)
+            {
+                product.IncreaseStock(quantity);
+                await _inventory.AddMovementAsync(
+                    new InventoryMovement(product.Id, InventoryMovementType.Return, quantity, "Full sale return", request.ProcessedByUserId, sale.Id),
+                    cancellationToken).ConfigureAwait(false);
+            }
 
             var returnItem = new SaleReturnItem(
                 saleReturn.Id,

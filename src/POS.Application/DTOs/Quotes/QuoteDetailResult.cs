@@ -20,4 +20,9 @@ public sealed record QuoteDetailItemResult(
     decimal Quantity,
     decimal UnitPrice,
     decimal Discount,
-    decimal Subtotal);
+    decimal Subtotal,
+    ProductPresentation Presentation = ProductPresentation.Unit,
+    int UnitsPerPresentation = 1)
+{
+    public string PresentationLabel => Presentation == ProductPresentation.Box ? $"Caja x{UnitsPerPresentation}" : "Unidad";
+}

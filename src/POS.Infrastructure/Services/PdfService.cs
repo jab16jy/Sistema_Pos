@@ -273,7 +273,11 @@ public sealed class PdfService : IPdfService
             {
                 string shortId = item.ProductId.ToString("N")[..8].ToUpperInvariant();
                 table.Cell().Element(CellStyle).Text(shortId).FontSize(9).FontColor(LabelColor);
-                table.Cell().Element(CellStyle).Text(item.ProductName).Bold();
+                table.Cell().Element(CellStyle).Column(column =>
+                {
+                    column.Item().Text(item.ProductName).Bold();
+                    column.Item().Text(PresentationLabel(item.Presentation, item.UnitsPerPresentation)).FontSize(8).FontColor(LabelColor);
+                });
                 table.Cell().Element(CellStyle).AlignCenter().Text(item.Quantity.ToString("N2", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.TaxAmount().Amount.ToString("C0", culture));
@@ -304,7 +308,11 @@ public sealed class PdfService : IPdfService
 
             foreach (var item in quote.Items)
             {
-                table.Cell().Element(CellStyle).Text(item.ProductName).Bold();
+                table.Cell().Element(CellStyle).Column(column =>
+                {
+                    column.Item().Text(item.ProductName).Bold();
+                    column.Item().Text(PresentationLabel(item.Presentation, item.UnitsPerPresentation)).FontSize(8).FontColor(LabelColor);
+                });
                 table.Cell().Element(CellStyle).AlignCenter().Text(item.Quantity.Value.ToString("N2", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.Subtotal().Amount.ToString("C0", culture));
@@ -385,4 +393,7 @@ public sealed class PdfService : IPdfService
         Domain.Enums.PaymentMethod.LoyaltyPoints => "Puntos de lealtad",
         _ => method.ToString()
     };
+
+    private static string PresentationLabel(Domain.Enums.ProductPresentation presentation, int unitsPerPresentation) =>
+        presentation == Domain.Enums.ProductPresentation.Box ? $"Caja x{unitsPerPresentation}" : "Unidad";
 }

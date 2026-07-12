@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 
 namespace POS.Infrastructure.Persistence.Configurations;
@@ -24,6 +25,13 @@ internal sealed class SaleItemConfiguration : IEntityTypeConfiguration<SaleItem>
         builder.Property(si => si.TaxRate)
                .HasColumnName("tax_rate")
                .HasDefaultValue(19m);
+        builder.Property(si => si.Presentation)
+               .HasConversion<int>()
+               .HasColumnName("presentation")
+               .HasDefaultValue(ProductPresentation.Unit);
+        builder.Property(si => si.UnitsPerPresentation)
+               .HasColumnName("units_per_presentation")
+               .HasDefaultValue(1);
 
         builder.Property(si => si.UnitCost)
                .HasConversion(m => m.Amount, v => new Money(v))

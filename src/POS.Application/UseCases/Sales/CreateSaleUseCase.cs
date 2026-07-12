@@ -87,7 +87,25 @@ public sealed class CreateSaleUseCase
             var product = await _products.GetByIdAsync(item.ProductId, cancellationToken)
                 ?? throw new InvalidOperationException($"Product '{item.ProductId}' was not found.");
 
-            sale.AddItem(product, new Quantity(item.Quantity), item.Presentation, new Money(item.Discount));
+            if (item.UnitPriceOverride.HasValue || item.UnitsPerPresentationOverride.HasValue)
+            {
+                if (!item.UnitPriceOverride.HasValue || !item.UnitsPerPresentationOverride.HasValue)
+                {
+                    throw new ArgumentException("A sale line snapshot requires both price and units per presentation.", nameof(request));
+                }
+
+                sale.AddItem(
+                    product,
+                    new Quantity(item.Quantity),
+                    item.Presentation,
+                    new Money(item.Discount),
+                    new Money(item.UnitPriceOverride.Value),
+                    item.UnitsPerPresentationOverride.Value);
+            }
+            else
+            {
+                sale.AddItem(product, new Quantity(item.Quantity), item.Presentation, new Money(item.Discount));
+            }
         }
 
         // Loyalty redemption (tender): validate and cap the redemption, add it as a

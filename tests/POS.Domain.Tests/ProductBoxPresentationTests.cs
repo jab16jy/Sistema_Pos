@@ -43,6 +43,33 @@ public sealed class ProductBoxPresentationTests
     }
 
     [Fact]
+    public void BoxSale_CapturesImmutablePresentationAndBaseUnitEquivalence()
+    {
+        Product product = MakeAmpolla(stock: 24m);
+        var sale = new Sale(Guid.NewGuid());
+
+        sale.AddItem(product, new Quantity(1m), ProductPresentation.Box, Money.Zero);
+
+        SaleItem line = Assert.Single(sale.Items);
+        Assert.Equal(ProductPresentation.Box, line.Presentation);
+        Assert.Equal(12, line.UnitsPerPresentation);
+        Assert.Equal(1m, line.Quantity);
+    }
+
+    [Fact]
+    public void UnitSale_CapturesUnitPresentationWithOneBaseUnit()
+    {
+        Product product = MakeAmpolla(stock: 24m);
+        var sale = new Sale(Guid.NewGuid());
+
+        sale.AddItem(product, new Quantity(2m), ProductPresentation.Unit, Money.Zero);
+
+        SaleItem line = Assert.Single(sale.Items);
+        Assert.Equal(ProductPresentation.Unit, line.Presentation);
+        Assert.Equal(1, line.UnitsPerPresentation);
+    }
+
+    [Fact]
     public void UnitSale_IsUnaffectedByBoxConfig()
     {
         Product product = MakeAmpolla(stock: 24m);

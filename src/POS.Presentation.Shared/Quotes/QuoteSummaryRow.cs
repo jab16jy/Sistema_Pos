@@ -14,7 +14,9 @@ public sealed record QuoteSummaryRow(
     QuoteStatus Status,
     string StatusLabel,
     string ExpiresAt,
-    Guid? CustomerId = null)
+    Guid? CustomerId = null,
+    bool HasSuccessfulEmail = false,
+    string? ReminderLabel = null)
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -30,7 +32,9 @@ public sealed record QuoteSummaryRow(
             summary.Status,
             ResolveStatusLabel(summary.Status),
             summary.ExpiresAt,
-            summary.CustomerId);
+            summary.CustomerId,
+            summary.HasSuccessfulEmail,
+            summary.ReminderLabel);
 
     /// <summary>
     /// True when this quote references a customer registered in the system, as opposed to a walk-in/casual
@@ -70,5 +74,13 @@ public sealed record QuoteSummaryRow(
     /// (blocks Converted/Expired). New quotes are created as Draft, and the documented business rule allows
     /// Draft or Active quotes to be converted.
     /// </summary>
-    public bool CanConvertToSale => Status is QuoteStatus.Draft or QuoteStatus.Active;
+    public bool HasReminder => HasSuccessfulEmail && !string.IsNullOrWhiteSpace(ReminderLabel);
+
+    public bool IsExpiredByCalendar => string.Equals(ReminderLabel, "Vencida", StringComparison.Ordinal);
+
+    public string ExpirationGuidance => IsExpiredByCalendar
+        ? "Renueva o crea otra cotización para vender."
+        : string.Empty;
+
+    public bool CanConvertToSale => !IsExpiredByCalendar && Status is QuoteStatus.Draft or QuoteStatus.Active;
 }

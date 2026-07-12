@@ -956,6 +956,12 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("discount");
 
+                    b.Property<int>("Presentation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1)
+                        .HasColumnName("presentation");
+
                     b.Property<string>("ProductId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -976,6 +982,12 @@ namespace POS.Infrastructure.Migrations
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("TEXT")
                         .HasColumnName("unit_price");
+
+                    b.Property<int>("UnitsPerPresentation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1)
+                        .HasColumnName("units_per_presentation");
 
                     b.HasKey("Id");
 
@@ -1078,6 +1090,12 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("discount");
 
+                    b.Property<int>("Presentation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1)
+                        .HasColumnName("presentation");
+
                     b.Property<string>("ProductId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -1107,6 +1125,12 @@ namespace POS.Infrastructure.Migrations
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("TEXT")
                         .HasColumnName("unit_price");
+
+                    b.Property<int>("UnitsPerPresentation")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1)
+                        .HasColumnName("units_per_presentation");
 
                     b.HasKey("Id");
 

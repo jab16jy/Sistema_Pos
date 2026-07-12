@@ -216,9 +216,15 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
             SendDocumentRequest request = new(DocumentType.Quote, row.QuoteId, SendChannel.Email, row.CustomerEmail);
             SendDocumentResult result = await _sendUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 
-            StatusMessage = result.Success
-                ? "Documento enviado correctamente vía email."
-                : $"Error al enviar: {result.ErrorMessage}";
+            if (result.Success)
+            {
+                await LoadAsync(cancellationToken).ConfigureAwait(true);
+                StatusMessage = "Documento enviado correctamente vía email.";
+            }
+            else
+            {
+                StatusMessage = $"Error al enviar: {result.ErrorMessage}";
+            }
         }
         catch (Exception ex)
         {
@@ -463,7 +469,9 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
 
         if (!row.CanConvertToSale)
         {
-            StatusMessage = row.Status == QuoteStatus.Converted
+            StatusMessage = row.IsExpiredByCalendar
+                ? "La cotización está vencida. Debes renovarla o crear otra cotización antes de vender."
+                : row.Status == QuoteStatus.Converted
                 ? "Esta cotización ya fue convertida a venta."
                 : "Solo las cotizaciones activas o en borrador se pueden convertir a venta.";
             return false;

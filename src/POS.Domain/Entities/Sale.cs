@@ -58,18 +58,43 @@ public sealed class Sale
 
     public void AddItem(Product product, Quantity quantity, ProductPresentation presentation, Money discount)
     {
+        ArgumentNullException.ThrowIfNull(product);
+        int unitsPerPresentation = presentation == ProductPresentation.Box
+            ? product.UnitsPerBox ?? throw new InvalidOperationException($"Product '{product.Name}' is not configured for box sales.")
+            : 1;
+
+        AddItem(product, quantity, presentation, discount, product.PriceFor(presentation), unitsPerPresentation);
+    }
+
+    /// <summary>
+    /// Adds a line with immutable commercial snapshots. Quote conversion uses this overload so
+    /// later catalogue price or box-equivalence changes never rewrite the agreed quote.
+    /// </summary>
+    public void AddItem(
+        Product product,
+        Quantity quantity,
+        ProductPresentation presentation,
+        Money discount,
+        Money unitPrice,
+        int unitsPerPresentation)
+    {
         if (Status != SaleStatus.Draft)
         {
             throw new InvalidOperationException("Only draft sales can be modified.");
         }
 
-        if (product.TracksInventory)
-        {
-            // Stock is always kept in base units: a box of N decrements N units.
-            product.DecreaseStock(new Quantity(product.InventoryUnitsFor(presentation, quantity.Value)));
-        }
+        ArgumentNullException.ThrowIfNull(product);
+        int factor = presentation == ProductPresentation.Unit
+            ? 1
+            : unitsPerPresentation >= 2
+                ? unitsPerPresentation
+                : throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A box presentation must contain at least 2 base units.");
 
-        _items.Add(new SaleItem(product.Id, product.Name, quantity, product.PriceFor(presentation), discount, product.UnitCostFor(presentation), product.TaxRate));
+        // Stock remains in base units even when a historical quote uses an old box equivalence.
+        product.DecreaseStock(new Quantity(quantity.Value * factor));
+
+        var unitCost = new Money((product.CostPrice?.Amount ?? 0m) * factor);
+        _items.Add(new SaleItem(product.Id, product.Name, quantity, unitPrice, discount, unitCost, product.TaxRate, presentation, factor));
     }
 
     public void AddPayment(Payment payment)

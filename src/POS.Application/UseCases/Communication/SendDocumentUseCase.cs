@@ -69,6 +69,11 @@ public sealed class SendDocumentUseCase
             errorMessage = ex.Message;
         }
 
+        if (!success && string.IsNullOrWhiteSpace(errorMessage))
+        {
+            errorMessage = "El servicio de envío no confirmó la entrega del documento.";
+        }
+
         var log = new DocumentSendLog(
             request.DocumentType,
             request.DocumentId,

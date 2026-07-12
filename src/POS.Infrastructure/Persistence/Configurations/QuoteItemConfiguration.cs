@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 
 namespace POS.Infrastructure.Persistence.Configurations;
@@ -22,5 +23,12 @@ internal sealed class QuoteItemConfiguration : IEntityTypeConfiguration<QuoteIte
                .HasConversion(q => q.Value, v => new Quantity(v))
                .HasColumnName("quantity");
         builder.Property(qi => qi.Discount).HasColumnName("discount");
+        builder.Property(qi => qi.Presentation)
+               .HasConversion<int>()
+               .HasColumnName("presentation")
+               .HasDefaultValue(ProductPresentation.Unit);
+        builder.Property(qi => qi.UnitsPerPresentation)
+               .HasColumnName("units_per_presentation")
+               .HasDefaultValue(1);
     }
 }
