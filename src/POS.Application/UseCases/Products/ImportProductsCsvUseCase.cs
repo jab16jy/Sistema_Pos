@@ -1,6 +1,7 @@
 using System.Globalization;
 using POS.Application.DTOs.Products;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
 
@@ -10,11 +11,13 @@ public sealed class ImportProductsCsvUseCase
 {
     private readonly IProductRepository _products;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IInventoryRepository? _inventory;
 
-    public ImportProductsCsvUseCase(IProductRepository products, IUnitOfWork unitOfWork)
+    public ImportProductsCsvUseCase(IProductRepository products, IUnitOfWork unitOfWork, IInventoryRepository? inventory = null)
     {
         _products = products;
         _unitOfWork = unitOfWork;
+        _inventory = inventory;
     }
 
     public async Task<ImportProductsCsvResult> ExecuteAsync(ImportProductsCsvRequest request, CancellationToken ct = default)
@@ -58,7 +61,7 @@ public sealed class ImportProductsCsvUseCase
                 Guid categoryId = Guid.Parse(Required(row, headers, "categoryid", lineNo));
                 Money cost = new(ParseDecimal(Required(row, headers, "costprice", lineNo), lineNo, "costPrice"));
                 Money sale = new(ParseDecimal(Required(row, headers, "saleprice", lineNo), lineNo, "salePrice"));
-                StockQuantity currentStock = new(ParseDecimal(Get(row, headers, "currentstock") ?? "0", lineNo, "currentStock"));
+                decimal initialStock = ParseDecimal(Get(row, headers, "currentstock") ?? "0", lineNo, "currentStock");
                 StockQuantity minStock = new(ParseDecimal(Get(row, headers, "minimumstock") ?? "0", lineNo, "minimumStock"));
                 string? description = Get(row, headers, "description");
                 Barcode? barcodeVo = string.IsNullOrWhiteSpace(rawBarcode) ? null : new Barcode(rawBarcode);
@@ -82,8 +85,22 @@ public sealed class ImportProductsCsvUseCase
                     }
                 }
 
-                var product = new Product(name, categoryId, cost, sale, currentStock, minStock, description, barcodeVo, taxRate);
+                // Imported products start at zero stock; any initial balance is recorded as an
+                // audited InitialBalance movement so saldo e historial reconcile from creation.
+                // ponytail: the null ledger path exists only for unit fixtures; production DI injects it.
+                bool ledgerAvailable = _inventory is not null;
+                var seedStock = new StockQuantity(ledgerAvailable ? 0m : initialStock);
+
+                var product = new Product(name, categoryId, cost, sale, seedStock, minStock, description, barcodeVo, taxRate);
                 await _products.AddAsync(product, ct).ConfigureAwait(false);
+
+                if (ledgerAvailable && initialStock > 0m)
+                {
+                    InventoryMovement movement = product.RegisterStockMovement(
+                        InventoryMovementType.InitialBalance, initialStock, "Saldo inicial (importación CSV)", request.OperatorUserId);
+                    await _inventory!.AddMovementAsync(movement, ct).ConfigureAwait(false);
+                }
+
                 imported++;
             }
             catch (Exception ex) when (ex is ArgumentException or FormatException or InvalidOperationException)

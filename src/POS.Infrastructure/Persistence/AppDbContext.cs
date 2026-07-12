@@ -252,6 +252,7 @@ v => DateTimeOffset.Parse(v))
             InventoryMovementType.Exit => "Salida",
             InventoryMovementType.Adjustment => "Ajuste",
             InventoryMovementType.Return => "Devolución",
+            InventoryMovementType.InitialBalance => "Saldo inicial",
             _ => movement.Type.ToString()
         };
 

@@ -22,7 +22,6 @@ public sealed class ProductsViewModel : ViewModelBase
     private readonly SearchProductsUseCase _searchProducts;
     private readonly ImportProductsCsvUseCase? _importProductsCsv;
     private readonly SearchCategoriesUseCase? _searchCategories;
-    private readonly AdjustStockUseCase? _adjustStock;
     private readonly AssignInternalBarcodeUseCase? _assignInternalBarcode;
     private readonly PrintLabelsUseCase? _printLabels;
     private readonly GetProductSupplierSummaryUseCase? _supplierSummary;
@@ -74,7 +73,9 @@ public sealed class ProductsViewModel : ViewModelBase
         _searchProducts = searchProducts;
         _searchCategories = searchCategories;
         _importProductsCsv = importProductsCsv;
-        _adjustStock = adjustStock;
+        // ponytail: adjustStock kept in the signature for DI/test compat; stock edits now live in
+        // Inventario, so Productos no longer applies adjustments from the product form.
+        _ = adjustStock;
         _assignInternalBarcode = assignInternalBarcode;
         _printLabels = printLabels;
         _supplierSummary = supplierSummary;
@@ -173,6 +174,8 @@ public sealed class ProductsViewModel : ViewModelBase
                 OnPropertyChanged(nameof(ShowFormStatusChip));
                 OnPropertyChanged(nameof(FormStatusChipLabel));
                 OnPropertyChanged(nameof(FormStatusChipKind));
+                OnPropertyChanged(nameof(IsStockEditable));
+                OnPropertyChanged(nameof(StockFieldLabel));
 
                 if (DeleteCommand is RelayCommand command)
                 {
@@ -187,6 +190,15 @@ public sealed class ProductsViewModel : ViewModelBase
             }
         }
     }
+
+    /// <summary>
+    /// Stock is master data only in Productos: it can be entered as an initial balance when
+    /// creating a product, but never edited afterwards. Existing-product stock changes go through
+    /// the Inventario module (adjustments) or the Compras/Ventas flows so every change is traceable.
+    /// </summary>
+    public bool IsStockEditable => _selectedProduct is null;
+
+    public string StockFieldLabel => _selectedProduct is null ? "Existencia inicial" : "Stock actual";
 
     private async Task LoadSupplierRelationshipsAsync(Guid productId, CancellationToken cancellationToken = default)
     {
@@ -482,6 +494,8 @@ public sealed class ProductsViewModel : ViewModelBase
             Guid savedProductId;
             if (SelectedProduct is null)
             {
+                // On creation the stock field is an explicit initial balance; the use case records it
+                // as an audited InventoryMovement instead of writing CurrentStock directly.
                 var request = new CreateProductRequest(
                     Name,
                     CategoryId,
@@ -493,12 +507,14 @@ public sealed class ProductsViewModel : ViewModelBase
                     Barcode,
                     TaxRate,
                     unitsPerBox,
-                    boxPrice);
+                    boxPrice,
+                    OperatorUserId);
                 savedProductId = await _createProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
             }
             else
             {
-                decimal originalStock = SelectedProduct.CurrentStock;
+                // Editing a product never touches stock: CurrentStock is read-only here and any
+                // change belongs to Inventario (adjustments) or Compras/Ventas.
                 var request = new UpdateProductRequest(
                     SelectedProduct.Id,
                     Name,
@@ -512,7 +528,6 @@ public sealed class ProductsViewModel : ViewModelBase
                     unitsPerBox,
                     boxPrice);
                 ProductResult result = await _updateProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
-                await ApplyStockAdjustmentAsync(SelectedProduct.Id, originalStock, CurrentStock, cancellationToken).ConfigureAwait(true);
                 savedProductId = result.Id;
             }
 
@@ -528,27 +543,6 @@ public sealed class ProductsViewModel : ViewModelBase
         {
             Message = ex.Message;
         }
-    }
-
-    /// <summary>
-    /// Persists an edit to an existing product's stock as an audited inventory adjustment
-    /// (UpdateProductUseCase intentionally does not touch stock). Reuses AdjustStockUseCase
-    /// so the change is recorded as an InventoryMovement for traceability.
-    /// </summary>
-    private async Task ApplyStockAdjustmentAsync(Guid productId, decimal originalStock, decimal newStock, CancellationToken cancellationToken)
-    {
-        decimal delta = newStock - originalStock;
-        if (delta == 0m || _adjustStock is null)
-        {
-            return;
-        }
-
-        var request = new AdjustStockRequest(
-            productId,
-            delta,
-            "Ajuste manual al editar el producto",
-            OperatorUserId);
-        await _adjustStock.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
     }
 
     public async Task GenerateInternalBarcodeAsync(CancellationToken cancellationToken = default)
@@ -635,7 +629,7 @@ public sealed class ProductsViewModel : ViewModelBase
         try
         {
             var content = await File.ReadAllTextAsync(CsvPath, cancellationToken).ConfigureAwait(true);
-            var result = await _importProductsCsv.ExecuteAsync(new ImportProductsCsvRequest(content), cancellationToken).ConfigureAwait(true);
+            var result = await _importProductsCsv.ExecuteAsync(new ImportProductsCsvRequest(content, OperatorUserId), cancellationToken).ConfigureAwait(true);
             Message = result.Errors.Count == 0
                 ? $"Importación lista: {result.Imported} producto(s), {result.Skipped} omitido(s)."
                 : $"Importados {result.Imported}, omitidos {result.Skipped}. Primer error: {result.Errors[0]}";

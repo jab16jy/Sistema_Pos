@@ -37,12 +37,9 @@ public sealed class AdjustStockUseCase
         Product product = await _products.GetByIdAsync(request.ProductId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("Product was not found.");
 
-        product.AdjustStock(request.Delta);
-
-        var movement = new InventoryMovement(
-            product.Id,
+        InventoryMovement movement = product.RegisterStockMovement(
             InventoryMovementType.Adjustment,
-            new Quantity(Math.Abs(request.Delta)),
+            request.Delta,
             request.Reason,
             request.UserId);
 

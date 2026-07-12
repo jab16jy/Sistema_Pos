@@ -48,6 +48,36 @@ The system MUST allow editing any mutable field of an existing product.
 - WHEN a user attempts to edit it
 - THEN the system MUST reject the operation
 
+### Requirement: Current stock is not editable from the product catalog
+
+`CurrentStock` is master data that the catalog MAY display but MUST NOT edit directly. Ordinary
+product editing MUST NOT change stock; all stock changes go through traceable inventory movements
+(Inventario adjustments, Compras receipts, Ventas/Devoluciones/anulaciones). Product creation MAY
+accept an initial balance, but the system MUST record it as an `InitialBalance` inventory movement
+rather than writing `CurrentStock` directly. When no initial balance is provided, the product MUST
+be created with zero stock. `MinimumStock` MUST remain editable from the catalog.
+
+#### Scenario: Editing a product does not change stock
+
+- GIVEN an existing product with current stock = 10
+- WHEN the user edits the product and saves (any field)
+- THEN the product's current stock MUST remain 10
+- AND no inventory movement MUST be created by the edit
+
+#### Scenario: Initial balance on creation is recorded as a movement
+
+- GIVEN a user creates a product with an initial balance of 20 units
+- WHEN the product is saved
+- THEN the product MUST start at zero stock and reach 20 through exactly one `InitialBalance` inventory movement
+- AND the movement MUST record the operator and quantity for traceability
+
+#### Scenario: Creation without initial balance yields zero stock
+
+- GIVEN a user creates a product without specifying an initial balance
+- WHEN the product is saved
+- THEN the product MUST be created with current stock = 0
+- AND no inventory movement MUST be created
+
 ### Requirement: Product search
 
 The system MUST support searching products by name, barcode, or category.

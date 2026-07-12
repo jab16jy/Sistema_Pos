@@ -5,10 +5,11 @@ public sealed record CreateProductRequest(
     Guid CategoryId,
     decimal? CostPrice,
     decimal SalePrice,
-    decimal CurrentStock,
+    decimal InitialStock,
     decimal MinimumStock,
     string? Description,
     string? Barcode,
     decimal TaxRate = 19m,
     int? UnitsPerBox = null,
-    decimal? BoxPrice = null);
+    decimal? BoxPrice = null,
+    Guid OperatorUserId = default);

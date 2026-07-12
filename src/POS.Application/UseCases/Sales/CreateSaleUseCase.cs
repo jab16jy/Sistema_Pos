@@ -3,6 +3,7 @@ using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Loyalty;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
 
@@ -16,10 +17,11 @@ public sealed class CreateSaleUseCase
     private readonly IReceivableRepository? _receivables;
     private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
     private readonly RedeemLoyaltyPointsUseCase? _redeemPoints;
+    private readonly IInventoryRepository? _inventory;
 
     /// <summary>Legacy constructor — no receivable support. Used by tests that don't need deferred balance.</summary>
     public CreateSaleUseCase(IProductRepository products, ISaleRepository sales, IUnitOfWork unitOfWork)
-        : this(products, sales, unitOfWork, null, null, null)
+        : this(products, sales, unitOfWork, null, null, null, null)
     {
     }
 
@@ -28,7 +30,7 @@ public sealed class CreateSaleUseCase
         ISaleRepository sales,
         IUnitOfWork unitOfWork,
         IReceivableRepository? receivables)
-        : this(products, sales, unitOfWork, receivables, null, null)
+        : this(products, sales, unitOfWork, receivables, null, null, null)
     {
     }
 
@@ -38,7 +40,7 @@ public sealed class CreateSaleUseCase
         IUnitOfWork unitOfWork,
         IReceivableRepository? receivables,
         AccumulateLoyaltyPointsUseCase? accumulatePoints)
-        : this(products, sales, unitOfWork, receivables, accumulatePoints, null)
+        : this(products, sales, unitOfWork, receivables, accumulatePoints, null, null)
     {
     }
 
@@ -48,7 +50,8 @@ public sealed class CreateSaleUseCase
         IUnitOfWork unitOfWork,
         IReceivableRepository? receivables,
         AccumulateLoyaltyPointsUseCase? accumulatePoints,
-        RedeemLoyaltyPointsUseCase? redeemPoints)
+        RedeemLoyaltyPointsUseCase? redeemPoints,
+        IInventoryRepository? inventory = null)
     {
         _products = products;
         _sales = sales;
@@ -56,6 +59,7 @@ public sealed class CreateSaleUseCase
         _receivables = receivables;
         _accumulatePoints = accumulatePoints;
         _redeemPoints = redeemPoints;
+        _inventory = inventory;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(CreateSaleRequest request, CancellationToken cancellationToken = default)
@@ -81,11 +85,13 @@ public sealed class CreateSaleUseCase
         }
 
         var sale = new Sale(request.CashierUserId, request.CustomerId);
+        var productsById = new Dictionary<Guid, Product>();
 
         foreach (var item in request.Items)
         {
             var product = await _products.GetByIdAsync(item.ProductId, cancellationToken)
                 ?? throw new InvalidOperationException($"Product '{item.ProductId}' was not found.");
+            productsById[product.Id] = product;
 
             if (item.UnitPriceOverride.HasValue || item.UnitsPerPresentationOverride.HasValue)
             {
@@ -171,6 +177,23 @@ public sealed class CreateSaleUseCase
         sale.Complete();
 
         await _sales.AddAsync(sale, cancellationToken);
+
+        // The sale aggregate already decremented stock as each line was added; here we record the
+        // matching Exit movement per line so every stock change stays traceable (saldo ⇄ historial).
+        // ponytail: null ledger only in unit fixtures; production DI injects it and always audits sales.
+        if (_inventory is not null)
+        {
+            foreach (SaleItem line in sale.Items)
+            {
+                if (productsById.TryGetValue(line.ProductId, out Product? product) && product.TracksInventory)
+                {
+                    var baseUnits = new Quantity(line.Quantity * line.UnitsPerPresentation);
+                    await _inventory.AddMovementAsync(
+                        new InventoryMovement(line.ProductId, InventoryMovementType.Exit, baseUnits, "Venta", request.CashierUserId, sale.Id),
+                        cancellationToken).ConfigureAwait(false);
+                }
+            }
+        }
 
         Receivable? receivable = null;
         if (sale.DeferredBalance().Amount > 0m && request.CustomerId.HasValue)

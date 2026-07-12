@@ -243,20 +243,41 @@ public sealed class Product
     private Product RequireBox() =>
         SupportsBoxSale ? this : throw new InvalidOperationException($"Product '{Name}' is not configured for box sales.");
 
-    public void AdjustStock(decimal delta)
+    /// <summary>
+    /// The single entry point that changes <see cref="CurrentStock"/> and produces the matching
+    /// <see cref="InventoryMovement"/>, so the inventory invariant holds: one stock change ⇒ exactly
+    /// one movement, created together. A positive <paramref name="delta"/> adds stock
+    /// (Entry/InitialBalance/Return or a positive Adjustment); a negative delta removes it (a negative
+    /// Adjustment) and is rejected when it would drive stock below zero. Sales issue their Exit
+    /// movement separately because the aggregate already decremented stock when the line was added.
+    /// </summary>
+    public InventoryMovement RegisterStockMovement(
+        InventoryMovementType type,
+        decimal delta,
+        string reason,
+        Guid userId,
+        Guid? referenceId = null)
     {
         if (delta == 0m)
         {
-            throw new ArgumentException("Stock adjustment cannot be zero.", nameof(delta));
+            throw new ArgumentException("A stock movement must change the quantity.", nameof(delta));
+        }
+
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("A stock movement requires an operator for audit traceability.", nameof(userId));
         }
 
         if (delta > 0m)
         {
             IncreaseStock(new Quantity(delta));
-            return;
+        }
+        else
+        {
+            DecreaseStock(new Quantity(Math.Abs(delta)));
         }
 
-        DecreaseStock(new Quantity(Math.Abs(delta)));
+        return new InventoryMovement(Id, type, new Quantity(Math.Abs(delta)), reason, userId, referenceId);
     }
 
     public void DecreaseStock(Quantity quantity)
