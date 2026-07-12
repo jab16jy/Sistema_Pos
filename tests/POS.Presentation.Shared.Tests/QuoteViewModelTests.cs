@@ -67,6 +67,19 @@ public sealed class QuoteViewModelTests
     }
 
     [Fact]
+    public async Task SendByEmail_WithInvalidEmail_ShowsRecoverableValidationMessage()
+    {
+        var vm = CreateViewModel(out _, out _);
+        vm.CustomerName = "Ana Gómez";
+        vm.CustomerEmail = "invalidemail";
+        AddCartItem(vm, Guid.NewGuid(), "Producto Test", 1_000m);
+
+        await vm.SendByEmailAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("Ingresa un correo electrónico válido", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task SendByWhatsApp_WithoutPhone_ShowsRecoverableValidationMessage()
     {
         var vm = CreateViewModel(out _, out _);
@@ -76,6 +89,19 @@ public sealed class QuoteViewModelTests
         await vm.SendByWhatsAppAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("teléfono", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendByWhatsApp_WithInvalidPhone_ShowsRecoverableValidationMessage()
+    {
+        var vm = CreateViewModel(out _, out _);
+        vm.CustomerName = "Ana Gómez";
+        vm.CustomerPhone = "12345";
+        AddCartItem(vm, Guid.NewGuid(), "Producto Test", 1_000m);
+
+        await vm.SendByWhatsAppAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("mínimo 8 dígitos", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

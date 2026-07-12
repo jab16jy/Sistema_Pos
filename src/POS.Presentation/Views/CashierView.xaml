@@ -436,7 +436,12 @@
                   Margin="0,0,0,14">
             <StackPanel>
               <TextBlock Text="TOTAL A PAGAR" Style="{StaticResource TextCaption}" FontWeight="Medium" Foreground="{StaticResource BrushAccent}" />
-              <TextBlock Text="{Binding TotalText}" Style="{StaticResource TextDisplay}" FontWeight="Bold" Margin="0,2,0,0" />
+              <TextBlock Text="{Binding TotalText}"
+                         Style="{StaticResource CashHint}"
+                         TextDecorations="Strikethrough"
+                         Margin="0,2,0,0"
+                         Visibility="{Binding HasLoyaltyDiscount, Converter={StaticResource BoolToVisibilityConverter}}" />
+              <TextBlock Text="{Binding NetPayableText}" Style="{StaticResource TextDisplay}" FontWeight="Bold" Margin="0,2,0,0" />
             </StackPanel>
           </Border>
 

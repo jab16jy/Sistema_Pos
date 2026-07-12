@@ -384,6 +384,12 @@ public sealed class QuoteViewModel : ViewModelBase
             return;
         }
 
+        if (!IsValidEmail(CustomerEmail))
+        {
+            ValidationMessage = "Ingresa un correo electrónico válido";
+            return;
+        }
+
         await CreateAndSendAsync(SendChannel.Email, CustomerEmail, cancellationToken).ConfigureAwait(true);
     }
 
@@ -396,7 +402,45 @@ public sealed class QuoteViewModel : ViewModelBase
             return;
         }
 
+        if (!IsValidPhoneNumber(CustomerPhone))
+        {
+            ValidationMessage = "Ingresa un número de teléfono válido (mínimo 8 dígitos)";
+            return;
+        }
+
         await CreateAndSendAsync(SendChannel.WhatsApp, CustomerPhone, cancellationToken).ConfigureAwait(true);
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return false;
+        }
+
+        try
+        {
+            return System.Text.RegularExpressions.Regex.IsMatch(
+                email.Trim(),
+                @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                TimeSpan.FromMilliseconds(250));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidPhoneNumber(string phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return false;
+        }
+
+        string digits = new(phone.Where(char.IsDigit).ToArray());
+        return digits.Length >= 8;
     }
 
     private async Task CreateAndSendAsync(SendChannel channel, string recipient, CancellationToken cancellationToken)

@@ -81,6 +81,26 @@ public sealed class QuoteHistoryViewModelTests
     }
 
     [Fact]
+    public async Task SendByEmail_WhenInvalidCustomerEmail_SetsBlockedStatusWithoutCallingUseCase()
+    {
+        var sendLog = new InMemoryDocumentSendLogRepository();
+        var vm = BuildHistoryVm(
+            summaries:
+            [
+                new QuoteSummary(Guid.NewGuid(), "COT-003-INV", "Email Invalido", "invalid@email", "+57 300 000 0000", 80_000m, QuoteStatus.Active, "2026-12-31")
+            ],
+            sendLog: sendLog);
+
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        await vm.SendByEmailAsync(row, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, sendLog.LogCount);
+        Assert.Contains("no es válido", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task SendByWhatsApp_WhenNoCustomerPhone_SetsBlockedStatusWithoutCallingUseCase()
     {
         var sendLog = new InMemoryDocumentSendLogRepository();
@@ -98,6 +118,26 @@ public sealed class QuoteHistoryViewModelTests
 
         Assert.Equal(0, sendLog.LogCount);
         Assert.Contains("teléfono", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SendByWhatsApp_WhenInvalidCustomerPhone_SetsBlockedStatusWithoutCallingUseCase()
+    {
+        var sendLog = new InMemoryDocumentSendLogRepository();
+        var vm = BuildHistoryVm(
+            summaries:
+            [
+                new QuoteSummary(Guid.NewGuid(), "COT-004-INV", "Tel Invalido", "test@example.com", "1234567", 80_000m, QuoteStatus.Active, "2026-12-31")
+            ],
+            sendLog: sendLog);
+
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        await vm.SendByWhatsAppAsync(row, TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, sendLog.LogCount);
+        Assert.Contains("no es válido", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     // --- 3.1c: Send succeeds when contact data present ---

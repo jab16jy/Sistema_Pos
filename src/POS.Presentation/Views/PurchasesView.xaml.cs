@@ -1,13 +1,14 @@
-using System;
-using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using POS.Application.DTOs.Purchases;
+using System.Windows.Input;
 using POS.Presentation.Shared.ViewModels;
 
 namespace POS.Presentation.Views;
 
+/// <summary>
+/// Visual interaction only (keyboard, focus, numeric input filtering).
+/// All decisions are delegated to <see cref="NewPurchaseViewModel"/>.
+/// </summary>
 public partial class PurchasesView : UserControl
 {
     public PurchasesView()
@@ -15,45 +16,92 @@ public partial class PurchasesView : UserControl
         InitializeComponent();
     }
 
-    private void OnCatalogSearchTextChanged(object sender, TextChangedEventArgs e)
+    private NewPurchaseViewModel? NewPurchase => (DataContext as PurchasesViewModel)?.NewPurchase;
+
+    private void CatalogSearchBox_OnKeyDown(object sender, KeyEventArgs e)
     {
-        if (sender is TextBox textBox && CatalogListBox.ItemsSource is System.Collections.IEnumerable itemsSource)
+        if (NewPurchase is not { } viewModel)
         {
-            ICollectionView view = CollectionViewSource.GetDefaultView(itemsSource);
-            string filterText = textBox.Text;
-            if (string.IsNullOrWhiteSpace(filterText))
+            return;
+        }
+
+        if (e.Key is Key.Down or Key.Up)
+        {
+            e.Handled = true;
+            viewModel.MoveCatalogSelection(e.Key == Key.Down ? 1 : -1);
+            if (viewModel.SelectedCatalogItem is not null)
             {
-                view.Filter = null;
+                CatalogSuggestionsListBox.ScrollIntoView(viewModel.SelectedCatalogItem);
             }
-            else
-            {
-                view.Filter = obj =>
-                {
-                    if (obj is SupplierCatalogItemResult item)
-                    {
-                        return item.ProductName.Contains(filterText, StringComparison.OrdinalIgnoreCase) ||
-                               (item.ProductReference?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                               (item.SupplierSku?.Contains(filterText, StringComparison.OrdinalIgnoreCase) ?? false);
-                    }
-                    return false;
-                };
-            }
+
+            return;
+        }
+
+        if (e.Key != Key.Enter)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (viewModel.AddSelectedCatalogItem())
+        {
+            CatalogSearchBox.Focus();
+            CatalogSearchBox.SelectAll();
         }
     }
 
-    private void OnAddCatalogItemDirectly(object sender, RoutedEventArgs e)
+    private void CatalogSuggestions_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is Button button && button.DataContext is SupplierCatalogItemResult item)
+        if (NewPurchase is not { SelectedCatalogItem: not null } viewModel)
         {
-            if (DataContext is PurchasesViewModel vm)
-            {
-                vm.SelectedCatalogItem = item;
-                if (vm.AddDraftItemCommand.CanExecute(null))
-                {
-                    vm.AddDraftItemCommand.Execute(null);
-                }
-            }
+            return;
+        }
+
+        viewModel.AddSelectedCatalogItem();
+        CatalogSearchBox.Focus();
+    }
+
+    private void Decimal_OnPreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        e.Handled = !IsDecimalTextAllowed(sender as TextBox, e.Text);
+    }
+
+    private void Decimal_OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Space)
+        {
+            e.Handled = true;
         }
     }
 
+    private void Decimal_OnPasting(object sender, DataObjectPastingEventArgs e)
+    {
+        if (!e.DataObject.GetDataPresent(typeof(string)) ||
+            !IsDecimalTextAllowed(sender as TextBox, (string)e.DataObject.GetData(typeof(string))))
+        {
+            e.CancelCommand();
+        }
+    }
+
+    private static bool IsDecimalTextAllowed(TextBox? box, string text)
+    {
+        bool hasSeparator = box?.Text.Contains(',') == true || box?.Text.Contains('.') == true;
+        foreach (char character in text)
+        {
+            if (char.IsDigit(character))
+            {
+                continue;
+            }
+
+            if ((character is ',' or '.') && !hasSeparator)
+            {
+                hasSeparator = true;
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
+    }
 }

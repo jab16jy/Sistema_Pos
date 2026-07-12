@@ -83,27 +83,7 @@ public sealed class PurchasesViewModelTests
     }
 
     [Fact]
-    public void AddDraftItem_UsesEligibleCatalogSnapshotAndExplicitCostOverride()
-    {
-        var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([]));
-        viewModel.SelectedCatalogItem = new SupplierCatalogItemResult(
-            Guid.NewGuid(), "Acme Foods", Guid.NewGuid(), "Rice", "RICE-REF", "RICE-12", "Bulto", 12m, 12_000m, true);
-        viewModel.DraftQuantity = 2m;
-        viewModel.UseDraftCostOverride = true;
-        viewModel.DraftCostOverride = 13_000m;
-
-        viewModel.AddDraftItemCommand.Execute(null);
-
-        PurchaseDraftItem draft = Assert.Single(viewModel.Items);
-        Assert.Equal("Bulto", draft.PurchaseUnitName);
-        Assert.Equal(12m, draft.UnitsPerPurchaseUnit);
-        Assert.Equal(13_000m, draft.EffectivePurchaseUnitCost);
-        Assert.Equal(24m, draft.InventoryUnitsReceived);
-        Assert.Equal(26_000m, draft.Subtotal);
-    }
-
-    [Fact]
-    public async Task SelectingSupplier_LoadsAllCatalogItemsButOnlyEligiblePurchaseItems()
+    public async Task SelectingSupplier_LoadsFullProfileCatalogIncludingInactiveItems()
     {
         var supplierId = Guid.NewGuid();
         var activeItem = new SupplierCatalogItemResult(
@@ -118,7 +98,28 @@ public sealed class PurchasesViewModelTests
         viewModel.SelectedSupplier = Assert.Single(viewModel.Suppliers);
 
         Assert.Equal(2, viewModel.SupplierCatalogItems.Count);
-        Assert.Equal(activeItem, Assert.Single(viewModel.EligibleCatalogItems));
+    }
+
+    [Fact]
+    public async Task LoadAsync_AlsoLoadsSuppliersForTheNewPurchaseFlow()
+    {
+        var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([
+            new SupplierSearchResult(Guid.NewGuid(), "Acme Foods", "900123", null, null, true)
+        ]));
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Single(viewModel.NewPurchase.Suppliers);
+    }
+
+    [Fact]
+    public void NewPurchaseMessages_SurfaceOnTheSharedStatusBar()
+    {
+        var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([]));
+
+        viewModel.NewPurchase.AddSelectedCatalogItem();
+
+        Assert.Equal(viewModel.NewPurchase.Message, viewModel.Message);
     }
 
     [Fact]
@@ -129,133 +130,6 @@ public sealed class PurchasesViewModelTests
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("Error al cargar proveedores", viewModel.Message, StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
-    public async Task RegisterPurchaseAsync_WithSelectedSupplierAndLine_ShowsPersistedPurchaseMessage()
-    {
-        var supplierId = Guid.NewGuid();
-        var operatorId = Guid.NewGuid();
-        var purchaseUseCase = new StaticRegisterPurchaseUseCase(new RegisterPurchaseResult(Guid.NewGuid(), supplierId, 12_000m, 1));
-        var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([
-            new SupplierSearchResult(supplierId, "Acme Foods", "900123", null, null, true)
-        ]), purchaseUseCase: purchaseUseCase, currentOperatorIdProvider: () => operatorId);
-        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
-        viewModel.SelectedSupplier = viewModel.Suppliers.Single();
-        viewModel.PurchaseInvoiceNumber = "FAC-3";
-        viewModel.DraftProductId = Guid.NewGuid().ToString();
-        viewModel.DraftQuantity = 3m;
-        viewModel.DraftTotalCost = 12_000m;
-        viewModel.AddDraftItemCommand.Execute(null);
-
-        await viewModel.RegisterPurchaseAsync(TestContext.Current.CancellationToken);
-
-        Assert.Empty(viewModel.Items);
-        Assert.Contains("Compra registrada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(supplierId, purchaseUseCase.LastRequest?.SupplierId);
-        Assert.Equal(operatorId, purchaseUseCase.LastRequest?.UserId);
-        Assert.Equal("FAC-3", purchaseUseCase.LastRequest?.InvoiceNumber);
-        Assert.Equal(3m, purchaseUseCase.LastRequest?.Items.Single().Quantity);
-    }
-
-    [Fact]
-    public async Task ProductSearch_ThenAddDraftItem_UsesSelectedProductIdAndName()
-    {
-        var productId = Guid.NewGuid();
-        var lookup = new StaticProductLookupService([
-            new ProductLookupResult(productId, "Ampolla 350", "7701234", 10_000m, 24m)
-        ]);
-        var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([]), productLookup: lookup);
-
-        viewModel.ProductSearchText = "amp";
-        await Task.Delay(50, TestContext.Current.CancellationToken);
-
-        ProductLookupResult result = Assert.Single(viewModel.ProductResults);
-        Assert.Equal("Ampolla 350", result.Name);
-        Assert.Same(result, viewModel.SelectedProductResult);
-
-        viewModel.DraftQuantity = 2m;
-        viewModel.DraftTotalCost = 20_000m;
-        viewModel.AddDraftItemCommand.Execute(null);
-
-        PurchaseDraftItem item = Assert.Single(viewModel.Items);
-        Assert.Equal(productId, item.ProductId);
-        Assert.Equal("Ampolla 350", item.ProductName);
-        Assert.Equal(2m, item.Quantity);
-        Assert.Empty(viewModel.ProductResults);
-    }
-
-    [Fact]
-    public void AddDraftItemCommand_UpdatesCanExecuteWhenDraftInputChanges()
-    {
-        var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([]));
-        var changeCount = 0;
-        viewModel.AddDraftItemCommand.CanExecuteChanged += (_, _) => changeCount++;
-
-        Assert.False(viewModel.AddDraftItemCommand.CanExecute(null));
-
-        viewModel.DraftProductId = Guid.NewGuid().ToString();
-        viewModel.DraftQuantity = 2m;
-        viewModel.DraftTotalCost = 5_000m;
-
-        Assert.True(viewModel.AddDraftItemCommand.CanExecute(null));
-        Assert.True(changeCount >= 3);
-
-        viewModel.DraftProductId = string.Empty;
-
-        Assert.False(viewModel.AddDraftItemCommand.CanExecute(null));
-    }
-
-    [Fact]
-    public async Task AddProductToCatalogDirectlyCommand_AssociatesProductCorrectly()
-    {
-        var supplierRepository = new InMemorySupplierRepository();
-        var supplier = new Supplier("Supplier Acme", "123456");
-        var supplierId = supplier.Id;
-        await supplierRepository.AddAsync(supplier);
-
-        var productRepository = new InMemoryProductRepository();
-        var product = new Product(
-            "Rice", 
-            Guid.NewGuid(), 
-            null, 
-            new Money(10_000m), 
-            new StockQuantity(100m), 
-            new StockQuantity(10m), 
-            null, 
-            new Barcode("RICE-123"));
-        await productRepository.AddAsync(product);
-
-        var catalogRepo = new InMemoryProductSupplierRepository();
-        var unitOfWork = new InMemoryUnitOfWork();
-        var saveCatalogItem = new SaveSupplierCatalogItemUseCase(supplierRepository, productRepository, catalogRepo, unitOfWork);
-
-        var viewModel = new PurchasesViewModel(
-            new SaveSupplierUseCase(supplierRepository, unitOfWork),
-            new SearchSuppliersUseCase(new StaticSupplierLookupQueryService([])),
-            new StaticRegisterPurchaseUseCase(new RegisterPurchaseResult(Guid.NewGuid(), Guid.NewGuid(), 0m, 0)),
-            () => Guid.NewGuid(),
-            productLookup: null,
-            catalog: null,
-            eligibleCatalog: null,
-            saveCatalogItem: saveCatalogItem);
-
-        viewModel.SelectedSupplier = new SupplierSearchResult(supplierId, "Supplier Acme", "123456", null, null, true);
-        var productLookup = new ProductLookupResult(product.Id, "Rice", "RICE-123", 10_000m, 100m);
-        
-        viewModel.AddProductToCatalogDirectlyCommand.Execute(productLookup);
-
-        var savedItem = Assert.Single(catalogRepo.Items);
-        Assert.Equal(supplierId, savedItem.SupplierId);
-        Assert.Equal(product.Id, savedItem.ProductId);
-        Assert.Equal("RICE-123", savedItem.SupplierSku);
-        Assert.Equal("Unidad", savedItem.PurchaseUnitName);
-        Assert.Equal(1m, savedItem.UnitsPerPurchaseUnit);
-        Assert.Equal(7000m, savedItem.PurchaseUnitCost);
-        Assert.True(savedItem.IsActive);
-
-        Assert.Contains("Rice", viewModel.Message);
-        Assert.Contains("asociado al catálogo", viewModel.Message);
     }
 
     [Fact]
@@ -329,16 +203,6 @@ public sealed class PurchasesViewModelTests
             productLookup,
             catalog,
             eligibleCatalog);
-    }
-
-    private sealed class StaticProductLookupService : IProductLookupService
-    {
-        private readonly IReadOnlyList<ProductLookupResult> _products;
-
-        public StaticProductLookupService(IReadOnlyList<ProductLookupResult> products) => _products = products;
-
-        public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
-            => Task.FromResult(_products);
     }
 
     private static string FindRepositoryFile(string relativePath)
@@ -476,39 +340,4 @@ public sealed class PurchasesViewModelTests
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(1);
     }
 
-    private sealed class InMemoryProductRepository : IProductRepository
-    {
-        public List<Product> Products { get; } = [];
-        public Task AddAsync(Product product, CancellationToken cancellationToken = default)
-        {
-            Products.Add(product);
-            return Task.CompletedTask;
-        }
-        public Task<Product?> GetByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
-            => Task.FromResult(Products.FirstOrDefault(p => p.SourceCode == barcode));
-        public Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-            => Task.FromResult(Products.FirstOrDefault(p => p.Id == id));
-    }
-
-    private sealed class InMemoryProductSupplierRepository : IProductSupplierRepository
-    {
-        public List<ProductSupplier> Items { get; } = [];
-        public Task<ProductSupplier?> GetAsync(Guid supplierId, Guid productId, CancellationToken cancellationToken = default)
-            => Task.FromResult(Items.FirstOrDefault(item => item.SupplierId == supplierId && item.ProductId == productId));
-        public Task<IReadOnlyList<ProductSupplier>> GetForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<ProductSupplier>>(Items.Where(item => item.SupplierId == supplierId).ToList());
-        public Task<IReadOnlyList<ProductSupplier>> GetActiveForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<ProductSupplier>>(Items.Where(item => item.SupplierId == supplierId && item.IsActive).ToList());
-        public Task AddAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default)
-        {
-            Items.Add(catalogItem);
-            return Task.CompletedTask;
-        }
-        public Task UpdateAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task RemoveAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default)
-        {
-            Items.Remove(catalogItem);
-            return Task.CompletedTask;
-        }
-    }
 }

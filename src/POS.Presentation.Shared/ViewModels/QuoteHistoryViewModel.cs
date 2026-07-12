@@ -203,6 +203,12 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
             return;
         }
 
+        if (!IsValidEmail(row.CustomerEmail))
+        {
+            StatusMessage = "El correo electrónico registrado no es válido.";
+            return;
+        }
+
         SelectedQuote = row;
 
         try
@@ -237,6 +243,12 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
             return;
         }
 
+        if (!IsValidPhoneNumber(row.CustomerPhone))
+        {
+            StatusMessage = "El número de teléfono registrado no es válido (mínimo 8 dígitos).";
+            return;
+        }
+
         SelectedQuote = row;
 
         try
@@ -252,6 +264,38 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         {
             StatusMessage = $"Error al enviar el documento: {ex.Message}";
         }
+    }
+
+    private static bool IsValidEmail(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            return false;
+        }
+
+        try
+        {
+            return System.Text.RegularExpressions.Regex.IsMatch(
+                email.Trim(),
+                @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+                TimeSpan.FromMilliseconds(250));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static bool IsValidPhoneNumber(string phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return false;
+        }
+
+        string digits = new(phone.Where(char.IsDigit).ToArray());
+        return digits.Length >= 8;
     }
 
     /// <summary>Loads the full quote (line items included) and asks the view to display it — no PDF generated.</summary>

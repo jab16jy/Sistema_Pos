@@ -28,6 +28,29 @@
       <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
     </Style>
+    <Style x:Key="PurchaseListBoxItemStyle" TargetType="ListBoxItem">
+      <Setter Property="Padding" Value="8"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Margin" Value="0,2"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ListBoxItem">
+            <Border x:Name="BgBorder" CornerRadius="6" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+              <ContentPresenter/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="BgBorder" Property="Background" Value="{StaticResource BrushPrimaryContainer}"/>
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="BgBorder" Property="Background" Value="{StaticResource BrushSurfaceContainer}"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </UserControl.Resources>
   <Grid>
     <Grid.RowDefinitions>
@@ -39,18 +62,18 @@
     <!-- 2. Subtab Headers Bar -->
     <Border Grid.Row="0" Background="{StaticResource BrushCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="20,0">
       <StackPanel Orientation="Horizontal">
-        <RadioButton Content="Nueva compra" 
-                     GroupName="PurchasesSubtabs" 
-                     Style="{StaticResource SubtabItemStyle}" 
+        <RadioButton Content="Nueva compra"
+                     GroupName="PurchasesSubtabs"
+                     Style="{StaticResource SubtabItemStyle}"
                      IsChecked="{Binding IsNewPurchaseSubtabActive, Mode=TwoWay}"/>
-        <RadioButton Content="Proveedores y catálogo" 
-                     GroupName="PurchasesSubtabs" 
-                     Style="{StaticResource SubtabItemStyle}" 
+        <RadioButton Content="Proveedores y catálogo"
+                     GroupName="PurchasesSubtabs"
+                     Style="{StaticResource SubtabItemStyle}"
                      IsChecked="{Binding IsSuppliersSubtabActive, Mode=TwoWay}"
                      Margin="12,0,0,0"/>
-        <RadioButton Content="Historial" 
-                     GroupName="PurchasesSubtabs" 
-                     Style="{StaticResource SubtabItemStyle}" 
+        <RadioButton Content="Historial"
+                     GroupName="PurchasesSubtabs"
+                     Style="{StaticResource SubtabItemStyle}"
                      IsChecked="{Binding IsHistorySubtabActive, Mode=TwoWay}"
                      Margin="12,0,0,0"/>
       </StackPanel>
@@ -58,9 +81,10 @@
 
     <!-- 3. Content Panels -->
     <Grid Grid.Row="1" Margin="16">
-      
-      <!-- TAB 1: Nueva Compra -->
+
+      <!-- TAB 1: Nueva Compra (estado dedicado en NewPurchaseViewModel) -->
       <Grid Visibility="{Binding IsNewPurchaseTabActive, Converter={StaticResource BoolToVisibilityConverter}}">
+       <Grid DataContext="{Binding NewPurchase}">
         <Grid.RowDefinitions>
           <RowDefinition Height="Auto"/> <!-- Stepper -->
           <RowDefinition Height="*"/>    <!-- Step Content -->
@@ -140,6 +164,10 @@
                     <Setter TargetName="StepNumber" Property="Foreground" Value="White"/>
                     <Setter TargetName="StepLabel" Property="Foreground" Value="{StaticResource BrushAccent}"/>
                   </DataTrigger>
+                  <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="StepCircleGrid" Property="Opacity" Value="0.5"/>
+                    <Setter TargetName="StepLabel" Property="Opacity" Value="0.5"/>
+                  </Trigger>
                 </ControlTemplate.Triggers>
               </ControlTemplate>
             </Button.Template>
@@ -167,6 +195,10 @@
                     <Setter TargetName="StepCircle" Property="Stroke" Value="{StaticResource BrushPrimaryContainer}"/>
                     <Setter TargetName="StepCircle" Property="StrokeThickness" Value="3"/>
                   </DataTrigger>
+                  <Trigger Property="IsEnabled" Value="False">
+                    <Setter TargetName="StepCircleGrid" Property="Opacity" Value="0.5"/>
+                    <Setter TargetName="StepLabel" Property="Opacity" Value="0.5"/>
+                  </Trigger>
                 </ControlTemplate.Triggers>
               </ControlTemplate>
             </Button.Template>
@@ -175,46 +207,21 @@
 
         <!-- Step Panels Container -->
         <Grid Grid.Row="1">
-          
+
           <!-- STEP 1: Elegir Proveedor -->
           <Grid Visibility="{Binding IsStep1Active, Converter={StaticResource BoolToVisibilityConverter}}">
             <Border Style="{StaticResource Card}" HorizontalAlignment="Center" Width="480" VerticalAlignment="Top" Margin="0,16,0,0">
               <StackPanel>
                 <TextBlock Text="Elegir proveedor" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,4"/>
                 <TextBlock Text="Busca por nombre o NIT. Solo se listan proveedores activos." Style="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,16"/>
-                
+
                 <TextBlock Text="Buscar proveedor" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                <TextBox Text="{Binding SupplierSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Distribuidora El Sol..." Margin="0,0,0,12"/>
-                
+                <TextBox Text="{Binding SupplierSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Distribuidora El Sol, 900123..." Margin="0,0,0,12"/>
+
                 <TextBlock Text="Lista de proveedores" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                 <Border BorderThickness="1" BorderBrush="{StaticResource BrushBorder}" CornerRadius="4" Background="White" Margin="0,0,0,12" Height="220">
                   <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ListBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" BorderThickness="0" Background="Transparent">
-                      <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                          <Setter Property="Padding" Value="8"/>
-                          <Setter Property="Background" Value="Transparent"/>
-                          <Setter Property="BorderThickness" Value="0"/>
-                          <Setter Property="Margin" Value="0,2"/>
-                          <Setter Property="Template">
-                            <Setter.Value>
-                              <ControlTemplate TargetType="ListBoxItem">
-                                <Border x:Name="BgBorder" CornerRadius="6" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                                  <ContentPresenter/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                  <Trigger Property="IsSelected" Value="True">
-                                    <Setter TargetName="BgBorder" Property="Background" Value="{StaticResource BrushPrimaryContainer}"/>
-                                  </Trigger>
-                                  <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="BgBorder" Property="Background" Value="{StaticResource BrushSurfaceContainer}"/>
-                                  </Trigger>
-                                </ControlTemplate.Triggers>
-                              </ControlTemplate>
-                            </Setter.Value>
-                          </Setter>
-                        </Style>
-                      </ListBox.ItemContainerStyle>
+                    <ListBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}" ItemContainerStyle="{StaticResource PurchaseListBoxItemStyle}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" BorderThickness="0" Background="Transparent">
                       <ListBox.ItemTemplate>
                         <DataTemplate>
                           <Grid Margin="2">
@@ -223,12 +230,12 @@
                               <ColumnDefinition Width="*"/>
                               <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            
+
                             <!-- Initials Avatar -->
                             <Border Grid.Column="0" Width="36" Height="36" CornerRadius="18" Background="{StaticResource BrushPrimary}" Margin="0,0,12,0">
                               <TextBlock Text="{Binding Name, Converter={StaticResource InitialsConverter}}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="12"/>
                             </Border>
-                            
+
                             <!-- Name, NIT & Phone -->
                             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                               <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" Foreground="{StaticResource BrushText}"/>
@@ -239,42 +246,34 @@
                                 <TextBlock Text="{Binding Phone}" Style="{StaticResource TextSmall}" Foreground="{StaticResource BrushMuted}"/>
                               </StackPanel>
                             </StackPanel>
-                            
+
                             <!-- Status Dot -->
-                            <Ellipse Grid.Column="2" Width="8" Height="8" Margin="8,0,4,0" VerticalAlignment="Center">
-                              <Ellipse.Style>
-                                <Style TargetType="Ellipse">
-                                  <Setter Property="Fill" Value="{StaticResource BrushSuccess}"/>
-                                  <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
-                                      <Setter Property="Fill" Value="{StaticResource BrushBorder}"/>
-                                    </DataTrigger>
-                                  </Style.Triggers>
-                                </Style>
-                              </Ellipse.Style>
-                            </Ellipse>
+                            <Ellipse Grid.Column="2" Width="8" Height="8" Margin="8,0,4,0" VerticalAlignment="Center" Fill="{StaticResource BrushSuccess}"/>
                           </Grid>
                         </DataTemplate>
                       </ListBox.ItemTemplate>
                     </ListBox>
                   </ScrollViewer>
                 </Border>
-                
+
+                <!-- Selected supplier context -->
+                <Border Background="{StaticResource BrushPrimaryContainer}" CornerRadius="6" Padding="10,6" Margin="0,0,0,8"
+                        Visibility="{Binding SelectedSupplier, Converter={StaticResource NullToVisibilityConverter}}">
+                  <DockPanel>
+                    <Button Content="Cambiar" Command="{Binding ChangeSupplierCommand}" Style="{StaticResource GhostButton}" DockPanel.Dock="Right" Padding="6,2"/>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                      <TextBlock Text="Proveedor: " Style="{StaticResource CashHint}"/>
+                      <TextBlock Text="{Binding SupplierContextLabel}" FontWeight="SemiBold" FontSize="12" Foreground="{StaticResource BrushText}"/>
+                    </StackPanel>
+                  </DockPanel>
+                </Border>
+
                 <DockPanel Margin="0,8,0,0">
-                  <Button Content="+ Nuevo proveedor" Command="{Binding NewSupplierCommand}" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"/>
-                  <!-- Siguiente Button enabled only when supplier selected -->
-                  <Button Content="Siguiente: Productos →" Command="{Binding GoToStepCommand}" CommandParameter="2" DockPanel.Dock="Right" HorizontalAlignment="Right">
-                    <Button.Style>
-                      <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-                        <Setter Property="IsEnabled" Value="True"/>
-                        <Style.Triggers>
-                          <DataTrigger Binding="{Binding SelectedSupplier}" Value="{x:Null}">
-                            <Setter Property="IsEnabled" Value="False"/>
-                          </DataTrigger>
-                        </Style.Triggers>
-                      </Style>
-                    </Button.Style>
-                  </Button>
+                  <Button Content="+ Nuevo proveedor"
+                          Command="{Binding DataContext.NewSupplierCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                          Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"/>
+                  <!-- Enabled/disabled by GoToStepCommand.CanExecute (validated in the ViewModel) -->
+                  <Button Content="Siguiente: Productos →" Command="{Binding GoToStepCommand}" CommandParameter="2" Style="{StaticResource PrimaryButton}" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
                 </DockPanel>
               </StackPanel>
             </Border>
@@ -282,265 +281,332 @@
 
           <!-- STEP 2: Productos -->
           <Grid Visibility="{Binding IsStep2Active, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="1*"/>
-              <ColumnDefinition Width="12"/>
-              <ColumnDefinition Width="1.4*"/>
-            </Grid.ColumnDefinitions>
-            
-            <!-- Left: Catalog List -->
-            <Border Grid.Column="0" Style="{StaticResource Card}">
-              <Grid>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto"/>
-                  <RowDefinition Height="Auto"/>
-                  <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                
-                <StackPanel Grid.Row="0" Margin="0,0,0,12">
-                  <TextBlock Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,4">
-                    <TextBlock.Text>
-                      <Binding Path="SelectedSupplier.Name" StringFormat="Catálogo elegible — {0}" TargetNullValue="Catálogo elegible" FallbackValue="Catálogo elegible"/>
-                    </TextBlock.Text>
-                  </TextBlock>
-                  <TextBlock Text="Solo productos con relación activa y costo vigente." Style="{StaticResource MutedText}" FontSize="12"/>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/> <!-- Supplier context -->
+              <RowDefinition Height="*"/>    <!-- Catalog + cart -->
+            </Grid.RowDefinitions>
+
+            <!-- Persistent supplier context with explicit change action -->
+            <Border Grid.Row="0" Background="{StaticResource BrushCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="6" Padding="12,6" Margin="0,0,0,12">
+              <DockPanel>
+                <Button Content="Cambiar proveedor" Command="{Binding ChangeSupplierCommand}" Style="{StaticResource GhostButton}" DockPanel.Dock="Right"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                  <TextBlock Text="Comprando a: " Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding SupplierContextLabel}" FontWeight="SemiBold" Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
                 </StackPanel>
-                
-                <!-- Search Box -->
-                <TextBox Grid.Row="1" Tag="Buscar producto (Arroz, aceite...)" TextChanged="OnCatalogSearchTextChanged" Margin="0,0,0,12"/>
-                
-                <!-- Catalog ListBox -->
-                <Border Grid.Row="2" BorderThickness="1" BorderBrush="{StaticResource BrushBorder}" CornerRadius="4" Background="{StaticResource BrushSurfaceContainer}">
-                  <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ListBox x:Name="CatalogListBox" ItemsSource="{Binding EligibleCatalogItems}" SelectedItem="{Binding SelectedCatalogItem, Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" BorderThickness="0" Background="Transparent">
-                      <ListBox.ItemContainerStyle>
-                        <Style TargetType="ListBoxItem">
-                          <Setter Property="Padding" Value="8"/>
-                          <Setter Property="Background" Value="Transparent"/>
-                          <Setter Property="BorderThickness" Value="0"/>
-                          <Setter Property="Margin" Value="0,2"/>
-                          <Setter Property="Template">
-                            <Setter.Value>
-                              <ControlTemplate TargetType="ListBoxItem">
-                                <Border x:Name="BgBorder" CornerRadius="6" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                                  <ContentPresenter/>
-                                </Border>
-                                <ControlTemplate.Triggers>
-                                  <Trigger Property="IsSelected" Value="True">
-                                    <Setter TargetName="BgBorder" Property="Background" Value="{StaticResource BrushPrimaryContainer}"/>
-                                  </Trigger>
-                                  <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="BgBorder" Property="Background" Value="{StaticResource BrushSurfaceContainer}"/>
-                                  </Trigger>
-                                </ControlTemplate.Triggers>
-                              </ControlTemplate>
-                            </Setter.Value>
-                          </Setter>
-                        </Style>
-                      </ListBox.ItemContainerStyle>
+              </DockPanel>
+            </Border>
+
+            <Grid Grid.Row="1">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="1.4*"/>
+              </Grid.ColumnDefinitions>
+
+              <!-- Left: eligible-catalog autocomplete + selected product detail -->
+              <Border Grid.Column="0" Style="{StaticResource Card}">
+                <Grid>
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Title -->
+                    <RowDefinition Height="Auto"/> <!-- Search box -->
+                    <RowDefinition Height="Auto"/> <!-- Hints -->
+                    <RowDefinition Height="*"/>    <!-- Suggestions -->
+                    <RowDefinition Height="Auto"/> <!-- Selected product detail -->
+                  </Grid.RowDefinitions>
+
+                  <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                    <TextBlock Text="Catálogo elegible" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Busca por nombre, referencia o SKU. Solo productos con relación activa y costo vigente." Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap"/>
+                  </StackPanel>
+
+                  <TextBox Grid.Row="1" x:Name="CatalogSearchBox"
+                           Text="{Binding CatalogSearchText, UpdateSourceTrigger=PropertyChanged}"
+                           Tag="Buscar producto (Arroz, RICE-12...)"
+                           KeyDown="CatalogSearchBox_OnKeyDown"
+                           Margin="0,0,0,6"/>
+
+                  <StackPanel Grid.Row="2" Margin="0,0,0,8">
+                    <TextBlock Text="↑ ↓ para navegar · Enter o doble clic para agregar" Style="{StaticResource CashHint}"/>
+                    <TextBlock Text="Sin coincidencias. Si falta un producto, configúralo en 'Proveedores y catálogo'."
+                               Style="{StaticResource CashHint}" Foreground="{StaticResource BrushDanger}" TextWrapping="Wrap"
+                               Visibility="{Binding HasNoCatalogMatches, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                  </StackPanel>
+
+                  <Border Grid.Row="3" BorderThickness="1" BorderBrush="{StaticResource BrushBorder}" CornerRadius="4" Background="{StaticResource BrushSurfaceContainer}">
+                    <ListBox x:Name="CatalogSuggestionsListBox"
+                             ItemsSource="{Binding CatalogSuggestions}"
+                             SelectedItem="{Binding SelectedCatalogItem, Mode=TwoWay}"
+                             MouseDoubleClick="CatalogSuggestions_OnMouseDoubleClick"
+                             ItemContainerStyle="{StaticResource PurchaseListBoxItemStyle}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             BorderThickness="0" Background="Transparent">
                       <ListBox.ItemTemplate>
                         <DataTemplate>
-                          <Border BorderThickness="1" BorderBrush="{StaticResource BrushBorder}" CornerRadius="6" Padding="10" Margin="0,0,0,6" Background="White">
-                            <Grid>
-                              <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                              </Grid.ColumnDefinitions>
-                              
-                              <StackPanel Grid.Column="0">
-                                <TextBlock Text="{Binding ProductName}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource BrushText}"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                  <TextBlock Text="{Binding PurchaseUnitName}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
-                                  <TextBlock Text=" · Factor " Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
-                                  <TextBlock Text="{Binding UnitsPerPurchaseUnit}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
-                                  <TextBlock Text=" · Costo " Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
-                                  <TextBlock Text="{Binding PurchaseUnitCost, StringFormat=C2}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
-                                </StackPanel>
-                              </StackPanel>
-                              
-                              <!-- Direct add button inside catalog row -->
-                              <Button Grid.Column="1" Content="＋" Click="OnAddCatalogItemDirectly" Width="32" Height="32" BorderThickness="0" Background="{StaticResource BrushPrimaryContainer}" Foreground="{StaticResource BrushPrimary}" FontWeight="Bold" FontSize="14" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Focusable="False">
-                                <Button.Resources>
-                                  <CornerRadius x:Key="RadiusSm">16</CornerRadius>
-                                </Button.Resources>
-                              </Button>
-                            </Grid>
-                          </Border>
+                          <StackPanel>
+                            <TextBlock Text="{Binding ProductName}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource BrushText}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                              <TextBlock Text="{Binding PurchaseUnitName}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
+                              <TextBlock Text=" · Factor " Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
+                              <TextBlock Text="{Binding UnitsPerPurchaseUnit}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
+                              <TextBlock Text=" · Costo " Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
+                              <TextBlock Text="{Binding PurchaseUnitCost, StringFormat=C2}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
+                            </StackPanel>
+                          </StackPanel>
                         </DataTemplate>
                       </ListBox.ItemTemplate>
                     </ListBox>
-                  </ScrollViewer>
-                </Border>
-              </Grid>
-            </Border>
+                  </Border>
 
-            <!-- Right: Draft Lines & Add Form -->
-            <Border Grid.Column="2" Style="{StaticResource Card}">
-              <Grid>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto"/> <!-- Title -->
-                  <RowDefinition Height="*"/>    <!-- Lines DataGrid -->
-                  <RowDefinition Height="Auto"/> <!-- Input form to add line -->
-                  <RowDefinition Height="Auto"/> <!-- Navigation buttons -->
-                </Grid.RowDefinitions>
-                
-                <TextBlock Grid.Row="0" Text="Líneas de la compra" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,12"/>
-                
-                <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="180" MaxHeight="320" Margin="0,0,0,16">
-                  <DataGrid.Columns>
-                    <DataGridTextColumn Header="Producto" Binding="{Binding ProductName}" Width="*"/>
-                    <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="80"/>
-                    <DataGridTextColumn Header="Cant." Binding="{Binding Quantity}" Width="65"/>
-                    <DataGridTextColumn Header="Costo" Binding="{Binding EffectivePurchaseUnitCost, StringFormat=N2}" Width="85"/>
-                    <DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, StringFormat=N2}" Width="100"/>
-                    <DataGridTemplateColumn Width="50">
-                      <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                          <Button Content="✕" Command="{Binding DataContext.RemoveDraftItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Foreground="{StaticResource BrushDanger}" Background="Transparent" BorderThickness="0" Padding="4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </DataTemplate>
-                      </DataGridTemplateColumn.CellTemplate>
-                    </DataGridTemplateColumn>
-                  </DataGrid.Columns>
-                </DataGrid>
-                
-                <!-- Inputs to add line from the currently selected catalog item -->
-                <Grid Grid.Row="2" Margin="0,0,0,16">
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1*"/>    <!-- Cantidad -->
-                    <ColumnDefinition Width="2*"/>   <!-- Costo Confirmado / Override -->
-                    <ColumnDefinition Width="Auto"/> <!-- Add Button -->
-                  </Grid.ColumnDefinitions>
-                  
-                  <StackPanel Grid.Column="0" Margin="0,0,8,0">
-                    <TextBlock Text="Cantidad" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding DraftQuantity, UpdateSourceTrigger=PropertyChanged}"/>
-                  </StackPanel>
-                  
-                  <StackPanel Grid.Column="1" Margin="8,0,8,0">
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                      <CheckBox IsChecked="{Binding UseDraftCostOverride}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                      <TextBlock Text="Costo confirmado (opcional)" Style="{StaticResource TextCaption}" VerticalAlignment="Center"/>
+                  <!-- Selected product detail: unit, factor, catalog cost, confirmed cost, preview -->
+                  <Border Grid.Row="4" BorderThickness="1" BorderBrush="{StaticResource BrushBorder}" CornerRadius="6" Padding="10" Margin="0,10,0,0" Background="White"
+                          Visibility="{Binding SelectedCatalogItem, Converter={StaticResource NullToVisibilityConverter}}">
+                    <StackPanel>
+                      <TextBlock Text="{Binding SelectedCatalogItem.ProductName}" FontWeight="Bold" FontSize="13" Foreground="{StaticResource BrushText}"/>
+                      <WrapPanel Margin="0,4,0,8">
+                        <TextBlock Text="{Binding SelectedCatalogItem.PurchaseUnitName, StringFormat=Unidad de compra: {0}}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}" Margin="0,0,10,0"/>
+                        <TextBlock Text="{Binding SelectedCatalogItem.UnitsPerPurchaseUnit, StringFormat=Factor: {0}}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}" Margin="0,0,10,0"/>
+                        <TextBlock Text="{Binding SelectedCatalogItem.PurchaseUnitCost, StringFormat=Costo catálogo: {0:C2}}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
+                      </WrapPanel>
+
+                      <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="1*"/>
+                          <ColumnDefinition Width="2*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                          <TextBlock Text="Cantidad *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
+                          <TextBox Text="{Binding DraftQuantity, UpdateSourceTrigger=PropertyChanged}"
+                                   PreviewTextInput="Decimal_OnPreviewTextInput"
+                                   PreviewKeyDown="Decimal_OnPreviewKeyDown"
+                                   DataObject.Pasting="Decimal_OnPasting"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                          <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <CheckBox IsChecked="{Binding UseDraftCostOverride}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                            <TextBlock Text="Costo confirmado (opcional)" Style="{StaticResource TextCaption}" VerticalAlignment="Center"/>
+                          </StackPanel>
+                          <TextBox Text="{Binding DraftCostOverride, UpdateSourceTrigger=PropertyChanged}"
+                                   IsEnabled="{Binding UseDraftCostOverride}"
+                                   PreviewTextInput="Decimal_OnPreviewTextInput"
+                                   PreviewKeyDown="Decimal_OnPreviewKeyDown"
+                                   DataObject.Pasting="Decimal_OnPasting"/>
+                        </StackPanel>
+                      </Grid>
+
+                      <WrapPanel Margin="0,0,0,8">
+                        <TextBlock Text="{Binding DraftUnitsPreview, StringFormat=Ingresan al inventario: {0:N2} unidades}" Style="{StaticResource CashHint}" Margin="0,0,10,0"/>
+                        <TextBlock Text="{Binding DraftSubtotalPreview, StringFormat=Subtotal: {0:C2}}" Style="{StaticResource CashHint}" FontWeight="SemiBold"/>
+                      </WrapPanel>
+
+                      <Button Content="Agregar a la compra" Command="{Binding AddDraftItemCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch"/>
                     </StackPanel>
-                    <TextBox Text="{Binding DraftCostOverride, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding UseDraftCostOverride}"/>
-                  </StackPanel>
-                  
-                  <Button Grid.Column="2" Content="Agregar producto" Command="{Binding AddDraftItemCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" Height="36"/>
+                  </Border>
                 </Grid>
-                
-                <!-- Navigation buttons -->
-                <DockPanel Grid.Row="3">
-                  <TextBlock Text="{Binding ItemCountLabel}" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
-                  <!-- Siguiente button enabled only when Items.Count > 0 -->
-                  <Button Content="Siguiente: confirmar →" Command="{Binding GoToStepCommand}" CommandParameter="3" HorizontalAlignment="Right" DockPanel.Dock="Right">
-                    <Button.Style>
-                      <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-                        <Setter Property="IsEnabled" Value="True"/>
-                        <Style.Triggers>
-                          <DataTrigger Binding="{Binding Items.Count}" Value="0">
-                            <Setter Property="IsEnabled" Value="False"/>
-                          </DataTrigger>
-                        </Style.Triggers>
-                      </Style>
-                    </Button.Style>
-                  </Button>
-                </DockPanel>
-              </Grid>
-            </Border>
-          </Grid>
+              </Border>
 
-          <!-- STEP 3: Confirmar Compra -->
-          <Grid Visibility="{Binding IsStep3Active, Converter={StaticResource BoolToVisibilityConverter}}">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="1.3*"/>
-              <ColumnDefinition Width="12"/>
-              <ColumnDefinition Width="1*"/>
-            </Grid.ColumnDefinitions>
-            
-            <!-- Left: Invoice form fields -->
-            <Border Grid.Column="0" Style="{StaticResource Card}">
-              <StackPanel>
-                <TextBlock Text="Datos de la factura" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,16"/>
-                
+              <!-- Right: editable draft cart -->
+              <Border Grid.Column="2" Style="{StaticResource Card}">
                 <Grid>
                   <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/> <!-- Title -->
+                    <RowDefinition Height="*"/>    <!-- Lines DataGrid -->
+                    <RowDefinition Height="Auto"/> <!-- Totals -->
+                    <RowDefinition Height="Auto"/> <!-- Navigation buttons -->
                   </Grid.RowDefinitions>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  
-                  <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,12">
-                    <TextBlock Text="Factura *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding PurchaseInvoiceNumber}" Tag="FAC-00123"/>
+
+                  <StackPanel Grid.Row="0" Margin="0,0,0,12">
+                    <TextBlock Text="Líneas de la compra" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Edita cantidad y costo confirmado directamente en la tabla." Style="{StaticResource MutedText}" FontSize="12"/>
                   </StackPanel>
-                  
-                  <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,12">
-                    <TextBlock Text="Fecha *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                    <DatePicker SelectedDate="{Binding PurchaseDate}" Height="36"/>
-                  </StackPanel>
-                  
-                  <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,12">
-                    <TextBlock Text="Método de pago *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                    <ComboBox SelectedValue="{Binding PaymentMethod, Mode=TwoWay}" SelectedValuePath="Content" Height="36">
-                      <ComboBoxItem Content="Contado"/>
-                      <ComboBoxItem Content="Crédito"/>
-                    </ComboBox>
-                  </StackPanel>
-                  
-                  <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,12">
-                    <TextBlock Text="Plazo" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding PaymentTerms}" Tag="30 días, etc."/>
-                  </StackPanel>
-                  
-                  <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,12">
-                    <TextBlock Text="IVA adicional % *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                    <TextBox Text="{Binding VatRate, UpdateSourceTrigger=PropertyChanged}"/>
-                  </StackPanel>
+
+                  <DataGrid Grid.Row="1" ItemsSource="{Binding Items}" AutoGenerateColumns="False" CanUserAddRows="False" MinHeight="180" Margin="0,0,0,12">
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Header="Producto" Binding="{Binding ProductName}" IsReadOnly="True" Width="*"/>
+                      <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" IsReadOnly="True" Width="75"/>
+                      <DataGridTextColumn Header="Cant." Binding="{Binding Quantity, UpdateSourceTrigger=PropertyChanged}" Width="60"/>
+                      <DataGridTextColumn Header="Recibidas" Binding="{Binding UnitsReceived, Mode=OneWay}" IsReadOnly="True" Width="75"/>
+                      <DataGridTextColumn Header="Costo conf." Binding="{Binding ConfirmedCost, UpdateSourceTrigger=PropertyChanged, StringFormat=N2}" Width="90"/>
+                      <DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, Mode=OneWay, StringFormat=N2}" IsReadOnly="True" Width="90"/>
+                      <DataGridTemplateColumn Width="45">
+                        <DataGridTemplateColumn.CellTemplate>
+                          <DataTemplate>
+                            <Button Content="✕" Command="{Binding DataContext.NewPurchase.RemoveDraftItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Foreground="{StaticResource BrushDanger}" Background="Transparent" BorderThickness="0" Padding="4" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                      </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                  </DataGrid>
+
+                  <!-- Live totals -->
+                  <Border Grid.Row="2" Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12,8" Margin="0,0,0,12">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Grid.Column="0" Text="{Binding ItemCountLabel}" Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Subtotal, StringFormat=Subtotal: {0:C2}}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <TextBlock Grid.Column="2" Text="{Binding Iva, StringFormat=IVA: {0:C2}}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                      <TextBlock Grid.Column="3" Text="{Binding Total, StringFormat=Total: {0:C2}}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center"/>
+                    </Grid>
+                  </Border>
+
+                  <!-- Navigation buttons (enabled/disabled by GoToStepCommand.CanExecute) -->
+                  <DockPanel Grid.Row="3">
+                    <Button Content="← Proveedor" Command="{Binding GoToStepCommand}" CommandParameter="1" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"/>
+                    <Button Content="Siguiente: confirmar →" Command="{Binding GoToStepCommand}" CommandParameter="3" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right" DockPanel.Dock="Right"/>
+                  </DockPanel>
                 </Grid>
-                
-                <StackPanel Margin="0,0,0,12">
-                  <TextBlock Text="Observaciones" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                  <TextBox Text="{Binding Observations}" Tag="Notas de la compra..." Height="72" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+              </Border>
+            </Grid>
+          </Grid>
+
+          <!-- STEP 3: Confirmar Compra (revisión completa antes de una operación irreversible) -->
+          <Grid Visibility="{Binding IsStep3Active, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/> <!-- Supplier context -->
+              <RowDefinition Height="*"/>    <!-- Review + summary -->
+            </Grid.RowDefinitions>
+
+            <Border Grid.Row="0" Background="{StaticResource BrushCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="6" Padding="12,6" Margin="0,0,0,12">
+              <DockPanel>
+                <Button Content="Cambiar proveedor" Command="{Binding ChangeSupplierCommand}" Style="{StaticResource GhostButton}" DockPanel.Dock="Right"/>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                  <TextBlock Text="Comprando a: " Style="{StaticResource MutedText}" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding SupplierContextLabel}" FontWeight="SemiBold" Foreground="{StaticResource BrushText}" VerticalAlignment="Center"/>
                 </StackPanel>
-              </StackPanel>
+              </DockPanel>
             </Border>
-            
-            <!-- Right: Totals summary card -->
-            <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
-              <StackPanel>
-                <TextBlock Text="Resumen" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,16"/>
-                
-                <DockPanel Margin="0,0,0,8">
-                  <TextBlock Text="Subtotal" Foreground="{StaticResource BrushMuted}"/>
-                  <TextBlock Text="{Binding Subtotal, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
-                </DockPanel>
-                
-                <DockPanel Margin="0,0,0,8">
-                  <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="IVA (" Foreground="{StaticResource BrushMuted}"/>
-                    <TextBlock Text="{Binding VatRate}" Foreground="{StaticResource BrushMuted}"/>
-                    <TextBlock Text="%)" Foreground="{StaticResource BrushMuted}"/>
+
+            <Grid Grid.Row="1">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="1.4*"/>
+                <ColumnDefinition Width="12"/>
+                <ColumnDefinition Width="1*"/>
+              </Grid.ColumnDefinitions>
+
+              <!-- Left: full review (lines + invoice data) -->
+              <Border Grid.Column="0" Style="{StaticResource Card}">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <StackPanel>
+                    <TextBlock Text="Revisión de la compra" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,4"/>
+                    <TextBlock Text="Verifica líneas, cantidades y costos. Al confirmar se actualizan inventario y costos; la operación no se puede deshacer." Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                    <DataGrid ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="220" Margin="0,0,0,16">
+                      <DataGrid.Columns>
+                        <DataGridTextColumn Header="Producto" Binding="{Binding ProductName}" Width="*"/>
+                        <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="75"/>
+                        <DataGridTextColumn Header="Cant." Binding="{Binding Quantity}" Width="60"/>
+                        <DataGridTextColumn Header="Recibidas" Binding="{Binding UnitsReceived}" Width="80"/>
+                        <DataGridTextColumn Header="Costo" Binding="{Binding ConfirmedCost, StringFormat=N2}" Width="85"/>
+                        <DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, StringFormat=N2}" Width="95"/>
+                      </DataGrid.Columns>
+                    </DataGrid>
+
+                    <TextBlock Text="Datos de la factura" Style="{StaticResource TextH3}" FontWeight="Bold" Margin="0,0,0,12"/>
+
+                    <Grid>
+                      <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                      </Grid.RowDefinitions>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+
+                      <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,12">
+                        <TextBlock Text="Factura *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding PurchaseInvoiceNumber, UpdateSourceTrigger=PropertyChanged}" Tag="FAC-00123"/>
+                      </StackPanel>
+
+                      <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,12">
+                        <TextBlock Text="Fecha *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
+                        <DatePicker SelectedDate="{Binding PurchaseDate}" Height="36"/>
+                      </StackPanel>
+
+                      <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,12">
+                        <TextBlock Text="Método de pago *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
+                        <ComboBox SelectedValue="{Binding PaymentMethod, Mode=TwoWay}" SelectedValuePath="Content" Height="36">
+                          <ComboBoxItem Content="Contado"/>
+                          <ComboBoxItem Content="Crédito"/>
+                        </ComboBox>
+                      </StackPanel>
+
+                      <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,12"
+                                  Visibility="{Binding IsCreditPayment, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <TextBlock Text="Plazo *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding PaymentTerms, UpdateSourceTrigger=PropertyChanged}" Tag="30 días, etc."/>
+                      </StackPanel>
+
+                      <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,12">
+                        <TextBlock Text="IVA % (global de la compra)" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding VatRate, UpdateSourceTrigger=PropertyChanged}"
+                                 PreviewTextInput="Decimal_OnPreviewTextInput"
+                                 PreviewKeyDown="Decimal_OnPreviewKeyDown"
+                                 DataObject.Pasting="Decimal_OnPasting"/>
+                      </StackPanel>
+                    </Grid>
+
+                    <StackPanel Margin="0,0,0,12">
+                      <TextBlock Text="Observaciones" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
+                      <TextBox Text="{Binding Observations}" Tag="Notas de la compra..." Height="72" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
+                    </StackPanel>
                   </StackPanel>
-                  <TextBlock Text="{Binding Iva, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
-                </DockPanel>
-                
-                <Separator Background="{StaticResource BrushBorder}" Margin="0,8"/>
-                
-                <DockPanel Margin="0,0,0,24">
-                  <TextBlock Text="Total" Style="{StaticResource TextH1}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}"/>
-                  <TextBlock Text="{Binding Total, StringFormat=C2}" Style="{StaticResource TextH1}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
-                </DockPanel>
-                
-                <Button Content="✓ Confirmar compra" Command="{Binding RegisterPurchaseCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
-                <Button Content="← Volver a productos" Command="{Binding GoToStepCommand}" CommandParameter="2" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Stretch"/>
-              </StackPanel>
-            </Border>
+                </ScrollViewer>
+              </Border>
+
+              <!-- Right: totals summary + validated confirm -->
+              <Border Grid.Column="2" Style="{StaticResource Card}" VerticalAlignment="Top">
+                <StackPanel>
+                  <TextBlock Text="Resumen" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,16"/>
+
+                  <DockPanel Margin="0,0,0,8">
+                    <TextBlock Text="Productos" Foreground="{StaticResource BrushMuted}"/>
+                    <TextBlock Text="{Binding ItemCountLabel}" FontWeight="SemiBold" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+                  </DockPanel>
+
+                  <DockPanel Margin="0,0,0,8">
+                    <TextBlock Text="Subtotal" Foreground="{StaticResource BrushMuted}"/>
+                    <TextBlock Text="{Binding Subtotal, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+                  </DockPanel>
+
+                  <DockPanel Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal">
+                      <TextBlock Text="IVA (" Foreground="{StaticResource BrushMuted}"/>
+                      <TextBlock Text="{Binding VatRate}" Foreground="{StaticResource BrushMuted}"/>
+                      <TextBlock Text="%)" Foreground="{StaticResource BrushMuted}"/>
+                    </StackPanel>
+                    <TextBlock Text="{Binding Iva, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+                  </DockPanel>
+
+                  <Separator Background="{StaticResource BrushBorder}" Margin="0,8"/>
+
+                  <DockPanel Margin="0,0,0,16">
+                    <TextBlock Text="Total" Style="{StaticResource TextH1}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}"/>
+                    <TextBlock Text="{Binding Total, StringFormat=C2}" Style="{StaticResource TextH1}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" DockPanel.Dock="Right" HorizontalAlignment="Right"/>
+                  </DockPanel>
+
+                  <!-- Why the confirm button is disabled, in business language -->
+                  <TextBlock Text="{Binding ConfirmBlockReason}" Foreground="{StaticResource BrushDanger}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,8"
+                             Visibility="{Binding ConfirmBlockReason, Converter={StaticResource NullToVisibilityConverter}}"/>
+
+                  <Button Content="✓ Confirmar compra" Command="{Binding ConfirmPurchaseCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Margin="0,0,0,12"/>
+                  <Button Content="← Volver a productos" Command="{Binding GoToStepCommand}" CommandParameter="2" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Stretch"/>
+                </StackPanel>
+              </Border>
+            </Grid>
           </Grid>
 
         </Grid>
+       </Grid>
       </Grid>
 
       <!-- TAB 2: Proveedores y Catálogo -->
@@ -550,7 +616,7 @@
           <ColumnDefinition Width="12"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
-        
+
         <!-- Left: Suppliers List -->
         <Border Grid.Column="0" Style="{StaticResource Card}">
           <Grid>
@@ -560,42 +626,17 @@
               <RowDefinition Height="*"/>
               <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            
+
             <StackPanel Grid.Row="0" Margin="0,0,0,12">
               <TextBlock Text="Proveedores" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,4"/>
               <TextBlock Text="Selecciona para editar o configurar catálogo." Style="{StaticResource MutedText}" FontSize="12"/>
             </StackPanel>
-            
+
             <TextBox Grid.Row="1" Text="{Binding SupplierSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar proveedor..." Margin="0,0,0,12"/>
-            
+
             <Border Grid.Row="2" BorderThickness="1" BorderBrush="{StaticResource BrushBorder}" CornerRadius="4" Background="White" Margin="0,0,0,12">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
-                <ListBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" BorderThickness="0" Background="Transparent">
-                  <ListBox.ItemContainerStyle>
-                    <Style TargetType="ListBoxItem">
-                      <Setter Property="Padding" Value="8"/>
-                      <Setter Property="Background" Value="Transparent"/>
-                      <Setter Property="BorderThickness" Value="0"/>
-                      <Setter Property="Margin" Value="0,2"/>
-                      <Setter Property="Template">
-                        <Setter.Value>
-                          <ControlTemplate TargetType="ListBoxItem">
-                            <Border x:Name="BgBorder" CornerRadius="6" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
-                              <ContentPresenter/>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                              <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="BgBorder" Property="Background" Value="{StaticResource BrushPrimaryContainer}"/>
-                              </Trigger>
-                              <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BgBorder" Property="Background" Value="{StaticResource BrushSurfaceContainer}"/>
-                              </Trigger>
-                            </ControlTemplate.Triggers>
-                          </ControlTemplate>
-                        </Setter.Value>
-                      </Setter>
-                    </Style>
-                  </ListBox.ItemContainerStyle>
+                <ListBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}" ItemContainerStyle="{StaticResource PurchaseListBoxItemStyle}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" BorderThickness="0" Background="Transparent">
                   <ListBox.ItemTemplate>
                     <DataTemplate>
                         <Grid Margin="2">
@@ -603,11 +644,11 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                       </Grid.ColumnDefinitions>
-                        
+
                         <Border Grid.Column="0" Width="32" Height="32" CornerRadius="16" Background="{StaticResource BrushPrimary}" Margin="0,0,10,0">
                           <TextBlock Text="{Binding Name, Converter={StaticResource InitialsConverter}}" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11"/>
                         </Border>
-                        
+
                         <StackPanel Grid.Column="1" VerticalAlignment="Center">
                           <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5" Foreground="{StaticResource BrushText}"/>
                           <TextBlock Text="{Binding TaxId}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
@@ -618,7 +659,7 @@
                 </ListBox>
               </ScrollViewer>
             </Border>
-            
+
             <Button Grid.Row="3" Content="+ Nuevo proveedor" Command="{Binding NewSupplierCommand}" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Stretch"/>
           </Grid>
         </Border>
@@ -630,7 +671,7 @@
             <Border Style="{StaticResource Card}" Margin="0,0,0,16">
               <StackPanel>
                 <TextBlock Text="Perfil de proveedor" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,12"/>
-                
+
                 <Grid>
                   <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -640,32 +681,32 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                   </Grid.ColumnDefinitions>
-                  
+
                   <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,12">
                     <TextBlock Text="Nombre *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding SupplierName}"/>
                   </StackPanel>
-                  
+
                   <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,12">
                     <TextBlock Text="NIT *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding SupplierTaxId}"/>
                   </StackPanel>
-                  
+
                   <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,12">
                     <TextBlock Text="Teléfono" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding SupplierPhone}"/>
                   </StackPanel>
-                  
+
                   <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,12">
                     <TextBlock Text="Correo" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding SupplierEmail}"/>
                   </StackPanel>
                 </Grid>
-                
+
                 <DockPanel Margin="0,0,0,12">
                   <CheckBox Content="Proveedor activo" IsChecked="{Binding IsSupplierActive}" VerticalAlignment="Center"/>
                 </DockPanel>
-                
+
                 <StackPanel Orientation="Horizontal">
                   <Button Content="Guardar proveedor" Command="{Binding SaveSupplierCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
                   <Button Content="Cancelar" Command="{Binding CancelSupplierEditCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
@@ -674,13 +715,13 @@
                 </StackPanel>
               </StackPanel>
             </Border>
-            
+
             <!-- Catalog Card -->
             <Border Style="{StaticResource Card}" Visibility="{Binding IsEditingSupplier, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,16">
               <StackPanel>
                 <TextBlock Text="Catálogo de abastecimiento" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,4"/>
                 <TextBlock Text="Productos que este proveedor puede surtir, con su costo y unidad de compra." Style="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,12"/>
-                
+
                 <!-- Form to add/edit catalog item -->
                 <Grid Margin="0,0,0,12">
                   <Grid.RowDefinitions>
@@ -700,23 +741,23 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
-                      
+
                       <TextBox x:Name="CatalogProductSearchTextBox"
                                Text="{Binding CatalogProductSearchText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                                Tag="Escribe el nombre o código del producto..."
-                               Margin="0,0,0,4"/>
+                               Margin="0,0,0,4">
+                        <TextBox.InputBindings>
+                          <KeyBinding Key="Return" Command="{Binding AddAllSelectedCommand}"/>
+                        </TextBox.InputBindings>
+                      </TextBox>
 
                       <Button Grid.Column="1"
-                              Command="{Binding SearchCatalogProductsCommand}"
+                              Content="{Binding SelectedProductCount, StringFormat='Agregar \{0\}'}"
+                              Command="{Binding AddAllSelectedCommand}"
                               Style="{StaticResource PrimaryButton}"
                               Height="36"
                               Margin="8,0,0,4"
-                              VerticalAlignment="Center">
-                        <StackPanel Orientation="Horizontal">
-                          <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
-                          <TextBlock Text="Buscar" />
-                        </StackPanel>
-                      </Button>
+                              VerticalAlignment="Center"/>
                     </Grid>
 
                     <!-- Search results with multiselect via bound checkbox column (same pattern as "Agrupar productos por categoría" in ProductsView) -->
@@ -733,43 +774,35 @@
                         <DataGridTextColumn Header="Código" Binding="{Binding Barcode}" Width="120" IsReadOnly="True"/>
                       </DataGrid.Columns>
                     </DataGrid>
-
-                    <!-- Add selected button -->
-                    <Button Content="{Binding SelectedProductCount, StringFormat='Agregar \{0\} seleccionado(s)'}"
-                            Command="{Binding AddAllSelectedCommand}"
-                            Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Left"
-                            Margin="0,0,0,4"
-                            Visibility="{Binding SelectedProductCount, Converter={StaticResource IntGreaterThanZeroToVisibilityConverter}}"/>
                   </StackPanel>
-                  
+
                   <StackPanel Grid.Row="0" Grid.Column="2" Margin="8,0,8,12">
                     <TextBlock Text="SKU proveedor" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding CatalogSupplierSku}"/>
                   </StackPanel>
-                  
+
                   <StackPanel Grid.Row="0" Grid.Column="3" Margin="8,0,0,12">
                     <TextBlock Text="Unidad compra *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding CatalogPurchaseUnit}" Tag="Caja x24, etc."/>
                   </StackPanel>
-                  
+
                   <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,0">
                     <TextBlock Text="Factor *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding CatalogFactor}"/>
                   </StackPanel>
-                  
+
                   <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,8,0">
                     <TextBlock Text="Costo unidad *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
                     <TextBox Text="{Binding CatalogCost}"/>
                   </StackPanel>
-                  
+
                   <StackPanel Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0">
                     <CheckBox Content="Activo" IsChecked="{Binding CatalogIsActive}"/>
                   </StackPanel>
-                  
+
                   <Button Grid.Row="1" Grid.Column="3" Content="Guardar relación" Command="{Binding SaveCatalogItemCommand}" Style="{StaticResource PrimaryButton}" Height="36" VerticalAlignment="Bottom"/>
                 </Grid>
-                
+
                 <!-- DataGrid of Catalog items -->
                 <DataGrid ItemsSource="{Binding SupplierCatalogItems}" SelectedItem="{Binding SelectedProfileCatalogItem, Mode=TwoWay}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MinHeight="180" MaxHeight="280">
                   <DataGrid.Columns>
@@ -846,7 +879,7 @@
           <RowDefinition Height="Auto"/> <!-- Filters -->
           <RowDefinition Height="*"/>    <!-- DataGrid -->
         </Grid.RowDefinitions>
-        
+
         <!-- Filters Card -->
         <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,16">
           <Grid>
@@ -856,26 +889,26 @@
               <ColumnDefinition Width="2*"/>
               <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            
+
             <StackPanel Grid.Column="0" Margin="0,0,12,0">
               <TextBlock Text="Desde" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
               <DatePicker SelectedDate="{Binding HistoryFrom}" Height="36"/>
             </StackPanel>
-            
+
             <StackPanel Grid.Column="1" Margin="0,0,12,0">
               <TextBlock Text="Hasta" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
               <DatePicker SelectedDate="{Binding HistoryTo}" Height="36"/>
             </StackPanel>
-            
+
             <StackPanel Grid.Column="2" Margin="0,0,16,0">
               <TextBlock Text="Factura" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
               <TextBox Text="{Binding HistoryInvoiceFilter, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar # factura..."/>
             </StackPanel>
-            
+
             <Button Grid.Column="3" Content="Buscar" Command="{Binding LoadHistoryCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom" Height="36"/>
           </Grid>
         </Border>
-        
+
         <!-- History DataGrid -->
         <Border Grid.Row="1" Style="{StaticResource Card}">
           <DataGrid ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowDetailsVisibilityMode="VisibleWhenSelected">
@@ -905,7 +938,7 @@
               <DataGridTextColumn Header="IVA" Binding="{Binding VatAmount, StringFormat=C2}" Width="100"/>
               <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=C2}" Width="110"/>
             </DataGrid.Columns>
-            
+
             <DataGrid.RowDetailsTemplate>
               <DataTemplate>
                 <Border Background="{StaticResource BrushSurfaceContainer}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,1" Padding="12">
@@ -928,7 +961,7 @@
           </DataGrid>
         </Border>
       </Grid>
-      
+
     </Grid>
 
     <!-- 4. Status Bar message -->
