@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.5.0...v1.5.1) (2026-07-12)
+
+
+### Bug Fixes
+
+* **compras:** cambiar estilo de botón de historial a SecondaryButton y ajustar etiqueta a Ver detalles ([84d66b0](https://github.com/jab16jy/Sistema_Pos/commit/84d66b09079e99feb984a1f2e38aba3877a74a16))
+
 ## [1.5.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.4.2...v1.5.0) (2026-07-12)
 
 
