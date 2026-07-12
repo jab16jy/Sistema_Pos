@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.5.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.4.2...v1.5.0) (2026-07-12)
+
+
+### Features
+
+* **presentation:** move category grouping button to bottom actions bar and commit active loyalty and purchases changes ([0db8a04](https://github.com/jab16jy/Sistema_Pos/commit/0db8a04f251babb22b78c87cd3ca9745f66f6018))
+* **products:** agregar soporte de teclado (Enter) y popup/menú contextual para agrupar productos ([902c459](https://github.com/jab16jy/Sistema_Pos/commit/902c4595f1407db23a0105a809f0fa92c6015902))
+* **purchasing:** auditable supplier catalog flow with weighted cost, VAT, quotations, and history ([ffabbde](https://github.com/jab16jy/Sistema_Pos/commit/ffabbdef9399169c404125ec63fd2528afbe7f74))
+* **purchasing:** auditable supplier catalog flow with weighted cost, VAT, quotations, and history ([0c73d1a](https://github.com/jab16jy/Sistema_Pos/commit/0c73d1a97579ff9bb148e299db591bb4450bd0c1))
+* **purchasing:** catalog-driven supplier purchasing with edit, migration, and tests ([b6e8295](https://github.com/jab16jy/Sistema_Pos/commit/b6e829589422597c61e612391caa3731a0d3a0da))
+* **purchasing:** catalog-driven supplier purchasing with edit, migration, and tests ([aa87584](https://github.com/jab16jy/Sistema_Pos/commit/aa87584851e0a256e7ef7dc47734bf7f14fc8d7e))
+* **purchasing:** improve purchase feedback and history ([e5d3b1d](https://github.com/jab16jy/Sistema_Pos/commit/e5d3b1dfd3dbfbcc66829b4b437bcf56b4f73dd6))
+* **purchasing:** rebuild supplier catalog search UI, allow deletes, fix empty-cart redemption ([b40e3e9](https://github.com/jab16jy/Sistema_Pos/commit/b40e3e9a265fae017d9c120b4f35bf90cb07aeb7))
+* **purchasing:** remove supplier quotation sub-feature from Compras ([4d63a4b](https://github.com/jab16jy/Sistema_Pos/commit/4d63a4bf8d12dff0eebff35bae2f74b43f86ba7c))
+* **quotes:** reuse cashier's autocomplete search, flag walk-in customers, add no-PDF quote preview ([6da9669](https://github.com/jab16jy/Sistema_Pos/commit/6da9669e5478cd14dc9389fe66f12faa056d4811))
+* **reports:** real sales chart grouped by period, readable payment breakdown labels ([9829122](https://github.com/jab16jy/Sistema_Pos/commit/98291229e0542045fc9c7e6905c991dbc973a02e))
+
+
+### Bug Fixes
+
+* **compras:** ajustar tamaño y etiqueta de botón ver detalle en historial para evitar corte visual ([1421d55](https://github.com/jab16jy/Sistema_Pos/commit/1421d55907f6542e9813c88c995d99ae51a99176))
+* **purchasing:** keep history details visible ([0d6efd0](https://github.com/jab16jy/Sistema_Pos/commit/0d6efd0dbcdbfdbe49013b156daf6f2f66444954))
+* **purchasing:** make history detail responsive ([bf846b6](https://github.com/jab16jy/Sistema_Pos/commit/bf846b65e890db469854b015eef7a50c4ab13d9f))
+* **purchasing:** reconcile catalog-edit branch with shipped quotation/history feature ([dcee398](https://github.com/jab16jy/Sistema_Pos/commit/dcee3985258813f8f5a8f07a61e20a1d8042c5ec))
+* **quality:** normalize repository formatting ([a33e88f](https://github.com/jab16jy/Sistema_Pos/commit/a33e88f435a8f2e393423e3d5666da45c1674d30))
+
 ## [1.4.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.4.1...v1.4.2) (2026-07-11)
 
 
