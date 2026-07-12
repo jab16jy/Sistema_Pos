@@ -10,58 +10,84 @@ public class RegisterPurchaseUseCase
 {
     private readonly ISupplierRepository _suppliers;
     private readonly IProductRepository _products;
+    private readonly IProductSupplierRepository _catalog;
     private readonly IPurchaseRepository _purchases;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ISupplierQuotationRepository? _quotations;
 
-    public RegisterPurchaseUseCase(
-        ISupplierRepository suppliers,
-        IProductRepository products,
-        IPurchaseRepository purchases,
-        IUnitOfWork unitOfWork)
+    public RegisterPurchaseUseCase(ISupplierRepository suppliers, IProductRepository products, IProductSupplierRepository catalog, IPurchaseRepository purchases, IUnitOfWork unitOfWork, ISupplierQuotationRepository? quotations = null)
     {
-        _suppliers = suppliers;
-        _products = products;
-        _purchases = purchases;
-        _unitOfWork = unitOfWork;
+        (_suppliers, _products, _catalog, _purchases, _unitOfWork, _quotations) = (suppliers, products, catalog, purchases, unitOfWork, quotations);
     }
+
+    [Obsolete("Use the constructor that validates the supplier catalog.")]
+    public RegisterPurchaseUseCase(ISupplierRepository suppliers, IProductRepository products, IPurchaseRepository purchases, IUnitOfWork unitOfWork)
+        : this(suppliers, products, new UnavailableCatalogRepository(), purchases, unitOfWork) { }
 
     public virtual async Task<RegisterPurchaseResult> ExecuteAsync(RegisterPurchaseRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.Items.Count == 0)
+        if (request.Items is null || request.Items.Count == 0) throw new ArgumentException("Purchase must contain at least one item.", nameof(request));
+        if (request.UserId == Guid.Empty) throw new ArgumentException("Purchase registration requires an operator for audit traceability.", nameof(request));
+
+        RegisterPurchaseResult? result = null;
+        await _unitOfWork.ExecuteInTransactionAsync(async transactionToken =>
         {
-            throw new ArgumentException("Purchase must contain at least one item.", nameof(request));
-        }
+            Supplier supplier = await _suppliers.GetByIdAsync(request.SupplierId, transactionToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("Supplier is not available for purchase selection.");
+            if (!supplier.IsActive) throw new InvalidOperationException("Supplier is not available for purchase selection.");
 
-        if (request.UserId == Guid.Empty)
-        {
-            throw new ArgumentException("Purchase registration requires an operator for audit traceability.", nameof(request));
-        }
+            SupplierQuotation? quotation = null;
+            if (request.SupplierQuotationId is Guid quotationId)
+            {
+                quotation = _quotations is null
+                    ? throw new InvalidOperationException("Supplier quotation support is not available.")
+                    : await _quotations.GetByIdAsync(quotationId, transactionToken).ConfigureAwait(false)
+                        ?? throw new InvalidOperationException("Supplier quotation was not found.");
+                if (quotation.SupplierId != supplier.Id || quotation.Status != SupplierQuotationStatus.Accepted)
+                    throw new InvalidOperationException("Only an accepted quotation for the selected supplier can be confirmed as a purchase.");
+            }
 
-        Supplier supplier = await _suppliers.GetByIdAsync(request.SupplierId, cancellationToken).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("Supplier is not available for purchase selection.");
-        if (!supplier.IsActive)
-        {
-            throw new InvalidOperationException("Supplier is not available for purchase selection.");
-        }
+            var purchase = new Purchase(request.SupplierId, request.UserId, request.EffectiveDate, request.InvoiceNumber, request.PaymentTerms, request.PaymentMethod, request.Observations, request.VatRate, request.SupplierQuotationId);
+            var movements = new List<InventoryMovement>();
+            foreach (RegisterPurchaseItemRequest requestedItem in request.Items)
+            {
+                ProductSupplier catalogItem = await _catalog.GetAsync(request.SupplierId, requestedItem.ProductId, transactionToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("The selected product is not in the supplier catalog.");
+                if (!catalogItem.IsActive) throw new InvalidOperationException("The selected supplier catalog product is inactive.");
+                Product product = await _products.GetByIdAsync(requestedItem.ProductId, transactionToken).ConfigureAwait(false)
+                    ?? throw new InvalidOperationException("Product was not found for purchase registration.");
+                if (!product.TracksInventory) throw new InvalidOperationException("Only inventory-tracked products can be received in a purchase.");
 
-        var purchase = new Purchase(supplier.Id, request.UserId);
-        var movements = new List<InventoryMovement>();
-        decimal total = 0m;
+                SupplierQuotationItem? quotationItem = quotation?.Items.SingleOrDefault(item => item.ProductId == requestedItem.ProductId && item.Quantity == requestedItem.Quantity);
+                if (quotation is not null && quotationItem is null)
+                    throw new InvalidOperationException("The purchase draft no longer matches the accepted supplier quotation.");
 
-        foreach (RegisterPurchaseItemRequest item in request.Items)
-        {
-            Product product = await _products.GetByIdAsync(item.ProductId, cancellationToken).ConfigureAwait(false)
-                ?? throw new InvalidOperationException("Product was not found for purchase registration.");
-            var quantity = new Quantity(item.Quantity);
-            var totalCost = new Money(item.TotalCost);
-            purchase.AddItem(product.Id, quantity, totalCost);
-            product.IncreaseStock(quantity);
-            movements.Add(new InventoryMovement(product.Id, InventoryMovementType.Entry, quantity, "Purchase registration", request.UserId, purchase.Id));
-            total += totalCost.Amount;
-        }
+                string reference = quotationItem?.ProductReference ?? catalogItem.SupplierSku ?? product.SourceCode;
+                string purchaseUnit = quotationItem?.PurchaseUnitName ?? catalogItem.PurchaseUnitName;
+                decimal factor = quotationItem?.UnitsPerPurchaseUnit ?? catalogItem.UnitsPerPurchaseUnit;
+                Money purchaseCost = quotationItem?.PurchaseUnitCost ?? new Money(catalogItem.PurchaseUnitCost);
+                var item = new PurchaseItem(product.Id, quotationItem?.ProductName ?? product.Name, reference, purchaseUnit, factor, new Quantity(requestedItem.Quantity), purchaseCost);
+                purchase.AddItem(item);
+                var received = new Quantity(item.InventoryUnitsReceived!.Value);
+                decimal priorStock = product.CurrentStock;
+                product.ApplyPurchaseReceiptCost(priorStock, received, item.BaseUnitCost!.Value);
+                product.IncreaseStock(received);
+                movements.Add(new InventoryMovement(product.Id, InventoryMovementType.Entry, received, "Supplier purchase receipt", request.UserId, purchase.Id));
+            }
 
-        await _purchases.AddAsync(purchase, movements, cancellationToken).ConfigureAwait(false);
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return new RegisterPurchaseResult(purchase.Id, supplier.Id, total, purchase.Items.Count);
+            await _purchases.AddAsync(purchase, movements, transactionToken).ConfigureAwait(false);
+            await _unitOfWork.SaveChangesAsync(transactionToken).ConfigureAwait(false);
+            result = new RegisterPurchaseResult(purchase.Id, supplier.Id, purchase.Total!.Value.Amount, purchase.Items.Count, purchase.VatAmount!.Value.Amount);
+        }, cancellationToken).ConfigureAwait(false);
+
+        return result!;
+    }
+
+    private sealed class UnavailableCatalogRepository : IProductSupplierRepository
+    {
+        public Task AddAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<ProductSupplier?> GetAsync(Guid supplierId, Guid productId, CancellationToken cancellationToken = default) => Task.FromResult<ProductSupplier?>(null);
+        public Task<IReadOnlyList<ProductSupplier>> GetActiveForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ProductSupplier>>([]);
+        public Task UpdateAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

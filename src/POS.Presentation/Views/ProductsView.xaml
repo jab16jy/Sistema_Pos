@@ -623,7 +623,11 @@
                       SelectedValue="{Binding AssignmentCategoryId, Mode=TwoWay}"
                       Tag="Categoría destino" />
             <TextBox Grid.Column="2" Text="{Binding ProductSearchText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     Tag="Buscar productos por nombre o código" />
+                     Tag="Buscar productos por nombre o código">
+              <TextBox.InputBindings>
+                <KeyBinding Key="Enter" Command="{Binding LoadAssignmentProductsCommand}" />
+              </TextBox.InputBindings>
+            </TextBox>
             <Button Grid.Column="4" Command="{Binding LoadAssignmentProductsCommand}" Style="{StaticResource PrimaryButton}">
               <StackPanel Orientation="Horizontal">
                 <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
@@ -632,14 +636,42 @@
             </Button>
           </Grid>
 
-          <DataGrid Grid.Row="2" ItemsSource="{Binding AssignmentProducts}" IsReadOnly="False"
-                    AutoGenerateColumns="False" MinHeight="120">
+          <DataGrid x:Name="AssignmentGrid" Grid.Row="2" ItemsSource="{Binding AssignmentProducts}" IsReadOnly="False"
+                    AutoGenerateColumns="False" MinHeight="120"
+                    SelectionChanged="AssignmentGrid_SelectionChanged"
+                    PreviewKeyDown="AssignmentGrid_PreviewKeyDown"
+                    MouseLeftButtonUp="AssignmentGrid_MouseLeftButtonUp">
+            <DataGrid.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="Agrupar seleccionados" Click="GroupSelectedPopup_Click">
+                  <MenuItem.Icon>
+                    <materialDesign:PackIcon Kind="FolderMultiple" />
+                  </MenuItem.Icon>
+                </MenuItem>
+                <MenuItem Header="Desmarcar seleccionados" Click="UngroupSelected_Click">
+                  <MenuItem.Icon>
+                    <materialDesign:PackIcon Kind="Close" />
+                  </MenuItem.Icon>
+                </MenuItem>
+              </ContextMenu>
+            </DataGrid.ContextMenu>
             <DataGrid.Columns>
               <DataGridCheckBoxColumn Header="Asignar" Binding="{Binding IsSelected, Mode=TwoWay}" Width="80" />
               <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*" IsReadOnly="True" />
               <DataGridTextColumn Header="Categoría actual" Binding="{Binding CategoryName}" Width="220" IsReadOnly="True" />
             </DataGrid.Columns>
           </DataGrid>
+
+          <Popup x:Name="GroupPopup" Placement="MousePoint" StaysOpen="False">
+            <Border Background="{StaticResource BrushCard}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4" Padding="6">
+              <Button Click="GroupSelectedPopup_Click" Style="{StaticResource PrimaryButton}">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="FolderMultiple" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,4,0" />
+                  <TextBlock Text="Agrupar seleccionados" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </Border>
+          </Popup>
 
           <Grid Grid.Row="3" Margin="0,12,0,0">
             <TextBlock Text="{Binding SelectedProductCount, StringFormat=Seleccionados: {0}}"

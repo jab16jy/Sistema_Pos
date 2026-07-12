@@ -10,6 +10,7 @@ using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Quotes;
 using POS.Domain.Enums;
+using POS.Presentation.Shared.Cashier;
 using POS.Presentation.Shared.Commands;
 using POS.Presentation.Shared.Quotes;
 
@@ -17,11 +18,13 @@ namespace POS.Presentation.Shared.ViewModels;
 
 public sealed class QuoteViewModel : ViewModelBase
 {
+    private const int AutocompleteDelayMilliseconds = 180;
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private readonly IProductLookupService _productLookupService;
     private readonly CreateQuoteUseCase _createQuoteUseCase;
     private readonly SendDocumentUseCase? _sendDocumentUseCase;
     private readonly SearchCustomersUseCase? _searchCustomersUseCase;
+    private CancellationTokenSource? _autocompleteSearchCts;
     private string _searchQuery = string.Empty;
     private string _customerName = string.Empty;
     private string _customerPhone = string.Empty;
@@ -54,14 +57,14 @@ public sealed class QuoteViewModel : ViewModelBase
         SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => ValidationMessage = $"Error al buscar productos: {ex.Message}"));
         SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => ValidationMessage = $"Error al buscar clientes: {ex.Message}"));
         SelectCustomerCommand = new RelayCommand(p => SelectCustomer(p as CustomerSearchResult));
-        AddToCartCommand = new RelayCommand(p => AddToCart(p as ProductLookupResult));
+        AddToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel));
         RemoveFromCartCommand = new RelayCommand(p => RemoveFromCart(p as QuoteCartItemViewModel));
         ConfirmCommand = new RelayCommand(_ => RunSafe(ConfirmAsync(), ex => ValidationMessage = $"Error al crear la cotización: {ex.Message}"));
         SendByEmailCommand = new RelayCommand(_ => RunSafe(SendByEmailAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(_ => RunSafe(SendByWhatsAppAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
     }
 
-    public ObservableCollection<ProductLookupResult> SearchResults { get; }
+    public ObservableCollection<CashierProductSearchResultViewModel> SearchResults { get; }
     public ObservableCollection<CustomerSearchResult> CustomerSearchResults { get; }
     public ObservableCollection<QuoteCartItemViewModel> CartItems { get; }
 
@@ -77,7 +80,13 @@ public sealed class QuoteViewModel : ViewModelBase
     public string SearchQuery
     {
         get => _searchQuery;
-        set => SetProperty(ref _searchQuery, value ?? string.Empty);
+        set
+        {
+            if (SetProperty(ref _searchQuery, value ?? string.Empty))
+            {
+                StartAutocompleteSearch();
+            }
+        }
     }
 
     public string CustomerName
@@ -170,15 +179,8 @@ public sealed class QuoteViewModel : ViewModelBase
     {
         try
         {
-            IReadOnlyList<ProductLookupResult> results = await _productLookupService
-                .SearchAsync(SearchQuery, cancellationToken)
-                .ConfigureAwait(true);
-
-            SearchResults.Clear();
-            foreach (ProductLookupResult result in results)
-            {
-                SearchResults.Add(result);
-            }
+            CancelAutocompleteSearch();
+            await SearchProductsAsync(SearchQuery, cancellationToken).ConfigureAwait(true);
         }
         catch (OperationCanceledException)
         {
@@ -187,6 +189,64 @@ public sealed class QuoteViewModel : ViewModelBase
         {
             ValidationMessage = $"Error al buscar productos: {ex.Message}";
         }
+    }
+
+    /// <summary>Debounces product search as the user types, mirroring the cashier's autocomplete search.</summary>
+    private void StartAutocompleteSearch()
+    {
+        CancelAutocompleteSearch();
+
+        if (SearchQuery.Trim().Length == 0)
+        {
+            SearchResults.Clear();
+            return;
+        }
+
+        _autocompleteSearchCts = new CancellationTokenSource();
+        CancellationToken token = _autocompleteSearchCts.Token;
+        RunSafe(RunAutocompleteSearchAsync(SearchQuery, token), ex => ValidationMessage = $"Error al buscar productos: {ex.Message}");
+    }
+
+    private async Task RunAutocompleteSearchAsync(string query, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(AutocompleteDelayMilliseconds, cancellationToken).ConfigureAwait(true);
+            await SearchProductsAsync(query, cancellationToken).ConfigureAwait(true);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task SearchProductsAsync(string query, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ProductLookupResult> results = await _productLookupService
+            .SearchAsync(query, cancellationToken)
+            .ConfigureAwait(true);
+
+        if (cancellationToken.IsCancellationRequested || !string.Equals(SearchQuery.Trim(), query.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        SearchResults.Clear();
+        foreach (ProductLookupResult result in results)
+        {
+            SearchResults.Add(new CashierProductSearchResultViewModel(result));
+        }
+    }
+
+    private void CancelAutocompleteSearch()
+    {
+        if (_autocompleteSearchCts is null)
+        {
+            return;
+        }
+
+        _autocompleteSearchCts.Cancel();
+        _autocompleteSearchCts.Dispose();
+        _autocompleteSearchCts = null;
     }
 
     private async Task SearchCustomersAsync(CancellationToken cancellationToken = default)
@@ -238,7 +298,7 @@ public sealed class QuoteViewModel : ViewModelBase
         ValidationMessage = "Cliente registrado vinculado a la cotización.";
     }
 
-    private void AddToCart(ProductLookupResult? product)
+    private void AddToCart(CashierProductSearchResultViewModel? product)
     {
         if (product is null)
         {

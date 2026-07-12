@@ -276,6 +276,30 @@ public sealed class Product
 
     public void IncreaseStock(Quantity quantity) => CurrentStock += quantity.Value;
 
+    public void ApplyPurchaseReceiptCost(decimal priorStock, Quantity receivedUnits, Money receivedBaseUnitCost)
+    {
+        if (priorStock < 0m)
+        {
+            throw new ArgumentOutOfRangeException(nameof(priorStock));
+        }
+
+        if (priorStock == 0m)
+        {
+            CostPrice = receivedBaseUnitCost;
+            return;
+        }
+
+        // A cost cannot be inferred for stock which predates reliable cost records.
+        if (CostPrice is null)
+        {
+            return;
+        }
+
+        decimal weightedAverage = ((priorStock * CostPrice.Value.Amount) + (receivedUnits.Value * receivedBaseUnitCost.Amount))
+            / (priorStock + receivedUnits.Value);
+        CostPrice = new Money(weightedAverage);
+    }
+
     private static decimal ValidateTaxRate(decimal taxRate)
     {
         if (taxRate < 0m || taxRate > 100m)

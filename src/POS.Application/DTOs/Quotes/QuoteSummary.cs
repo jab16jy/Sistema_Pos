@@ -10,4 +10,5 @@ public sealed record QuoteSummary(
     string? CustomerPhone,
     decimal Total,
     QuoteStatus Status,
-    string ExpiresAt);
+    string ExpiresAt,
+    Guid? CustomerId = null);
