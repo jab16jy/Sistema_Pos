@@ -8,6 +8,7 @@ using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Quotes;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Domain.Exceptions;
 using POS.Presentation.Shared.Commands;
 using POS.Presentation.Shared.Quotes;
 
@@ -22,6 +23,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     private readonly SendDocumentUseCase _sendUseCase;
     private readonly ICurrentOperatorSession? _operatorSession;
     private readonly IPdfService? _pdfService;
+    private readonly GetQuoteDetailUseCase? _getQuoteDetail;
     private string _filterCustomerName = string.Empty;
     private QuoteStatus? _filterStatus;
     private DateOnly? _filterFrom;
@@ -38,13 +40,15 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         ConvertQuoteToSaleUseCase convertUseCase,
         SendDocumentUseCase sendUseCase,
         ICurrentOperatorSession? operatorSession = null,
-        IPdfService? pdfService = null)
+        IPdfService? pdfService = null,
+        GetQuoteDetailUseCase? getQuoteDetail = null)
     {
         _getHistoryUseCase = getHistoryUseCase ?? throw new ArgumentNullException(nameof(getHistoryUseCase));
         _convertUseCase = convertUseCase ?? throw new ArgumentNullException(nameof(convertUseCase));
         _sendUseCase = sendUseCase ?? throw new ArgumentNullException(nameof(sendUseCase));
         _operatorSession = operatorSession;
         _pdfService = pdfService;
+        _getQuoteDetail = getQuoteDetail;
 
         Quotes = [];
 
@@ -55,10 +59,12 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         ExportPdfCommand = new RelayCommand(p => RunSafe(ExportPdfAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al generar el PDF: {ex.Message}"));
         SendByEmailCommand = new RelayCommand(p => RunSafe(SendByEmailAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(p => RunSafe(SendByWhatsAppAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
+        ViewDetailCommand = new RelayCommand(p => RunSafe(ViewDetailAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al cargar el detalle de la cotización: {ex.Message}"));
     }
 
     public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
     public event EventHandler<QuoteSummaryRow>? SaleConversionConfirmationRequested;
+    public event EventHandler<QuoteDetailResult>? QuoteDetailRequested;
 
     public ObservableCollection<QuoteSummaryRow> Quotes { get; }
 
@@ -69,6 +75,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     public ICommand ExportPdfCommand { get; }
     public ICommand SendByEmailCommand { get; }
     public ICommand SendByWhatsAppCommand { get; }
+    public ICommand ViewDetailCommand { get; }
 
     public string FilterCustomerName
     {
@@ -236,6 +243,32 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Loads the full quote (line items included) and asks the view to display it — no PDF generated.</summary>
+    public async Task ViewDetailAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (_getQuoteDetail is null)
+        {
+            StatusMessage = "El detalle de la cotización no está disponible en este entorno.";
+            return;
+        }
+
+        SelectedQuote = row;
+
+        QuoteDetailResult? detail = await _getQuoteDetail.ExecuteAsync(row.QuoteId, cancellationToken).ConfigureAwait(true);
+        if (detail is null)
+        {
+            StatusMessage = "La cotización seleccionada ya no está disponible.";
+            return;
+        }
+
+        QuoteDetailRequested?.Invoke(this, detail);
+    }
+
     public async Task ExportPdfAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
     {
         if (row is null)
@@ -335,6 +368,10 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
             string successMessage = $"{successMessagePrefix}. Factura: {result.InvoiceNumber}.";
             await LoadAsync(cancellationToken).ConfigureAwait(true);
             StatusMessage = successMessage;
+        }
+        catch (InsufficientStockException)
+        {
+            StatusMessage = "No se puede realizar la venta: no hay stock suficiente para uno o más productos de la cotización.";
         }
         catch (Exception ex)
         {

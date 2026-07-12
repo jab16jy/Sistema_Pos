@@ -32,7 +32,8 @@ public sealed class GetQuoteHistoryUseCase
             string.IsNullOrWhiteSpace(q.CustomerPhone) ? null : q.CustomerPhone,
             q.Total,
             q.Status,
-            q.ExpiresAt.ToString("yyyy-MM-dd"))).ToList();
+            q.ExpiresAt.ToString("yyyy-MM-dd"),
+            q.CustomerId)).ToList();
 
         return new QuoteHistoryResult(summaries, total);
     }

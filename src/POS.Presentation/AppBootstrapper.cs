@@ -90,7 +90,8 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<ConvertQuoteToSaleUseCase>(),
                 sp.GetRequiredService<POS.Application.UseCases.Communication.SendDocumentUseCase>(),
                 session,
-                TryResolveOptional<POS.Application.Interfaces.IPdfService>(sp)),
+                TryResolveOptional<POS.Application.Interfaces.IPdfService>(sp),
+                TryResolveOptional<GetQuoteDetailUseCase>(sp)),
             moduleWarnings);
 
         QuoteViewModel? quote = TryCreateOptionalModule(

@@ -13,7 +13,8 @@ public sealed record QuoteSummaryRow(
     string TotalFormatted,
     QuoteStatus Status,
     string StatusLabel,
-    string ExpiresAt)
+    string ExpiresAt,
+    Guid? CustomerId = null)
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -28,7 +29,18 @@ public sealed record QuoteSummaryRow(
             $"${summary.Total.ToString("N0", ColombianCulture)}",
             summary.Status,
             ResolveStatusLabel(summary.Status),
-            summary.ExpiresAt);
+            summary.ExpiresAt,
+            summary.CustomerId);
+
+    /// <summary>
+    /// True when this quote references a customer registered in the system, as opposed to a walk-in/casual
+    /// name typed freehand. Customers are never hard-deleted in this system (Customer only exposes
+    /// Deactivate(), and ICustomerRepository has no DeleteAsync), so a non-null CustomerId always still
+    /// resolves to a real (if possibly inactive) customer row — no dangling-reference staleness to guard against.
+    /// </summary>
+    public bool IsRegisteredCustomer => CustomerId.HasValue;
+
+    public string CustomerBadgeLabel => IsRegisteredCustomer ? string.Empty : "No registrado";
 
     private static string ResolveStatusLabel(QuoteStatus status) => status switch
     {

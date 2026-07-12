@@ -79,6 +79,22 @@ public sealed class QuoteViewModelTests
     }
 
     [Fact]
+    public async Task SearchQuery_WhenChanged_AutocompletesAndShowsStockStatus()
+    {
+        var product = new Product("Producto Autocomplete", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(3m), new StockQuantity(1m));
+        var vm = new QuoteViewModel(
+            new StaticProductLookupService(product),
+            new CreateQuoteUseCase(new InMemoryQuoteRepository(), new StaticProductRepository(product), new InMemoryUnitOfWork()));
+
+        vm.SearchQuery = "Producto";
+        await Task.Delay(300, TestContext.Current.CancellationToken);
+
+        var result = Assert.Single(vm.SearchResults);
+        Assert.Equal(product.Name, result.Name);
+        Assert.Equal("En stock", result.StockStatusLabel);
+    }
+
+    [Fact]
     public async Task SearchCommand_WhenLookupFails_SetsRecoverableValidationMessage()
     {
         var createQuote = new CreateQuoteUseCase(new InMemoryQuoteRepository(), new StaticProductRepository(null), new InMemoryUnitOfWork());
@@ -88,6 +104,46 @@ public sealed class QuoteViewModelTests
         await Task.Delay(50, TestContext.Current.CancellationToken);
 
         Assert.Contains("Error al buscar productos", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void QuoteSummaryRow_WithoutCustomerId_IsNotRegisteredAndHasBadge()
+    {
+        var summary = new Application.DTOs.Quotes.QuoteSummary(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-200",
+            CustomerName: "Cliente Casual",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: Domain.Enums.QuoteStatus.Draft,
+            ExpiresAt: "2026-12-31",
+            CustomerId: null);
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        Assert.False(row.IsRegisteredCustomer);
+        Assert.Equal("No registrado", row.CustomerBadgeLabel);
+    }
+
+    [Fact]
+    public void QuoteSummaryRow_WithCustomerId_IsRegisteredAndHasNoBadge()
+    {
+        var summary = new Application.DTOs.Quotes.QuoteSummary(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-201",
+            CustomerName: "Cliente Registrado",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: Domain.Enums.QuoteStatus.Draft,
+            ExpiresAt: "2026-12-31",
+            CustomerId: Guid.NewGuid());
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        Assert.True(row.IsRegisteredCustomer);
+        Assert.Equal(string.Empty, row.CustomerBadgeLabel);
     }
 
     [Fact]
@@ -191,6 +247,14 @@ public sealed class QuoteViewModelTests
     {
         public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("falló búsqueda");
+    }
+
+    private sealed class StaticProductLookupService(Product product) : IProductLookupService
+    {
+        public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ProductLookupResult>>([
+                new ProductLookupResult(product.Id, product.Name, product.Barcode ?? string.Empty, product.SalePrice.Amount, product.CurrentStock, product.MinimumStock)
+            ]);
     }
 
     private sealed class InMemoryQuoteRepository : IQuoteRepository

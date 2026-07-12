@@ -42,13 +42,21 @@ public partial class QuoteView : UserControl
         {
             oldViewModel.FileExportRequested -= view.OnFileExportRequested;
             oldViewModel.SaleConversionConfirmationRequested -= view.OnSaleConversionConfirmationRequested;
+            oldViewModel.QuoteDetailRequested -= view.OnQuoteDetailRequested;
         }
 
         if (e.NewValue is QuoteHistoryViewModel newViewModel)
         {
             newViewModel.FileExportRequested += view.OnFileExportRequested;
             newViewModel.SaleConversionConfirmationRequested += view.OnSaleConversionConfirmationRequested;
+            newViewModel.QuoteDetailRequested += view.OnQuoteDetailRequested;
         }
+    }
+
+    private void OnQuoteDetailRequested(object? sender, POS.Application.DTOs.Quotes.QuoteDetailResult detail)
+    {
+        var window = new QuoteDetailWindow(detail) { Owner = Window.GetWindow(this) };
+        window.ShowDialog();
     }
 
     private void OnFileExportRequested(object? sender, (string FileName, byte[] Data) args)

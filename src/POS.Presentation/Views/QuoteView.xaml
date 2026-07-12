@@ -178,6 +178,7 @@
                           <ColumnDefinition Width="Auto" />
                           <ColumnDefinition Width="*" />
                           <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <materialDesign:PackIcon Kind="PackageVariant" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center">
@@ -190,7 +191,44 @@
                             </TextBlock.Text>
                           </TextBlock>
                         </StackPanel>
-                        <Button Grid.Column="2"
+                        <Border Grid.Column="2"
+                                CornerRadius="3"
+                                Padding="6,2"
+                                VerticalAlignment="Center"
+                                Margin="8,0">
+                          <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
+                              <Setter Property="Background" Value="{StaticResource BrushSuccessContainer}" />
+                              <Setter Property="BorderBrush" Value="{StaticResource BrushSuccess}" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding StockStatusKind}" Value="warning">
+                                  <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
+                                  <Setter Property="BorderBrush" Value="{StaticResource BrushWarning}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StockStatusKind}" Value="error">
+                                  <Setter Property="Background" Value="{StaticResource BrushDangerSoft}" />
+                                  <Setter Property="BorderBrush" Value="{StaticResource BrushDanger}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Border.Style>
+                          <TextBlock Text="{Binding StockStatusLabel}" FontSize="11" FontWeight="Medium">
+                            <TextBlock.Style>
+                              <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding StockStatusKind}" Value="warning">
+                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                  </DataTrigger>
+                                  <DataTrigger Binding="{Binding StockStatusKind}" Value="error">
+                                    <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
+                        </Border>
+                        <Button Grid.Column="3"
                                 Style="{StaticResource AddToCartIconButton}"
                                 Command="{Binding DataContext.AddToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 CommandParameter="{Binding}">
@@ -433,7 +471,26 @@
                         <ColumnDefinition Width="170" />
                       </Grid.ColumnDefinitions>
                       <TextBlock Text="{Binding QuoteNumber}" FontFamily="Consolas" VerticalAlignment="Center" Margin="14,0,0,0" />
-                      <TextBlock Grid.Column="1" Text="{Binding CustomerName}" FontWeight="Medium" VerticalAlignment="Center" />
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CustomerName}" VerticalAlignment="Center">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                              <Setter Property="FontWeight" Value="Medium" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsRegisteredCustomer}" Value="False">
+                                  <Setter Property="FontStyle" Value="Italic" />
+                                  <Setter Property="FontWeight" Value="Normal" />
+                                  <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding CustomerBadgeLabel}"
+                                   Style="{StaticResource TextCaption}"
+                                   Foreground="{StaticResource BrushWarning}"
+                                   Visibility="{Binding CustomerBadgeLabel, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" />
+                      </StackPanel>
                       <TextBlock Grid.Column="2" Text="{Binding TotalFormatted}" FontWeight="SemiBold" VerticalAlignment="Center" />
                       <Border Grid.Column="3" VerticalAlignment="Center" HorizontalAlignment="Left">
                         <Border.Style>
@@ -458,6 +515,12 @@
                       </Border>
                       <TextBlock Grid.Column="4" Text="{Binding ExpiresAt}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
                       <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button ToolTip="Ver cotización"
+                                Background="Transparent" BorderBrush="Transparent" Padding="4"
+                                Command="{Binding DataContext.ViewDetailCommand, ElementName=HistorialTabRoot}"
+                                CommandParameter="{Binding}">
+                          <materialDesign:PackIcon Kind="Eye" Foreground="{StaticResource BrushMuted}" Width="16" Height="16" />
+                        </Button>
                         <Button ToolTip="PDF"
                                 Background="Transparent" BorderBrush="Transparent" Padding="4"
                                 Command="{Binding DataContext.ExportPdfCommand, ElementName=HistorialTabRoot}"

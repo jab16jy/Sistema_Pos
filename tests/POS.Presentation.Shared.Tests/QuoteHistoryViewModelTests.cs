@@ -151,6 +151,58 @@ public sealed class QuoteHistoryViewModelTests
     }
 
     [Fact]
+    public async Task ViewDetailCommand_RaisesQuoteDetailRequestedWithLineItems_WithoutGeneratingPdf()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Detalle", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-013", product.Id);
+        quoteRepo.Store(quote);
+
+        var summaries = new List<QuoteSummary>
+        {
+            new QuoteSummary(quote.Id, "COT-013", "Cliente Detalle", null, null, 2_000m, QuoteStatus.Active, "2026-12-31")
+        };
+
+        var vm = BuildHistoryVmWithProduct(summaries: summaries, quoteRepo: quoteRepo, product: product);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteDetailResult? received = null;
+        vm.QuoteDetailRequested += (_, detail) => received = detail;
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        vm.ViewDetailCommand.Execute(row);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(received);
+        Assert.Equal("COT-013", received!.QuoteNumber);
+        Assert.Single(received.Items);
+        Assert.Equal("Producto Test", received.Items[0].ProductName);
+    }
+
+    [Fact]
+    public async Task ConvertToSale_WhenProductHasNoStock_ShowsFriendlyStockMessage()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Sin Stock", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(0m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-012", product.Id);
+        quoteRepo.Store(quote);
+
+        var summaries = new List<QuoteSummary>
+        {
+            new QuoteSummary(quote.Id, "COT-012", "Cliente Sin Stock", null, null, 2_000m, QuoteStatus.Active, "2026-12-31")
+        };
+
+        var vm = BuildHistoryVmWithProduct(summaries: summaries, quoteRepo: quoteRepo, product: product);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        await vm.ConvertToSaleAsync(row, cashierUserId: Guid.NewGuid(), TestContext.Current.CancellationToken);
+
+        Assert.Contains("no hay stock suficiente", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.NotEqual(QuoteStatus.Converted, quote.Status);
+    }
+
+    [Fact]
     public async Task ConvertToSale_WhenAlreadyConverted_DoesNotCallUseCaseAndShowsMessage()
     {
         var quoteId = Guid.NewGuid();
@@ -292,7 +344,7 @@ public sealed class QuoteHistoryViewModelTests
             log,
             new InMemoryUnitOfWork());
 
-        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase, session);
+        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase, session, getQuoteDetail: new GetQuoteDetailUseCase(quoteRepo));
     }
 
     private static QuoteHistoryViewModel BuildHistoryVm(
