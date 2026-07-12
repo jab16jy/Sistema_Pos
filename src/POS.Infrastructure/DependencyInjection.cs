@@ -64,6 +64,8 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IPurchaseRepository, PurchaseRepository>();
+        services.AddScoped<IProductSupplierRepository, ProductSupplierRepository>();
+        services.AddScoped<ISupplierQuotationRepository, SupplierQuotationRepository>();
         services.AddScoped<IReceivableRepository, ReceivableRepository>();
         services.AddScoped<ICashClosingRepository, CashClosingRepository>();
         services.AddScoped<ICashierShiftRepository, CashierShiftRepository>();
@@ -88,6 +90,8 @@ public static class DependencyInjection
         services.AddScoped<ICustomerHistoryQueryService, CustomerHistoryQueryService>();
         services.AddScoped<ICustomerLookupQueryService, CustomerLookupQueryService>();
         services.AddScoped<ISupplierLookupQueryService, SupplierLookupQueryService>();
+        services.AddScoped<ISupplierCatalogQueryService, SupplierCatalogQueryService>();
+        services.AddScoped<IPurchaseHistoryQueryService, PurchaseHistoryQueryService>();
         services.AddScoped<IReceivableQueryService, ReceivableLookupQueryService>();
         services.AddScoped<IOperationalReportQueryService, OperationalReportQueryService>();
         services.AddScoped<IProfitQueryService, ProfitQueryService>();
@@ -123,6 +127,12 @@ public static class DependencyInjection
         services.AddScoped<SaveSupplierUseCase>();
         services.AddScoped<SearchSuppliersUseCase>();
         services.AddScoped<RegisterPurchaseUseCase>();
+        services.AddScoped<GetSupplierCatalogUseCase>();
+        services.AddScoped<SaveSupplierCatalogItemUseCase>();
+        services.AddScoped<SearchPurchaseHistoryUseCase>();
+        services.AddScoped<CreateSupplierQuotationUseCase>();
+        services.AddScoped<AcceptSupplierQuotationUseCase>();
+        services.AddScoped<ConvertSupplierQuotationToPurchaseDraftUseCase>();
         services.AddScoped<CreateQuoteUseCase>();
         services.AddScoped<ConvertQuoteToSaleUseCase>();
         services.AddScoped<GetCustomerPayableQuotesUseCase>();

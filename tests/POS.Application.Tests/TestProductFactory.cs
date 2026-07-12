@@ -9,7 +9,7 @@ internal static class TestProductFactory
     public static async Task<Product> CreateAndPersistAsync(
         AppDbContext dbContext,
         string name,
-        Money costPrice,
+        Money? costPrice,
         Money salePrice,
         StockQuantity currentStock,
         StockQuantity minimumStock,

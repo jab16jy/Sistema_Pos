@@ -14,8 +14,14 @@ internal sealed class PurchaseItemConfiguration : IEntityTypeConfiguration<Purch
         builder.Property(pi => pi.Id).HasConversion<string>();
         builder.Property(pi => pi.PurchaseId).HasConversion<string>();
         builder.Property(pi => pi.ProductId).HasConversion<string>();
-        builder.Property(pi => pi.TotalCost)
-               .HasConversion(m => m.Amount, v => new Money(v))
-               .HasColumnName("total_cost");
+        builder.Property(pi => pi.TotalCost).HasColumnName("total_cost");
+        builder.Property(pi => pi.ProductName).HasMaxLength(200).HasColumnName("product_name");
+        builder.Property(pi => pi.ProductReference).HasMaxLength(100).HasColumnName("product_reference");
+        builder.Property(pi => pi.PurchaseUnitName).HasMaxLength(100).HasColumnName("purchase_unit_name");
+        builder.Property(pi => pi.UnitsPerPurchaseUnit).HasColumnName("units_per_purchase_unit");
+        builder.Property(pi => pi.InventoryUnitsReceived).HasColumnName("inventory_units_received");
+        builder.Property(pi => pi.PurchaseUnitCost).HasConversion(v => v.HasValue ? v.Value.Amount : (decimal?)null, v => v.HasValue ? new Money(v.Value) : null).HasColumnName("purchase_unit_cost");
+        builder.Property(pi => pi.BaseUnitCost).HasConversion(v => v.HasValue ? v.Value.Amount : (decimal?)null, v => v.HasValue ? new Money(v.Value) : null).HasColumnName("base_unit_cost");
+        builder.Property(pi => pi.Subtotal).HasConversion(v => v.HasValue ? v.Value.Amount : (decimal?)null, v => v.HasValue ? new Money(v.Value) : null).HasColumnName("subtotal");
     }
 }

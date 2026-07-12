@@ -46,6 +46,8 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<SubCategory> SubCategories => Set<SubCategory>();
     public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
     public DbSet<ProductSupplier> ProductSuppliers => Set<ProductSupplier>();
+    public DbSet<SupplierQuotation> SupplierQuotations => Set<SupplierQuotation>();
+    public DbSet<SupplierQuotationItem> SupplierQuotationItems => Set<SupplierQuotationItem>();
     public DbSet<LoyaltyTier> LoyaltyTiers => Set<LoyaltyTier>();
     public DbSet<ProductImportBatch> ProductImportBatches => Set<ProductImportBatch>();
     public DbSet<ProductImportLine> ProductImportLines => Set<ProductImportLine>();
@@ -71,6 +73,13 @@ v => v.ToString("yyyy-MM-dd HH:mm:ss.fffffffzzz"),
 v => DateTimeOffset.Parse(v))
 .HasColumnType("TEXT");
 
+        modelBuilder.Entity<Purchase>()
+.Property(p => p.CreatedAt)
+.HasConversion(
+v => v.ToString("yyyy-MM-dd HH:mm:ss.fffffffzzz"),
+v => DateTimeOffset.Parse(v))
+.HasColumnType("TEXT");
+
         // Same conversion as Sale.CreatedAt above, so GetRecentAsync can ORDER BY/paginate at the
         // SQL level instead of loading the whole AUDIT_LOGS table to sort client-side.
         modelBuilder.Entity<AuditLog>()
@@ -88,6 +97,23 @@ v => DateTimeOffset.Parse(v))
     {
         AddAuditEntries();
         return base.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ExecuteInTransactionAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        await using var transaction = await Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await operation(cancellationToken).ConfigureAwait(false);
+            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            ChangeTracker.Clear();
+            throw;
+        }
     }
 
     private void AddAuditEntries()
