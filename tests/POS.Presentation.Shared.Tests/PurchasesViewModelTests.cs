@@ -276,6 +276,12 @@ public sealed class PurchasesViewModelTests
         Assert.Contains("Esta compra no tiene líneas de detalle registradas.", viewSource, StringComparison.Ordinal);
         Assert.Contains("Binding=\"{Binding SelectedHistoryPurchase.Items.Count}\" Value=\"0\"", viewSource, StringComparison.Ordinal);
         Assert.Contains("ScrollViewer.HorizontalScrollBarVisibility=\"Auto\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("FrozenColumnCount=\"1\"", viewSource, StringComparison.Ordinal);
+        Assert.True(
+            viewSource.IndexOf("Header=\"Acción\"", StringComparison.Ordinal) <
+            viewSource.IndexOf("Header=\"Proveedor\"", StringComparison.Ordinal));
+        Assert.Contains("ItemsSource=\"{Binding SelectedHistoryPurchase.Items}\" AutoGenerateColumns=\"False\" IsReadOnly=\"True\" CanUserAddRows=\"False\" HeadersVisibility=\"Column\" MinHeight=\"180\" MaxHeight=\"360\" ScrollViewer.HorizontalScrollBarVisibility=\"Auto\" ScrollViewer.VerticalScrollBarVisibility=\"Auto\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Header=\"Producto\" Binding=\"{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}\" Width=\"200\"", viewSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<ColumnDefinition Width=\"390\"/>", viewSource, StringComparison.Ordinal);
         Assert.DoesNotContain("AGREGADO A LA COMPRA", viewSource, StringComparison.Ordinal);
         Assert.Contains("CatalogAddButton_OnClick", viewSource, StringComparison.Ordinal);

@@ -966,23 +966,23 @@
             </ColumnDefinition>
           </Grid.ColumnDefinitions>
           <Border Grid.Column="0" Style="{StaticResource Card}">
-           <DataGrid x:Name="PurchaseHistoryDataGrid" ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MouseDoubleClick="PurchaseHistoryDataGrid_OnMouseDoubleClick" ScrollViewer.HorizontalScrollBarVisibility="Auto">
-             <DataGrid.Columns>
-               <DataGridTextColumn Header="Proveedor" Binding="{Binding SupplierName}" Width="2*"/>
-               <DataGridTextColumn Header="Factura" Binding="{Binding InvoiceNumber}" Width="*"/>
-               <DataGridTextColumn Header="Fecha" Binding="{Binding EffectiveDate}" Width="*"/>
-               <DataGridTextColumn Header="Registro" Binding="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="*"/>
-               <DataGridTextColumn Header="Pago" Binding="{Binding PaymentMethod}" Width="90"/>
-               <DataGridTextColumn Header="Productos" Binding="{Binding Items.Count}" Width="75"/>
-               <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=C2}" Width="110"/>
-               <DataGridTemplateColumn Header="Acción" Width="Auto" MinWidth="110">
-                 <DataGridTemplateColumn.CellTemplate>
-                   <DataTemplate>
-                     <Button Content="Ver detalle" Command="{Binding DataContext.OpenPurchaseDetailCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource GhostButton}"/>
-                   </DataTemplate>
-                 </DataGridTemplateColumn.CellTemplate>
-               </DataGridTemplateColumn>
-             </DataGrid.Columns>
+            <DataGrid x:Name="PurchaseHistoryDataGrid" ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MouseDoubleClick="PurchaseHistoryDataGrid_OnMouseDoubleClick" FrozenColumnCount="1" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+              <DataGrid.Columns>
+                <DataGridTemplateColumn Header="Acción" Width="Auto" MinWidth="110">
+                  <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                      <Button Content="Ver detalle" Command="{Binding DataContext.OpenPurchaseDetailCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource GhostButton}"/>
+                    </DataTemplate>
+                  </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Proveedor" Binding="{Binding SupplierName}" Width="2*"/>
+                <DataGridTextColumn Header="Factura" Binding="{Binding InvoiceNumber}" Width="*"/>
+                <DataGridTextColumn Header="Fecha" Binding="{Binding EffectiveDate}" Width="*"/>
+                <DataGridTextColumn Header="Registro" Binding="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="*"/>
+                <DataGridTextColumn Header="Pago" Binding="{Binding PaymentMethod}" Width="90"/>
+                <DataGridTextColumn Header="Productos" Binding="{Binding Items.Count}" Width="75"/>
+                <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=C2}" Width="110"/>
+              </DataGrid.Columns>
            </DataGrid>
           </Border>
 
@@ -1065,10 +1065,10 @@
                   </Border.Style>
                   <TextBlock Text="Esta compra no tiene líneas de detalle registradas." TextWrapping="Wrap"/>
                 </Border>
-                <DataGrid ItemsSource="{Binding SelectedHistoryPurchase.Items}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MinHeight="180" MaxHeight="360" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <DataGrid ItemsSource="{Binding SelectedHistoryPurchase.Items}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MinHeight="180" MaxHeight="360" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
                   <DataGrid.Columns>
-                    <DataGridTextColumn Header="Producto" Binding="{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}" Width="2*"/>
-                    <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="*"/>
+                    <DataGridTextColumn Header="Producto" Binding="{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}" Width="200"/>
+                    <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="110"/>
                     <DataGridTextColumn Header="Cantidad" Binding="{Binding Quantity}" Width="70"/>
                     <DataGridTextColumn Header="Recibidas" Binding="{Binding InventoryUnitsReceived}" Width="85"/>
                     <DataGridTextColumn Header="Costo" Binding="{Binding PurchaseUnitCost, StringFormat=C2}" Width="90"/>
