@@ -7,6 +7,7 @@ using POS.Application.DTOs.Purchases;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Purchases;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
 using POS.Infrastructure;
@@ -122,6 +123,82 @@ public sealed class SupplierPurchaseUseCaseTests
     }
 
     [Fact]
+    public async Task RegisterPurchase_PersistsOneHeaderWithThreeItemsAndInventoryEntries()
+    {
+        await using var connection = await OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var supplier = new Supplier("Acme Foods", "900123");
+        Product rice = await TestProductFactory.CreateAndPersistAsync(db, "Rice", new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
+        Product beans = await TestProductFactory.CreateAndPersistAsync(db, "Beans", new Money(800m), new Money(1_200m), new StockQuantity(3m), new StockQuantity(1m), TestContext.Current.CancellationToken);
+        Product oil = await TestProductFactory.CreateAndPersistAsync(db, "Oil", new Money(2_000m), new Money(2_500m), new StockQuantity(2m), new StockQuantity(1m), TestContext.Current.CancellationToken);
+        await db.Suppliers.AddAsync(supplier, TestContext.Current.CancellationToken);
+        await db.ProductSuppliers.AddRangeAsync([
+            new ProductSupplier(rice.Id, supplier.Id, "RICE-12", "Sack", 12m, 12_000m),
+            new ProductSupplier(beans.Id, supplier.Id, "BEANS-6", "Bag", 6m, 6_000m),
+            new ProductSupplier(oil.Id, supplier.Id, "OIL-4", "Case", 4m, 8_000m)
+        ], TestContext.Current.CancellationToken);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        RegisterPurchaseResult result = await CreateRegisterUseCase(db).ExecuteAsync(new RegisterPurchaseRequest(
+            supplier.Id,
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 12),
+            "FAC-3",
+            null,
+            "Cash",
+            null,
+            19m,
+            [new RegisterPurchaseItemRequest(rice.Id, 1m), new RegisterPurchaseItemRequest(beans.Id, 2m), new RegisterPurchaseItemRequest(oil.Id, 3m)]), TestContext.Current.CancellationToken);
+
+        Purchase purchase = Assert.Single(await db.Purchases.Include(item => item.Items).ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(result.PurchaseId, purchase.Id);
+        Assert.Equal(3, purchase.Items.Count);
+        Assert.All(purchase.Items, item => Assert.Equal(purchase.Id, item.PurchaseId));
+        Assert.Equal(["Beans", "Oil", "Rice"], purchase.Items.Select(item => item.ProductName).OrderBy(name => name));
+        List<InventoryMovement> movements = await db.InventoryMovements.ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(3, movements.Count);
+        Assert.All(movements, movement =>
+        {
+            Assert.Equal(purchase.Id, movement.ReferenceId);
+            Assert.Equal(InventoryMovementType.Entry, movement.Type);
+        });
+
+        PurchaseHistoryResult history = Assert.Single((await new PurchaseHistoryQueryService(db).SearchAsync(
+            new PurchaseHistoryRequest(supplier.Id, null, null, null), TestContext.Current.CancellationToken)).Items);
+        Assert.Equal(purchase.Id, history.Id);
+        Assert.Equal(3, history.Items.Count);
+        Assert.Equal(["Beans", "Oil", "Rice"], history.Items.Select(item => item.ProductName).OrderBy(name => name));
+    }
+
+    [Fact]
+    public async Task PurchaseHistoryQuery_ReturnsHistoricalHeaderWithNoPersistedLines()
+    {
+        await using var connection = await OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var supplier = new Supplier("Legacy Supplier", "900124");
+        var purchase = new Purchase(
+            supplier.Id,
+            Guid.NewGuid(),
+            new DateOnly(2026, 7, 12),
+            "LEGACY-EMPTY",
+            null,
+            "Cash",
+            null,
+            0m);
+        await db.Suppliers.AddAsync(supplier, TestContext.Current.CancellationToken);
+        await db.Purchases.AddAsync(purchase, TestContext.Current.CancellationToken);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        PurchaseHistoryResult result = Assert.Single((await new PurchaseHistoryQueryService(db).SearchAsync(
+            new PurchaseHistoryRequest(supplier.Id, null, null, null), TestContext.Current.CancellationToken)).Items);
+
+        Assert.Equal(purchase.Id, result.Id);
+        Assert.Empty(result.Items);
+    }
+
+    [Fact]
     public async Task RegisterPurchase_WithoutInvoice_ReturnsAndPersistsGeneratedReference()
     {
         await using var connection = await OpenAsync();
@@ -135,7 +212,7 @@ public sealed class SupplierPurchaseUseCaseTests
 
         Purchase purchase = await db.Purchases.SingleAsync(TestContext.Current.CancellationToken);
         Assert.Equal(purchase.InvoiceNumber, result.InvoiceNumber);
-        Assert.Matches("^CMP-20260711-[0-9a-f]{32}$", result.InvoiceNumber);
+        Assert.Matches("^CMP-[A-Za-z0-9_-]{22}$", result.InvoiceNumber);
     }
 
     [Fact]
@@ -216,6 +293,7 @@ public sealed class SupplierPurchaseUseCaseTests
         PurchaseHistoryResult header = Assert.Single(page.Items);
         Assert.Equal(1, page.TotalCount);
         Assert.Equal("A-1", header.InvoiceNumber);
+        Assert.NotNull(header.CreatedAt);
         Assert.Equal(100m, header.Total);
         Assert.Equal(1m, Assert.Single(header.Items).InventoryUnitsReceived);
     }

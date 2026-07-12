@@ -31,6 +31,6 @@ public sealed class PurchaseHistoryQueryService : IPurchaseHistoryQueryService
         return new PagedResult<PurchaseHistoryResult>(page.Select(row => new PurchaseHistoryResult(
             row.purchase.Id, row.purchase.SupplierId, row.Name, row.purchase.EffectiveDate, row.purchase.InvoiceNumber, row.purchase.PaymentTerms, row.purchase.PaymentMethod, row.purchase.Observations,
             row.purchase.Subtotal?.Amount, row.purchase.VatRate, row.purchase.VatAmount?.Amount, row.purchase.Total?.Amount,
-            row.purchase.Items.Select(item => new PurchaseHistoryLineResult(item.ProductId, item.ProductName, item.ProductReference, item.PurchaseUnitName, item.Quantity, item.UnitsPerPurchaseUnit, item.InventoryUnitsReceived, item.PurchaseUnitCost?.Amount, item.BaseUnitCost?.Amount, item.Subtotal?.Amount, item.TotalCost)).ToList())).ToList(), total, request.Page, request.PageSize);
+            row.purchase.Items.Select(item => new PurchaseHistoryLineResult(item.ProductId, item.ProductName, item.ProductReference, item.PurchaseUnitName, item.Quantity, item.UnitsPerPurchaseUnit, item.InventoryUnitsReceived, item.PurchaseUnitCost?.Amount, item.BaseUnitCost?.Amount, item.Subtotal?.Amount, item.TotalCost)).ToList(), row.purchase.CreatedAt)).ToList(), total, request.Page, request.PageSize);
     }
 }

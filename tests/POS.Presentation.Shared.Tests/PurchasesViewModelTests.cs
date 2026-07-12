@@ -157,6 +157,134 @@ public sealed class PurchasesViewModelTests
     }
 
     [Fact]
+    public async Task LoadHistoryAsync_PreservesPurchaseHeadersAndTheirDetails()
+    {
+        var supplierId = Guid.NewGuid();
+        var completedAt = new DateTimeOffset(2026, 7, 12, 14, 30, 0, TimeSpan.Zero);
+        var purchase = new PurchaseHistoryResult(
+            Guid.NewGuid(), supplierId, "Acme Foods", new DateOnly(2026, 7, 12), "CMP-ABC", null, "Cash", null,
+            25_000m, 0m, 0m, 25_000m,
+            [
+                new PurchaseHistoryLineResult(Guid.NewGuid(), "Rice", null, "Sack", 2m, 1m, 2m, 10_000m, 10_000m, 20_000m, 20_000m),
+                new PurchaseHistoryLineResult(Guid.NewGuid(), "Beans", null, "Bag", 1m, 1m, 1m, 5_000m, 5_000m, 5_000m, 5_000m),
+                new PurchaseHistoryLineResult(Guid.NewGuid(), "Oil", null, "Bottle", 1m, 1m, 1m, 0m, 0m, 0m, 0m)
+            ],
+            CreatedAt: completedAt);
+        var viewModel = CreateViewModel(
+            new StaticSupplierLookupQueryService([]),
+            historyQuery: new StaticPurchaseHistoryQueryService([purchase]));
+
+        await viewModel.LoadHistoryAsync(TestContext.Current.CancellationToken);
+
+        PurchaseHistoryResult header = Assert.Single(viewModel.History);
+        Assert.Equal(purchase.Id, header.Id);
+        Assert.Equal("Acme Foods", header.SupplierName);
+        Assert.Equal("CMP-ABC", header.InvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 7, 12), header.EffectiveDate);
+        Assert.Equal("Cash", header.PaymentMethod);
+        Assert.Equal(25_000m, header.Subtotal);
+        Assert.Equal(0m, header.VatAmount);
+        Assert.Equal(25_000m, header.Total);
+        Assert.Equal(completedAt, header.CreatedAt);
+        Assert.Equal(3, header.Items.Count);
+        Assert.Equal("Rice", header.Items[0].ProductName);
+        Assert.Equal(2m, header.Items[0].Quantity);
+        Assert.Equal(10_000m, header.Items[0].PurchaseUnitCost);
+    }
+
+    [Fact]
+    public async Task HistoryDetailCommands_OpenAllLinesAndCloseTheSelectedPurchase()
+    {
+        var purchase = CreatePurchaseHistory();
+        var viewModel = CreateViewModel(
+            new StaticSupplierLookupQueryService([]),
+            historyQuery: new StaticPurchaseHistoryQueryService([purchase]));
+
+        await viewModel.LoadHistoryAsync(TestContext.Current.CancellationToken);
+        viewModel.OpenPurchaseDetailCommand.Execute(Assert.Single(viewModel.History));
+
+        Assert.True(viewModel.IsPurchaseDetailOpen);
+        PurchaseHistoryResult selected = Assert.IsType<PurchaseHistoryResult>(viewModel.SelectedHistoryPurchase);
+        Assert.Equal(purchase.Id, selected.Id);
+        Assert.Equal(3, selected.Items.Count);
+        Assert.Equal("Rice", selected.Items[0].ProductName);
+
+        viewModel.ClosePurchaseDetailCommand.Execute(null);
+
+        Assert.False(viewModel.IsPurchaseDetailOpen);
+        Assert.Null(viewModel.SelectedHistoryPurchase);
+    }
+
+    [Fact]
+    public async Task HistoryDetailCommands_OpenAndClosePurchaseWithoutLines()
+    {
+        var purchaseWithoutLines = CreatePurchaseHistory() with { Items = [] };
+        var viewModel = CreateViewModel(
+            new StaticSupplierLookupQueryService([]),
+            historyQuery: new StaticPurchaseHistoryQueryService([purchaseWithoutLines]));
+
+        await viewModel.LoadHistoryAsync(TestContext.Current.CancellationToken);
+        viewModel.OpenPurchaseDetailCommand.Execute(Assert.Single(viewModel.History));
+
+        PurchaseHistoryResult selected = Assert.IsType<PurchaseHistoryResult>(viewModel.SelectedHistoryPurchase);
+        Assert.Empty(selected.Items);
+        Assert.True(viewModel.IsPurchaseDetailOpen);
+
+        viewModel.ClosePurchaseDetailCommand.Execute(null);
+
+        Assert.False(viewModel.IsPurchaseDetailOpen);
+        Assert.Null(viewModel.SelectedHistoryPurchase);
+    }
+
+    [Fact]
+    public async Task LoadHistoryAsync_ClosesDetailWhenTheSelectedPurchaseIsNoLongerReturned()
+    {
+        var purchase = CreatePurchaseHistory();
+        var history = new MutablePurchaseHistoryQueryService([purchase]);
+        var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([]), historyQuery: history);
+
+        await viewModel.LoadHistoryAsync(TestContext.Current.CancellationToken);
+        viewModel.OpenPurchaseDetailCommand.Execute(Assert.Single(viewModel.History));
+        history.SetPurchases([]);
+
+        await viewModel.LoadHistoryAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(viewModel.History);
+        Assert.False(viewModel.IsPurchaseDetailOpen);
+        Assert.Null(viewModel.SelectedHistoryPurchase);
+    }
+
+    [Fact]
+    public void PurchasesView_UsesPurchaseDetailPanelAndHistoricalNameFallback()
+    {
+        string viewSource = File.ReadAllText(FindRepositoryFile("src/POS.Presentation/Views/PurchasesView.xaml"));
+        string codeBehindSource = File.ReadAllText(FindRepositoryFile("src/POS.Presentation/Views/PurchasesView.xaml.cs"));
+
+        Assert.Contains("ItemsSource=\"{Binding History}\"", viewSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("HistoryLines", viewSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("DataGrid.RowDetailsTemplate", viewSource, StringComparison.Ordinal);
+        Assert.Contains("IsPurchaseDetailOpen", viewSource, StringComparison.Ordinal);
+        Assert.Contains("OpenPurchaseDetailCommand", viewSource, StringComparison.Ordinal);
+        Assert.Contains("ClosePurchaseDetailCommand", viewSource, StringComparison.Ordinal);
+        Assert.Contains("PurchaseHistoryDataGrid_OnMouseDoubleClick", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Factura", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Total", viewSource, StringComparison.Ordinal);
+        Assert.Contains("ItemsSource=\"{Binding SelectedHistoryPurchase.Items}\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Binding=\"{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Binding=\"{Binding InventoryUnitsReceived}\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Producto sin nombre (registro histórico)", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Esta compra no tiene líneas de detalle registradas.", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Binding=\"{Binding SelectedHistoryPurchase.Items.Count}\" Value=\"0\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("ScrollViewer.HorizontalScrollBarVisibility=\"Auto\"", viewSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("<ColumnDefinition Width=\"390\"/>", viewSource, StringComparison.Ordinal);
+        Assert.DoesNotContain("AGREGADO A LA COMPRA", viewSource, StringComparison.Ordinal);
+        Assert.Contains("CatalogAddButton_OnClick", viewSource, StringComparison.Ordinal);
+        Assert.Contains("CatalogAddButton_OnClick", codeBehindSource, StringComparison.Ordinal);
+        Assert.Contains("PurchaseHistoryDataGrid_OnMouseDoubleClick", codeBehindSource, StringComparison.Ordinal);
+        Assert.Contains("CatalogSearchBox.Focus", codeBehindSource, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void WpfComposition_UsesCashierOperatorSeamForPurchaseAudit()
     {
         string bootstrapperSource = File.ReadAllText(FindRepositoryFile("src/POS.Presentation/AppBootstrapper.cs"));
@@ -190,7 +318,8 @@ public sealed class PurchasesViewModelTests
         StaticRegisterPurchaseUseCase? purchaseUseCase = null,
         Func<Guid>? currentOperatorIdProvider = null,
         IProductLookupService? productLookup = null,
-        ISupplierCatalogQueryService? catalogQuery = null)
+        ISupplierCatalogQueryService? catalogQuery = null,
+        IPurchaseHistoryQueryService? historyQuery = null)
     {
         repository ??= new InMemorySupplierRepository();
         GetSupplierCatalogUseCase? catalog = catalogQuery is null ? null : new GetSupplierCatalogUseCase(catalogQuery);
@@ -202,7 +331,8 @@ public sealed class PurchasesViewModelTests
             currentOperatorIdProvider ?? (() => Guid.NewGuid()),
             productLookup,
             catalog,
-            eligibleCatalog);
+            eligibleCatalog,
+            history: historyQuery is null ? null : new SearchPurchaseHistoryUseCase(historyQuery));
     }
 
     private static string FindRepositoryFile(string relativePath)
@@ -221,6 +351,16 @@ public sealed class PurchasesViewModelTests
 
         throw new FileNotFoundException($"Could not find repository file '{relativePath}'.");
     }
+
+    private static PurchaseHistoryResult CreatePurchaseHistory() => new(
+        Guid.NewGuid(), Guid.NewGuid(), "Acme Foods", new DateOnly(2026, 7, 12), "CMP-ABC", "30 días", "Crédito", "Entrega completa",
+        25_000m, 19m, 4_750m, 29_750m,
+        [
+            new PurchaseHistoryLineResult(Guid.NewGuid(), "Rice", null, "Sack", 2m, 1m, 2m, 10_000m, 10_000m, 20_000m, 20_000m),
+            new PurchaseHistoryLineResult(Guid.NewGuid(), null, null, "Bag", 1m, 1m, 1m, 5_000m, 5_000m, 5_000m, 5_000m),
+            new PurchaseHistoryLineResult(Guid.NewGuid(), "Oil", null, "Bottle", 1m, 1m, 1m, 0m, 0m, 0m, 0m)
+        ],
+        CreatedAt: new DateTimeOffset(2026, 7, 12, 14, 30, 0, TimeSpan.Zero));
 
     private sealed class InMemorySupplierRepository : ISupplierRepository
     {
@@ -290,6 +430,28 @@ public sealed class PurchasesViewModelTests
 
         public Task<IReadOnlyList<SupplierCatalogItemResult>> GetForProductAsync(Guid productId, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<SupplierCatalogItemResult>>(_items.Where(item => item.ProductId == productId).ToList());
+    }
+
+    private sealed class StaticPurchaseHistoryQueryService : IPurchaseHistoryQueryService
+    {
+        private readonly IReadOnlyList<PurchaseHistoryResult> _purchases;
+
+        public StaticPurchaseHistoryQueryService(IReadOnlyList<PurchaseHistoryResult> purchases) => _purchases = purchases;
+
+        public Task<PagedResult<PurchaseHistoryResult>> SearchAsync(PurchaseHistoryRequest request, CancellationToken cancellationToken = default)
+             => Task.FromResult(new PagedResult<PurchaseHistoryResult>(_purchases, _purchases.Count, request.Page, request.PageSize));
+    }
+
+    private sealed class MutablePurchaseHistoryQueryService : IPurchaseHistoryQueryService
+    {
+        private IReadOnlyList<PurchaseHistoryResult> _purchases;
+
+        public MutablePurchaseHistoryQueryService(IReadOnlyList<PurchaseHistoryResult> purchases) => _purchases = purchases;
+
+        public void SetPurchases(IReadOnlyList<PurchaseHistoryResult> purchases) => _purchases = purchases;
+
+        public Task<PagedResult<PurchaseHistoryResult>> SearchAsync(PurchaseHistoryRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult(new PagedResult<PurchaseHistoryResult>(_purchases, _purchases.Count, request.Page, request.PageSize));
     }
 
     private sealed class ThrowingSupplierLookupQueryService : ISupplierLookupQueryService

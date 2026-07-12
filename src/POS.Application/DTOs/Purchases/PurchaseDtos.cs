@@ -42,5 +42,5 @@ public sealed record PurchaseDraftItem(Guid ProductId, string ProductName, strin
 
 public sealed record PurchaseHistoryRequest(Guid? SupplierId, DateOnly? FromEffectiveDate, DateOnly? ToEffectiveDate, string? InvoiceNumber, int Page = 1, int PageSize = 50);
 public sealed record PurchaseHistoryLineResult(Guid ProductId, string? ProductName, string? ProductReference, string? PurchaseUnitName, decimal Quantity, decimal? UnitsPerPurchaseUnit, decimal? InventoryUnitsReceived, decimal? PurchaseUnitCost, decimal? BaseUnitCost, decimal? Subtotal, decimal LegacyTotalCost);
-public sealed record PurchaseHistoryResult(Guid Id, Guid SupplierId, string SupplierName, DateOnly? EffectiveDate, string? InvoiceNumber, string? PaymentTerms, string? PaymentMethod, string? Observations, decimal? Subtotal, decimal? VatRate, decimal? VatAmount, decimal? Total, IReadOnlyList<PurchaseHistoryLineResult> Items);
+public sealed record PurchaseHistoryResult(Guid Id, Guid SupplierId, string SupplierName, DateOnly? EffectiveDate, string? InvoiceNumber, string? PaymentTerms, string? PaymentMethod, string? Observations, decimal? Subtotal, decimal? VatRate, decimal? VatAmount, decimal? Total, IReadOnlyList<PurchaseHistoryLineResult> Items, DateTimeOffset? CreatedAt = null);
 public sealed record PagedResult<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);

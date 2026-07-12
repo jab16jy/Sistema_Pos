@@ -29,7 +29,7 @@ public sealed class Purchase
         UserId = userId;
         CreatedAt = DateTimeOffset.UtcNow;
         EffectiveDate = effectiveDate;
-        InvoiceNumber = Normalize(invoiceNumber) ?? GenerateInvoiceNumber(effectiveDate, Id);
+        InvoiceNumber = Normalize(invoiceNumber) ?? GenerateInvoiceNumber(Id);
         PaymentTerms = Normalize(paymentTerms);
         PaymentMethod = paymentMethod.Trim();
         Observations = Normalize(observations);
@@ -71,6 +71,6 @@ public sealed class Purchase
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private static string GenerateInvoiceNumber(DateOnly effectiveDate, Guid purchaseId)
-        => $"CMP-{effectiveDate:yyyyMMdd}-{purchaseId:N}";
+    private static string GenerateInvoiceNumber(Guid purchaseId)
+        => $"CMP-{Convert.ToBase64String(purchaseId.ToByteArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_')}";
 }

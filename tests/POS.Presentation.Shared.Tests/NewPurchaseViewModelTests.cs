@@ -93,7 +93,7 @@ public sealed class NewPurchaseViewModelTests
     }
 
     [Fact]
-    public async Task AddSelectedCatalogItem_AddsLineWithOverrideAndKeepsVisibleSelectionFeedback()
+    public async Task AddSelectedCatalogItem_AddsLineWithOverrideAndResetsEntryFields()
     {
         var supplierId = Guid.NewGuid();
         var viewModel = await CreateLoadedViewModel([CatalogItem(supplierId, cost: 12_000m)], supplierId);
@@ -112,9 +112,33 @@ public sealed class NewPurchaseViewModelTests
         Assert.Equal(26_000m, line.Subtotal);
         Assert.Equal(string.Empty, viewModel.CatalogSearchText);
         Assert.Equal(viewModel.CatalogSuggestions.Single(), viewModel.SelectedCatalogItem);
-        Assert.Same(line, viewModel.LastAddedLine);
+        Assert.Contains("agregado a la compra", viewModel.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(1m, viewModel.DraftQuantity);
         Assert.False(viewModel.UseDraftCostOverride);
+    }
+
+    [Fact]
+    public async Task AddSelectedCatalogItem_KeepsSupplierAndProductStepReadyForMultipleEligibleProducts()
+    {
+        var supplierId = Guid.NewGuid();
+        var rice = CatalogItem(supplierId, "Rice");
+        var beans = CatalogItem(supplierId, "Beans", sku: "BEANS-12", reference: "BEANS-REF");
+        var oil = CatalogItem(supplierId, "Oil", sku: "OIL-12", reference: "OIL-REF");
+        var viewModel = await CreateLoadedViewModel([rice, beans, oil], supplierId);
+        SupplierSearchResult supplier = viewModel.SelectedSupplier!;
+        viewModel.GoToStepCommand.Execute("2");
+
+        foreach (SupplierCatalogItemResult item in new[] { rice, beans, oil })
+        {
+            viewModel.CatalogSearchText = item.ProductName;
+            Assert.True(viewModel.AddSelectedCatalogItem());
+        }
+
+        Assert.Same(supplier, viewModel.SelectedSupplier);
+        Assert.Equal(2, viewModel.CurrentStep);
+        Assert.Equal(3, viewModel.Items.Count);
+        Assert.Equal(string.Empty, viewModel.CatalogSearchText);
+        Assert.Contains("Oil", viewModel.Message, StringComparison.Ordinal);
     }
 
     [Fact]

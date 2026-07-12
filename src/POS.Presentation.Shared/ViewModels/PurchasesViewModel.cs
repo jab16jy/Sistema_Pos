@@ -46,6 +46,8 @@ public sealed class PurchasesViewModel : ViewModelBase
     private DateTime? _historyTo = DateTime.Today;
     private string _historyInvoiceFilter = string.Empty;
     private int _historyPage = 1;
+    private PurchaseHistoryResult? _selectedHistoryPurchase;
+    private bool _isPurchaseDetailOpen;
     private string _message = "Selecciona un proveedor para editar su perfil o registrar una compra.";
 
     public PurchasesViewModel(
@@ -91,6 +93,8 @@ public sealed class PurchasesViewModel : ViewModelBase
             _ => _deleteSupplier is not null && EditingSupplierId is not null);
         DeleteSupplierCommand = _deleteSupplierCommand;
         LoadHistoryCommand = new RelayCommand(_ => RunSafe(LoadHistoryAsync(), ex => Message = $"Error al consultar historial: {ex.Message}"));
+        OpenPurchaseDetailCommand = new RelayCommand(parameter => OpenPurchaseDetail(parameter as PurchaseHistoryResult), parameter => parameter is PurchaseHistoryResult);
+        ClosePurchaseDetailCommand = new RelayCommand(_ => ClosePurchaseDetail());
         ClearCatalogProductSelectionCommand = new RelayCommand(_ =>
         {
             SelectedCatalogProduct = null;
@@ -108,6 +112,8 @@ public sealed class PurchasesViewModel : ViewModelBase
     public ObservableCollection<SupplierProductAssignmentItem> CatalogProductAssignments { get; } = [];
     public ObservableCollection<SupplierCatalogItemResult> SupplierCatalogItems { get; } = [];
     public ObservableCollection<PurchaseHistoryResult> History { get; } = [];
+    public PurchaseHistoryResult? SelectedHistoryPurchase { get => _selectedHistoryPurchase; private set => SetProperty(ref _selectedHistoryPurchase, value); }
+    public bool IsPurchaseDetailOpen { get => _isPurchaseDetailOpen; private set => SetProperty(ref _isPurchaseDetailOpen, value); }
     public ICommand LoadCommand { get; }
     public ICommand NewSupplierCommand { get; }
     public ICommand CancelSupplierEditCommand { get; }
@@ -118,6 +124,8 @@ public sealed class PurchasesViewModel : ViewModelBase
     public ICommand DeleteCatalogItemCommand { get; }
     public ICommand DeleteSupplierCommand { get; }
     public ICommand LoadHistoryCommand { get; }
+    public ICommand OpenPurchaseDetailCommand { get; }
+    public ICommand ClosePurchaseDetailCommand { get; }
     public ICommand ClearCatalogProductSelectionCommand { get; }
 
     public SupplierSearchResult? SelectedSupplier
@@ -290,9 +298,46 @@ public sealed class PurchasesViewModel : ViewModelBase
     public async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
     {
         if (_history is null) { Message = "El historial no está disponible en esta composición."; return; }
+        Guid? openPurchaseId = IsPurchaseDetailOpen ? SelectedHistoryPurchase?.Id : null;
         PagedResult<PurchaseHistoryResult> result = await _history.ExecuteAsync(new PurchaseHistoryRequest(SelectedSupplier?.Id, HistoryFrom is null ? null : DateOnly.FromDateTime(HistoryFrom.Value), HistoryTo is null ? null : DateOnly.FromDateTime(HistoryTo.Value), Normalize(HistoryInvoiceFilter), HistoryPage), cancellationToken).ConfigureAwait(true);
-        History.Clear(); foreach (PurchaseHistoryResult purchase in result.Items) History.Add(purchase);
+        History.Clear();
+        foreach (PurchaseHistoryResult purchase in result.Items)
+        {
+            History.Add(purchase);
+        }
+
+        if (openPurchaseId is Guid purchaseId)
+        {
+            PurchaseHistoryResult? refreshedPurchase = History.FirstOrDefault(purchase => purchase.Id == purchaseId);
+            if (refreshedPurchase is null)
+            {
+                ClosePurchaseDetail();
+            }
+            else
+            {
+                SelectedHistoryPurchase = refreshedPurchase;
+                IsPurchaseDetailOpen = true;
+            }
+        }
+
         Message = $"Historial: {result.TotalCount} compra(s).";
+    }
+
+    private void OpenPurchaseDetail(PurchaseHistoryResult? purchase)
+    {
+        if (purchase is null)
+        {
+            return;
+        }
+
+        SelectedHistoryPurchase = purchase;
+        IsPurchaseDetailOpen = true;
+    }
+
+    private void ClosePurchaseDetail()
+    {
+        IsPurchaseDetailOpen = false;
+        SelectedHistoryPurchase = null;
     }
 
     private async Task LoadCatalogAsync(Guid supplierId, CancellationToken cancellationToken = default)

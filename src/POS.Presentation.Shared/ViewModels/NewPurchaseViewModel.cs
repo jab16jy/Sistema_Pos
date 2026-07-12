@@ -93,7 +93,6 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     private decimal _draftQuantity = 1m;
     private decimal _draftCostOverride;
     private bool _useDraftCostOverride;
-    private NewPurchaseLineViewModel? _lastAddedLine;
     private string _lastGeneratedInvoiceNumber = string.Empty;
     private DateTime? _purchaseDate = DateTime.Today;
     private string _paymentMethod = "Contado";
@@ -143,9 +142,6 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     public ObservableCollection<SupplierSearchResult> Suppliers { get; } = [];
     public ObservableCollection<SupplierCatalogItemResult> CatalogSuggestions { get; } = [];
     public ObservableCollection<NewPurchaseLineViewModel> Items { get; } = [];
-
-    /// <summary>Last line added to the draft, kept visible so successful selection is not reduced to a status message.</summary>
-    public NewPurchaseLineViewModel? LastAddedLine { get => _lastAddedLine; private set => SetProperty(ref _lastAddedLine, value); }
 
     /// <summary>System-generated reference for the most recently completed purchase.</summary>
     public string LastGeneratedInvoiceNumber { get => _lastGeneratedInvoiceNumber; private set => SetProperty(ref _lastGeneratedInvoiceNumber, value); }
@@ -275,7 +271,6 @@ public sealed class NewPurchaseViewModel : ViewModelBase
         decimal confirmedCost = UseDraftCostOverride ? DraftCostOverride : item.PurchaseUnitCost!.Value;
         var line = new NewPurchaseLineViewModel(item, DraftQuantity, confirmedCost);
         Items.Add(line);
-        LastAddedLine = line;
         RefreshFlowState();
         DraftQuantity = 1m;
         DraftCostOverride = 0m;
@@ -437,7 +432,6 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     private void ResetDraftState()
     {
         Items.Clear();
-        LastAddedLine = null;
         _catalogSearchText = string.Empty;
         OnPropertyChanged(nameof(CatalogSearchText));
         SelectedCatalogItem = null;

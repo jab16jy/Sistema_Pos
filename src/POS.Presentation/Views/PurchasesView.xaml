@@ -422,19 +422,10 @@
                         <TextBlock Text="{Binding DraftSubtotalPreview, StringFormat=Subtotal: {0:C2}}" Style="{StaticResource CashHint}" FontWeight="SemiBold"/>
                       </WrapPanel>
 
-                      <Button Content="Agregar a la compra" Command="{Binding AddDraftItemCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch"/>
-                    </StackPanel>
-                   </Border>
-
-                   <Border Grid.Row="4" Background="{StaticResource BrushSuccessContainer}" BorderBrush="{StaticResource BrushSuccess}" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,10,0,0"
-                           Visibility="{Binding LastAddedLine, Converter={StaticResource NullToVisibilityConverter}}">
-                     <StackPanel>
-                       <TextBlock Text="AGREGADO A LA COMPRA" Style="{StaticResource TextCaption}" FontWeight="Bold" Foreground="{StaticResource BrushSuccess}"/>
-                       <TextBlock Text="{Binding LastAddedLine.ProductName}" FontWeight="SemiBold" Foreground="{StaticResource BrushText}" Margin="0,3,0,0"/>
-                       <TextBlock Text="{Binding LastAddedLine.Subtotal, StringFormat=Subtotal agregado: {0:C2}}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushText}" Margin="0,3,0,0"/>
+                       <Button Content="Agregar a la compra" Command="{Binding AddDraftItemCommand}" Click="CatalogAddButton_OnClick" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch"/>
                      </StackPanel>
-                   </Border>
-                </Grid>
+                    </Border>
+                 </Grid>
               </Border>
 
               <!-- Right: editable draft cart -->
@@ -912,7 +903,7 @@
            <RowDefinition Height="Auto"/> <!-- Filters -->
            <RowDefinition Height="Auto"/> <!-- Detail hint -->
            <RowDefinition Height="*"/>    <!-- DataGrid -->
-        </Grid.RowDefinitions>
+         </Grid.RowDefinitions>
 
         <!-- Filters Card -->
         <Border Grid.Row="0" Style="{StaticResource Card}" Margin="0,0,0,16">
@@ -943,85 +934,151 @@
           </Grid>
         </Border>
 
-         <TextBlock Grid.Row="1" Text="Selecciona una compra para ver proveedor, condiciones de pago y el detalle de los productos recibidos." Style="{StaticResource MutedText}" FontSize="12" Margin="4,0,4,10"/>
+         <TextBlock Grid.Row="1" Text="Abre el detalle de una compra para revisar el comprobante y los productos recibidos." Style="{StaticResource MutedText}" FontSize="12" Margin="4,0,4,10"/>
 
-         <!-- History DataGrid -->
-         <Border Grid.Row="2" Style="{StaticResource Card}">
-          <DataGrid ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowDetailsVisibilityMode="VisibleWhenSelected">
-            <DataGrid.Columns>
-              <DataGridTemplateColumn Width="40">
-                <DataGridTemplateColumn.CellTemplate>
-                  <DataTemplate>
-                    <TextBlock Text="▸" FontSize="14" FontWeight="Bold" Foreground="{StaticResource BrushMuted}" HorizontalAlignment="Center" VerticalAlignment="Center">
-                      <TextBlock.Style>
-                        <Style TargetType="TextBlock">
-                          <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
-                              <Setter Property="Text" Value="▾"/>
-                              <Setter Property="Foreground" Value="{StaticResource BrushPrimary}"/>
-                            </DataTrigger>
-                          </Style.Triggers>
-                        </Style>
-                      </TextBlock.Style>
-                    </TextBlock>
-                  </DataTemplate>
-                </DataGridTemplateColumn.CellTemplate>
-              </DataGridTemplateColumn>
+         <!-- History grid and explicit, read-only receipt detail panel -->
+         <Grid Grid.Row="2">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition>
+              <ColumnDefinition.Style>
+                <Style TargetType="ColumnDefinition">
+                  <Setter Property="Width" Value="0"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPurchaseDetailOpen}" Value="True">
+                      <Setter Property="Width" Value="12"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </ColumnDefinition.Style>
+            </ColumnDefinition>
+            <ColumnDefinition>
+              <ColumnDefinition.Style>
+                <Style TargetType="ColumnDefinition">
+                  <Setter Property="Width" Value="0"/>
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsPurchaseDetailOpen}" Value="True">
+                      <Setter Property="Width" Value="390"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </ColumnDefinition.Style>
+            </ColumnDefinition>
+          </Grid.ColumnDefinitions>
+          <Border Grid.Column="0" Style="{StaticResource Card}">
+           <DataGrid x:Name="PurchaseHistoryDataGrid" ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MouseDoubleClick="PurchaseHistoryDataGrid_OnMouseDoubleClick" ScrollViewer.HorizontalScrollBarVisibility="Auto">
+             <DataGrid.Columns>
                <DataGridTextColumn Header="Proveedor" Binding="{Binding SupplierName}" Width="2*"/>
-               <DataGridTextColumn Header="Fecha" Binding="{Binding EffectiveDate}" Width="*"/>
                <DataGridTextColumn Header="Factura" Binding="{Binding InvoiceNumber}" Width="*"/>
+               <DataGridTextColumn Header="Fecha" Binding="{Binding EffectiveDate}" Width="*"/>
+               <DataGridTextColumn Header="Registro" Binding="{Binding CreatedAt, StringFormat={}{0:dd/MM/yyyy HH:mm}}" Width="*"/>
                <DataGridTextColumn Header="Pago" Binding="{Binding PaymentMethod}" Width="90"/>
                <DataGridTextColumn Header="Productos" Binding="{Binding Items.Count}" Width="75"/>
-               <DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, StringFormat=C2}" Width="100"/>
-              <DataGridTextColumn Header="IVA" Binding="{Binding VatAmount, StringFormat=C2}" Width="100"/>
-              <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=C2}" Width="110"/>
-            </DataGrid.Columns>
+               <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat=C2}" Width="110"/>
+               <DataGridTemplateColumn Header="Acción" Width="Auto" MinWidth="110">
+                 <DataGridTemplateColumn.CellTemplate>
+                   <DataTemplate>
+                     <Button Content="Ver detalle" Command="{Binding DataContext.OpenPurchaseDetailCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource GhostButton}"/>
+                   </DataTemplate>
+                 </DataGridTemplateColumn.CellTemplate>
+               </DataGridTemplateColumn>
+             </DataGrid.Columns>
+           </DataGrid>
+          </Border>
 
-            <DataGrid.RowDetailsTemplate>
-              <DataTemplate>
-                <Border Background="{StaticResource BrushSurfaceContainer}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,1" Padding="12">
-                   <StackPanel>
-                     <TextBlock Text="Detalle de Productos Recibidos" Style="{StaticResource TextH3}" FontWeight="Bold" Margin="0,0,0,8" Foreground="{StaticResource BrushPrimary}"/>
-                     <Border Background="White" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,10">
-                       <Grid>
-                         <Grid.ColumnDefinitions>
-                           <ColumnDefinition Width="2*"/>
-                           <ColumnDefinition Width="*"/>
-                           <ColumnDefinition Width="*"/>
-                         </Grid.ColumnDefinitions>
-                         <StackPanel Grid.Column="0">
-                           <TextBlock Text="Proveedor" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
-                           <TextBlock Text="{Binding SupplierName}" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
-                           <TextBlock Text="{Binding InvoiceNumber, StringFormat=Factura: {0}}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}" Margin="0,3,0,0"/>
-                         </StackPanel>
-                         <StackPanel Grid.Column="1">
-                           <TextBlock Text="Pago" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
-                           <TextBlock Text="{Binding PaymentMethod}" FontWeight="SemiBold" Foreground="{StaticResource BrushText}"/>
-                           <TextBlock Text="{Binding PaymentTerms, StringFormat=Plazo: {0}}" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}" Margin="0,3,0,0"/>
-                         </StackPanel>
-                         <StackPanel Grid.Column="2">
-                           <TextBlock Text="Observaciones" Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushMuted}"/>
-                           <TextBlock Text="{Binding Observations}" TextWrapping="Wrap" Foreground="{StaticResource BrushText}"/>
-                         </StackPanel>
-                       </Grid>
-                     </Border>
-                     <DataGrid ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" Background="White" RowHeight="36" ColumnHeaderHeight="36">
-                      <DataGrid.Columns>
-                         <DataGridTextColumn Header="Producto" Binding="{Binding ProductName}" Width="2*"/>
-                         <DataGridTextColumn Header="Referencia" Binding="{Binding ProductReference}" Width="*"/>
-                        <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="*"/>
-                        <DataGridTextColumn Header="Cantidad" Binding="{Binding Quantity}" Width="80"/>
-                        <DataGridTextColumn Header="Recibidas" Binding="{Binding InventoryUnitsReceived}" Width="90"/>
-                        <DataGridTextColumn Header="Costo" Binding="{Binding PurchaseUnitCost, StringFormat=C2}" Width="100"/>
-                        <DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, StringFormat=C2}" Width="100"/>
-                      </DataGrid.Columns>
-                    </DataGrid>
+          <Border Grid.Column="2" Style="{StaticResource Card}" Visibility="{Binding IsPurchaseDetailOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel>
+                <DockPanel Margin="0,0,0,12">
+                  <Button Content="Cerrar" Command="{Binding ClosePurchaseDetailCommand}" Style="{StaticResource GhostButton}" DockPanel.Dock="Right"/>
+                  <StackPanel>
+                    <TextBlock Text="Detalle de compra" Style="{StaticResource TextH2}" FontWeight="Bold"/>
+                    <TextBlock Text="Comprobante y productos recibidos" Style="{StaticResource MutedText}" FontSize="12"/>
                   </StackPanel>
+                </DockPanel>
+
+                <Grid Margin="0,0,0,12">
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                  </Grid.RowDefinitions>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                  </Grid.ColumnDefinitions>
+                  <StackPanel Grid.Column="0" Margin="0,0,8,10">
+                    <TextBlock Text="Proveedor" Style="{StaticResource TextCaption}"/>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.SupplierName}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Margin="8,0,0,10">
+                    <TextBlock Text="Fecha" Style="{StaticResource TextCaption}"/>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.EffectiveDate}" FontWeight="SemiBold"/>
+                  </StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,10">
+                    <TextBlock Text="Factura" Style="{StaticResource TextCaption}"/>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.InvoiceNumber}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                  </StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,10">
+                    <TextBlock Text="Referencia" Style="{StaticResource TextCaption}"/>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.Id}" FontSize="11" TextWrapping="Wrap"/>
+                  </StackPanel>
+                  <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,10">
+                    <TextBlock Text="Pago" Style="{StaticResource TextCaption}"/>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.PaymentMethod}" FontWeight="SemiBold"/>
+                  </StackPanel>
+                  <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,0,0,10">
+                    <TextBlock Text="Plazo" Style="{StaticResource TextCaption}"/>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.PaymentTerms}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Grid>
+
+                <StackPanel Margin="0,0,0,12">
+                  <TextBlock Text="Observaciones" Style="{StaticResource TextCaption}"/>
+                  <TextBlock Text="{Binding SelectedHistoryPurchase.Observations}" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="10" Margin="0,0,0,12">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
+                      <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <DockPanel Grid.Row="0"><TextBlock Text="Subtotal"/><TextBlock Text="{Binding SelectedHistoryPurchase.Subtotal, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right"/></DockPanel>
+                    <DockPanel Grid.Row="1" Margin="0,6,0,0"><TextBlock Text="IVA"/><TextBlock Text="{Binding SelectedHistoryPurchase.VatAmount, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right"/></DockPanel>
+                    <DockPanel Grid.Row="2" Margin="0,8,0,0"><TextBlock Text="Total" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}"/><TextBlock Text="{Binding SelectedHistoryPurchase.Total, StringFormat=C2}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" DockPanel.Dock="Right"/></DockPanel>
+                  </Grid>
                 </Border>
-              </DataTemplate>
-            </DataGrid.RowDetailsTemplate>
-          </DataGrid>
-        </Border>
+
+                <TextBlock Text="Productos recibidos" Style="{StaticResource TextH3}" FontWeight="Bold" Margin="0,0,0,8"/>
+                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                  <Border.Style>
+                    <Style TargetType="Border">
+                      <Setter Property="Visibility" Value="Collapsed"/>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding SelectedHistoryPurchase.Items.Count}" Value="0">
+                          <Setter Property="Visibility" Value="Visible"/>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Border.Style>
+                  <TextBlock Text="Esta compra no tiene líneas de detalle registradas." TextWrapping="Wrap"/>
+                </Border>
+                <DataGrid ItemsSource="{Binding SelectedHistoryPurchase.Items}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MinHeight="180" MaxHeight="360" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                  <DataGrid.Columns>
+                    <DataGridTextColumn Header="Producto" Binding="{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}" Width="2*"/>
+                    <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="*"/>
+                    <DataGridTextColumn Header="Cantidad" Binding="{Binding Quantity}" Width="70"/>
+                    <DataGridTextColumn Header="Recibidas" Binding="{Binding InventoryUnitsReceived}" Width="85"/>
+                    <DataGridTextColumn Header="Costo" Binding="{Binding PurchaseUnitCost, StringFormat=C2}" Width="90"/>
+                    <DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, StringFormat=C2}" Width="95"/>
+                  </DataGrid.Columns>
+                </DataGrid>
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+         </Grid>
       </Grid>
 
     </Grid>

@@ -47,7 +47,6 @@ public partial class PurchasesView : UserControl
         if (viewModel.AddSelectedCatalogItem())
         {
             CatalogSearchBox.Focus();
-            CatalogSearchBox.SelectAll();
         }
     }
 
@@ -58,8 +57,29 @@ public partial class PurchasesView : UserControl
             return;
         }
 
-        viewModel.AddSelectedCatalogItem();
-        CatalogSearchBox.Focus();
+        if (viewModel.AddSelectedCatalogItem())
+        {
+            CatalogSearchBox.Focus();
+        }
+    }
+
+    private void CatalogAddButton_OnClick(object sender, RoutedEventArgs e)
+    {
+        _ = Dispatcher.BeginInvoke(() =>
+        {
+            if (string.IsNullOrWhiteSpace(NewPurchase?.CatalogSearchText))
+            {
+                CatalogSearchBox.Focus();
+            }
+        });
+    }
+
+    private void PurchaseHistoryDataGrid_OnMouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is PurchasesViewModel viewModel && PurchaseHistoryDataGrid.SelectedItem is { } purchase)
+        {
+            viewModel.OpenPurchaseDetailCommand.Execute(purchase);
+        }
     }
 
     private void Decimal_OnPreviewTextInput(object sender, TextCompositionEventArgs e)
