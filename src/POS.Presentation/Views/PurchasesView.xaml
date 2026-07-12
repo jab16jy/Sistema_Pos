@@ -745,6 +745,7 @@
                       <TextBox x:Name="CatalogProductSearchTextBox"
                                Text="{Binding CatalogProductSearchText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                                Tag="Escribe el nombre o código del producto..."
+                               PreviewKeyDown="CatalogProductSearchTextBox_OnPreviewKeyDown"
                                Margin="0,0,0,4">
                         <TextBox.InputBindings>
                           <KeyBinding Key="Return" Command="{Binding AddAllSelectedCommand}"/>
@@ -752,7 +753,7 @@
                       </TextBox>
 
                       <Button Grid.Column="1"
-                              Content="{Binding SelectedProductCount, StringFormat='Agregar \{0\}'}"
+                              Content="Agregar"
                               Command="{Binding AddAllSelectedCommand}"
                               Style="{StaticResource PrimaryButton}"
                               Height="36"
@@ -761,12 +762,15 @@
                     </Grid>
 
                     <!-- Search results with multiselect via bound checkbox column (same pattern as "Agrupar productos por categoría" in ProductsView) -->
-                    <DataGrid ItemsSource="{Binding CatalogProductAssignments}"
+                    <DataGrid x:Name="CatalogProductAssignmentsDataGrid"
+                              ItemsSource="{Binding CatalogProductAssignments}"
                               IsReadOnly="False"
                               AutoGenerateColumns="False"
                               MaxHeight="180"
                               Margin="0,0,0,4"
                               CanUserAddRows="False"
+                              PreviewMouseLeftButtonDown="CatalogProductAssignmentsDataGrid_OnPreviewMouseLeftButtonDown"
+                              PreviewKeyDown="CatalogProductAssignmentsDataGrid_OnPreviewKeyDown"
                               Visibility="{Binding IsCatalogProductSuggestionsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                       <DataGrid.Columns>
                         <DataGridCheckBoxColumn Header="Sel." Binding="{Binding IsSelected, Mode=TwoWay}" Width="50"/>

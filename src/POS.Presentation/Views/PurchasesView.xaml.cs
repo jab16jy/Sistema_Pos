@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using POS.Presentation.Shared.ViewModels;
 
 namespace POS.Presentation.Views;
@@ -103,5 +104,57 @@ public partial class PurchasesView : UserControl
         }
 
         return true;
+    }
+
+    private void CatalogProductSearchTextBox_OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Down)
+        {
+            if (CatalogProductAssignmentsDataGrid.Visibility == Visibility.Visible && CatalogProductAssignmentsDataGrid.Items.Count > 0)
+            {
+                CatalogProductAssignmentsDataGrid.Focus();
+                CatalogProductAssignmentsDataGrid.SelectedIndex = 0;
+
+                // Enfocar la fila seleccionada del DataGrid para que se pueda navegar con las flechas
+                var row = (DataGridRow)CatalogProductAssignmentsDataGrid.ItemContainerGenerator.ContainerFromIndex(0);
+                if (row != null)
+                {
+                    row.Focus();
+                }
+                e.Handled = true;
+            }
+        }
+    }
+
+    private void CatalogProductAssignmentsDataGrid_OnPreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        DependencyObject dep = (DependencyObject)e.OriginalSource;
+        while (dep != null && dep is not DataGridRow && dep is not DataGridCell)
+        {
+            dep = VisualTreeHelper.GetParent(dep);
+        }
+
+        if (dep is DataGridRow row && row.DataContext is SupplierProductAssignmentItem item)
+        {
+            item.IsSelected = !item.IsSelected;
+            e.Handled = true;
+        }
+    }
+
+    private void CatalogProductAssignmentsDataGrid_OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            if (CatalogProductAssignmentsDataGrid.SelectedItem is SupplierProductAssignmentItem item)
+            {
+                item.IsSelected = !item.IsSelected;
+                e.Handled = true;
+            }
+        }
+        else if (e.Key == Key.Up && CatalogProductAssignmentsDataGrid.SelectedIndex == 0)
+        {
+            CatalogProductSearchTextBox.Focus();
+            e.Handled = true;
+        }
     }
 }
