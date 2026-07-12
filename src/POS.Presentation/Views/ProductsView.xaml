@@ -260,9 +260,21 @@
                             DisplayMemberPath="Name"
                             Tag="Selecciona categoria" />
                 </StackPanel>
-              </Grid>
+               </Grid>
 
-              <!-- Prices -->
+               <TextBlock Text="Proveedores de este producto (solo lectura)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+               <DataGrid ItemsSource="{Binding SupplierRelationships}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" MaxHeight="150" Margin="0,0,0,10">
+                 <DataGrid.Columns>
+                   <DataGridTextColumn Header="Proveedor" Binding="{Binding SupplierName}" Width="*" />
+                   <DataGridTextColumn Header="SKU" Binding="{Binding SupplierSku}" Width="90" />
+                   <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="90" />
+                   <DataGridTextColumn Header="Factor" Binding="{Binding UnitsPerPurchaseUnit}" Width="65" />
+                   <DataGridTextColumn Header="Costo" Binding="{Binding PurchaseUnitCost, StringFormat=N2}" Width="85" />
+                   <DataGridTextColumn Header="Estado" Binding="{Binding Status}" Width="130" />
+                 </DataGrid.Columns>
+               </DataGrid>
+
+               <!-- Prices -->
               <Grid Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                   <ColumnDefinition Width="*" />

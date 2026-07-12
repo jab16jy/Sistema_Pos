@@ -10,7 +10,23 @@ public sealed class GetSupplierCatalogUseCase
     private readonly ISupplierCatalogQueryService _catalog;
     public GetSupplierCatalogUseCase(ISupplierCatalogQueryService catalog) => _catalog = catalog;
     public Task<IReadOnlyList<SupplierCatalogItemResult>> ExecuteAsync(Guid supplierId, CancellationToken cancellationToken = default)
-        => supplierId == Guid.Empty ? throw new ArgumentException("Supplier is required.", nameof(supplierId)) : _catalog.GetActiveAsync(supplierId, cancellationToken);
+        => supplierId == Guid.Empty ? throw new ArgumentException("Supplier is required.", nameof(supplierId)) : _catalog.GetForSupplierAsync(supplierId, false, cancellationToken);
+}
+
+public sealed class GetEligibleSupplierCatalogUseCase
+{
+    private readonly ISupplierCatalogQueryService _catalog;
+    public GetEligibleSupplierCatalogUseCase(ISupplierCatalogQueryService catalog) => _catalog = catalog;
+    public Task<IReadOnlyList<SupplierCatalogItemResult>> ExecuteAsync(Guid supplierId, CancellationToken cancellationToken = default)
+        => supplierId == Guid.Empty ? throw new ArgumentException("Supplier is required.", nameof(supplierId)) : _catalog.GetForSupplierAsync(supplierId, true, cancellationToken);
+}
+
+public sealed class GetProductSupplierSummaryUseCase
+{
+    private readonly ISupplierCatalogQueryService _catalog;
+    public GetProductSupplierSummaryUseCase(ISupplierCatalogQueryService catalog) => _catalog = catalog;
+    public Task<IReadOnlyList<SupplierCatalogItemResult>> ExecuteAsync(Guid productId, CancellationToken cancellationToken = default)
+        => productId == Guid.Empty ? throw new ArgumentException("Product is required.", nameof(productId)) : _catalog.GetForProductAsync(productId, cancellationToken);
 }
 
 public sealed class SaveSupplierCatalogItemUseCase
@@ -39,7 +55,6 @@ public sealed class SaveSupplierCatalogItemUseCase
             item.Update(request.SupplierSku, request.PurchaseUnitName, request.UnitsPerPurchaseUnit, request.PurchaseUnitCost, request.IsActive);
             await _catalog.UpdateAsync(item, cancellationToken).ConfigureAwait(false);
         }
-
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }

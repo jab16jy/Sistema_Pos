@@ -20,6 +20,84 @@ namespace POS.Application.Tests;
 public sealed class SupplierPurchaseUseCaseTests
 {
     [Fact]
+    public async Task SaveSupplierAsync_WithValidSupplier_PersistsSearchableSupplier()
+    {
+        await using var connection = await OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var save = new SaveSupplierUseCase(new SupplierRepository(dbContext), dbContext);
+        var search = new SearchSuppliersUseCase(new SupplierLookupQueryService(dbContext));
+
+        SupplierResult result = await save.ExecuteAsync(new SaveSupplierRequest(null, "Acme Foods", "900123", "+57 300 111 2233", "sales@acme.test", true), TestContext.Current.CancellationToken);
+        IReadOnlyList<SupplierSearchResult> suppliers = await search.ExecuteAsync(new SupplierSearchRequest("Acme", IncludeInactive: false), TestContext.Current.CancellationToken);
+
+        SupplierSearchResult match = Assert.Single(suppliers);
+        Assert.Equal(result.Id, match.Id);
+        Assert.Equal("Acme Foods", match.Name);
+        Assert.Equal("900123", match.TaxId);
+    }
+
+    [Fact]
+    public async Task SaveSupplierAsync_WithExistingSupplier_UpdatesThenDeactivatesRecord()
+    {
+        await using var connection = await OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var save = new SaveSupplierUseCase(new SupplierRepository(dbContext), dbContext);
+        var search = new SearchSuppliersUseCase(new SupplierLookupQueryService(dbContext));
+        SupplierResult created = await save.ExecuteAsync(new SaveSupplierRequest(null, "Acme Foods", "900123", null, null, true), TestContext.Current.CancellationToken);
+
+        SupplierResult updated = await save.ExecuteAsync(new SaveSupplierRequest(created.Id, "Acme Wholesale", "900456", "+57 301 222 3344", null, false), TestContext.Current.CancellationToken);
+        IReadOnlyList<SupplierSearchResult> activeOnly = await search.ExecuteAsync(new SupplierSearchRequest("Acme", IncludeInactive: false), TestContext.Current.CancellationToken);
+        IReadOnlyList<SupplierSearchResult> all = await search.ExecuteAsync(new SupplierSearchRequest("Acme", IncludeInactive: true), TestContext.Current.CancellationToken);
+
+        Assert.Equal(created.Id, updated.Id);
+        Assert.False(updated.IsActive);
+        Assert.Empty(activeOnly);
+        SupplierSearchResult inactive = Assert.Single(all);
+        Assert.Equal("Acme Wholesale", inactive.Name);
+    }
+
+    [Fact]
+    public async Task SaveSupplierCatalogItemAsync_CreatesUpdatesAndDeactivatesWithoutDuplicates()
+    {
+        await using var connection = await OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var supplier = new Supplier("Acme Foods", "900123");
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Rice", new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m), TestContext.Current.CancellationToken);
+        await dbContext.Suppliers.AddAsync(supplier, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var save = new SaveSupplierCatalogItemUseCase(new SupplierRepository(dbContext), new ProductRepository(dbContext), new ProductSupplierRepository(dbContext), dbContext);
+
+        await save.ExecuteAsync(new SaveSupplierCatalogItemRequest(supplier.Id, product.Id, "RICE-12", "Bulto", 12m, 12_000m, true), TestContext.Current.CancellationToken);
+        await save.ExecuteAsync(new SaveSupplierCatalogItemRequest(supplier.Id, product.Id, "RICE-24", "Bulto", 24m, 24_000m, false), TestContext.Current.CancellationToken);
+
+        ProductSupplier item = Assert.Single(await dbContext.ProductSuppliers.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("RICE-24", item.SupplierSku);
+        Assert.Equal(24m, item.UnitsPerPurchaseUnit);
+        Assert.False(item.IsActive);
+    }
+
+    [Fact]
+    public void ProductSupplier_WithInvalidMetadata_RejectsConfiguration()
+    {
+        Assert.Throws<ArgumentException>(() => new ProductSupplier(Guid.NewGuid(), Guid.NewGuid(), null, "", 1m, 1m));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ProductSupplier(Guid.NewGuid(), Guid.NewGuid(), null, "Unidad", 0m, 1m));
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ProductSupplier(Guid.NewGuid(), Guid.NewGuid(), null, "Unidad", 1m, 0m));
+    }
+
+    [Fact]
+    public void SupplierCatalogItemResult_DisplayLabel_UsesDashSeparatedPurchaseIdentity()
+    {
+        var item = new SupplierCatalogItemResult(
+            Guid.NewGuid(), "Acme Foods", Guid.NewGuid(), "Rice", "RICE-REF", "RICE-12", "Bulto", 12m, 12_000m, true);
+
+        Assert.Contains("Rice — RICE-12 — Bulto —", item.DisplayLabel, StringComparison.Ordinal);
+        Assert.DoesNotContain("·", item.DisplayLabel, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RegisterPurchase_UsesActiveCatalogSnapshotsAndWeightedAverageCost()
     {
         await using var connection = await OpenAsync();
@@ -58,6 +136,31 @@ public sealed class SupplierPurchaseUseCaseTests
         Assert.Equal(5m, (await db.Products.SingleAsync(TestContext.Current.CancellationToken)).CurrentStock);
         Assert.Empty(await db.Purchases.ToListAsync(TestContext.Current.CancellationToken));
         Assert.Empty(await db.InventoryMovements.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task RegisterPurchaseAsync_WithInactiveOrIncompleteCatalog_RejectsBeforeStockChange()
+    {
+        await using var connection = await OpenAsync();
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var supplier = new Supplier("Acme Foods", "900123");
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Rice", new Money(1_000m), new Money(1_500m), new StockQuantity(5m), new StockQuantity(2m), TestContext.Current.CancellationToken);
+        await dbContext.Suppliers.AddAsync(supplier, TestContext.Current.CancellationToken);
+        await dbContext.ProductSuppliers.AddAsync(new ProductSupplier(product.Id, supplier.Id), TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var useCase = CreateRegisterUseCase(dbContext);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(new RegisterPurchaseRequest(
+            supplier.Id,
+            Guid.NewGuid(), DateOnly.FromDateTime(DateTime.Today), null, null, "Contado", null, 0m,
+            [new RegisterPurchaseItemRequest(product.Id, 7m)]),
+            TestContext.Current.CancellationToken));
+
+        Product persisted = await dbContext.Products.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(5m, persisted.CurrentStock);
+        Assert.Empty(await dbContext.Purchases.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await dbContext.InventoryMovements.ToListAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -172,8 +275,11 @@ public sealed class SupplierPurchaseUseCaseTests
         using ServiceProvider provider = services.BuildServiceProvider(); using IServiceScope scope = provider.CreateScope();
         Assert.IsType<ProductSupplierRepository>(scope.ServiceProvider.GetRequiredService<IProductSupplierRepository>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<GetSupplierCatalogUseCase>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<GetEligibleSupplierCatalogUseCase>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<SaveSupplierCatalogItemUseCase>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<SearchPurchaseHistoryUseCase>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<CreateSupplierQuotationUseCase>());
+        Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISupplierCatalogQueryService>());
     }
 
     private static RegisterPurchaseRequest NewRequest(Guid supplierId, Guid productId) => new(supplierId, Guid.NewGuid(), new DateOnly(2026, 7, 11), null, null, "Cash", null, 19m, [new RegisterPurchaseItemRequest(productId, 1m)]);

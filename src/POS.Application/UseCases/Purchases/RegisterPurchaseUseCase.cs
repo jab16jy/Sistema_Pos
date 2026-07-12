@@ -47,13 +47,14 @@ public class RegisterPurchaseUseCase
                     throw new InvalidOperationException("Only an accepted quotation for the selected supplier can be confirmed as a purchase.");
             }
 
-            var purchase = new Purchase(request.SupplierId, request.UserId, request.EffectiveDate, request.InvoiceNumber, request.PaymentTerms, request.PaymentMethod, request.Observations, request.VatRate, request.SupplierQuotationId);
+            var purchase = new Purchase(supplier.Id, request.UserId, request.EffectiveDate, request.InvoiceNumber, request.PaymentTerms, request.PaymentMethod, request.Observations, request.VatRate, request.SupplierQuotationId);
             var movements = new List<InventoryMovement>();
             foreach (RegisterPurchaseItemRequest requestedItem in request.Items)
             {
-                ProductSupplier catalogItem = await _catalog.GetAsync(request.SupplierId, requestedItem.ProductId, transactionToken).ConfigureAwait(false)
+                ProductSupplier catalogItem = await _catalog.GetAsync(supplier.Id, requestedItem.ProductId, transactionToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("The selected product is not in the supplier catalog.");
-                if (!catalogItem.IsActive) throw new InvalidOperationException("The selected supplier catalog product is inactive.");
+                if (!catalogItem.IsEligibleForPurchase) throw new InvalidOperationException("The selected supplier catalog product is inactive or requires configuration.");
+
                 Product product = await _products.GetByIdAsync(requestedItem.ProductId, transactionToken).ConfigureAwait(false)
                     ?? throw new InvalidOperationException("Product was not found for purchase registration.");
                 if (!product.TracksInventory) throw new InvalidOperationException("Only inventory-tracked products can be received in a purchase.");
@@ -63,11 +64,15 @@ public class RegisterPurchaseUseCase
                     throw new InvalidOperationException("The purchase draft no longer matches the accepted supplier quotation.");
 
                 string reference = quotationItem?.ProductReference ?? catalogItem.SupplierSku ?? product.SourceCode;
-                string purchaseUnit = quotationItem?.PurchaseUnitName ?? catalogItem.PurchaseUnitName;
-                decimal factor = quotationItem?.UnitsPerPurchaseUnit ?? catalogItem.UnitsPerPurchaseUnit;
-                Money purchaseCost = quotationItem?.PurchaseUnitCost ?? new Money(catalogItem.PurchaseUnitCost);
-                var item = new PurchaseItem(product.Id, quotationItem?.ProductName ?? product.Name, reference, purchaseUnit, factor, new Quantity(requestedItem.Quantity), purchaseCost);
+                string purchaseUnit = quotationItem?.PurchaseUnitName ?? catalogItem.PurchaseUnitName!;
+                decimal factor = quotationItem?.UnitsPerPurchaseUnit ?? catalogItem.UnitsPerPurchaseUnit!.Value;
+                decimal purchaseUnitCost = requestedItem.PurchaseUnitCostOverride ?? quotationItem?.PurchaseUnitCost.Amount ?? catalogItem.PurchaseUnitCost!.Value;
+                if (purchaseUnitCost <= 0m) throw new ArgumentOutOfRangeException(nameof(request), "Purchase-unit cost must be greater than zero.");
+
+                var quantity = new Quantity(requestedItem.Quantity);
+                var item = new PurchaseItem(product.Id, quotationItem?.ProductName ?? product.Name, reference, purchaseUnit, factor, quantity, new Money(purchaseUnitCost));
                 purchase.AddItem(item);
+
                 var received = new Quantity(item.InventoryUnitsReceived!.Value);
                 decimal priorStock = product.CurrentStock;
                 product.ApplyPurchaseReceiptCost(priorStock, received, item.BaseUnitCost!.Value);
@@ -87,6 +92,7 @@ public class RegisterPurchaseUseCase
     {
         public Task AddAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<ProductSupplier?> GetAsync(Guid supplierId, Guid productId, CancellationToken cancellationToken = default) => Task.FromResult<ProductSupplier?>(null);
+        public Task<IReadOnlyList<ProductSupplier>> GetForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ProductSupplier>>([]);
         public Task<IReadOnlyList<ProductSupplier>> GetActiveForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ProductSupplier>>([]);
         public Task UpdateAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }

@@ -128,6 +128,8 @@ public static class DependencyInjection
         services.AddScoped<SearchSuppliersUseCase>();
         services.AddScoped<RegisterPurchaseUseCase>();
         services.AddScoped<GetSupplierCatalogUseCase>();
+        services.AddScoped<GetEligibleSupplierCatalogUseCase>();
+        services.AddScoped<GetProductSupplierSummaryUseCase>();
         services.AddScoped<SaveSupplierCatalogItemUseCase>();
         services.AddScoped<SearchPurchaseHistoryUseCase>();
         services.AddScoped<CreateSupplierQuotationUseCase>();
