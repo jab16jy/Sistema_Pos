@@ -28,10 +28,10 @@ public sealed class CreateSupplierQuotationUseCase
         {
             ProductSupplier catalog = await _catalog.GetAsync(request.SupplierId, requestedItem.ProductId, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException("The selected product is not in the supplier catalog.");
-            if (!catalog.IsActive) throw new InvalidOperationException("The selected supplier catalog product is inactive.");
+            if (!catalog.IsEligibleForPurchase) throw new InvalidOperationException("The selected supplier catalog product is inactive or requires configuration.");
             Product product = await _products.GetByIdAsync(requestedItem.ProductId, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException("Product was not found.");
-            quotation.AddItem(new SupplierQuotationItem(product.Id, product.Name, catalog.SupplierSku ?? product.SourceCode, catalog.PurchaseUnitName, catalog.UnitsPerPurchaseUnit, new Quantity(requestedItem.Quantity), new Money(catalog.PurchaseUnitCost)));
+            quotation.AddItem(new SupplierQuotationItem(product.Id, product.Name, catalog.SupplierSku ?? product.SourceCode, catalog.PurchaseUnitName!, catalog.UnitsPerPurchaseUnit!.Value, new Quantity(requestedItem.Quantity), new Money(catalog.PurchaseUnitCost!.Value)));
         }
 
         await _quotations.AddAsync(quotation, cancellationToken).ConfigureAwait(false);

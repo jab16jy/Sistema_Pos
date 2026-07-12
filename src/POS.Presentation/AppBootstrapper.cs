@@ -80,7 +80,10 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<SearchSuppliersUseCase>(),
                 sp.GetRequiredService<RegisterPurchaseUseCase>(),
                 () => cashier.CashierUserId,
+                productLookup,
                 sp.GetRequiredService<GetSupplierCatalogUseCase>(),
+                sp.GetRequiredService<GetEligibleSupplierCatalogUseCase>(),
+                sp.GetRequiredService<SaveSupplierCatalogItemUseCase>(),
                 sp.GetRequiredService<SearchPurchaseHistoryUseCase>(),
                 sp.GetRequiredService<CreateSupplierQuotationUseCase>(),
                 sp.GetRequiredService<AcceptSupplierQuotationUseCase>(),
@@ -152,7 +155,8 @@ internal static class AppBootstrapper
                         importProductsCsv,
                         adjustStock,
                         sp.GetRequiredService<AssignInternalBarcodeUseCase>(),
-                        sp.GetRequiredService<PrintLabelsUseCase>())
+                        sp.GetRequiredService<PrintLabelsUseCase>(),
+                        sp.GetRequiredService<GetProductSupplierSummaryUseCase>())
                     {
                         CategoriesEditor = categoriesEditor,
                         OperatorUserId = cashier.CashierUserId
@@ -168,7 +172,8 @@ internal static class AppBootstrapper
                     importProductsCsv,
                     adjustStock,
                     sp.GetRequiredService<AssignInternalBarcodeUseCase>(),
-                    sp.GetRequiredService<PrintLabelsUseCase>())
+                    sp.GetRequiredService<PrintLabelsUseCase>(),
+                    sp.GetRequiredService<GetProductSupplierSummaryUseCase>())
                 {
                     OperatorUserId = cashier.CashierUserId
                 };

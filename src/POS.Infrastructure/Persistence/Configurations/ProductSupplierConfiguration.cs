@@ -13,10 +13,10 @@ internal sealed class ProductSupplierConfiguration : IEntityTypeConfiguration<Pr
         builder.Property(ps => ps.ProductId).HasConversion<string>();
         builder.Property(ps => ps.SupplierId).HasConversion<string>();
         builder.Property(ps => ps.SupplierSku).HasMaxLength(100).HasColumnName("supplier_sku");
-        builder.Property(ps => ps.PurchaseUnitName).IsRequired().HasMaxLength(100).HasColumnName("purchase_unit_name");
+        builder.Property(ps => ps.PurchaseUnitName).HasMaxLength(100).HasColumnName("purchase_unit_name");
         builder.Property(ps => ps.UnitsPerPurchaseUnit).HasColumnName("units_per_purchase_unit");
         builder.Property(ps => ps.PurchaseUnitCost).HasColumnName("purchase_unit_cost");
-        builder.Property(ps => ps.IsActive).HasDefaultValue(true).HasColumnName("is_active");
+        builder.Property(ps => ps.IsActive).HasColumnName("is_active");
         builder.HasIndex(ps => new { ps.SupplierId, ps.IsActive });
         builder.HasOne<Product>()
                .WithMany()

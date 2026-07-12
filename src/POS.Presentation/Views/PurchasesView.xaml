@@ -12,46 +12,120 @@
 
     <Grid Grid.Row="1">
       <Grid Visibility="{Binding IsNewPurchaseTabActive, Converter={StaticResource BoolToVisibilityConverter}}">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <Border Style="{StaticResource Card}">
-          <StackPanel>
-            <TextBox Text="{Binding SupplierSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar proveedor..."/>
-            <ListBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier}" DisplayMemberPath="Name" MinHeight="180"/>
-            <Button Content="Nuevo proveedor" Command="{Binding ToggleNewSupplierCommand}" Margin="0,8,0,0"/>
-            <StackPanel Visibility="{Binding IsNewSupplierFormOpen, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,8,0,0">
-              <TextBox Text="{Binding SupplierName}" Tag="Nombre *"/><TextBox Text="{Binding SupplierTaxId}" Tag="NIT *"/>
-              <TextBox Text="{Binding SupplierPhone}" Tag="Teléfono"/><TextBox Text="{Binding SupplierEmail}" Tag="Correo"/>
-              <Button Content="Guardar proveedor" Command="{Binding SaveSupplierCommand}" Style="{StaticResource PrimaryButton}"/>
-            </StackPanel>
-          </StackPanel>
-        </Border>
-        <Grid Grid.Column="2">
-          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-          <Border Style="{StaticResource Card}" Margin="0,0,0,10"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <StackPanel><TextBlock Text="Factura proveedor" Style="{StaticResource MutedText}"/><TextBox Text="{Binding PurchaseInvoiceNumber}"/></StackPanel>
-            <StackPanel Grid.Column="1"><TextBlock Text="Fecha" Style="{StaticResource MutedText}"/><DatePicker SelectedDate="{Binding PurchaseDate}"/></StackPanel>
-            <StackPanel Grid.Column="2"><TextBlock Text="Pago / plazo" Style="{StaticResource MutedText}"/><TextBox Text="{Binding PaymentMethod}"/><TextBox Text="{Binding PaymentTerms}" Tag="Plazo"/></StackPanel>
-          </Grid></Border>
-          <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,10"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <StackPanel><TextBlock Text="Catálogo activo del proveedor" Style="{StaticResource MutedText}"/><ComboBox ItemsSource="{Binding CatalogItems}" SelectedItem="{Binding SelectedCatalogItem}" DisplayMemberPath="ProductName"/></StackPanel>
-            <StackPanel Grid.Column="1"><TextBlock Text="Cantidad de compra" Style="{StaticResource MutedText}"/><TextBox Text="{Binding DraftQuantity}"/></StackPanel>
-            <Button Grid.Column="2" Content="Agregar" Command="{Binding AddDraftItemCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Bottom"/>
-          </Grid></Border>
-          <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True"><DataGrid.Columns>
-            <DataGridTextColumn Header="Producto" Binding="{Binding ProductName}"/><DataGridTextColumn Header="Unidad compra" Binding="{Binding PurchaseUnitName}"/><DataGridTextColumn Header="Factor" Binding="{Binding UnitsPerPurchaseUnit}"/><DataGridTextColumn Header="Cantidad" Binding="{Binding Quantity}"/><DataGridTextColumn Header="Recibidas" Binding="{Binding InventoryUnitsReceived}"/><DataGridTextColumn Header="Costo unidad" Binding="{Binding PurchaseUnitCost, StringFormat=N2}"/><DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, StringFormat=N2}"/>
-          </DataGrid.Columns></DataGrid>
-          <Border Grid.Row="3" Style="{StaticResource Card}" Margin="0,10,0,0"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <StackPanel><TextBox Text="{Binding Observations}" Tag="Observaciones"/><TextBlock Text="{Binding Subtotal, StringFormat=Subtotal: {0:N2}}"/><TextBlock Text="{Binding Iva, StringFormat=IVA adicional: {0:N2}}"/><TextBlock Text="{Binding Total, StringFormat=Total: {0:N2}}" FontWeight="Bold"/></StackPanel>
-            <Button Grid.Column="1" Content="Confirmar compra" Command="{Binding RegisterPurchaseCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Center"/>
-          </Grid></Border>
-        </Grid>
+        <Grid.RowDefinitions><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <Grid>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="Auto" />
+              <RowDefinition Height="360" />
+              <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="3*"/></Grid.ColumnDefinitions>
+                <StackPanel Margin="0,0,12,0">
+                  <TextBlock Text="Proveedores" Style="{StaticResource TextH2}"/>
+                  <TextBox Text="{Binding SupplierSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar proveedor" Margin="0,8,0,8"/>
+                  <ListBox ItemsSource="{Binding Suppliers}" SelectedItem="{Binding SelectedSupplier, Mode=TwoWay}" DisplayMemberPath="Name" MinHeight="110" MaxHeight="220" />
+                  <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Nuevo" Command="{Binding NewSupplierCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
+                    <Button Content="Cancelar edición" Command="{Binding CancelSupplierEditCommand}"/>
+                  </StackPanel>
+                </StackPanel>
+                <Grid Grid.Column="1">
+                  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                  <TextBlock Text="Perfil de proveedor" Style="{StaticResource TextH2}"/>
+                  <WrapPanel Grid.Row="1" Margin="0,8,0,0">
+                    <StackPanel Width="200" Margin="0,0,8,8"><TextBlock Text="Nombre *"/><TextBox Text="{Binding SupplierName}"/></StackPanel>
+                    <StackPanel Width="160" Margin="0,0,8,8"><TextBlock Text="NIT *"/><TextBox Text="{Binding SupplierTaxId}"/></StackPanel>
+                    <StackPanel Width="160" Margin="0,0,8,8"><TextBlock Text="Teléfono"/><TextBox Text="{Binding SupplierPhone}"/></StackPanel>
+                    <StackPanel Width="180" Margin="0,0,8,8"><TextBlock Text="Correo"/><TextBox Text="{Binding SupplierEmail}"/></StackPanel>
+                    <CheckBox Content="Proveedor activo" IsChecked="{Binding IsSupplierActive}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                  </WrapPanel>
+                  <Button Grid.Row="2" Content="Guardar proveedor" Command="{Binding SaveSupplierCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"/>
+                </Grid>
+              </Grid>
+            </Border>
+
+            <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,0,0,12">
+              <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="190"/></Grid.RowDefinitions>
+                <TextBlock Text="Catálogo de abastecimiento del proveedor" Style="{StaticResource TextH2}"/>
+                <WrapPanel Grid.Row="1" Margin="0,8,0,8">
+                  <StackPanel Width="210" Margin="0,0,8,8"><TextBlock Text="Producto existente"/><TextBox Text="{Binding CatalogProductSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar producto"/><ComboBox ItemsSource="{Binding CatalogProductResults}" SelectedItem="{Binding SelectedCatalogProduct}" DisplayMemberPath="Name"/></StackPanel>
+                  <StackPanel Width="130" Margin="0,0,8,8"><TextBlock Text="SKU proveedor"/><TextBox Text="{Binding CatalogSupplierSku}"/></StackPanel>
+                  <StackPanel Width="130" Margin="0,0,8,8"><TextBlock Text="Unidad compra *"/><TextBox Text="{Binding CatalogPurchaseUnit}"/></StackPanel>
+                  <StackPanel Width="110" Margin="0,0,8,8"><TextBlock Text="Factor *"/><TextBox Text="{Binding CatalogFactor}"/></StackPanel>
+                  <StackPanel Width="130" Margin="0,0,8,8"><TextBlock Text="Costo unidad *"/><TextBox Text="{Binding CatalogCost}"/></StackPanel>
+                  <CheckBox Content="Activo" IsChecked="{Binding CatalogIsActive}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                  <Button Content="Guardar relación" Command="{Binding SaveCatalogItemCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                </WrapPanel>
+                <DataGrid Grid.Row="2" ItemsSource="{Binding SupplierCatalogItems}" SelectedItem="{Binding SelectedProfileCatalogItem}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                  <DataGrid.Columns>
+                    <DataGridTextColumn Header="Producto" Binding="{Binding ProductName}" Width="*"/>
+                    <DataGridTextColumn Header="SKU" Binding="{Binding SupplierSku}" Width="120"/>
+                    <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="110"/>
+                    <DataGridTextColumn Header="Factor" Binding="{Binding UnitsPerPurchaseUnit}" Width="80"/>
+                    <DataGridTextColumn Header="Costo" Binding="{Binding PurchaseUnitCost, StringFormat=N2}" Width="100"/>
+                    <DataGridTextColumn Header="Estado" Binding="{Binding Status}" Width="150"/>
+                    <DataGridTemplateColumn Header="Acción" Width="100"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="Desactivar" Command="{Binding DataContext.DeactivateCatalogItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                  </DataGrid.Columns>
+                </DataGrid>
+              </Grid>
+            </Border>
+
+            <Border Grid.Row="2" Style="{StaticResource Card}" Margin="0,0,0,12">
+              <WrapPanel>
+                <StackPanel Width="170" Margin="0,0,8,8"><TextBlock Text="Factura"/><TextBox Text="{Binding PurchaseInvoiceNumber}"/></StackPanel>
+                <StackPanel Width="140" Margin="0,0,8,8"><TextBlock Text="Fecha"/><DatePicker SelectedDate="{Binding PurchaseDate}"/></StackPanel>
+                <StackPanel Width="140" Margin="0,0,8,8"><TextBlock Text="Pago"/><TextBox Text="{Binding PaymentMethod}"/></StackPanel>
+                <StackPanel Width="150" Margin="0,0,8,8"><TextBlock Text="Plazo"/><TextBox Text="{Binding PaymentTerms}"/></StackPanel>
+                <StackPanel Width="110" Margin="0,0,8,8"><TextBlock Text="IVA adicional %"/><TextBox Text="{Binding VatRate}"/></StackPanel>
+              </WrapPanel>
+            </Border>
+
+            <Border Grid.Row="3" Style="{StaticResource Card}" Margin="0,0,0,12">
+              <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <TextBlock Text="Nueva compra desde catálogo activo" Style="{StaticResource TextH2}"/>
+                <WrapPanel Grid.Row="1" Margin="0,8,0,8">
+                  <StackPanel Width="310" Margin="0,0,8,8"><TextBlock Text="Producto del catálogo"/><ComboBox ItemsSource="{Binding EligibleCatalogItems}" SelectedItem="{Binding SelectedCatalogItem}" DisplayMemberPath="DisplayLabel"/></StackPanel>
+                  <StackPanel Width="110" Margin="0,0,8,8"><TextBlock Text="Cantidad *"/><TextBox Text="{Binding DraftQuantity}"/></StackPanel>
+                  <CheckBox Content="Modificar costo" IsChecked="{Binding UseDraftCostOverride}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                  <StackPanel Width="130" Margin="0,0,8,8"><TextBlock Text="Costo confirmado"/><TextBox Text="{Binding DraftCostOverride}" IsEnabled="{Binding UseDraftCostOverride}"/></StackPanel>
+                  <Button Content="Agregar línea" Command="{Binding AddDraftItemCommand}" Style="{StaticResource PrimaryButton}" VerticalAlignment="Center" Margin="0,0,8,8"/>
+                </WrapPanel>
+                <DataGrid Grid.Row="2" ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
+                  <DataGrid.Columns>
+                    <DataGridTextColumn Header="Producto" Binding="{Binding ProductName}" Width="*"/>
+                    <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="100"/>
+                    <DataGridTextColumn Header="Cantidad" Binding="{Binding Quantity}" Width="85"/>
+                    <DataGridTextColumn Header="Factor" Binding="{Binding UnitsPerPurchaseUnit}" Width="75"/>
+                    <DataGridTextColumn Header="Recibidas" Binding="{Binding InventoryUnitsReceived}" Width="90"/>
+                    <DataGridTextColumn Header="Costo" Binding="{Binding EffectivePurchaseUnitCost, StringFormat=N2}" Width="100"/>
+                    <DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, StringFormat=N2}" Width="100"/>
+                    <DataGridTemplateColumn Header="" Width="75"><DataGridTemplateColumn.CellTemplate><DataTemplate><Button Content="Quitar" Command="{Binding DataContext.RemoveDraftItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                  </DataGrid.Columns>
+                </DataGrid>
+              </Grid>
+            </Border>
+
+            <DockPanel Grid.Row="4" LastChildFill="False">
+              <Button DockPanel.Dock="Right" Content="Confirmar compra" Command="{Binding RegisterPurchaseCommand}" Style="{StaticResource PrimaryButton}"/>
+              <StackPanel><TextBox Text="{Binding Observations}" Tag="Observaciones"/><TextBlock Text="{Binding Subtotal, StringFormat=Subtotal: {0:N2}}"/><TextBlock Text="{Binding Iva, StringFormat=IVA adicional: {0:N2}}"/><TextBlock Text="{Binding Total, StringFormat=Total: {0:N2}}" FontWeight="Bold"/></StackPanel>
+            </DockPanel>
+          </Grid>
+        </ScrollViewer>
       </Grid>
       <Grid Visibility="{Binding IsHistoryTabActive, Converter={StaticResource BoolToVisibilityConverter}}"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
         <StackPanel Orientation="Horizontal"><DatePicker SelectedDate="{Binding HistoryFrom}"/><DatePicker SelectedDate="{Binding HistoryTo}"/><TextBox Text="{Binding HistoryInvoiceFilter}" Tag="Factura"/><Button Content="Buscar" Command="{Binding LoadHistoryCommand}" Style="{StaticResource PrimaryButton}"/></StackPanel>
         <DataGrid Grid.Row="1" ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True"><DataGrid.Columns><DataGridTextColumn Header="Proveedor" Binding="{Binding SupplierName}"/><DataGridTextColumn Header="Fecha" Binding="{Binding EffectiveDate}"/><DataGridTextColumn Header="Factura" Binding="{Binding InvoiceNumber}"/><DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal}"/><DataGridTextColumn Header="IVA" Binding="{Binding VatAmount}"/><DataGridTextColumn Header="Total" Binding="{Binding Total}"/></DataGrid.Columns><DataGrid.RowDetailsTemplate><DataTemplate><DataGrid ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"><DataGrid.Columns><DataGridTextColumn Header="Producto" Binding="{Binding ProductName}"/><DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}"/><DataGridTextColumn Header="Cantidad" Binding="{Binding Quantity}"/><DataGridTextColumn Header="Unidades recibidas" Binding="{Binding InventoryUnitsReceived}"/><DataGridTextColumn Header="Costo unidad" Binding="{Binding PurchaseUnitCost}"/><DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal}"/><DataGridTextColumn Header="Costo legado" Binding="{Binding LegacyTotalCost}"/></DataGrid.Columns></DataGrid></DataTemplate></DataGrid.RowDetailsTemplate></DataGrid>
       </Grid>
-      <StackPanel Visibility="{Binding IsQuotationTabActive, Converter={StaticResource BoolToVisibilityConverter}}"><TextBlock Text="Cotización de proveedor" Style="{StaticResource TextH2}"/><TextBlock Text="Usa el proveedor y los productos activos cargados en Nueva compra. Aceptar una cotización no recibe inventario." Style="{StaticResource MutedText}"/><StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button Content="Crear borrador" Command="{Binding CreateSupplierQuotationCommand}" Style="{StaticResource PrimaryButton}"/><Button Content="Aceptar" Command="{Binding AcceptSupplierQuotationCommand}" Margin="8,0,0,0"/><Button Content="Cargar como compra" Command="{Binding ConvertSupplierQuotationCommand}" Margin="8,0,0,0"/></StackPanel></StackPanel>
+      <StackPanel Visibility="{Binding IsQuotationTabActive, Converter={StaticResource BoolToVisibilityConverter}}"><TextBlock Text="Cotización de proveedor" Style="{StaticResource TextH2}"/><TextBlock Text="Usa el proveedor y los productos del catálogo elegible cargados en Nueva compra. Aceptar una cotización no recibe inventario." Style="{StaticResource MutedText}"/><StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button Content="Crear borrador" Command="{Binding CreateSupplierQuotationCommand}" Style="{StaticResource PrimaryButton}"/><Button Content="Aceptar" Command="{Binding AcceptSupplierQuotationCommand}" Margin="8,0,0,0"/><Button Content="Cargar como compra" Command="{Binding ConvertSupplierQuotationCommand}" Margin="8,0,0,0"/></StackPanel></StackPanel>
     </Grid>
-    <TextBlock Grid.Row="2" Text="{Binding Message}" Style="{StaticResource MutedText}" Margin="0,12,0,0"/>
+    <TextBlock Grid.Row="2" Text="{Binding Message}" Style="{StaticResource MutedText}" Margin="0,12,0,0" TextWrapping="Wrap"/>
   </Grid>
 </UserControl>

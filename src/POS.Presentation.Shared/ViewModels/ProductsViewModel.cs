@@ -4,10 +4,12 @@ using System.Windows.Input;
 using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.DTOs.Inventory;
 using POS.Application.DTOs.Products;
+using POS.Application.DTOs.Purchases;
 using POS.Application.UseCases.BarcodeLabels;
 using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Products;
+using POS.Application.UseCases.Purchases;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
@@ -23,6 +25,7 @@ public sealed class ProductsViewModel : ViewModelBase
     private readonly AdjustStockUseCase? _adjustStock;
     private readonly AssignInternalBarcodeUseCase? _assignInternalBarcode;
     private readonly PrintLabelsUseCase? _printLabels;
+    private readonly GetProductSupplierSummaryUseCase? _supplierSummary;
     private readonly RelayCommand _generateInternalBarcodeCommand;
     private readonly RelayCommand _printLabelCommand;
     private ProductSearchResult? _selectedProduct;
@@ -49,7 +52,7 @@ public sealed class ProductsViewModel : ViewModelBase
         UpdateProductUseCase updateProduct,
         DeleteProductUseCase deleteProduct,
         SearchProductsUseCase searchProducts)
-        : this(createProduct, updateProduct, deleteProduct, searchProducts, null, null, null, null, null)
+        : this(createProduct, updateProduct, deleteProduct, searchProducts, null, null, null, null, null, null)
     {
     }
 
@@ -62,7 +65,8 @@ public sealed class ProductsViewModel : ViewModelBase
         ImportProductsCsvUseCase? importProductsCsv = null,
         AdjustStockUseCase? adjustStock = null,
         AssignInternalBarcodeUseCase? assignInternalBarcode = null,
-        PrintLabelsUseCase? printLabels = null)
+        PrintLabelsUseCase? printLabels = null,
+        GetProductSupplierSummaryUseCase? supplierSummary = null)
     {
         _createProduct = createProduct;
         _updateProduct = updateProduct;
@@ -73,6 +77,7 @@ public sealed class ProductsViewModel : ViewModelBase
         _adjustStock = adjustStock;
         _assignInternalBarcode = assignInternalBarcode;
         _printLabels = printLabels;
+        _supplierSummary = supplierSummary;
         Categories = [];
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar productos: {ex.Message}"));
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar producto: {ex.Message}"));
@@ -90,6 +95,8 @@ public sealed class ProductsViewModel : ViewModelBase
     public ObservableCollection<ProductSearchResult> Products { get; } = [];
 
     public ObservableCollection<CategoryResult> Categories { get; }
+
+    public ObservableCollection<SupplierCatalogItemResult> SupplierRelationships { get; } = [];
 
     private CategoriesViewModel? _categoriesEditor;
 
@@ -154,6 +161,11 @@ public sealed class ProductsViewModel : ViewModelBase
                     CategoryId = value.CategoryId;
                     UnitsPerBox = value.UnitsPerBox;
                     BoxPrice = value.BoxPrice;
+                    RunSafe(LoadSupplierRelationshipsAsync(value.Id), ex => Message = $"Error al cargar proveedores: {ex.Message}");
+                }
+                else
+                {
+                    SupplierRelationships.Clear();
                 }
 
                 OnPropertyChanged(nameof(HasSelectedProduct));
@@ -173,6 +185,16 @@ public sealed class ProductsViewModel : ViewModelBase
                 RecalculateMarginPreview();
                 RecalculateStockStatusPreview();
             }
+        }
+    }
+
+    private async Task LoadSupplierRelationshipsAsync(Guid productId, CancellationToken cancellationToken = default)
+    {
+        SupplierRelationships.Clear();
+        if (_supplierSummary is null) return;
+        foreach (SupplierCatalogItemResult item in await _supplierSummary.ExecuteAsync(productId, cancellationToken).ConfigureAwait(true))
+        {
+            SupplierRelationships.Add(item);
         }
     }
 

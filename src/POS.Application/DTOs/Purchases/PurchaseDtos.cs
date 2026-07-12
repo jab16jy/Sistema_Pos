@@ -1,10 +1,6 @@
 namespace POS.Application.DTOs.Purchases;
 
-public sealed record RegisterPurchaseItemRequest(Guid ProductId, decimal Quantity)
-{
-    [Obsolete("Purchase costs are sourced from the active supplier catalog.")]
-    public RegisterPurchaseItemRequest(Guid productId, decimal quantity, decimal ignoredTotalCost) : this(productId, quantity) { }
-}
+public sealed record RegisterPurchaseItemRequest(Guid ProductId, decimal Quantity, decimal? PurchaseUnitCostOverride = null);
 
 public sealed record RegisterPurchaseRequest(
     Guid SupplierId,
@@ -25,37 +21,24 @@ public sealed record RegisterPurchaseRequest(
 
 public sealed record RegisterPurchaseResult(Guid PurchaseId, Guid SupplierId, decimal TotalCost, int ItemCount, decimal VatAmount = 0m);
 
-public sealed record SupplierCatalogItemResult(
-    Guid SupplierId,
-    Guid ProductId,
-    string ProductName,
-    string? ProductReference,
-    string? SupplierSku,
-    string PurchaseUnitName,
-    decimal UnitsPerPurchaseUnit,
-    decimal PurchaseUnitCost,
-    bool IsActive);
-
-public sealed record SaveSupplierCatalogItemRequest(
-    Guid SupplierId,
-    Guid ProductId,
-    string? SupplierSku,
-    string PurchaseUnitName,
-    decimal UnitsPerPurchaseUnit,
-    decimal PurchaseUnitCost,
-    bool IsActive);
-
-public sealed record PurchaseDraftItem(
-    Guid ProductId,
-    string ProductName,
-    string? ProductReference,
-    string PurchaseUnitName,
-    decimal UnitsPerPurchaseUnit,
-    decimal PurchaseUnitCost,
-    decimal Quantity)
+public sealed record SupplierCatalogItemResult(Guid SupplierId, string SupplierName, Guid ProductId, string ProductName, string? ProductReference, string? SupplierSku, string? PurchaseUnitName, decimal? UnitsPerPurchaseUnit, decimal? PurchaseUnitCost, bool IsActive)
 {
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(PurchaseUnitName) && UnitsPerPurchaseUnit is > 0m && PurchaseUnitCost is > 0m;
+    public bool IsEligibleForPurchase => IsActive && IsConfigured;
+    public string Status => IsEligibleForPurchase ? "Activo" : IsConfigured ? "Inactivo" : "Requiere configuración";
+    public string DisplayLabel => $"{ProductName} — {SupplierSku ?? ProductReference ?? "Sin SKU"} — {PurchaseUnitName ?? "Sin unidad"} — {(PurchaseUnitCost ?? 0m):N2}";
+}
+
+public sealed record SaveSupplierCatalogItemRequest(Guid SupplierId, Guid ProductId, string? SupplierSku, string PurchaseUnitName, decimal UnitsPerPurchaseUnit, decimal PurchaseUnitCost, bool IsActive);
+
+public sealed record PurchaseDraftItem(Guid ProductId, string ProductName, string? ProductReference, string PurchaseUnitName, decimal UnitsPerPurchaseUnit, decimal PurchaseUnitCost, decimal Quantity, decimal? PurchaseUnitCostOverride = null)
+{
+    public PurchaseDraftItem(Guid productId, string productName, decimal quantity, decimal totalCost)
+        : this(productId, productName, null, "Unidad", 1m, totalCost / quantity, quantity) { }
+    public decimal EffectivePurchaseUnitCost => PurchaseUnitCostOverride ?? PurchaseUnitCost;
     public decimal InventoryUnitsReceived => Quantity * UnitsPerPurchaseUnit;
-    public decimal Subtotal => decimal.Round(Quantity * PurchaseUnitCost, 2, MidpointRounding.AwayFromZero);
+    public decimal Subtotal => decimal.Round(Quantity * EffectivePurchaseUnitCost, 2, MidpointRounding.AwayFromZero);
+    public decimal TotalCost => Subtotal;
 }
 
 public sealed record PurchaseHistoryRequest(Guid? SupplierId, DateOnly? FromEffectiveDate, DateOnly? ToEffectiveDate, string? InvoiceNumber, int Page = 1, int PageSize = 50);

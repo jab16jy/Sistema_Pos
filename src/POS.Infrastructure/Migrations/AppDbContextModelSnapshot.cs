@@ -732,17 +732,14 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
-                    b.Property<decimal>("PurchaseUnitCost")
+                    b.Property<decimal?>("PurchaseUnitCost")
                         .HasColumnType("TEXT")
                         .HasColumnName("purchase_unit_cost");
 
                     b.Property<string>("PurchaseUnitName")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("TEXT")
                         .HasColumnName("purchase_unit_name");
@@ -752,7 +749,7 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("supplier_sku");
 
-                    b.Property<decimal>("UnitsPerPurchaseUnit")
+                    b.Property<decimal?>("UnitsPerPurchaseUnit")
                         .HasColumnType("TEXT")
                         .HasColumnName("units_per_purchase_unit");
 
