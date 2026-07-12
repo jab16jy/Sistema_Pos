@@ -65,7 +65,6 @@ public static class DependencyInjection
         services.AddScoped<ISupplierRepository, SupplierRepository>();
         services.AddScoped<IPurchaseRepository, PurchaseRepository>();
         services.AddScoped<IProductSupplierRepository, ProductSupplierRepository>();
-        services.AddScoped<ISupplierQuotationRepository, SupplierQuotationRepository>();
         services.AddScoped<IReceivableRepository, ReceivableRepository>();
         services.AddScoped<ICashClosingRepository, CashClosingRepository>();
         services.AddScoped<ICashierShiftRepository, CashierShiftRepository>();
@@ -132,9 +131,6 @@ public static class DependencyInjection
         services.AddScoped<GetProductSupplierSummaryUseCase>();
         services.AddScoped<SaveSupplierCatalogItemUseCase>();
         services.AddScoped<SearchPurchaseHistoryUseCase>();
-        services.AddScoped<CreateSupplierQuotationUseCase>();
-        services.AddScoped<AcceptSupplierQuotationUseCase>();
-        services.AddScoped<ConvertSupplierQuotationToPurchaseDraftUseCase>();
         services.AddScoped<CreateQuoteUseCase>();
         services.AddScoped<ConvertQuoteToSaleUseCase>();
         services.AddScoped<GetCustomerPayableQuotesUseCase>();

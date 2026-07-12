@@ -13,11 +13,10 @@ public class RegisterPurchaseUseCase
     private readonly IProductSupplierRepository _catalog;
     private readonly IPurchaseRepository _purchases;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ISupplierQuotationRepository? _quotations;
 
-    public RegisterPurchaseUseCase(ISupplierRepository suppliers, IProductRepository products, IProductSupplierRepository catalog, IPurchaseRepository purchases, IUnitOfWork unitOfWork, ISupplierQuotationRepository? quotations = null)
+    public RegisterPurchaseUseCase(ISupplierRepository suppliers, IProductRepository products, IProductSupplierRepository catalog, IPurchaseRepository purchases, IUnitOfWork unitOfWork)
     {
-        (_suppliers, _products, _catalog, _purchases, _unitOfWork, _quotations) = (suppliers, products, catalog, purchases, unitOfWork, quotations);
+        (_suppliers, _products, _catalog, _purchases, _unitOfWork) = (suppliers, products, catalog, purchases, unitOfWork);
     }
 
     [Obsolete("Use the constructor that validates the supplier catalog.")]
@@ -36,18 +35,7 @@ public class RegisterPurchaseUseCase
                 ?? throw new InvalidOperationException("Supplier is not available for purchase selection.");
             if (!supplier.IsActive) throw new InvalidOperationException("Supplier is not available for purchase selection.");
 
-            SupplierQuotation? quotation = null;
-            if (request.SupplierQuotationId is Guid quotationId)
-            {
-                quotation = _quotations is null
-                    ? throw new InvalidOperationException("Supplier quotation support is not available.")
-                    : await _quotations.GetByIdAsync(quotationId, transactionToken).ConfigureAwait(false)
-                        ?? throw new InvalidOperationException("Supplier quotation was not found.");
-                if (quotation.SupplierId != supplier.Id || quotation.Status != SupplierQuotationStatus.Accepted)
-                    throw new InvalidOperationException("Only an accepted quotation for the selected supplier can be confirmed as a purchase.");
-            }
-
-            var purchase = new Purchase(supplier.Id, request.UserId, request.EffectiveDate, request.InvoiceNumber, request.PaymentTerms, request.PaymentMethod, request.Observations, request.VatRate, request.SupplierQuotationId);
+            var purchase = new Purchase(supplier.Id, request.UserId, request.EffectiveDate, request.InvoiceNumber, request.PaymentTerms, request.PaymentMethod, request.Observations, request.VatRate);
             var movements = new List<InventoryMovement>();
             foreach (RegisterPurchaseItemRequest requestedItem in request.Items)
             {
@@ -59,18 +47,14 @@ public class RegisterPurchaseUseCase
                     ?? throw new InvalidOperationException("Product was not found for purchase registration.");
                 if (!product.TracksInventory) throw new InvalidOperationException("Only inventory-tracked products can be received in a purchase.");
 
-                SupplierQuotationItem? quotationItem = quotation?.Items.SingleOrDefault(item => item.ProductId == requestedItem.ProductId && item.Quantity == requestedItem.Quantity);
-                if (quotation is not null && quotationItem is null)
-                    throw new InvalidOperationException("The purchase draft no longer matches the accepted supplier quotation.");
-
-                string reference = quotationItem?.ProductReference ?? catalogItem.SupplierSku ?? product.SourceCode;
-                string purchaseUnit = quotationItem?.PurchaseUnitName ?? catalogItem.PurchaseUnitName!;
-                decimal factor = quotationItem?.UnitsPerPurchaseUnit ?? catalogItem.UnitsPerPurchaseUnit!.Value;
-                decimal purchaseUnitCost = requestedItem.PurchaseUnitCostOverride ?? quotationItem?.PurchaseUnitCost.Amount ?? catalogItem.PurchaseUnitCost!.Value;
+                string reference = catalogItem.SupplierSku ?? product.SourceCode;
+                string purchaseUnit = catalogItem.PurchaseUnitName!;
+                decimal factor = catalogItem.UnitsPerPurchaseUnit!.Value;
+                decimal purchaseUnitCost = requestedItem.PurchaseUnitCostOverride ?? catalogItem.PurchaseUnitCost!.Value;
                 if (purchaseUnitCost <= 0m) throw new ArgumentOutOfRangeException(nameof(request), "Purchase-unit cost must be greater than zero.");
 
                 var quantity = new Quantity(requestedItem.Quantity);
-                var item = new PurchaseItem(product.Id, quotationItem?.ProductName ?? product.Name, reference, purchaseUnit, factor, quantity, new Money(purchaseUnitCost));
+                var item = new PurchaseItem(product.Id, product.Name, reference, purchaseUnit, factor, quantity, new Money(purchaseUnitCost));
                 purchase.AddItem(item);
 
                 var received = new Quantity(item.InventoryUnitsReceived!.Value);

@@ -206,13 +206,11 @@ public sealed class PurchasesViewModelTests
     }
 
     [Fact]
-    public void Tabs_SeparateNewPurchaseHistoryAndSupplierQuotationAreas()
+    public void Tabs_SeparateNewPurchaseAndHistoryAreas()
     {
         var viewModel = CreateViewModel(new StaticSupplierLookupQueryService([]));
         viewModel.ActiveTab = "History";
         Assert.True(viewModel.IsHistoryTabActive);
-        viewModel.ActiveTab = "Quotation";
-        Assert.True(viewModel.IsQuotationTabActive);
         Assert.False(viewModel.IsNewPurchaseTabActive);
     }
 

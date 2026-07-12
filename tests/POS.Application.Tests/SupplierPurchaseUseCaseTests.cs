@@ -222,37 +222,6 @@ public sealed class SupplierPurchaseUseCaseTests
     }
 
     [Fact]
-    public async Task SupplierQuotation_AcceptsAndPreloadsImmutablePurchaseDraftWithoutInventoryMutation()
-    {
-        await using var connection = await OpenAsync();
-        await using var db = CreateDbContext(connection);
-        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
-        (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 5m, 100m, 12m, 120m);
-        var catalog = new ProductSupplierRepository(db);
-        var quotations = new SupplierQuotationRepository(db);
-        var create = new CreateSupplierQuotationUseCase(new SupplierRepository(db), new ProductRepository(db), catalog, quotations, db);
-        SupplierQuotationResult quotation = await create.ExecuteAsync(new CreateSupplierQuotationRequest(supplier.Id, new DateOnly(2026, 7, 11), "30 days", null, [new CreateSupplierQuotationItemRequest(product.Id, 2m)]), TestContext.Current.CancellationToken);
-
-        await new AcceptSupplierQuotationUseCase(quotations, db).ExecuteAsync(quotation.Id, TestContext.Current.CancellationToken);
-        ProductSupplier catalogItem = (await catalog.GetAsync(supplier.Id, product.Id, TestContext.Current.CancellationToken))!;
-        catalogItem.Update("NEW-SKU", "Wholesale", 24m, 400m, true);
-        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        PurchaseDraftFromQuotationResult draft = await new ConvertSupplierQuotationToPurchaseDraftUseCase(quotations).ExecuteAsync(quotation.Id, TestContext.Current.CancellationToken);
-
-        Assert.Equal(5m, (await db.Products.SingleAsync(TestContext.Current.CancellationToken)).CurrentStock);
-        PurchaseDraftItem item = Assert.Single(draft.Items);
-        Assert.Equal(12m, item.UnitsPerPurchaseUnit);
-        Assert.Equal(120m, item.PurchaseUnitCost);
-        Assert.Empty(await db.InventoryMovements.ToListAsync(TestContext.Current.CancellationToken));
-
-        await CreateRegisterUseCase(db).ExecuteAsync(new RegisterPurchaseRequest(supplier.Id, Guid.NewGuid(), draft.EffectiveDate, null, draft.PaymentTerms, "Cash", draft.Observations, 0m, draft.Items.Select(i => new RegisterPurchaseItemRequest(i.ProductId, i.Quantity)).ToList(), draft.SupplierQuotationId), TestContext.Current.CancellationToken);
-        Purchase confirmed = await db.Purchases.Include(p => p.Items).SingleAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(quotation.Id, confirmed.SupplierQuotationId);
-        Assert.Equal(12m, confirmed.Items.Single().UnitsPerPurchaseUnit);
-        Assert.Equal(120m, confirmed.Items.Single().PurchaseUnitCost?.Amount);
-    }
-
-    [Fact]
     public async Task SupplierPurchasingMigration_ConvertsLegacyBinarySupplierIdsToText()
     {
         await using var connection = await OpenAsync();
@@ -278,12 +247,11 @@ public sealed class SupplierPurchaseUseCaseTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<GetEligibleSupplierCatalogUseCase>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<SaveSupplierCatalogItemUseCase>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<SearchPurchaseHistoryUseCase>());
-        Assert.NotNull(scope.ServiceProvider.GetRequiredService<CreateSupplierQuotationUseCase>());
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISupplierCatalogQueryService>());
     }
 
     private static RegisterPurchaseRequest NewRequest(Guid supplierId, Guid productId) => new(supplierId, Guid.NewGuid(), new DateOnly(2026, 7, 11), null, null, "Cash", null, 19m, [new RegisterPurchaseItemRequest(productId, 1m)]);
-    private static RegisterPurchaseUseCase CreateRegisterUseCase(AppDbContext db) => new(new SupplierRepository(db), new ProductRepository(db), new ProductSupplierRepository(db), new PurchaseRepository(db), db, new SupplierQuotationRepository(db));
+    private static RegisterPurchaseUseCase CreateRegisterUseCase(AppDbContext db) => new(new SupplierRepository(db), new ProductRepository(db), new ProductSupplierRepository(db), new PurchaseRepository(db), db);
     private static async Task<SqliteConnection> OpenAsync() { var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync(TestContext.Current.CancellationToken); return connection; }
     private static AppDbContext CreateDbContext(SqliteConnection connection) => new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
 

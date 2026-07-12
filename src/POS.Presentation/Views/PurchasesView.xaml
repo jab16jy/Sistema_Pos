@@ -6,8 +6,7 @@
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
     <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
       <Button Content="Nueva compra" Command="{Binding SetTabCommand}" CommandParameter="New" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
-      <Button Content="Historial" Command="{Binding SetTabCommand}" CommandParameter="History" Margin="0,0,8,0"/>
-      <Button Content="Cotización proveedor" Command="{Binding SetTabCommand}" CommandParameter="Quotation"/>
+      <Button Content="Historial" Command="{Binding SetTabCommand}" CommandParameter="History"/>
     </StackPanel>
 
     <Grid Grid.Row="1">
@@ -124,7 +123,6 @@
         <StackPanel Orientation="Horizontal"><DatePicker SelectedDate="{Binding HistoryFrom}"/><DatePicker SelectedDate="{Binding HistoryTo}"/><TextBox Text="{Binding HistoryInvoiceFilter}" Tag="Factura"/><Button Content="Buscar" Command="{Binding LoadHistoryCommand}" Style="{StaticResource PrimaryButton}"/></StackPanel>
         <DataGrid Grid.Row="1" ItemsSource="{Binding History}" AutoGenerateColumns="False" IsReadOnly="True"><DataGrid.Columns><DataGridTextColumn Header="Proveedor" Binding="{Binding SupplierName}"/><DataGridTextColumn Header="Fecha" Binding="{Binding EffectiveDate}"/><DataGridTextColumn Header="Factura" Binding="{Binding InvoiceNumber}"/><DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal}"/><DataGridTextColumn Header="IVA" Binding="{Binding VatAmount}"/><DataGridTextColumn Header="Total" Binding="{Binding Total}"/></DataGrid.Columns><DataGrid.RowDetailsTemplate><DataTemplate><DataGrid ItemsSource="{Binding Items}" AutoGenerateColumns="False" IsReadOnly="True" HeadersVisibility="Column"><DataGrid.Columns><DataGridTextColumn Header="Producto" Binding="{Binding ProductName}"/><DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}"/><DataGridTextColumn Header="Cantidad" Binding="{Binding Quantity}"/><DataGridTextColumn Header="Unidades recibidas" Binding="{Binding InventoryUnitsReceived}"/><DataGridTextColumn Header="Costo unidad" Binding="{Binding PurchaseUnitCost}"/><DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal}"/><DataGridTextColumn Header="Costo legado" Binding="{Binding LegacyTotalCost}"/></DataGrid.Columns></DataGrid></DataTemplate></DataGrid.RowDetailsTemplate></DataGrid>
       </Grid>
-      <StackPanel Visibility="{Binding IsQuotationTabActive, Converter={StaticResource BoolToVisibilityConverter}}"><TextBlock Text="Cotización de proveedor" Style="{StaticResource TextH2}"/><TextBlock Text="Usa el proveedor y los productos del catálogo elegible cargados en Nueva compra. Aceptar una cotización no recibe inventario." Style="{StaticResource MutedText}"/><StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button Content="Crear borrador" Command="{Binding CreateSupplierQuotationCommand}" Style="{StaticResource PrimaryButton}"/><Button Content="Aceptar" Command="{Binding AcceptSupplierQuotationCommand}" Margin="8,0,0,0"/><Button Content="Cargar como compra" Command="{Binding ConvertSupplierQuotationCommand}" Margin="8,0,0,0"/></StackPanel></StackPanel>
     </Grid>
     <TextBlock Grid.Row="2" Text="{Binding Message}" Style="{StaticResource MutedText}" Margin="0,12,0,0" TextWrapping="Wrap"/>
   </Grid>

@@ -19,9 +19,6 @@ public sealed class PurchasesViewModel : ViewModelBase
     private readonly GetEligibleSupplierCatalogUseCase? _eligibleCatalog;
     private readonly SaveSupplierCatalogItemUseCase? _saveCatalogItem;
     private readonly SearchPurchaseHistoryUseCase? _history;
-    private readonly CreateSupplierQuotationUseCase? _createQuotation;
-    private readonly AcceptSupplierQuotationUseCase? _acceptQuotation;
-    private readonly ConvertSupplierQuotationToPurchaseDraftUseCase? _convertQuotation;
     private readonly RelayCommand _addDraftItemCommand;
     private SupplierSearchResult? _selectedSupplier;
     private SupplierCatalogItemResult? _selectedCatalogItem;
@@ -58,8 +55,6 @@ public sealed class PurchasesViewModel : ViewModelBase
     private DateTime? _historyTo = DateTime.Today;
     private string _historyInvoiceFilter = string.Empty;
     private int _historyPage = 1;
-    private Guid? _supplierQuotationId;
-    private Guid? _lastSupplierQuotationId;
     private string _message = "Selecciona un proveedor para editar su perfil o registrar una compra.";
 
     public PurchasesViewModel(
@@ -71,10 +66,7 @@ public sealed class PurchasesViewModel : ViewModelBase
         GetSupplierCatalogUseCase? catalog = null,
         GetEligibleSupplierCatalogUseCase? eligibleCatalog = null,
         SaveSupplierCatalogItemUseCase? saveCatalogItem = null,
-        SearchPurchaseHistoryUseCase? history = null,
-        CreateSupplierQuotationUseCase? createQuotation = null,
-        AcceptSupplierQuotationUseCase? acceptQuotation = null,
-        ConvertSupplierQuotationToPurchaseDraftUseCase? convertQuotation = null)
+        SearchPurchaseHistoryUseCase? history = null)
     {
         _saveSupplier = saveSupplier;
         _searchSuppliers = searchSuppliers;
@@ -85,9 +77,6 @@ public sealed class PurchasesViewModel : ViewModelBase
         _eligibleCatalog = eligibleCatalog;
         _saveCatalogItem = saveCatalogItem;
         _history = history;
-        _createQuotation = createQuotation;
-        _acceptQuotation = acceptQuotation;
-        _convertQuotation = convertQuotation;
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar proveedores: {ex.Message}"));
         NewSupplierCommand = new RelayCommand(_ => NewSupplier());
         CancelSupplierEditCommand = new RelayCommand(_ => CancelSupplierEdit());
@@ -96,9 +85,6 @@ public sealed class PurchasesViewModel : ViewModelBase
         DeactivateCatalogItemCommand = new RelayCommand(item => DeactivateCatalogItem(item as SupplierCatalogItemResult));
         RegisterPurchaseCommand = new RelayCommand(_ => RunSafe(RegisterPurchaseAsync(), ex => Message = $"Error al registrar compra: {ex.Message}"));
         LoadHistoryCommand = new RelayCommand(_ => RunSafe(LoadHistoryAsync(), ex => Message = $"Error al consultar historial: {ex.Message}"));
-        CreateSupplierQuotationCommand = new RelayCommand(_ => RunSafe(CreateSupplierQuotationAsync(), ex => Message = $"Error al crear cotización: {ex.Message}"));
-        AcceptSupplierQuotationCommand = new RelayCommand(_ => RunSafe(AcceptSupplierQuotationAsync(), ex => Message = $"Error al aceptar cotización: {ex.Message}"));
-        ConvertSupplierQuotationCommand = new RelayCommand(_ => RunSafe(ConvertSupplierQuotationAsync(), ex => Message = $"Error al convertir cotización: {ex.Message}"));
         SetTabCommand = new RelayCommand(parameter => ActiveTab = parameter as string ?? "New");
         _addDraftItemCommand = new RelayCommand(_ => AddDraftItem(), _ =>
             (SelectedCatalogItem is not null || (_catalog is null && (SelectedProductResult is not null || HasLegacyDraftProduct()) && DraftTotalCost > 0m))
@@ -122,9 +108,6 @@ public sealed class PurchasesViewModel : ViewModelBase
     public ICommand DeactivateCatalogItemCommand { get; }
     public ICommand RegisterPurchaseCommand { get; }
     public ICommand LoadHistoryCommand { get; }
-    public ICommand CreateSupplierQuotationCommand { get; }
-    public ICommand AcceptSupplierQuotationCommand { get; }
-    public ICommand ConvertSupplierQuotationCommand { get; }
     public ICommand SetTabCommand { get; }
     public ICommand AddDraftItemCommand { get; }
     public ICommand RemoveDraftItemCommand { get; }
@@ -199,15 +182,13 @@ public sealed class PurchasesViewModel : ViewModelBase
     public decimal Total => Subtotal + Iva;
     public string ItemCountLabel => $"{Items.Count} producto(s)";
     public string Message { get => _message; private set => SetProperty(ref _message, value); }
-    public string ActiveTab { get => _activeTab; set { if (SetProperty(ref _activeTab, value)) { OnPropertyChanged(nameof(IsNewPurchaseTabActive)); OnPropertyChanged(nameof(IsHistoryTabActive)); OnPropertyChanged(nameof(IsQuotationTabActive)); } } }
+    public string ActiveTab { get => _activeTab; set { if (SetProperty(ref _activeTab, value)) { OnPropertyChanged(nameof(IsNewPurchaseTabActive)); OnPropertyChanged(nameof(IsHistoryTabActive)); } } }
     public bool IsNewPurchaseTabActive => ActiveTab == "New";
     public bool IsHistoryTabActive => ActiveTab == "History";
-    public bool IsQuotationTabActive => ActiveTab == "Quotation";
     public DateTime? HistoryFrom { get => _historyFrom; set => SetProperty(ref _historyFrom, value); }
     public DateTime? HistoryTo { get => _historyTo; set => SetProperty(ref _historyTo, value); }
     public string HistoryInvoiceFilter { get => _historyInvoiceFilter; set => SetProperty(ref _historyInvoiceFilter, value); }
     public int HistoryPage { get => _historyPage; private set => SetProperty(ref _historyPage, value); }
-    public Guid? LastSupplierQuotationId { get => _lastSupplierQuotationId; private set => SetProperty(ref _lastSupplierQuotationId, value); }
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
@@ -248,8 +229,8 @@ public sealed class PurchasesViewModel : ViewModelBase
         if (SelectedSupplier is null || !SelectedSupplier.IsActive || PurchaseDate is null || Items.Count == 0) { Message = "Selecciona un proveedor activo, fecha y líneas válidas del catálogo."; return; }
         Guid operatorId = _currentOperatorIdProvider();
         if (operatorId == Guid.Empty) { Message = "No se pudo identificar el operador."; return; }
-        RegisterPurchaseResult result = await _registerPurchase.ExecuteAsync(new RegisterPurchaseRequest(SelectedSupplier.Id, operatorId, DateOnly.FromDateTime(PurchaseDate.Value), Normalize(PurchaseInvoiceNumber), Normalize(PaymentTerms), PaymentMethod, Normalize(Observations), VatRate, Items.Select(item => new RegisterPurchaseItemRequest(item.ProductId, item.Quantity, item.PurchaseUnitCostOverride)).ToList(), _supplierQuotationId), cancellationToken).ConfigureAwait(true);
-        Items.Clear(); RecalculateTotals(); _supplierQuotationId = null;
+        RegisterPurchaseResult result = await _registerPurchase.ExecuteAsync(new RegisterPurchaseRequest(SelectedSupplier.Id, operatorId, DateOnly.FromDateTime(PurchaseDate.Value), Normalize(PurchaseInvoiceNumber), Normalize(PaymentTerms), PaymentMethod, Normalize(Observations), VatRate, Items.Select(item => new RegisterPurchaseItemRequest(item.ProductId, item.Quantity, item.PurchaseUnitCostOverride)).ToList()), cancellationToken).ConfigureAwait(true);
+        Items.Clear(); RecalculateTotals();
         Message = $"Compra registrada. Total: {result.TotalCost:N2}.";
     }
 
@@ -259,33 +240,6 @@ public sealed class PurchasesViewModel : ViewModelBase
         PagedResult<PurchaseHistoryResult> result = await _history.ExecuteAsync(new PurchaseHistoryRequest(SelectedSupplier?.Id, HistoryFrom is null ? null : DateOnly.FromDateTime(HistoryFrom.Value), HistoryTo is null ? null : DateOnly.FromDateTime(HistoryTo.Value), Normalize(HistoryInvoiceFilter), HistoryPage), cancellationToken).ConfigureAwait(true);
         History.Clear(); foreach (PurchaseHistoryResult purchase in result.Items) History.Add(purchase);
         Message = $"Historial: {result.TotalCount} compra(s).";
-    }
-
-    public async Task CreateSupplierQuotationAsync(CancellationToken cancellationToken = default)
-    {
-        if (_createQuotation is null || SelectedSupplier is null || PurchaseDate is null || Items.Count == 0) { Message = "Selecciona proveedor, fecha y productos para cotizar."; return; }
-        SupplierQuotationResult quotation = await _createQuotation.ExecuteAsync(new CreateSupplierQuotationRequest(SelectedSupplier.Id, DateOnly.FromDateTime(PurchaseDate.Value), Normalize(PaymentTerms), Normalize(Observations), Items.Select(item => new CreateSupplierQuotationItemRequest(item.ProductId, item.Quantity)).ToList()), cancellationToken).ConfigureAwait(true);
-        LastSupplierQuotationId = quotation.Id;
-        Message = "Cotización de proveedor creada como borrador.";
-    }
-
-    public async Task AcceptSupplierQuotationAsync(CancellationToken cancellationToken = default)
-    {
-        if (_acceptQuotation is null || LastSupplierQuotationId is not Guid quotationId) { Message = "Primero crea una cotización de proveedor."; return; }
-        await _acceptQuotation.ExecuteAsync(quotationId, cancellationToken).ConfigureAwait(true);
-        Message = "Cotización aceptada. No se modificó inventario.";
-    }
-
-    public async Task ConvertSupplierQuotationAsync(CancellationToken cancellationToken = default)
-    {
-        if (_convertQuotation is null || LastSupplierQuotationId is not Guid quotationId) { Message = "No hay una cotización aceptada para cargar."; return; }
-        PurchaseDraftFromQuotationResult draft = await _convertQuotation.ExecuteAsync(quotationId, cancellationToken).ConfigureAwait(true);
-        _supplierQuotationId = draft.SupplierQuotationId;
-        PurchaseDate = draft.EffectiveDate.ToDateTime(TimeOnly.MinValue);
-        PaymentTerms = draft.PaymentTerms ?? string.Empty;
-        Observations = draft.Observations ?? string.Empty;
-        Items.Clear(); foreach (PurchaseDraftItem item in draft.Items) Items.Add(item); RecalculateTotals();
-        Message = "Borrador de compra cargado desde la cotización. Confirma la compra para recibir inventario.";
     }
 
     private async Task LoadCatalogsAsync(Guid supplierId, CancellationToken cancellationToken = default)

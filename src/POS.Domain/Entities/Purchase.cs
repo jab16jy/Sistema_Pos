@@ -17,8 +17,7 @@ public sealed class Purchase
         string? paymentTerms,
         string paymentMethod,
         string? observations,
-        decimal vatRate,
-        Guid? supplierQuotationId = null)
+        decimal vatRate)
     {
         if (supplierId == Guid.Empty) throw new ArgumentException("Supplier is required.", nameof(supplierId));
         if (userId == Guid.Empty) throw new ArgumentException("User is required.", nameof(userId));
@@ -36,7 +35,6 @@ public sealed class Purchase
         Observations = Normalize(observations);
         VatPolicy = PurchaseVatPolicy.Additional;
         VatRate = vatRate;
-        SupplierQuotationId = supplierQuotationId;
         RecalculateTotals();
     }
 
@@ -54,7 +52,6 @@ public sealed class Purchase
     public Money? Subtotal { get; private set; }
     public Money? VatAmount { get; private set; }
     public Money? Total { get; private set; }
-    public Guid? SupplierQuotationId { get; private set; }
     public IReadOnlyCollection<PurchaseItem> Items => _items.AsReadOnly();
 
     public void AddItem(PurchaseItem item)

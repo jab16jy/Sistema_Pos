@@ -24,7 +24,6 @@ internal sealed class PurchaseConfiguration : IEntityTypeConfiguration<Purchase>
         builder.Property(p => p.Subtotal).HasConversion(v => v.HasValue ? v.Value.Amount : (decimal?)null, v => v.HasValue ? new Money(v.Value) : null).HasColumnName("subtotal");
         builder.Property(p => p.VatAmount).HasConversion(v => v.HasValue ? v.Value.Amount : (decimal?)null, v => v.HasValue ? new Money(v.Value) : null).HasColumnName("vat_amount");
         builder.Property(p => p.Total).HasConversion(v => v.HasValue ? v.Value.Amount : (decimal?)null, v => v.HasValue ? new Money(v.Value) : null).HasColumnName("total");
-        builder.Property(p => p.SupplierQuotationId).HasConversion<string>().HasColumnName("supplier_quotation_id");
         builder.HasIndex(p => new { p.SupplierId, p.EffectiveDate, p.InvoiceNumber });
         builder.HasMany(p => p.Items)
                .WithOne()

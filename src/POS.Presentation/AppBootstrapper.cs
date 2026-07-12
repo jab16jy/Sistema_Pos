@@ -84,10 +84,7 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<GetSupplierCatalogUseCase>(),
                 sp.GetRequiredService<GetEligibleSupplierCatalogUseCase>(),
                 sp.GetRequiredService<SaveSupplierCatalogItemUseCase>(),
-                sp.GetRequiredService<SearchPurchaseHistoryUseCase>(),
-                sp.GetRequiredService<CreateSupplierQuotationUseCase>(),
-                sp.GetRequiredService<AcceptSupplierQuotationUseCase>(),
-                sp.GetRequiredService<ConvertSupplierQuotationToPurchaseDraftUseCase>()),
+                sp.GetRequiredService<SearchPurchaseHistoryUseCase>()),
             moduleWarnings);
 
         QuoteHistoryViewModel? quoteHistory = TryCreateOptionalModule(

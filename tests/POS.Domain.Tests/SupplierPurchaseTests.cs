@@ -52,17 +52,5 @@ public sealed class SupplierPurchaseTests
         Assert.Null(unknownCost.CostPrice);
     }
 
-    [Fact]
-    public void SupplierQuotation_Acceptance_DoesNotMutateInventoryAndOnlyAcceptedCanPreload()
-    {
-        Product product = MakeProduct(3m, 10m);
-        var quotation = new SupplierQuotation(Guid.NewGuid(), DateOnly.FromDateTime(DateTime.Today), null, null);
-        quotation.AddItem(new SupplierQuotationItem(product.Id, product.Name, "R-1", "Caja", 12m, new Quantity(2m), new Money(24m)));
-        quotation.Accept();
-
-        Assert.Equal(SupplierQuotationStatus.Accepted, quotation.Status);
-        Assert.Equal(3m, product.CurrentStock);
-    }
-
     private static Product MakeProduct(decimal stock, decimal? cost) => new("Item", Guid.NewGuid(), cost is null ? null : new Money(cost.Value), new Money(500m), new StockQuantity(stock), new StockQuantity(1m));
 }

@@ -11,8 +11,7 @@ public sealed record RegisterPurchaseRequest(
     string PaymentMethod,
     string? Observations,
     decimal VatRate,
-    IReadOnlyList<RegisterPurchaseItemRequest> Items,
-    Guid? SupplierQuotationId = null)
+    IReadOnlyList<RegisterPurchaseItemRequest> Items)
 {
     [Obsolete("Use the auditable purchase-header overload.")]
     public RegisterPurchaseRequest(Guid supplierId, Guid userId, IReadOnlyList<RegisterPurchaseItemRequest> items)
