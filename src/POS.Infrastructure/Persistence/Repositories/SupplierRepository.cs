@@ -26,4 +26,16 @@ public sealed class SupplierRepository : ISupplierRepository
         _dbContext.Suppliers.Update(supplier);
         return Task.CompletedTask;
     }
+
+    public Task<bool> HasPurchasesAsync(Guid id, CancellationToken cancellationToken = default)
+        => _dbContext.Purchases.AsNoTracking().AnyAsync(purchase => purchase.SupplierId == id, cancellationToken);
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        Supplier? supplier = await _dbContext.Suppliers.FirstOrDefaultAsync(supplier => supplier.Id == id, cancellationToken).ConfigureAwait(false);
+        if (supplier is not null)
+        {
+            _dbContext.Suppliers.Remove(supplier);
+        }
+    }
 }

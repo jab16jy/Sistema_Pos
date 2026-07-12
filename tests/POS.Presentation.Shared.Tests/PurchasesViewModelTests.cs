@@ -372,6 +372,14 @@ public sealed class PurchasesViewModelTests
             => Task.FromResult(Suppliers.FirstOrDefault(supplier => supplier.Id == id));
 
         public Task UpdateAsync(Supplier supplier, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<bool> HasPurchasesAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(false);
+
+        public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            Suppliers.RemoveAll(supplier => supplier.Id == id);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class InMemorySupplierLookupQueryService : ISupplierLookupQueryService
@@ -447,6 +455,8 @@ public sealed class PurchasesViewModelTests
         public Task AddAsync(Supplier supplier, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<Supplier?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Supplier?>(null);
         public Task UpdateAsync(Supplier supplier, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<bool> HasPurchasesAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class NullProductRepository : IProductRepository
@@ -495,5 +505,10 @@ public sealed class PurchasesViewModelTests
             return Task.CompletedTask;
         }
         public Task UpdateAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RemoveAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default)
+        {
+            Items.Remove(catalogItem);
+            return Task.CompletedTask;
+        }
     }
 }

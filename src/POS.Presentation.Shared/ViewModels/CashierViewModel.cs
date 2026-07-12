@@ -52,6 +52,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _clearCustomerCommand;
     private readonly RelayCommand _loadCustomerQuoteCommand;
     private readonly RelayCommand _clearLoadedQuoteCommand;
+    private readonly RelayCommand _cancelRedemptionCommand;
     private CancellationTokenSource? _autocompleteSearchCts;
     private readonly SemaphoreSlim _querySemaphore = new(1, 1);
     private int _scannerInputInProgress;
@@ -179,6 +180,8 @@ public sealed class CashierViewModel : ViewModelBase
         HoldSaleCommand = _holdSaleCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
         ApplyRedemptionCommand = new RelayCommand(_ => RunSafe(ApplyRedemptionAsync(), ex => Message = $"Error al aplicar puntos: {ex.Message}"));
+        _cancelRedemptionCommand = new RelayCommand(_ => CancelRedemption(), _ => LoyaltyDiscount > 0m || LoyaltyPointsToRedeem > 0);
+        CancelRedemptionCommand = _cancelRedemptionCommand;
         PrintReceiptYesCommand = _printReceiptYesCommand;
         PrintReceiptNoCommand = _printReceiptNoCommand;
         SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => Message = $"Error al buscar clientes: {ex.Message}"));
@@ -388,6 +391,9 @@ public sealed class CashierViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(NetPayable));
                 OnPropertyChanged(nameof(NetPayableText));
+                OnPropertyChanged(nameof(HasLoyaltyDiscount));
+                OnPropertyChanged(nameof(LoyaltyDiscountText));
+                _cancelRedemptionCommand.RaiseCanExecuteChanged();
                 RefreshPaymentPreview(updateMessage: false);
             }
         }
@@ -406,6 +412,14 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     public ICommand ApplyRedemptionCommand { get; }
+
+    public ICommand CancelRedemptionCommand { get; }
+
+    /// <summary>True when a loyalty discount is currently applied to the sale (drives the discount line and Cancel button).</summary>
+    public bool HasLoyaltyDiscount => LoyaltyDiscount > 0m;
+
+    /// <summary>Applied loyalty discount as a negative currency string, e.g. "-$5.000".</summary>
+    public string LoyaltyDiscountText => $"-{FormatCurrency(LoyaltyDiscount)}";
 
     public ICommand PrintReceiptYesCommand { get; }
 
@@ -1297,6 +1311,16 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
+        // The discount must apply to a real sale. With an empty cart TotalAmount is 0, and the
+        // use case skips its "cap to sale total" guard when SaleTotal is 0 (that path is meant for
+        // standalone loyalty redemptions), so it would report a phantom discount that nets to 0 —
+        // and any later cart change wipes the preview via ResetRedemption. Block it up front.
+        if (TotalAmount <= 0m)
+        {
+            Message = "Agrega productos al carrito antes de canjear puntos.";
+            return;
+        }
+
         if (LoyaltyPointsToRedeem <= 0)
         {
             Message = "Ingresa una cantidad de puntos mayor a cero.";
@@ -1527,6 +1551,19 @@ public sealed class CashierViewModel : ViewModelBase
 
         LoyaltyDiscount = 0m;
         LoyaltyPointsToRedeem = 0;
+    }
+
+    /// <summary>
+    /// Cashier-triggered cancel: discards the previewed redemption so the customer keeps their
+    /// points and pays full price. Points are only spent at sale confirmation, so nothing is lost.
+    /// </summary>
+    private void CancelRedemption()
+    {
+        bool hadDiscount = _loyaltyDiscount > 0m || _loyaltyPointsToRedeem > 0;
+        ResetRedemption();
+        Message = hadDiscount
+            ? "Canje cancelado. El cliente conserva sus puntos y paga el total completo."
+            : "No hay ningún canje aplicado para cancelar.";
     }
 
     private void NotifyPaymentBalanceChanged()

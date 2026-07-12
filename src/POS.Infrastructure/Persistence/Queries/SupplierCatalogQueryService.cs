@@ -10,19 +10,34 @@ public sealed class SupplierCatalogQueryService : ISupplierCatalogQueryService
     public SupplierCatalogQueryService(AppDbContext dbContext) => _dbContext = dbContext;
 
     public async Task<IReadOnlyList<SupplierCatalogItemResult>> GetForSupplierAsync(Guid supplierId, bool eligibleOnly, CancellationToken cancellationToken = default)
-    {
-        IQueryable<SupplierCatalogItemResult> query = BuildQuery().Where(item => item.SupplierId == supplierId);
-        if (eligibleOnly)
-            query = query.Where(item => item.IsActive && item.PurchaseUnitName != null && item.UnitsPerPurchaseUnit > 0m && item.PurchaseUnitCost > 0m);
-        return await query.OrderBy(item => item.ProductName).ToListAsync(cancellationToken).ConfigureAwait(false);
-    }
+        => await BuildQuery(item => item.SupplierId == supplierId, eligibleOnly).ToListAsync(cancellationToken).ConfigureAwait(false);
 
     public async Task<IReadOnlyList<SupplierCatalogItemResult>> GetForProductAsync(Guid productId, CancellationToken cancellationToken = default)
-        => await BuildQuery().Where(item => item.ProductId == productId).OrderBy(item => item.ProductName).ToListAsync(cancellationToken).ConfigureAwait(false);
+        => await BuildQuery(item => item.ProductId == productId, eligibleOnly: false).ToListAsync(cancellationToken).ConfigureAwait(false);
 
-    private IQueryable<SupplierCatalogItemResult> BuildQuery() =>
-        from item in _dbContext.ProductSuppliers.AsNoTracking()
-        join product in _dbContext.Products.AsNoTracking() on item.ProductId equals product.Id
-        join supplier in _dbContext.Suppliers.AsNoTracking() on item.SupplierId equals supplier.Id
-        select new SupplierCatalogItemResult(item.SupplierId, supplier.Name, item.ProductId, product.Name, product.SourceCode, item.SupplierSku, item.PurchaseUnitName, item.UnitsPerPurchaseUnit, item.PurchaseUnitCost, item.IsActive && supplier.IsActive && product.IsActive);
+    // Filters run on the entities (ProductSuppliers/Products/Suppliers) BEFORE projecting into
+    // SupplierCatalogItemResult. EF Core cannot translate a Where() applied over a record projection,
+    // which is what threw "The LINQ expression could not be translated" when reloading a catalog.
+    private IQueryable<SupplierCatalogItemResult> BuildQuery(
+        System.Linq.Expressions.Expression<Func<Domain.Entities.ProductSupplier, bool>> predicate,
+        bool eligibleOnly)
+    {
+        var joined =
+            from item in _dbContext.ProductSuppliers.AsNoTracking().Where(predicate)
+            join product in _dbContext.Products.AsNoTracking() on item.ProductId equals product.Id
+            join supplier in _dbContext.Suppliers.AsNoTracking() on item.SupplierId equals supplier.Id
+            select new { item, product, supplier };
+
+        if (eligibleOnly)
+            joined = joined.Where(x =>
+                x.item.IsActive && x.supplier.IsActive && x.product.IsActive &&
+                x.item.PurchaseUnitName != null && x.item.UnitsPerPurchaseUnit > 0m && x.item.PurchaseUnitCost > 0m);
+
+        return joined
+            .OrderBy(x => x.product.Name)
+            .Select(x => new SupplierCatalogItemResult(
+                x.item.SupplierId, x.supplier.Name, x.item.ProductId, x.product.Name, x.product.SourceCode,
+                x.item.SupplierSku, x.item.PurchaseUnitName, x.item.UnitsPerPurchaseUnit, x.item.PurchaseUnitCost,
+                x.item.IsActive && x.supplier.IsActive && x.product.IsActive));
+    }
 }

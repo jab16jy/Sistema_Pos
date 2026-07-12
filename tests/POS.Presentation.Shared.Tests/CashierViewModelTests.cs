@@ -3,6 +3,7 @@ using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Quotes;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
+using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
@@ -18,6 +19,29 @@ namespace POS.Presentation.Shared.Tests;
 
 public sealed class CashierViewModelTests
 {
+    [Fact]
+    public async Task ApplyRedemptionAsync_WithEmptyCart_BlocksRedemptionInsteadOfPreviewingPhantomDiscount()
+    {
+        // Regression: canjear puntos con el carrito vacío mostraba un descuento (p.ej. 180 pts = 1800)
+        // que nunca se aplica (NetPayable neteaba a 0) y que un cambio posterior del carrito borraba.
+        var redeem = new RedeemLoyaltyPointsUseCase(new UnusedLoyaltyRepository(), new InMemoryUnitOfWork());
+        var viewModel = new CashierViewModel(
+            new MultiProductLookupService(),
+            new PreviewPaymentUseCase(),
+            null,
+            redeem)
+        {
+            SelectedCustomer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true),
+            LoyaltyPointsToRedeem = 180
+        };
+
+        await viewModel.ApplyRedemptionAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0m, viewModel.LoyaltyDiscount);
+        Assert.Equal(180, viewModel.LoyaltyPointsToRedeem);
+        Assert.Contains("Agrega productos", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task ConfirmSaleAsync_WhenCartAndPaymentAreValid_PersistsSaleAndResetsCartAfterSuccess()
     {
@@ -844,6 +868,24 @@ public sealed class CashierViewModelTests
 
         Assert.True(viewModel.CanConfirm);
         Assert.Contains("crédito", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // Loyalty backing store for a redemption use case that the empty-cart guard never reaches.
+    private sealed class UnusedLoyaltyRepository : ILoyaltyRepository
+    {
+        public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default) => Task.FromResult<LoyaltyAccount?>(null);
+        public Task AddAccountAsync(LoyaltyAccount account, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
+        public Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default) => Task.FromResult<LoyaltyRule?>(null);
+        public Task AddRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task UpdateRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<LoyaltyRule>>([]);
+        public Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
     }
 
     private sealed class InMemoryUnitOfWork : IUnitOfWork

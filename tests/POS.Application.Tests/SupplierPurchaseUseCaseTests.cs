@@ -250,6 +250,73 @@ public sealed class SupplierPurchaseUseCaseTests
         Assert.NotNull(scope.ServiceProvider.GetRequiredService<ISupplierCatalogQueryService>());
     }
 
+    [Fact]
+    public async Task SupplierCatalogQuery_FiltersBySupplierProductAndEligibility_WithoutLinqTranslationError()
+    {
+        // Regression: filtering was applied over the SupplierCatalogItemResult projection, which EF
+        // could not translate ("The LINQ expression could not be translated") and surfaced as
+        // "Error al asociar producto" when reloading a catalog. Filters now run on the entities.
+        await using var connection = await OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 5m, 1_000m, 12m, 10_000m);
+        var query = new SupplierCatalogQueryService(db);
+
+        IReadOnlyList<SupplierCatalogItemResult> all = await query.GetForSupplierAsync(supplier.Id, eligibleOnly: false, TestContext.Current.CancellationToken);
+        IReadOnlyList<SupplierCatalogItemResult> eligible = await query.GetForSupplierAsync(supplier.Id, eligibleOnly: true, TestContext.Current.CancellationToken);
+        IReadOnlyList<SupplierCatalogItemResult> byProduct = await query.GetForProductAsync(product.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal(product.Id, Assert.Single(all).ProductId);
+        Assert.Equal(product.Id, Assert.Single(eligible).ProductId);
+        Assert.Equal(supplier.Id, Assert.Single(byProduct).SupplierId);
+    }
+
+    [Fact]
+    public async Task DeleteSupplier_WithoutPurchases_RemovesSupplierAndItsCatalog()
+    {
+        await using var connection = await OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        (Supplier supplier, _) = await SeedSupplierProductAndCatalogAsync(db, 5m, 1_000m, 12m, 10_000m);
+        var useCase = new DeleteSupplierUseCase(new SupplierRepository(db), new ProductSupplierRepository(db), db);
+
+        await useCase.ExecuteAsync(supplier.Id, TestContext.Current.CancellationToken);
+
+        Assert.Empty(await db.Suppliers.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await db.ProductSuppliers.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DeleteSupplier_WithRegisteredPurchases_ThrowsAndKeepsSupplier()
+    {
+        await using var connection = await OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 5m, 1_000m, 12m, 10_000m);
+        await CreateRegisterUseCase(db).ExecuteAsync(NewRequest(supplier.Id, product.Id), TestContext.Current.CancellationToken);
+        var useCase = new DeleteSupplierUseCase(new SupplierRepository(db), new ProductSupplierRepository(db), db);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(supplier.Id, TestContext.Current.CancellationToken));
+
+        Assert.Single(await db.Suppliers.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DeleteSupplierCatalogItem_RemovesTheRelationOnly()
+    {
+        await using var connection = await OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 5m, 1_000m, 12m, 10_000m);
+        var useCase = new DeleteSupplierCatalogItemUseCase(new ProductSupplierRepository(db), db);
+
+        await useCase.ExecuteAsync(supplier.Id, product.Id, TestContext.Current.CancellationToken);
+
+        Assert.Empty(await db.ProductSuppliers.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Single(await db.Suppliers.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Single(await db.Products.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
     private static RegisterPurchaseRequest NewRequest(Guid supplierId, Guid productId) => new(supplierId, Guid.NewGuid(), new DateOnly(2026, 7, 11), null, null, "Cash", null, 19m, [new RegisterPurchaseItemRequest(productId, 1m)]);
     private static RegisterPurchaseUseCase CreateRegisterUseCase(AppDbContext db) => new(new SupplierRepository(db), new ProductRepository(db), new ProductSupplierRepository(db), new PurchaseRepository(db), db);
     private static async Task<SqliteConnection> OpenAsync() { var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync(TestContext.Current.CancellationToken); return connection; }

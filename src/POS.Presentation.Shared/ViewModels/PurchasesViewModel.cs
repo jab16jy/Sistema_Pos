@@ -18,9 +18,11 @@ public sealed class PurchasesViewModel : ViewModelBase
     private readonly GetSupplierCatalogUseCase? _catalog;
     private readonly GetEligibleSupplierCatalogUseCase? _eligibleCatalog;
     private readonly SaveSupplierCatalogItemUseCase? _saveCatalogItem;
+    private readonly DeleteSupplierUseCase? _deleteSupplier;
+    private readonly DeleteSupplierCatalogItemUseCase? _deleteCatalogItem;
     private readonly SearchPurchaseHistoryUseCase? _history;
+    private readonly RelayCommand _deleteSupplierCommand;
     private readonly RelayCommand _addDraftItemCommand;
-    private readonly RelayCommand _toggleProductSelectionCommand;
     private readonly RelayCommand _addAllSelectedCommand;
     private SupplierSearchResult? _selectedSupplier;
     private SupplierCatalogItemResult? _selectedCatalogItem;
@@ -69,7 +71,9 @@ public sealed class PurchasesViewModel : ViewModelBase
         GetSupplierCatalogUseCase? catalog = null,
         GetEligibleSupplierCatalogUseCase? eligibleCatalog = null,
         SaveSupplierCatalogItemUseCase? saveCatalogItem = null,
-        SearchPurchaseHistoryUseCase? history = null)
+        SearchPurchaseHistoryUseCase? history = null,
+        DeleteSupplierUseCase? deleteSupplier = null,
+        DeleteSupplierCatalogItemUseCase? deleteCatalogItem = null)
     {
         _saveSupplier = saveSupplier;
         _searchSuppliers = searchSuppliers;
@@ -79,6 +83,8 @@ public sealed class PurchasesViewModel : ViewModelBase
         _catalog = catalog;
         _eligibleCatalog = eligibleCatalog;
         _saveCatalogItem = saveCatalogItem;
+        _deleteSupplier = deleteSupplier;
+        _deleteCatalogItem = deleteCatalogItem;
         _history = history;
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar proveedores: {ex.Message}"));
         NewSupplierCommand = new RelayCommand(_ => NewSupplier());
@@ -92,20 +98,18 @@ public sealed class PurchasesViewModel : ViewModelBase
                 RunSafe(AddProductToCatalogDirectlyAsync(product), ex => Message = $"Error al asociar producto: {ex.Message}");
             }
         });
-        _toggleProductSelectionCommand = new RelayCommand(parameter =>
-        {
-            if (parameter is ProductLookupResult product)
-            {
-                ToggleProductSelection(product);
-            }
-        });
-        ToggleProductSelectionCommand = _toggleProductSelectionCommand;
         _addAllSelectedCommand = new RelayCommand(_ =>
         {
             RunSafe(AddAllSelectedProductsToCatalogAsync(), ex => Message = $"Error al asociar productos: {ex.Message}");
-        }, _ => SelectedCatalogProductIds.Count > 0 && EditingSupplierId is not null);
+        }, _ => SelectedProductCount > 0 && EditingSupplierId is not null);
         AddAllSelectedCommand = _addAllSelectedCommand;
-        DeactivateCatalogItemCommand = new RelayCommand(item => DeactivateCatalogItem(item as SupplierCatalogItemResult));
+        ToggleCatalogItemActiveCommand = new RelayCommand(item => ToggleCatalogItemActive(item as SupplierCatalogItemResult));
+        DeleteCatalogItemCommand = new RelayCommand(item => RunSafe(DeleteCatalogItemAsync(item as SupplierCatalogItemResult), ex => Message = $"Error al eliminar producto asociado: {ex.Message}"));
+        _deleteSupplierCommand = new RelayCommand(
+            _ => RunSafe(DeleteSupplierAsync(), ex => Message = $"Error al eliminar proveedor: {ex.Message}"),
+            _ => _deleteSupplier is not null && EditingSupplierId is not null);
+        DeleteSupplierCommand = _deleteSupplierCommand;
+        SearchCatalogProductsCommand = new RelayCommand(_ => RunSafe(SearchCatalogProductsAsync(CatalogProductSearchText), ex => Message = $"Error al buscar productos: {ex.Message}"));
         RegisterPurchaseCommand = new RelayCommand(_ => RunSafe(RegisterPurchaseAsync(), ex => Message = $"Error al registrar compra: {ex.Message}"));
         LoadHistoryCommand = new RelayCommand(_ => RunSafe(LoadHistoryAsync(), ex => Message = $"Error al consultar historial: {ex.Message}"));
         SetTabCommand = new RelayCommand(parameter => ActiveTab = parameter as string ?? "New");
@@ -129,7 +133,7 @@ public sealed class PurchasesViewModel : ViewModelBase
         {
             SelectedCatalogProduct = null;
             CatalogProductSearchText = string.Empty;
-            SelectedCatalogProductIds.Clear();
+            CatalogProductAssignments.Clear();
             OnPropertyChanged(nameof(SelectedProductCount));
             _addAllSelectedCommand.RaiseCanExecuteChanged();
         });
@@ -138,20 +142,22 @@ public sealed class PurchasesViewModel : ViewModelBase
     public ObservableCollection<SupplierSearchResult> Suppliers { get; } = [];
     public ObservableCollection<ProductLookupResult> CatalogProductResults { get; } = [];
     public ObservableCollection<ProductLookupResult> ProductResults => CatalogProductResults;
+    public ObservableCollection<SupplierProductAssignmentItem> CatalogProductAssignments { get; } = [];
     public ObservableCollection<SupplierCatalogItemResult> SupplierCatalogItems { get; } = [];
     public ObservableCollection<SupplierCatalogItemResult> EligibleCatalogItems { get; } = [];
     public ObservableCollection<PurchaseDraftItem> Items { get; } = [];
     public ObservableCollection<PurchaseHistoryResult> History { get; } = [];
-    public HashSet<Guid> SelectedCatalogProductIds { get; } = [];
     public ICommand LoadCommand { get; }
     public ICommand NewSupplierCommand { get; }
     public ICommand CancelSupplierEditCommand { get; }
     public ICommand SaveSupplierCommand { get; }
     public ICommand SaveCatalogItemCommand { get; }
     public ICommand AddProductToCatalogDirectlyCommand { get; }
-    public ICommand ToggleProductSelectionCommand { get; }
     public ICommand AddAllSelectedCommand { get; }
-    public ICommand DeactivateCatalogItemCommand { get; }
+    public ICommand ToggleCatalogItemActiveCommand { get; }
+    public ICommand DeleteCatalogItemCommand { get; }
+    public ICommand DeleteSupplierCommand { get; }
+    public ICommand SearchCatalogProductsCommand { get; }
     public ICommand RegisterPurchaseCommand { get; }
     public ICommand LoadHistoryCommand { get; }
     public ICommand SetTabCommand { get; }
@@ -212,11 +218,11 @@ public sealed class PurchasesViewModel : ViewModelBase
             }
         }
     }
-    public bool IsCatalogProductSuggestionsVisible => CatalogProductResults.Count > 0;
+    public bool IsCatalogProductSuggestionsVisible => CatalogProductAssignments.Count > 0;
     public Guid? EditingSupplierId
     {
         get => _editingSupplierId;
-        private set { if (SetProperty(ref _editingSupplierId, value)) OnPropertyChanged(nameof(IsEditingSupplier)); }
+        private set { if (SetProperty(ref _editingSupplierId, value)) { OnPropertyChanged(nameof(IsEditingSupplier)); _deleteSupplierCommand.RaiseCanExecuteChanged(); } }
     }
     public bool IsEditingSupplier => EditingSupplierId is not null;
     public string SupplierName { get => _supplierName; set => SetProperty(ref _supplierName, value); }
@@ -419,13 +425,26 @@ public sealed class PurchasesViewModel : ViewModelBase
     {
         SelectedCatalogProduct = null;
         CatalogProductResults.Clear();
-        SelectedCatalogProductIds.Clear();
+        CatalogProductAssignments.Clear();
         OnPropertyChanged(nameof(IsCatalogProductSuggestionsVisible));
         OnPropertyChanged(nameof(SelectedProductCount));
         _addAllSelectedCommand.RaiseCanExecuteChanged();
         if (_productLookup is null || string.IsNullOrWhiteSpace(search)) return;
-        foreach (ProductLookupResult product in await _productLookup.SearchAsync(search, cancellationToken).ConfigureAwait(true)) CatalogProductResults.Add(product);
+        foreach (ProductLookupResult product in await _productLookup.SearchAsync(search, cancellationToken).ConfigureAwait(true))
+        {
+            CatalogProductResults.Add(product);
+            var assignment = new SupplierProductAssignmentItem(product);
+            assignment.PropertyChanged += OnCatalogProductAssignmentChanged;
+            CatalogProductAssignments.Add(assignment);
+        }
         OnPropertyChanged(nameof(IsCatalogProductSuggestionsVisible));
+    }
+
+    private void OnCatalogProductAssignmentChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SupplierProductAssignmentItem.IsSelected)) return;
+        OnPropertyChanged(nameof(SelectedProductCount));
+        _addAllSelectedCommand.RaiseCanExecuteChanged();
     }
 
     private async Task SearchLegacyProductsAsync(string search, CancellationToken cancellationToken = default)
@@ -459,7 +478,7 @@ public sealed class PurchasesViewModel : ViewModelBase
         DraftQuantity = 1m; DraftCostOverride = 0m; UseDraftCostOverride = false; SelectedCatalogItem = null; RecalculateTotals();
     }
 
-    private void DeactivateCatalogItem(SupplierCatalogItemResult? item)
+    private void ToggleCatalogItemActive(SupplierCatalogItemResult? item)
     {
         if (item is null) return;
         SelectedCatalogProduct = new ProductLookupResult(item.ProductId, item.ProductName, item.ProductReference ?? string.Empty, 0m, 0m);
@@ -467,8 +486,44 @@ public sealed class PurchasesViewModel : ViewModelBase
         CatalogPurchaseUnit = item.PurchaseUnitName ?? string.Empty;
         CatalogFactor = item.UnitsPerPurchaseUnit ?? 0m;
         CatalogCost = item.PurchaseUnitCost ?? 0m;
-        CatalogIsActive = false;
-        RunSafe(SaveCatalogItemAsync(), ex => Message = $"Error al desactivar relación: {ex.Message}");
+        CatalogIsActive = !item.IsActive;
+        RunSafe(SaveCatalogItemAsync(), ex => Message = $"Error al cambiar el estado de la relación: {ex.Message}");
+    }
+
+    public async Task DeleteCatalogItemAsync(SupplierCatalogItemResult? item, CancellationToken cancellationToken = default)
+    {
+        if (_deleteCatalogItem is null) { Message = "La eliminación de catálogo no está disponible en esta composición."; return; }
+        if (item is null || EditingSupplierId is not Guid supplierId) { Message = "Selecciona un producto del catálogo para eliminar."; return; }
+
+        try
+        {
+            await _deleteCatalogItem.ExecuteAsync(supplierId, item.ProductId, cancellationToken).ConfigureAwait(true);
+            await LoadCatalogsAsync(supplierId, cancellationToken).ConfigureAwait(true);
+            Message = $"Producto '{item.ProductName}' eliminado del catálogo.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+    }
+
+    public async Task DeleteSupplierAsync(CancellationToken cancellationToken = default)
+    {
+        if (_deleteSupplier is null) { Message = "La eliminación de proveedores no está disponible en esta composición."; return; }
+        if (EditingSupplierId is not Guid supplierId) { Message = "Selecciona un proveedor para eliminar."; return; }
+
+        try
+        {
+            string name = SupplierName;
+            await _deleteSupplier.ExecuteAsync(supplierId, cancellationToken).ConfigureAwait(true);
+            await LoadAsync(cancellationToken).ConfigureAwait(true);
+            NewSupplier();
+            Message = $"Proveedor '{name}' eliminado correctamente.";
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
     }
 
     private void NewSupplier()
@@ -484,32 +539,16 @@ public sealed class PurchasesViewModel : ViewModelBase
     private void RecalculateTotals() { OnPropertyChanged(nameof(Subtotal)); OnPropertyChanged(nameof(Iva)); OnPropertyChanged(nameof(Total)); OnPropertyChanged(nameof(ItemCountLabel)); }
     private static string? Normalize(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    public int SelectedProductCount => SelectedCatalogProductIds.Count;
-
-    public bool IsProductSelected(Guid productId) => SelectedCatalogProductIds.Contains(productId);
-
-    private void ToggleProductSelection(ProductLookupResult product)
-    {
-        if (product is null) return;
-        if (SelectedCatalogProductIds.Contains(product.ProductId))
-        {
-            SelectedCatalogProductIds.Remove(product.ProductId);
-        }
-        else
-        {
-            SelectedCatalogProductIds.Add(product.ProductId);
-        }
-        OnPropertyChanged(nameof(SelectedProductCount));
-        _addAllSelectedCommand.RaiseCanExecuteChanged();
-    }
+    public int SelectedProductCount => CatalogProductAssignments.Count(item => item.IsSelected);
 
     public async Task AddAllSelectedProductsToCatalogAsync(CancellationToken cancellationToken = default)
     {
         if (EditingSupplierId is not Guid supplierId) { Message = "Selecciona un proveedor para configurar el catálogo."; return; }
         if (_saveCatalogItem is null) { Message = "La edición de catálogo no está disponible en esta composición."; return; }
-        if (SelectedCatalogProductIds.Count == 0) { Message = "No hay productos seleccionados."; return; }
 
-        var productsToAdd = CatalogProductResults.Where(p => SelectedCatalogProductIds.Contains(p.ProductId)).ToList();
+        var productsToAdd = CatalogProductAssignments.Where(item => item.IsSelected).Select(item => item.Product).ToList();
+        if (productsToAdd.Count == 0) { Message = "No hay productos seleccionados."; return; }
+
         int addedCount = 0;
         foreach (var product in productsToAdd)
         {
@@ -532,7 +571,7 @@ public sealed class PurchasesViewModel : ViewModelBase
         }
 
         await LoadCatalogsAsync(supplierId, cancellationToken).ConfigureAwait(true);
-        SelectedCatalogProductIds.Clear();
+        CatalogProductAssignments.Clear();
         OnPropertyChanged(nameof(SelectedProductCount));
         _addAllSelectedCommand.RaiseCanExecuteChanged();
         Message = addedCount == 1 ? $"Producto asociado al catálogo." : $"{addedCount} productos asociados al catálogo.";

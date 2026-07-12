@@ -134,8 +134,19 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     public string StatusMessage
     {
         get => _statusMessage;
-        private set => SetProperty(ref _statusMessage, value ?? string.Empty);
+        private set
+        {
+            if (SetProperty(ref _statusMessage, value ?? string.Empty))
+            {
+                OnPropertyChanged(nameof(IsStatusSuccess));
+            }
+        }
     }
+
+    public bool IsStatusSuccess =>
+        !string.IsNullOrEmpty(StatusMessage) &&
+        !StatusMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) &&
+        !StatusMessage.StartsWith("No ", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Loads the current page of quote history applying active filters.</summary>
     public async Task LoadAsync(CancellationToken cancellationToken = default)

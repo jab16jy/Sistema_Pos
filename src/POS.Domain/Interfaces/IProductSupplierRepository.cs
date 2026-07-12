@@ -9,4 +9,5 @@ public interface IProductSupplierRepository
     Task<IReadOnlyList<ProductSupplier>> GetActiveForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default);
     Task AddAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default);
     Task UpdateAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default);
+    Task RemoveAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default);
 }

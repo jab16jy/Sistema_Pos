@@ -79,5 +79,6 @@ public class RegisterPurchaseUseCase
         public Task<IReadOnlyList<ProductSupplier>> GetForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ProductSupplier>>([]);
         public Task<IReadOnlyList<ProductSupplier>> GetActiveForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ProductSupplier>>([]);
         public Task UpdateAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RemoveAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

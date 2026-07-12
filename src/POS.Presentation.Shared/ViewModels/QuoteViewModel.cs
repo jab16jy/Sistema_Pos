@@ -160,8 +160,20 @@ public sealed class QuoteViewModel : ViewModelBase
     public string ValidationMessage
     {
         get => _validationMessage;
-        private set => SetProperty(ref _validationMessage, value ?? string.Empty);
+        private set
+        {
+            if (SetProperty(ref _validationMessage, value ?? string.Empty))
+            {
+                OnPropertyChanged(nameof(IsValidationSuccess));
+            }
+        }
     }
+
+    public bool IsValidationSuccess =>
+        !string.IsNullOrEmpty(ValidationMessage) &&
+        !ValidationMessage.StartsWith("Error", StringComparison.OrdinalIgnoreCase) &&
+        !ValidationMessage.StartsWith("Ingresa", StringComparison.OrdinalIgnoreCase) &&
+        !ValidationMessage.StartsWith("No ", StringComparison.OrdinalIgnoreCase);
 
     public bool IsConfirming
     {
@@ -312,7 +324,7 @@ public sealed class QuoteViewModel : ViewModelBase
         }
         else
         {
-            QuoteCartItemViewModel item = new(product.ProductId, product.Name, product.UnitPrice);
+            QuoteCartItemViewModel item = new(product.ProductId, product.Name, product.UnitPrice, product.AvailableStock);
             item.PropertyChanged += (_, _) => RecalculateTotal();
             CartItems.Add(item);
         }

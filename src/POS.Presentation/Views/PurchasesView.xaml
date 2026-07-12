@@ -20,6 +20,14 @@
       <Setter Property="BorderBrush" Value="Transparent" />
       <Setter Property="Padding" Value="4" />
     </Style>
+    <Style x:Key="CashIconButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+      <Setter Property="Width" Value="30" />
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
+    </Style>
   </UserControl.Resources>
   <Grid>
     <Grid.RowDefinitions>
@@ -660,7 +668,9 @@
                 
                 <StackPanel Orientation="Horizontal">
                   <Button Content="Guardar proveedor" Command="{Binding SaveSupplierCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0"/>
-                  <Button Content="Cancelar" Command="{Binding CancelSupplierEditCommand}" Style="{StaticResource SecondaryButton}"/>
+                  <Button Content="Cancelar" Command="{Binding CancelSupplierEditCommand}" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                  <Button Content="Eliminar proveedor" Command="{Binding DeleteSupplierCommand}" Style="{StaticResource DangerButton}"
+                          Visibility="{Binding IsEditingSupplier, Converter={StaticResource BoolToVisibilityConverter}}"/>
                 </StackPanel>
               </StackPanel>
             </Border>
@@ -694,70 +704,36 @@
                       <TextBox x:Name="CatalogProductSearchTextBox"
                                Text="{Binding CatalogProductSearchText, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
                                Tag="Escribe el nombre o código del producto..."
-                               Margin="0,0,0,4"
-                               KeyDown="CatalogProductSearchTextBox_KeyDown"/>
-                      
+                               Margin="0,0,0,4"/>
+
                       <Button Grid.Column="1"
-                              Content="Buscar"
+                              Command="{Binding SearchCatalogProductsCommand}"
                               Style="{StaticResource PrimaryButton}"
                               Height="36"
                               Margin="8,0,0,4"
-                              VerticalAlignment="Center"/>
+                              VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                          <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                          <TextBlock Text="Buscar" />
+                        </StackPanel>
+                      </Button>
                     </Grid>
-                    
-                    <!-- Suggestions ListBox Wrapper -->
-                    <Border BorderBrush="{StaticResource BrushBorder}"
-                            BorderThickness="1"
-                            CornerRadius="6"
-                            Background="{StaticResource BrushSurface}"
-                            Margin="0,0,0,4"
-                            Visibility="{Binding IsCatalogProductSuggestionsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
-                      <ListBox x:Name="CatalogProductSuggestionsListBox"
-                               ItemsSource="{Binding CatalogProductResults}"
-                               SelectedItem="{Binding SelectedCatalogProduct, Mode=TwoWay}"
-                               MaxHeight="180"
-                               BorderThickness="0"
-                               Background="Transparent"
-                               ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-                        <ListBox.ItemTemplate>
-                          <DataTemplate>
-                            <Border Padding="8,6" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
-                              <Grid>
-                                <Grid.ColumnDefinitions>
-                                  <ColumnDefinition Width="Auto"/>
-                                  <ColumnDefinition Width="*"/>
-                                  <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                
-                                <CheckBox Grid.Column="0"
-                                          VerticalAlignment="Center"
-                                          Margin="0,0,8,0"
-                                          Click="OnCatalogProductCheckBoxClick"
-                                          Tag="{Binding}"/>
-                                
-                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                  <!-- Show reference if not empty, using a PackageVariant icon -->
-                                  <StackPanel Orientation="Horizontal" Visibility="{Binding Barcode, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" Margin="0,2,0,0">
-                                    <materialDesign:PackIcon Kind="PackageVariant" Width="14" Height="14" Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                                    <TextBlock Text="{Binding Barcode}" Style="{StaticResource CashHint}" VerticalAlignment="Center"/>
-                                  </StackPanel>
-                                </StackPanel>
-                                
-                                <Button Grid.Column="2"
-                                        Style="{StaticResource AddToCartIconButton}"
-                                        Command="{Binding DataContext.AddProductToCatalogDirectlyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                        CommandParameter="{Binding}"
-                                        VerticalAlignment="Center">
-                                  <materialDesign:PackIcon Kind="PlusCircle" Foreground="{StaticResource BrushPrimary}" Width="24" Height="24" />
-                                </Button>
-                              </Grid>
-                            </Border>
-                          </DataTemplate>
-                        </ListBox.ItemTemplate>
-                      </ListBox>
-                    </Border>
-                    
+
+                    <!-- Search results with multiselect via bound checkbox column (same pattern as "Agrupar productos por categoría" in ProductsView) -->
+                    <DataGrid ItemsSource="{Binding CatalogProductAssignments}"
+                              IsReadOnly="False"
+                              AutoGenerateColumns="False"
+                              MaxHeight="180"
+                              Margin="0,0,0,4"
+                              CanUserAddRows="False"
+                              Visibility="{Binding IsCatalogProductSuggestionsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                      <DataGrid.Columns>
+                        <DataGridCheckBoxColumn Header="Sel." Binding="{Binding IsSelected, Mode=TwoWay}" Width="50"/>
+                        <DataGridTextColumn Header="Producto" Binding="{Binding Name}" Width="*" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Código" Binding="{Binding Barcode}" Width="120" IsReadOnly="True"/>
+                      </DataGrid.Columns>
+                    </DataGrid>
+
                     <!-- Add selected button -->
                     <Button Content="{Binding SelectedProductCount, StringFormat='Agregar \{0\} seleccionado(s)'}"
                             Command="{Binding AddAllSelectedCommand}"
@@ -833,10 +809,26 @@
                         </DataTemplate>
                       </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>
-                    <DataGridTemplateColumn Width="90">
+                    <DataGridTemplateColumn Header="Acciones" Width="190">
                       <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                          <Button Content="Desactivar" Command="{Binding DataContext.DeactivateCatalogItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Style="{StaticResource DangerButton}" Height="28" Padding="6,2"/>
+                          <StackPanel Orientation="Horizontal">
+                            <Button Command="{Binding DataContext.ToggleCatalogItemActiveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Height="28" Padding="8,2" Margin="0,0,6,0">
+                              <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+                                  <Setter Property="Content" Value="Desactivar"/>
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                      <Setter Property="Content" Value="Activar"/>
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Button.Style>
+                            </Button>
+                            <Button Style="{StaticResource CashIconButton}" Command="{Binding DataContext.DeleteCatalogItemCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" CommandParameter="{Binding}" Foreground="{StaticResource BrushDanger}" ToolTip="Eliminar producto">
+                              <materialDesign:PackIcon Kind="Delete" Width="15" Height="15" />
+                            </Button>
+                          </StackPanel>
                         </DataTemplate>
                       </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

@@ -58,3 +58,29 @@ public sealed class SaveSupplierCatalogItemUseCase
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
 }
+
+/// <summary>
+/// Removes a product from a supplier's purchase catalog. A ProductSupplier relation is not
+/// referenced by any purchase history (purchases store ProductId/SupplierId directly), so this
+/// is a safe hard delete.
+/// </summary>
+public sealed class DeleteSupplierCatalogItemUseCase
+{
+    private readonly IProductSupplierRepository _catalog;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public DeleteSupplierCatalogItemUseCase(IProductSupplierRepository catalog, IUnitOfWork unitOfWork)
+        => (_catalog, _unitOfWork) = (catalog, unitOfWork);
+
+    public async Task ExecuteAsync(Guid supplierId, Guid productId, CancellationToken cancellationToken = default)
+    {
+        if (supplierId == Guid.Empty) throw new ArgumentException("Supplier is required.", nameof(supplierId));
+        if (productId == Guid.Empty) throw new ArgumentException("Product is required.", nameof(productId));
+
+        ProductSupplier item = await _catalog.GetAsync(supplierId, productId, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("The catalog relationship was not found.");
+
+        await _catalog.RemoveAsync(item, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+    }
+}

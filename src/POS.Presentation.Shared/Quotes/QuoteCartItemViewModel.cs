@@ -7,11 +7,12 @@ public sealed class QuoteCartItemViewModel : ViewModelBase
     private decimal _quantity;
     private decimal _discount;
 
-    public QuoteCartItemViewModel(Guid productId, string productName, decimal unitPrice)
+    public QuoteCartItemViewModel(Guid productId, string productName, decimal unitPrice, decimal availableStock = 1000m)
     {
         ProductId = productId;
         ProductName = productName;
         UnitPrice = unitPrice;
+        AvailableStock = availableStock;
         _quantity = 1m;
         _discount = 0m;
     }
@@ -19,6 +20,7 @@ public sealed class QuoteCartItemViewModel : ViewModelBase
     public Guid ProductId { get; }
     public string ProductName { get; }
     public decimal UnitPrice { get; }
+    public decimal AvailableStock { get; }
 
     public decimal Quantity
     {
@@ -28,6 +30,7 @@ public sealed class QuoteCartItemViewModel : ViewModelBase
             if (SetProperty(ref _quantity, value))
             {
                 OnPropertyChanged(nameof(Subtotal));
+                OnPropertyChanged(nameof(IsOutOfStock));
             }
         }
     }
@@ -45,4 +48,6 @@ public sealed class QuoteCartItemViewModel : ViewModelBase
     }
 
     public decimal Subtotal => UnitPrice * Quantity * (1m - Discount / 100m);
+
+    public bool IsOutOfStock => Quantity > AvailableStock;
 }

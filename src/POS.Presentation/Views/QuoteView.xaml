@@ -301,6 +301,10 @@
                   <DataTemplate>
                     <Border Padding="14,8" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
                       <Grid>
+                        <Grid.RowDefinitions>
+                          <RowDefinition Height="Auto" />
+                          <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                           <ColumnDefinition Width="*" />
                           <ColumnDefinition Width="110" />
@@ -308,11 +312,11 @@
                           <ColumnDefinition Width="110" />
                           <ColumnDefinition Width="36" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="{Binding ProductName}" FontWeight="Medium" VerticalAlignment="Center" />
-                        <xctk:DecimalUpDown Grid.Column="1" Value="{Binding Quantity, Mode=TwoWay}" Minimum="0.01" Height="28" HorizontalContentAlignment="Center" />
-                        <TextBlock Grid.Column="2" Text="{Binding UnitPrice, StringFormat={}{0:C0}}" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Column="3" Text="{Binding Subtotal, StringFormat={}{0:C0}}" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                        <Button Grid.Column="4"
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding ProductName}" FontWeight="Medium" VerticalAlignment="Center" />
+                        <xctk:DecimalUpDown Grid.Row="0" Grid.Column="1" Value="{Binding Quantity, Mode=TwoWay}" Minimum="0.01" Height="28" HorizontalContentAlignment="Center" />
+                        <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding UnitPrice, StringFormat={}{0:C0}}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                        <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding Subtotal, StringFormat={}{0:C0}}" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                        <Button Grid.Row="0" Grid.Column="4"
                                 Background="Transparent"
                                 BorderBrush="Transparent"
                                 Padding="0"
@@ -320,6 +324,10 @@
                                 CommandParameter="{Binding}">
                           <materialDesign:PackIcon Kind="Close" Foreground="{StaticResource BrushDanger}" Width="15" Height="15" />
                         </Button>
+                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5"
+                                   Text="{Binding AvailableStock, StringFormat='No hay stock suficiente. Disponible: {0:0.##}'}"
+                                   Foreground="Red" FontSize="11" Margin="0,4,0,0" FontWeight="SemiBold"
+                                   Visibility="{Binding IsOutOfStock, Converter={StaticResource BoolToVisibilityConverter}}" />
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -340,7 +348,22 @@
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <StackPanel>
-                  <TextBlock Text="{Binding ValidationMessage}" Visibility="{Binding ValidationMessage, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" Style="{StaticResource MutedText}" TextWrapping="Wrap" MaxWidth="360" />
+                  <TextBlock Text="{Binding ValidationMessage}" 
+                             Visibility="{Binding ValidationMessage, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" 
+                             TextWrapping="Wrap" 
+                             MaxWidth="360"
+                             FontWeight="SemiBold">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Foreground" Value="Red" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsValidationSuccess}" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
                 </StackPanel>
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                   <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11" HorizontalAlignment="Right" />
@@ -382,6 +405,7 @@
               Visibility="{Binding Converter={StaticResource NullToVisibilityConverter}}">
         <Grid>
           <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -446,7 +470,25 @@
              </Grid>
            </Border>
 
-           <ScrollViewer Grid.Row="3">
+           <!-- Mensaje de estado para excepciones/éxito en historial -->
+            <TextBlock Grid.Row="3" Margin="14,4" 
+                       Text="{Binding StatusMessage}" 
+                       Visibility="{Binding StatusMessage, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" 
+                       TextWrapping="Wrap"
+                       FontWeight="SemiBold">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Setter Property="Foreground" Value="Red" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsStatusSuccess}" Value="True">
+                      <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+
+           <ScrollViewer Grid.Row="4">
              <ListBox ItemsSource="{Binding Quotes}"
                       SelectedItem="{Binding SelectedQuote, Mode=TwoWay}"
                       BorderThickness="0"
@@ -547,7 +589,7 @@
              </ListBox>
            </ScrollViewer>
 
-           <Grid Grid.Row="4" Margin="14,8">
+           <Grid Grid.Row="5" Margin="14,8">
             <Grid.ColumnDefinitions>
               <ColumnDefinition Width="Auto" />
               <ColumnDefinition Width="*" />

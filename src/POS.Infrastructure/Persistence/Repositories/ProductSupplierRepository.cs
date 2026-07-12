@@ -29,4 +29,10 @@ public sealed class ProductSupplierRepository : IProductSupplierRepository
         _dbContext.ProductSuppliers.Update(catalogItem);
         return Task.CompletedTask;
     }
+
+    public Task RemoveAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default)
+    {
+        _dbContext.ProductSuppliers.Remove(catalogItem);
+        return Task.CompletedTask;
+    }
 }
