@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.13.2...v1.14.0) (2026-07-13)
+
+
+### Features
+
+* **printing:** add business logo, longer paper spacing, and loyalty footer to thermal receipt ([308725d](https://github.com/jab16jy/Sistema_Pos/commit/308725df2544bd24bff067ef512f8dffecf738a8))
+
 ## [1.13.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.13.1...v1.13.2) (2026-07-13)
 
 
