@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.10.0...v1.11.0) (2026-07-13)
+
+
+### Features
+
+* **loyalty:** fix point accounting, add compensation ledger and tier text foreground ([3480937](https://github.com/jab16jy/Sistema_Pos/commit/3480937304e545b0028cd2a204ba95e162c19609))
+
 ## [1.10.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.9.0...v1.10.0) (2026-07-13)
 
 
