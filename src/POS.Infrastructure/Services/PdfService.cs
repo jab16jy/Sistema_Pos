@@ -219,6 +219,8 @@ public sealed class PdfService : IPdfService
     {
         var paymentMethods = sale.Payments.Select(p => PaymentMethodName(p.Method)).Distinct();
         var cashPayment = sale.Payments.FirstOrDefault(p => p.Method == Domain.Enums.PaymentMethod.Cash);
+        decimal loyaltyDiscount = LoyaltyDiscount(sale);
+        decimal totalPaid = sale.TotalPaid().Amount - loyaltyDiscount;
 
         container.Element(CardStyle).Column(col =>
         {
@@ -227,7 +229,7 @@ public sealed class PdfService : IPdfService
             col.Item().Row(row =>
             {
                 row.RelativeItem().Text(string.Join(", ", paymentMethods)).FontSize(12).Bold();
-                row.ConstantItem(120).AlignRight().Text(sale.TotalPaid().Amount.ToString("C0", culture)).FontSize(12).Bold();
+                row.ConstantItem(120).AlignRight().Text(totalPaid.ToString("C0", culture)).FontSize(12).Bold();
             });
 
             if (cashPayment is not null)
@@ -240,7 +242,7 @@ public sealed class PdfService : IPdfService
             col.Item().Row(row =>
             {
                 row.RelativeItem().Text("Total pagado").FontSize(11).Bold();
-                row.ConstantItem(120).AlignRight().Text(sale.TotalPaid().Amount.ToString("C0", culture)).FontSize(11).Bold();
+                row.ConstantItem(120).AlignRight().Text(totalPaid.ToString("C0", culture)).FontSize(11).Bold();
             });
         });
     }
@@ -322,6 +324,8 @@ public sealed class PdfService : IPdfService
 
     private static void ComposeTotalsCard(IContainer container, Sale sale, CultureInfo culture)
     {
+        decimal loyaltyDiscount = LoyaltyDiscount(sale);
+
         container.Element(CardStyle).Column(col =>
         {
             col.Spacing(6);
@@ -340,6 +344,16 @@ public sealed class PdfService : IPdfService
                 row.RelativeItem().Text("IVA 19% incluido");
                 row.ConstantItem(120).AlignRight().Text(sale.TaxTotal().Amount.ToString("C0", culture));
             });
+
+            if (loyaltyDiscount > 0m)
+            {
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem().Text("Descuento por puntos").FontColor(LabelColor);
+                    row.ConstantItem(120).AlignRight().Text($"-{loyaltyDiscount.ToString("C0", culture)}").FontColor(LabelColor);
+                });
+            }
+
             col.Item().LineHorizontal(0.5f).LineColor(BorderColor);
             col.Item().Row(row =>
             {
@@ -348,6 +362,10 @@ public sealed class PdfService : IPdfService
             });
         });
     }
+
+    private static decimal LoyaltyDiscount(Sale sale) => sale.Payments
+        .Where(payment => payment.Method == Domain.Enums.PaymentMethod.LoyaltyPoints)
+        .Sum(payment => payment.Amount.Amount);
 
     private static void ComposeTotalRow(IContainer container, string label, string amount)
     {
