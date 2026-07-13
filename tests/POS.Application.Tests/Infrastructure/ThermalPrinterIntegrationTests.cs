@@ -72,6 +72,49 @@ public sealed class ThermalPrinterIntegrationTests
     }
 
     [Fact]
+    public async Task EscPosPrinterService_PrintsCustomerNameAndLoyaltyPointsDiscount()
+    {
+        await using var fixture = await TestDbContextFactory.CreateAsync();
+        fixture.DbContext.BusinessSettings.Add(new BusinessSettings(
+            "Negocio", null, null, null, null, null, null, null, false, null, "COM7", null, null, null, "COP"));
+
+        var customer = new Customer("Maria Perez", "123456789");
+        fixture.DbContext.Customers.Add(customer);
+        await fixture.DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Product product = await TestProductFactory.CreateAndPersistAsync(
+            fixture.DbContext, "Crema facial", new Money(1_000m), new Money(10_000m),
+            new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(
+            new ProductRepository(fixture.DbContext),
+            new SaleRepository(fixture.DbContext),
+            fixture.DbContext);
+        var sale = await saleUseCase.ExecuteAsync(
+            new CreateSaleRequest(
+                Guid.NewGuid(),
+                customer.Id,
+                [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+                [
+                    new CreateSalePaymentRequest(PaymentMethod.LoyaltyPoints, 2_000m, null, null),
+                    new CreateSalePaymentRequest(PaymentMethod.Cash, 8_000m, 8_000m, null)
+                ]),
+            TestContext.Current.CancellationToken);
+
+        var resolver = new PrinterSettingsResolver(new PrinterRuntimeOptions(), fixture.DbContext);
+        var transport = new FakeThermalPrinterTransport();
+        var service = new EscPosPrinterService(resolver, transport, fixture.DbContext);
+
+        await service.PrintReceiptAsync(sale.SaleId, TestContext.Current.CancellationToken);
+
+        string text = Encoding.Latin1.GetString(transport.LastPayload!);
+        Assert.Contains("Maria Perez", text);
+        Assert.Contains("123456789", text);
+        Assert.Contains("Desc. puntos:", text);
+        Assert.Contains("-$2.000", text);
+    }
+
+    [Fact]
     public async Task PrinterSettingsResolver_PrefersPersistedPrinterConfiguration()
     {
         await using var fixture = await TestDbContextFactory.CreateAsync();

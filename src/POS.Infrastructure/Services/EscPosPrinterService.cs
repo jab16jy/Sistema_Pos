@@ -52,7 +52,14 @@ public sealed partial class EscPosPrinterService : IPrintService
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var receiptBytes = BuildReceiptBytes(sale, settings);
+        Customer? customer = sale.CustomerId.HasValue
+            ? await _dbContext.Customers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == sale.CustomerId.Value, cancellationToken)
+                .ConfigureAwait(false)
+            : null;
+
+        var receiptBytes = BuildReceiptBytes(sale, settings, customer);
         ThermalPrinterTarget target = await _printerSettingsResolver.ResolveRequiredAsync(cancellationToken).ConfigureAwait(false);
 
         if (target.SupportsDirectEscPos)
@@ -64,7 +71,7 @@ public sealed partial class EscPosPrinterService : IPrintService
         await PrintViaProcessAsync(target, saleId, cancellationToken).ConfigureAwait(false);
     }
 
-    private static byte[] BuildReceiptBytes(Sale sale, BusinessSettings? settings)
+    private static byte[] BuildReceiptBytes(Sale sale, BusinessSettings? settings, Customer? customer)
     {
         var buf = new List<byte>();
         void Write(byte[] b) => buf.AddRange(b);
@@ -95,6 +102,14 @@ public sealed partial class EscPosPrinterService : IPrintService
         Separator();
         WriteLine($"Factura: {sale.InvoiceNumber}");
         WriteLine($"Fecha:   {sale.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm}");
+
+        if (customer is not null)
+        {
+            WriteLine($"Cliente: {customer.FullName}");
+            if (!string.IsNullOrWhiteSpace(customer.Identification))
+                WriteLine($"Cedula/NIT: {customer.Identification}");
+        }
+
         Separator();
 
         // ── Line items ───────────────────────────────────────────────────────
@@ -121,6 +136,12 @@ public sealed partial class EscPosPrinterService : IPrintService
         Write(EscPosCommands.BoldOn);
         WriteLine($"{"TOTAL:",-20}{FormatCurrency(sale.Total().Amount),12}");
         Write(EscPosCommands.BoldOff);
+
+        var loyaltyDiscount = sale.Payments
+            .Where(p => p.Method == PaymentMethod.LoyaltyPoints)
+            .Sum(p => p.Amount.Amount);
+        if (loyaltyDiscount > 0)
+            WriteLine($"{"Desc. puntos:",-20}{$"-{FormatCurrency(loyaltyDiscount)}",12}");
 
         var cashPayment = sale.Payments.FirstOrDefault(p => p.Method == PaymentMethod.Cash);
         if (cashPayment is not null)
