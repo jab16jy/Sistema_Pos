@@ -14,6 +14,7 @@ public sealed record SettingsResult(
     string? SmtpSenderAddress,
     string? PrinterCommand,
     string? PrinterWorkingDirectory,
+    string? PrinterPort,
     string? BackupDirectory,
     string CurrencyCode,
     IReadOnlyList<SettingsWarning>? Warnings = null,
@@ -32,6 +33,7 @@ public sealed record SaveSettingsRequest(
     string? SmtpSenderAddress,
     string? PrinterCommand,
     string? PrinterWorkingDirectory,
+    string? PrinterPort,
     string? BackupDirectory,
     string CurrencyCode);
 

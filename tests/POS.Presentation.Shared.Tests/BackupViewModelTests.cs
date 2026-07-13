@@ -15,7 +15,7 @@ public sealed class BackupViewModelTests
     public async Task BackupAsync_WhenBackupSucceeds_UpdatesLastSuccessfulBackupMetadata()
     {
         var settings = new BusinessSettings(
-            "Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
+            "Store", null, null, null, null, null, null, null, false, null, null, null, null, "C:/Backups", "COP");
         var repository = new StubMutableSettingsRepository(settings);
         var viewModel = new BackupViewModel(
             new LoadSettingsUseCase(repository, new StubOperatorSession()),

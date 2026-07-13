@@ -428,7 +428,11 @@
               <Button Grid.Column="1" Content="Detectar" Command="{Binding RefreshPrintersCommand}"
                       Margin="6,0,0,0" Padding="8,0" VerticalAlignment="Center" />
             </Grid>
-            <TextBlock Text="Se detecta automáticamente. Elige por nombre; el puerto (USB, red) se resuelve solo."
+            <TextBlock Text="Se detecta automáticamente por nombre. Usa el campo Puerto abajo solo si necesitas forzar una conexión serial o de red."
+                       Style="{StaticResource MutedText}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8" />
+            <TextBlock Text="Puerto (opcional)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+            <TextBox Text="{Binding PrinterPort, Mode=TwoWay}" Tag="COM3 o 192.168.1.50:9100" Margin="0,0,0,4" />
+            <TextBlock Text="Para red o serial: escribe COM3 o 192.168.1.50:9100. Si lo dejas vacío, se usa el nombre de la impresora de arriba."
                        Style="{StaticResource MutedText}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8" />
             <TextBlock Text="Plantilla de recibo" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
             <ComboBox SelectedValuePath="Content" SelectedValue="{Binding ReceiptTemplate, Mode=TwoWay}" Margin="0,0,0,8">

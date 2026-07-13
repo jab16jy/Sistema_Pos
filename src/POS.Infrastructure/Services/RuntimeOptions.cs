@@ -27,4 +27,5 @@ public sealed class PrinterRuntimeOptions
 {
     public string? Command { get; set; }
     public string? WorkingDirectory { get; set; }
+    public string? Port { get; set; }
 }

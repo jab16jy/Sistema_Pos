@@ -37,6 +37,7 @@ public sealed class RuntimeGapDomainTests
             " ventas@store.com ",
             " ",
             null,
+            null,
             " C:/Backups ",
             "cop");
 

@@ -26,6 +26,7 @@ internal sealed class BusinessSettingsConfiguration : IEntityTypeConfiguration<B
         builder.Property(settings => settings.SmtpSenderAddress).HasMaxLength(200);
         builder.Property(settings => settings.PrinterCommand).HasMaxLength(500);
         builder.Property(settings => settings.PrinterWorkingDirectory).HasMaxLength(500);
+        builder.Property(settings => settings.PrinterPort).HasMaxLength(100);
         builder.Property(settings => settings.BackupDirectory).HasMaxLength(500);
         builder.Property(settings => settings.LastBackupAtUtc).HasColumnType("TEXT");
         builder.Property(settings => settings.LastBackupSizeBytes);

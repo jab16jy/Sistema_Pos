@@ -195,6 +195,7 @@ public sealed class RuntimeReadinessTests
             null,
             null,
             null,
+            null,
             "COP"));
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -228,6 +229,7 @@ public sealed class RuntimeReadinessTests
                 dummyPassword,
                 true,
                 "mailer@store.local",
+                null,
                 null,
                 null,
                 null,
@@ -436,6 +438,7 @@ public sealed class RuntimeReadinessTests
             null,
             null,
             false,
+            null,
             null,
             null,
             null,

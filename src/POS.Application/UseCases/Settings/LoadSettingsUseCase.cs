@@ -44,6 +44,7 @@ public sealed class LoadSettingsUseCase
         settings.SmtpSenderAddress,
         settings.PrinterCommand,
         settings.PrinterWorkingDirectory,
+        settings.PrinterPort,
         settings.BackupDirectory,
         settings.CurrencyCode,
         [],

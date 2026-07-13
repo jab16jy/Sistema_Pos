@@ -50,6 +50,7 @@ public sealed class SaveSettingsUseCase
                 request.SmtpSenderAddress,
                 request.PrinterCommand,
                 request.PrinterWorkingDirectory,
+                request.PrinterPort,
                 request.BackupDirectory,
                 request.CurrencyCode);
         }
@@ -68,6 +69,7 @@ public sealed class SaveSettingsUseCase
                 request.SmtpSenderAddress,
                 request.PrinterCommand,
                 request.PrinterWorkingDirectory,
+                request.PrinterPort,
                 request.BackupDirectory,
                 request.CurrencyCode);
         }
@@ -93,6 +95,7 @@ public sealed class SaveSettingsUseCase
             settings.SmtpSenderAddress,
             settings.PrinterCommand,
             settings.PrinterWorkingDirectory,
+            settings.PrinterPort,
             settings.BackupDirectory,
             settings.CurrencyCode,
             warnings,

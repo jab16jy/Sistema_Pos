@@ -55,7 +55,9 @@ public sealed partial class PrinterSettingsResolver : IPrinterSettingsResolver
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        string? command = FirstNonEmpty(settings?.PrinterCommand, _runtimeOptions.Command);
+        // An explicit port (serial/network) always wins over the printer-name lookup: it's the
+        // user forcing a direct connection instead of resolving through the Windows spooler.
+        string? command = FirstNonEmpty(settings?.PrinterPort, settings?.PrinterCommand, _runtimeOptions.Port, _runtimeOptions.Command);
         string? workingDirectory = FirstNonEmpty(settings?.PrinterWorkingDirectory, _runtimeOptions.WorkingDirectory);
 
         if (string.IsNullOrWhiteSpace(command))

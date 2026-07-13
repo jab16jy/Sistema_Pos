@@ -120,7 +120,7 @@ The WPF app reads optional local settings from environment variables:
 
 - `POS_SMTP_HOST`, `POS_SMTP_PORT`, `POS_SMTP_FROM`, `POS_SMTP_USER`, `POS_SMTP_PASSWORD`, `POS_SMTP_SSL`
 - `POS_WHATSAPP_SCRIPT`, `POS_WHATSAPP_WORKDIR`
-- `POS_PRINTER_COMMAND`, `POS_PRINTER_WORKDIR`
+- `POS_PRINTER_COMMAND`, `POS_PRINTER_WORKDIR`, `POS_PRINTER_PORT`
 
 If these values are missing, document sending or printing fails with a recoverable operator message instead of breaking startup or losing the sale.
 

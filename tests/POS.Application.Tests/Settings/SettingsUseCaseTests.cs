@@ -15,7 +15,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task LoadSettingsAsync_WhenSettingsExist_ReturnsSettings()
     {
-        var settings = new BusinessSettings("Store", "Address", "Tax", "3005550000", "smtp.host", 587, "mailer", "secret", true, "ventas@store.com", "print", "C:/POS", "C:/Backups", "COP");
+        var settings = new BusinessSettings("Store", "Address", "Tax", "3005550000", "smtp.host", 587, "mailer", "secret", true, "ventas@store.com", "print", "C:/POS", "COM3", "C:/Backups", "COP");
         var useCase = new LoadSettingsUseCase(new InMemorySettingsRepository(settings), new StubOperatorSession("settings"));
 
         SettingsResult? result = await useCase.ExecuteAsync(TestContext.Current.CancellationToken);
@@ -25,6 +25,7 @@ public sealed class SettingsUseCaseTests
         Assert.Equal("smtp.host", result.SmtpHost);
         Assert.Equal(587, result.SmtpPort);
         Assert.Equal("ventas@store.com", result.SmtpSenderAddress);
+        Assert.Equal("COM3", result.PrinterPort);
         Assert.Equal("COP", result.CurrencyCode);
         Assert.Empty(result.Warnings ?? []);
     }
@@ -49,12 +50,14 @@ public sealed class SettingsUseCaseTests
             "ventas@esthetic.com",
             "print-receipt",
             "C:/POS",
+            "192.168.1.10:9100",
             "C:/Backups",
             "cop"), TestContext.Current.CancellationToken);
 
         Assert.Equal("Esthetic Medical Store", result.BusinessName);
         Assert.Equal("smtp.office365.com", result.SmtpHost);
         Assert.Equal("app-password", result.SmtpPassword);
+        Assert.Equal("192.168.1.10:9100", result.PrinterPort);
         Assert.Equal("COP", result.CurrencyCode);
         Assert.NotNull(repository.Settings);
         Assert.Equal(1, repository.SaveCount);
@@ -65,7 +68,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task SaveSettingsAsync_WhenSettingsExist_UpdatesSameSettings()
     {
-        var existing = new BusinessSettings("Old", null, null, null, null, null, null, null, false, null, null, null, null, "COP");
+        var existing = new BusinessSettings("Old", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP");
         var repository = new InMemorySettingsRepository(existing);
         var useCase = new SaveSettingsUseCase(repository, new CountingUnitOfWork(), new StubOperatorSession("settings"));
 
@@ -80,6 +83,7 @@ public sealed class SettingsUseCaseTests
             "new-secret",
             true,
             "new@store.com",
+            null,
             null,
             null,
             null,
@@ -117,6 +121,7 @@ public sealed class SettingsUseCaseTests
             "/missing/print-receipt",
             null,
             null,
+            null,
             "COP"), TestContext.Current.CancellationToken);
 
         SettingsWarning warning = Assert.Single(result.Warnings ?? []);
@@ -129,7 +134,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task TriggerManualBackupAsync_WithConfiguredDirectory_CreatesBackup()
     {
-        var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
+        var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, null, "C:/Backups", "COP");
         var backupService = new StubManualBackupService("C:/Backups/backup-20260627.sqlite");
         var repository = new InMemorySettingsRepository(settings);
         var unitOfWork = new CountingUnitOfWork();
@@ -156,7 +161,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task TriggerManualBackupAsync_WhenNoDirectoryConfigured_ReturnsError()
     {
-        var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, null, "COP");
+        var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP");
         var backupService = new StubManualBackupService("unused");
         var useCase = new TriggerManualBackupUseCase(
             new InMemorySettingsRepository(settings),
@@ -176,7 +181,7 @@ public sealed class SettingsUseCaseTests
     [Fact]
     public async Task BackupCreateAndRestore_RequireDistinctPermissions()
     {
-        var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
+        var settings = new BusinessSettings("Store", null, null, null, null, null, null, null, false, null, null, null, null, "C:/Backups", "COP");
         var backupService = new StubManualBackupService("C:/Backups/backup.sqlite");
         var createOnly = new StubOperatorSession("maria", new HashSet<string> { PermissionKeys.Admin.Backup.Create });
 
@@ -207,11 +212,11 @@ public sealed class SettingsUseCaseTests
         var noPermissions = new StubOperatorSession("maria", new HashSet<string>());
 
         await Assert.ThrowsAsync<UnauthorizedActionException>(() => new LoadSettingsUseCase(repository, noPermissions).ExecuteAsync(TestContext.Current.CancellationToken));
-        await Assert.ThrowsAsync<UnauthorizedActionException>(() => new SaveSettingsUseCase(repository, unitOfWork, noPermissions).ExecuteAsync(new SaveSettingsRequest("Store", null, null, null, null, null, null, null, false, null, null, null, null, "COP"), TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() => new SaveSettingsUseCase(repository, unitOfWork, noPermissions).ExecuteAsync(new SaveSettingsRequest("Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP"), TestContext.Current.CancellationToken));
         Assert.Null(repository.Settings);
 
         var editSession = new StubOperatorSession("maria", new HashSet<string> { PermissionKeys.Settings.Edit });
-        SettingsResult saved = await new SaveSettingsUseCase(repository, unitOfWork, editSession).ExecuteAsync(new SaveSettingsRequest("Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Initial", "COP"), TestContext.Current.CancellationToken);
+        SettingsResult saved = await new SaveSettingsUseCase(repository, unitOfWork, editSession).ExecuteAsync(new SaveSettingsRequest("Store", null, null, null, null, null, null, null, false, null, null, null, null, "C:/Initial", "COP"), TestContext.Current.CancellationToken);
         bool updated = await new UpdateBackupDirectoryUseCase(repository, unitOfWork, editSession).ExecuteAsync("C:/Updated", TestContext.Current.CancellationToken);
         Assert.Equal("C:/Updated", repository.Settings!.BackupDirectory);
         Assert.True(updated);

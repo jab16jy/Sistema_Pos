@@ -111,6 +111,10 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PrinterPort")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PrinterWorkingDirectory")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");

@@ -21,6 +21,7 @@ public sealed class BusinessSettings
         string? smtpSenderAddress,
         string? printerCommand,
         string? printerWorkingDirectory,
+        string? printerPort,
         string? backupDirectory,
         string currencyCode)
     {
@@ -38,6 +39,7 @@ public sealed class BusinessSettings
             smtpSenderAddress,
             printerCommand,
             printerWorkingDirectory,
+            printerPort,
             backupDirectory,
             currencyCode);
     }
@@ -55,6 +57,7 @@ public sealed class BusinessSettings
     public string? SmtpSenderAddress { get; private set; }
     public string? PrinterCommand { get; private set; }
     public string? PrinterWorkingDirectory { get; private set; }
+    public string? PrinterPort { get; private set; }
     public string? BackupDirectory { get; private set; }
     public DateTimeOffset? LastBackupAtUtc { get; private set; }
     public long? LastBackupSizeBytes { get; private set; }
@@ -75,6 +78,7 @@ public sealed class BusinessSettings
         string? smtpSenderAddress,
         string? printerCommand,
         string? printerWorkingDirectory,
+        string? printerPort,
         string? backupDirectory,
         string currencyCode)
     {
@@ -91,6 +95,7 @@ public sealed class BusinessSettings
             smtpSenderAddress,
             printerCommand,
             printerWorkingDirectory,
+            printerPort,
             backupDirectory,
             currencyCode);
     }
@@ -130,6 +135,7 @@ public sealed class BusinessSettings
         string? smtpSenderAddress,
         string? printerCommand,
         string? printerWorkingDirectory,
+        string? printerPort,
         string? backupDirectory,
         string currencyCode)
     {
@@ -166,6 +172,7 @@ public sealed class BusinessSettings
         SmtpSenderAddress = TrimToNull(smtpSenderAddress);
         PrinterCommand = TrimToNull(printerCommand);
         PrinterWorkingDirectory = TrimToNull(printerWorkingDirectory);
+        PrinterPort = TrimToNull(printerPort);
         BackupDirectory = TrimToNull(backupDirectory);
         CurrencyCode = normalizedCurrency;
     }

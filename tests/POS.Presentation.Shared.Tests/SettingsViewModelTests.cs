@@ -54,6 +54,7 @@ public sealed class SettingsViewModelTests
             "ventas@store.com",
             null,
             null,
+            "COM4",
             null,
             "COP",
             []);
@@ -71,6 +72,9 @@ public sealed class SettingsViewModelTests
         Assert.Equal("secret", viewModel.SmtpPassword);
         Assert.True(viewModel.SmtpUseSsl);
         Assert.True(viewModel.IsWhatsAppReady);
+        Assert.Equal("COM4", viewModel.PrinterPort);
+        Assert.Null(viewModel.PrinterCommand);
+        Assert.True(viewModel.IsPrinterConfigured);
     }
 
     private sealed class StubSettingsRepository : POS.Domain.Interfaces.ISettingsRepository
@@ -96,6 +100,7 @@ public sealed class SettingsViewModelTests
                 _settings.SmtpSenderAddress,
                 _settings.PrinterCommand,
                 _settings.PrinterWorkingDirectory,
+                _settings.PrinterPort,
                 _settings.BackupDirectory,
                 _settings.CurrencyCode));
 

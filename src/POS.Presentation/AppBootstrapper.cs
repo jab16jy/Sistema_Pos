@@ -336,6 +336,7 @@ internal static class AppBootstrapper
 
         options.Printer.Command = Environment.GetEnvironmentVariable("POS_PRINTER_COMMAND");
         options.Printer.WorkingDirectory = Environment.GetEnvironmentVariable("POS_PRINTER_WORKDIR");
+        options.Printer.Port = Environment.GetEnvironmentVariable("POS_PRINTER_PORT");
     }
 
     private static TService? TryResolveOptional<TService>(IServiceProvider serviceProvider)

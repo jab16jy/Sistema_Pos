@@ -30,6 +30,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private string? _businessPhone;
     private string? _printerCommand;
     private string? _printerWorkingDirectory;
+    private string? _printerPort;
     private string? _backupDirectory;
     private ManualBackupMetadata? _lastSuccessfulBackup;
     private string _currencyCode = "COP";
@@ -132,6 +133,20 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         get => _printerWorkingDirectory;
         set => SetProperty(ref _printerWorkingDirectory, value);
+    }
+
+    /// <summary>Explicit serial/network override (e.g. COM3, 192.168.1.50:9100); wins over PrinterCommand when set.</summary>
+    public string? PrinterPort
+    {
+        get => _printerPort;
+        set
+        {
+            if (SetProperty(ref _printerPort, value))
+            {
+                OnPropertyChanged(nameof(IsPrinterConfigured));
+                OnPropertyChanged(nameof(ReadyChannelsSummary));
+            }
+        }
     }
 
     public string? BackupDirectory
@@ -269,7 +284,7 @@ public sealed class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _testWhatsAppNumber, value ?? string.Empty);
     }
 
-    public bool IsPrinterConfigured => !string.IsNullOrWhiteSpace(PrinterCommand);
+    public bool IsPrinterConfigured => !string.IsNullOrWhiteSpace(PrinterCommand) || !string.IsNullOrWhiteSpace(PrinterPort);
 
     public bool IsSmtpConfigured => !string.IsNullOrWhiteSpace(SmtpHost) && !string.IsNullOrWhiteSpace(SmtpSenderAddress);
 
@@ -340,6 +355,7 @@ public sealed class SettingsViewModel : ViewModelBase
             SmtpSenderAddress = settings.SmtpSenderAddress ?? string.Empty;
             PrinterCommand = settings.PrinterCommand;
             PrinterWorkingDirectory = settings.PrinterWorkingDirectory;
+            PrinterPort = settings.PrinterPort;
 
             // No printer saved yet → auto-detect one from the OS so the caja works out of the box.
             if (string.IsNullOrWhiteSpace(PrinterCommand))
@@ -506,6 +522,7 @@ public sealed class SettingsViewModel : ViewModelBase
             SmtpSenderAddress,
             PrinterCommand,
             PrinterWorkingDirectory,
+            PrinterPort,
             BackupDirectory,
             CurrencyCode);
 

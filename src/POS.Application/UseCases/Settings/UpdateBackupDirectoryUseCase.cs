@@ -51,6 +51,7 @@ public sealed class UpdateBackupDirectoryUseCase
             settings.SmtpSenderAddress,
             settings.PrinterCommand,
             settings.PrinterWorkingDirectory,
+            settings.PrinterPort,
             backupDirectory,
             settings.CurrencyCode);
 
