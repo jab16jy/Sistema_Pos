@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.14.0...v1.14.1) (2026-07-13)
+
+
+### Miscellaneous Chores
+
+* **release:** prepare v1.14.1 ([c419608](https://github.com/jab16jy/Sistema_Pos/commit/c4196085e902c2a59038673e2c78e39ab0156de8))
+
 ## [1.14.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.13.2...v1.14.0) (2026-07-13)
 
 
