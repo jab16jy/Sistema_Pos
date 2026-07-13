@@ -6,6 +6,7 @@ using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Sales;
+using POS.Application.UseCases.Shifts;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
@@ -252,6 +253,27 @@ public sealed class MainShellViewModelTests
         Assert.Single(viewModel.Inventory!.StockLevels);
     }
 
+    [Fact]
+    public async Task SelectingShiftsModule_LoadsShiftHistoryAutomatically()
+    {
+        var shift = new CashierShift(Guid.NewGuid(), "cajero", new Money(100m), null);
+        var shiftRepository = new StaticShiftRepository(shift);
+        var viewModel = new MainShellViewModel
+        {
+            Shifts = new ShiftsViewModel(
+                new StartShiftUseCase(shiftRepository, new NoOpUnitOfWork()),
+                new CloseShiftUseCase(shiftRepository, new StaticSaleSummaryRepository(new DashboardSummaryData(0m, 0m, 0m, 0, 0)), new NoOpUnitOfWork()),
+                new GetShiftsUseCase(shiftRepository),
+                new GetShiftSalesSummaryUseCase(new StaticSaleSummaryRepository(new DashboardSummaryData(0m, 0m, 0m, 0, 0))),
+                new StubOperatorSession())
+        };
+
+        viewModel.SelectedModule = viewModel.AdminHubModules.Single(module => module.Key == "shifts");
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Single(viewModel.Shifts!.FilteredShifts);
+    }
+
     private sealed class StaticSaleSummaryRepository : ISaleRepository
     {
         private readonly DashboardSummaryData _summary;
@@ -271,6 +293,27 @@ public sealed class MainShellViewModelTests
             LastTo = to;
             return Task.FromResult(_summary);
         }
+    }
+
+    private sealed class StaticShiftRepository(CashierShift shift) : ICashierShiftRepository
+    {
+        public Task<CashierShift?> GetOpenShiftAsync(Guid cashierUserId, CancellationToken cancellationToken = default)
+            => Task.FromResult<CashierShift?>(null);
+
+        public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<CashierShift?>(shift);
+
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<CashierShift>>([shift]);
+
+        public Task AddAsync(CashierShift newShift, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class StubOperatorSession : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = Guid.NewGuid();
+        public string Username { get; } = "cajero";
+        public bool IsAuthenticated => true;
     }
 
     private static ProductsViewModel CreateProductsViewModel(

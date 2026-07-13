@@ -276,6 +276,14 @@ public sealed class MainShellViewModel : ViewModelBase
                     }
                 }
 
+                if (IsShiftsSelected)
+                {
+                    if (Shifts is not null)
+                    {
+                        RunSafe(Shifts.LoadAsync(), ex => OperatorMessage = $"Error al cargar Turnos: {ex.Message}");
+                    }
+                }
+
                 if (IsCustomersSelected)
                 {
                     if (Customers is not null)

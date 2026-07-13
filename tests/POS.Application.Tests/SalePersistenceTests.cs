@@ -7,6 +7,7 @@ using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
 using POS.Infrastructure;
 using POS.Infrastructure.Persistence;
@@ -106,6 +107,48 @@ public sealed class SalePersistenceTests
         Assert.Equal(2_800m, summary.CashInDrawer);
         Assert.Equal(1_400m, summary.DigitalPayments);
         Assert.Equal(0, summary.LowStockCount);
+    }
+
+    [Fact]
+    public async Task GetShiftSalesSummaryAsync_IncludesOnlyCompletedSalesFromTheOpenShiftCashier()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
+        Guid cashierId = Guid.NewGuid();
+        var sales = new SaleRepository(dbContext);
+        var useCase = new CreateSaleUseCase(new ProductRepository(dbContext), sales, dbContext);
+
+        await useCase.ExecuteAsync(new CreateSaleRequest(
+            cashierId,
+            null,
+            [new CreateSaleItemRequest(product.Id, 2m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 2_800m, null)]),
+            TestContext.Current.CancellationToken);
+        await useCase.ExecuteAsync(new CreateSaleRequest(
+            cashierId,
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_400m, null, "Nequi")]),
+            TestContext.Current.CancellationToken);
+        await useCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_400m, 1_400m, null)]),
+            TestContext.Current.CancellationToken);
+
+        ShiftSalesSummaryData summary = await sales.GetShiftSalesSummaryAsync(
+            cashierId,
+            DateTimeOffset.UtcNow.AddMinutes(-1),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(4_200m, summary.SalesTotal);
+        Assert.Equal(2_800m, summary.CashPayments);
+        Assert.Equal(1_400m, summary.DigitalPayments);
     }
 
     [Fact]

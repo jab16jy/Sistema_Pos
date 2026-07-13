@@ -38,5 +38,9 @@ public sealed class StartShiftUseCase
         shift.Status,
         shift.OpenedAt,
         shift.ClosedAt,
-        shift.Notes);
+        shift.Notes,
+        shift.HasClosingSummary,
+        shift.SalesTotal.Amount,
+        shift.CashPayments.Amount,
+        shift.DigitalPayments.Amount);
 }

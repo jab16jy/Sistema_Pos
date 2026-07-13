@@ -267,6 +267,7 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<StartShiftUseCase>(),
                 sp.GetRequiredService<CloseShiftUseCase>(),
                 sp.GetRequiredService<GetShiftsUseCase>(),
+                sp.GetRequiredService<GetShiftSalesSummaryUseCase>(),
                 session),
             moduleWarnings);
 

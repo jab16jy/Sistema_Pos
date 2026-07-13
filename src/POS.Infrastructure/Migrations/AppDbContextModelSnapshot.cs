@@ -206,6 +206,12 @@ namespace POS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal>("CashPayments")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("cash_payments");
+
                     b.Property<string>("CashierUserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -222,6 +228,18 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("closing_cash");
 
+                    b.Property<decimal>("DigitalPayments")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("digital_payments");
+
+                    b.Property<bool>("HasClosingSummary")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false)
+                        .HasColumnName("has_closing_summary");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
@@ -232,6 +250,12 @@ namespace POS.Infrastructure.Migrations
                     b.Property<decimal>("OpeningCash")
                         .HasColumnType("TEXT")
                         .HasColumnName("opening_cash");
+
+                    b.Property<decimal>("SalesTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("sales_total");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");

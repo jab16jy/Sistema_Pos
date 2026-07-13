@@ -59,6 +59,40 @@ public sealed class SaleRepository : ISaleRepository
             sales.Count);
     }
 
+    public async Task<ShiftSalesSummaryData> GetShiftSalesSummaryAsync(
+        Guid cashierUserId,
+        DateTimeOffset openedAt,
+        CancellationToken cancellationToken = default)
+        => await GetShiftSalesSummaryAsync(cashierUserId, openedAt, DateTimeOffset.UtcNow, cancellationToken)
+            .ConfigureAwait(false);
+
+    public async Task<ShiftSalesSummaryData> GetShiftSalesSummaryAsync(
+        Guid cashierUserId,
+        DateTimeOffset openedAt,
+        DateTimeOffset closedAt,
+        CancellationToken cancellationToken = default)
+    {
+        DateTimeOffset utcOpenedAt = openedAt.ToUniversalTime();
+        DateTimeOffset utcClosedAt = closedAt.ToUniversalTime();
+
+        List<Sale> sales = await _dbContext.Sales
+            .Include(sale => sale.Items)
+            .Include(sale => sale.Payments)
+            .Where(sale => sale.CashierUserId == cashierUserId
+                && sale.CreatedAt >= utcOpenedAt
+                && sale.CreatedAt < utcClosedAt
+                && sale.Status == SaleStatus.Completed)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        return new ShiftSalesSummaryData(
+            sales.Sum(sale => sale.Total().Amount),
+            sales.Sum(sale => sale.CashInDrawer().Amount),
+            sales.SelectMany(sale => sale.Payments)
+                .Where(payment => IsDigitalPayment(payment.Method))
+                .Sum(payment => payment.Amount.Amount));
+    }
+
     private static bool IsDigitalPayment(PaymentMethod method)
         => method is PaymentMethod.DebitCard or PaymentMethod.CreditCard or PaymentMethod.Transfer;
 }

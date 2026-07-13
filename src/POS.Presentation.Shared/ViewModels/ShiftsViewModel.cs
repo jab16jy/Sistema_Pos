@@ -4,6 +4,7 @@ using POS.Application.DTOs.Shifts;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Shifts;
 using POS.Domain.Enums;
+using POS.Domain.Interfaces;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
@@ -13,6 +14,7 @@ public sealed class ShiftsViewModel : ViewModelBase
     private readonly StartShiftUseCase _startShift;
     private readonly CloseShiftUseCase _closeShift;
     private readonly GetShiftsUseCase _getShifts;
+    private readonly GetShiftSalesSummaryUseCase _getShiftSalesSummary;
     private readonly ICurrentOperatorSession _session;
     private ShiftSummary? _selectedShift;
     private ShiftRowPresentation? _selectedShiftRow;
@@ -24,14 +26,22 @@ public sealed class ShiftsViewModel : ViewModelBase
     private string _closeNotes = string.Empty;
     private string _selectedCashierUsername = string.Empty;
     private decimal _countedCash;
+    private bool _isCountedCashAutoFilled;
+    private ShiftSalesSummaryData _activeShiftSalesSummary = ShiftSalesSummaryData.Empty;
     private DateTime? _fromDate;
     private DateTime? _toDate;
 
-    public ShiftsViewModel(StartShiftUseCase startShift, CloseShiftUseCase closeShift, GetShiftsUseCase getShifts, ICurrentOperatorSession session)
+    public ShiftsViewModel(
+        StartShiftUseCase startShift,
+        CloseShiftUseCase closeShift,
+        GetShiftsUseCase getShifts,
+        GetShiftSalesSummaryUseCase getShiftSalesSummary,
+        ICurrentOperatorSession session)
     {
         _startShift = startShift;
         _closeShift = closeShift;
         _getShifts = getShifts;
+        _getShiftSalesSummary = getShiftSalesSummary;
         _session = session;
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar turnos: {ex.Message}"));
         StartShiftCommand = new RelayCommand(_ => RunSafe(StartAsync(), ex => Message = $"Error al abrir turno: {ex.Message}"));
@@ -39,8 +49,6 @@ public sealed class ShiftsViewModel : ViewModelBase
         ExportCommand = new RelayCommand(_ => Message = "Exportacion de turnos no disponible en este entorno.");
         ApplyDateFilterCommand = new RelayCommand(_ => ApplyDateFilter());
 
-        _fromDate = DateTime.Today;
-        _toDate = DateTime.Today;
         _selectedCashierUsername = session.Username;
     }
 
@@ -131,7 +139,7 @@ public sealed class ShiftsViewModel : ViewModelBase
 
     public string ActiveShiftSalesTotal
     {
-        get => "—";
+        get => $"${_activeShiftSalesSummary.SalesTotal:N0}";
     }
 
     // ── Presentation-only: Open shift panel ──
@@ -157,6 +165,7 @@ public sealed class ShiftsViewModel : ViewModelBase
         {
             if (SetProperty(ref _countedCash, value))
             {
+                _isCountedCashAutoFilled = false;
                 OnPropertyChanged(nameof(CloseDifference));
                 OnPropertyChanged(nameof(CloseDifferenceLabel));
                 OnPropertyChanged(nameof(CloseDifferenceKind));
@@ -176,13 +185,13 @@ public sealed class ShiftsViewModel : ViewModelBase
         get
         {
             var active = Shifts.FirstOrDefault(s => s.Status == ShiftStatus.Open);
-            return active?.OpeningCash ?? 0m;
+            return active is null ? 0m : active.OpeningCash + _activeShiftSalesSummary.CashPayments;
         }
     }
 
     public string ExpectedCashFormatted => ExpectedCash > 0 ? $"${ExpectedCash:N0}" : "—";
 
-    public string ExpectedDigitalFormatted => "—";
+    public string ExpectedDigitalFormatted => $"${_activeShiftSalesSummary.DigitalPayments:N0}";
 
     public decimal CloseDifference => CountedCash - ExpectedCash;
 
@@ -235,6 +244,7 @@ public sealed class ShiftsViewModel : ViewModelBase
                 Shifts.Add(shift);
             }
 
+            await LoadActiveShiftSalesSummaryAsync(ct).ConfigureAwait(true);
             ApplyDateFilter();
             RefreshActiveShiftProperties();
 
@@ -301,7 +311,7 @@ public sealed class ShiftsViewModel : ViewModelBase
     /// Internal so <see cref="ReportsViewModel"/> can reuse the same convention for the read-only
     /// Cierres y arqueos subtab (13.6) instead of duplicating the mapping logic.
     /// </summary>
-    internal static ShiftRowPresentation ToShiftRow(ShiftSummary s)
+    public static ShiftRowPresentation ToShiftRow(ShiftSummary s)
     {
         var statusLabel = s.Status == ShiftStatus.Open ? "Abierto" : "Cerrado";
         var statusChipKind = s.Status == ShiftStatus.Open ? "success" : "neutral";
@@ -309,6 +319,9 @@ public sealed class ShiftsViewModel : ViewModelBase
         var closedFormatted = s.ClosedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—";
         var openingFormatted = $"${s.OpeningCash:N0}";
         var closingFormatted = s.ClosingCash.HasValue ? $"${s.ClosingCash.Value:N0}" : "—";
+        var salesTotalFormatted = s.HasClosingSummary ? $"${s.SalesTotal:N0}" : "—";
+        var digitalPaymentsFormatted = s.HasClosingSummary ? $"Digital: ${s.DigitalPayments:N0}" : string.Empty;
+        var expectedCashFormatted = s.HasClosingSummary ? $"${s.ExpectedCash:N0}" : "—";
 
         string differenceLabel;
         string differenceKind;
@@ -318,9 +331,14 @@ public sealed class ShiftsViewModel : ViewModelBase
             differenceLabel = "—";
             differenceKind = "neutral";
         }
+        else if (!s.HasClosingSummary)
+        {
+            differenceLabel = "—";
+            differenceKind = "neutral";
+        }
         else
         {
-            var diff = (s.ClosingCash ?? 0m) - s.OpeningCash;
+            var diff = (s.ClosingCash ?? 0m) - s.ExpectedCash;
             if (diff == 0)
             {
                 differenceLabel = "Cuadra";
@@ -347,6 +365,9 @@ public sealed class ShiftsViewModel : ViewModelBase
             closedFormatted,
             openingFormatted,
             closingFormatted,
+            salesTotalFormatted,
+            digitalPaymentsFormatted,
+            expectedCashFormatted,
             differenceLabel,
             differenceKind,
             s.Status == ShiftStatus.Open);
@@ -366,6 +387,22 @@ public sealed class ShiftsViewModel : ViewModelBase
         OnPropertyChanged(nameof(CloseDifferenceLabel));
         OnPropertyChanged(nameof(CloseDifferenceKind));
         OnPropertyChanged(nameof(HasCloseDifference));
+    }
+
+    private async Task LoadActiveShiftSalesSummaryAsync(CancellationToken ct)
+    {
+        var activeShift = Shifts.FirstOrDefault(shift => shift.Status == ShiftStatus.Open);
+        _activeShiftSalesSummary = activeShift is null
+            ? ShiftSalesSummaryData.Empty
+            : await _getShiftSalesSummary.ExecuteAsync(activeShift.CashierUserId, activeShift.OpenedAt, ct).ConfigureAwait(true);
+
+        SetAutoCountedCash(ExpectedCash);
+    }
+
+    private void SetAutoCountedCash(decimal amount)
+    {
+        CountedCash = amount;
+        _isCountedCashAutoFilled = true;
     }
 
     private async Task StartAsync()
@@ -400,9 +437,9 @@ public sealed class ShiftsViewModel : ViewModelBase
             return;
         }
 
-        if (CountedCash <= 0)
+        if (CountedCash < 0)
         {
-            Message = "Ingresa el efectivo contado";
+            Message = "El efectivo contado no puede ser negativo.";
             return;
         }
 
@@ -415,8 +452,18 @@ public sealed class ShiftsViewModel : ViewModelBase
 
         try
         {
+            _activeShiftSalesSummary = await _getShiftSalesSummary
+                .ExecuteAsync(activeShift.CashierUserId, activeShift.OpenedAt)
+                .ConfigureAwait(true);
+            RefreshActiveShiftProperties();
+
+            if (_isCountedCashAutoFilled)
+            {
+                SetAutoCountedCash(ExpectedCash);
+            }
+
             await _closeShift.ExecuteAsync(new CloseShiftRequest(activeShift.Id, CountedCash, CloseNotes));
-            CountedCash = 0m;
+            SetAutoCountedCash(0m);
             CloseNotes = string.Empty;
             Message = "Turno cerrado · Reporte generado";
             await LoadAsync();
@@ -442,6 +489,9 @@ public sealed record ShiftRowPresentation(
     string ClosedAtFormatted,
     string OpeningCashFormatted,
     string ClosingCashFormatted,
+    string SalesTotalFormatted,
+    string DigitalPaymentsFormatted,
+    string ExpectedCashFormatted,
     string DifferenceLabel,
     string DifferenceKind,
     bool IsOpen);

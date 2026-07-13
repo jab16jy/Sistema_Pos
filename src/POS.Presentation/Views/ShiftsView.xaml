@@ -106,7 +106,7 @@
               <TextBlock Grid.Column="1" Text="ESTADO" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
               <TextBlock Grid.Column="2" Text="APERTURA" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
               <TextBlock Grid.Column="3" Text="CIERRE" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
-              <TextBlock Grid.Column="4" Text="BASE" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
+               <TextBlock Grid.Column="4" Text="BASE / ESP." Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
               <TextBlock Grid.Column="5" Text="VENTAS" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
               <TextBlock Grid.Column="6" Text="DIFERENCIA" Style="{StaticResource TextCaption}" FontWeight="SemiBold" Foreground="{StaticResource BrushMuted}" />
             </Grid>
@@ -172,9 +172,17 @@
                       <TextBlock Grid.Column="2" Text="{Binding OpenedAtFormatted}" FontFamily="Consolas" Style="{StaticResource TextSmall}" />
                       <TextBlock Grid.Column="3" Text="{Binding ClosedAtFormatted}" FontFamily="Consolas" Style="{StaticResource TextSmall}"
                                  Foreground="{StaticResource BrushMuted}" />
-                      <TextBlock Grid.Column="4" Text="{Binding OpeningCashFormatted}" FontFamily="Consolas" Style="{StaticResource TextBody}" />
-                      <TextBlock Grid.Column="5" Text="—" FontFamily="Consolas" Style="{StaticResource TextBody}" FontWeight="SemiBold"
-                                 Foreground="{StaticResource BrushPrimary}" />
+                       <StackPanel Grid.Column="4">
+                         <TextBlock Text="{Binding OpeningCashFormatted}" FontFamily="Consolas" Style="{StaticResource TextBody}" />
+                         <TextBlock Text="{Binding ExpectedCashFormatted}" FontFamily="Consolas" Style="{StaticResource TextSmall}"
+                                    Foreground="{StaticResource BrushMuted}" />
+                       </StackPanel>
+                       <StackPanel Grid.Column="5">
+                         <TextBlock Text="{Binding SalesTotalFormatted}" FontFamily="Consolas" Style="{StaticResource TextBody}" FontWeight="SemiBold"
+                                    Foreground="{StaticResource BrushPrimary}" />
+                         <TextBlock Text="{Binding DigitalPaymentsFormatted}" FontFamily="Consolas" Style="{StaticResource TextSmall}"
+                                    Foreground="{StaticResource BrushMuted}" />
+                       </StackPanel>
 
                       <!-- Difference -->
                       <TextBlock Grid.Column="6" Text="{Binding DifferenceLabel}" FontFamily="Consolas" FontWeight="Bold">

@@ -11,7 +11,14 @@ public sealed record ShiftSummary(
     ShiftStatus Status,
     DateTimeOffset OpenedAt,
     DateTimeOffset? ClosedAt,
-    string? Notes);
+    string? Notes,
+    bool HasClosingSummary = false,
+    decimal SalesTotal = 0m,
+    decimal CashPayments = 0m,
+    decimal DigitalPayments = 0m)
+{
+    public decimal ExpectedCash => OpeningCash + CashPayments;
+}
 
 public sealed record StartShiftRequest(Guid CashierUserId, string CashierUsername, decimal OpeningCash, string? Notes);
 

@@ -26,6 +26,10 @@ public sealed class CashierShift
     public string CashierUsername { get; private set; }
     public Money OpeningCash { get; private set; }
     public Money ClosingCash { get; private set; }
+    public Money SalesTotal { get; private set; }
+    public Money CashPayments { get; private set; }
+    public Money DigitalPayments { get; private set; }
+    public bool HasClosingSummary { get; private set; }
     public string? Notes { get; private set; }
     public ShiftStatus Status { get; private set; }
     public DateTimeOffset OpenedAt { get; private set; }
@@ -41,6 +45,23 @@ public sealed class CashierShift
         ClosingCash = closingCash;
         Notes = string.IsNullOrWhiteSpace(notes) ? Notes : notes.Trim();
         ClosedAt = DateTimeOffset.UtcNow;
+        Status = ShiftStatus.Closed;
+    }
+
+    public void Close(Money closingCash, ShiftClosingSummary summary, DateTimeOffset closedAt, string? notes = null)
+    {
+        if (Status == ShiftStatus.Closed)
+        {
+            throw new InvalidOperationException("El turno ya está cerrado.");
+        }
+
+        ClosingCash = closingCash;
+        SalesTotal = summary.SalesTotal;
+        CashPayments = summary.CashPayments;
+        DigitalPayments = summary.DigitalPayments;
+        HasClosingSummary = true;
+        Notes = string.IsNullOrWhiteSpace(notes) ? Notes : notes.Trim();
+        ClosedAt = closedAt.ToUniversalTime();
         Status = ShiftStatus.Closed;
     }
 }

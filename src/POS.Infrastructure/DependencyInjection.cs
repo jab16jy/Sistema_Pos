@@ -151,6 +151,7 @@ public static class DependencyInjection
         services.AddScoped<StartShiftUseCase>();
         services.AddScoped<CloseShiftUseCase>();
         services.AddScoped<GetShiftsUseCase>();
+        services.AddScoped<GetShiftSalesSummaryUseCase>();
         services.AddScoped<GetAuditLogsUseCase>();
 
         // User management use cases

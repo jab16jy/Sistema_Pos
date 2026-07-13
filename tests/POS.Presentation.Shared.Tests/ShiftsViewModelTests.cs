@@ -19,8 +19,9 @@ public sealed class ShiftsViewModelTests
         var repository = new ThrowingShiftRepository();
         var viewModel = new ShiftsViewModel(
             new StartShiftUseCase(repository, new NoOpUnitOfWork()),
-            new CloseShiftUseCase(repository, new NoOpUnitOfWork()),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
             new GetShiftsUseCase(repository),
+            new GetShiftSalesSummaryUseCase(new SummarySaleRepository(new ShiftSalesSummaryData(4_200m, 2_800m, 1_400m))),
             new StubOperatorSession());
 
         viewModel.LoadCommand.Execute(null);
@@ -30,22 +31,28 @@ public sealed class ShiftsViewModelTests
     }
 
     [Fact]
-    public async Task LoadAsync_WithTodayDateFilter_ListsShiftWithoutOffsetError()
+    public async Task LoadAsync_WithDefaultHistoryFilter_ListsShiftWithoutRestrictingToToday()
     {
-        // Regression: ApplyDateFilter built `new DateTimeOffset(localDate, TimeSpan.Zero)`, which
-        // throws on any non-UTC machine, leaving FilteredShifts empty ("ghost shift") and the
-        // filter action crashing the app. FromDate/ToDate default to DateTime.Today (Kind=Local).
+        // The history screen must start unfiltered. Defaulting both dates to today hid every
+        // persisted shift opened on a previous day.
         var shift = new CashierShift(Guid.NewGuid(), "cajero", new Money(100m), null);
         var repository = new SingleShiftRepository(shift);
         var viewModel = new ShiftsViewModel(
             new StartShiftUseCase(repository, new NoOpUnitOfWork()),
-            new CloseShiftUseCase(repository, new NoOpUnitOfWork()),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
             new GetShiftsUseCase(repository),
+            new GetShiftSalesSummaryUseCase(new SummarySaleRepository(new ShiftSalesSummaryData(4_200m, 2_800m, 1_400m))),
             new StubOperatorSession());
 
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
 
         Assert.Single(viewModel.FilteredShifts);
+        Assert.Null(viewModel.FromDate);
+        Assert.Null(viewModel.ToDate);
+        Assert.Equal("$4.200", viewModel.ActiveShiftSalesTotal);
+        Assert.Equal(2_900m, viewModel.ExpectedCash);
+        Assert.Equal("$1.400", viewModel.ExpectedDigitalFormatted);
+        Assert.Equal(2_900m, viewModel.CountedCash);
         Assert.DoesNotContain("Error", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -56,8 +63,9 @@ public sealed class ShiftsViewModelTests
         var repository = new SingleShiftRepository(shift);
         var viewModel = new ShiftsViewModel(
             new StartShiftUseCase(repository, new NoOpUnitOfWork()),
-            new CloseShiftUseCase(repository, new NoOpUnitOfWork()),
+            new CloseShiftUseCase(repository, new EmptySaleRepository(), new NoOpUnitOfWork()),
             new GetShiftsUseCase(repository),
+            new GetShiftSalesSummaryUseCase(new EmptySaleRepository()),
             new StubOperatorSession());
 
         // Narrow the filter to a past window that would exclude today's shift, mirroring the redirect
@@ -80,6 +88,32 @@ public sealed class ShiftsViewModelTests
         Assert.Same(viewModel.FilteredShifts.Single(r => r.Id == shift.Id), viewModel.SelectedShiftRow);
         Assert.NotNull(viewModel.SelectedShift);
         Assert.Equal(shift.Id, viewModel.SelectedShift!.Id);
+    }
+
+    [Fact]
+    public void ToShiftRow_WithClosingSummary_UsesExpectedCashForReconciliation()
+    {
+        var summary = new ShiftSummary(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "cajero",
+            100m,
+            2_900m,
+            ShiftStatus.Closed,
+            DateTimeOffset.UtcNow.AddHours(-2),
+            DateTimeOffset.UtcNow,
+            null,
+            HasClosingSummary: true,
+            SalesTotal: 4_200m,
+            CashPayments: 2_800m,
+            DigitalPayments: 1_400m);
+
+        ShiftRowPresentation row = ShiftsViewModel.ToShiftRow(summary);
+
+        Assert.Equal("$4.200", row.SalesTotalFormatted);
+        Assert.Equal("Digital: $1.400", row.DigitalPaymentsFormatted);
+        Assert.Equal("$2.900", row.ExpectedCashFormatted);
+        Assert.Equal("Cuadra", row.DifferenceLabel);
     }
 
     private sealed class SingleShiftRepository : ICashierShiftRepository
@@ -112,6 +146,40 @@ public sealed class ShiftsViewModelTests
             => Task.FromException<IReadOnlyList<CashierShift>>(new InvalidOperationException("Consulta falló"));
 
         public Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class EmptySaleRepository : ISaleRepository
+    {
+        public Task AddAsync(Sale sale, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<Sale?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<Sale?>(null);
+
+        public Task<DashboardSummaryData> GetDashboardSummaryAsync(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));
+    }
+
+    private sealed class SummarySaleRepository(ShiftSalesSummaryData summary) : ISaleRepository
+    {
+        public Task AddAsync(Sale sale, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<Sale?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<Sale?>(null);
+
+        public Task<DashboardSummaryData> GetDashboardSummaryAsync(
+            DateTimeOffset from,
+            DateTimeOffset to,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));
+
+        public Task<ShiftSalesSummaryData> GetShiftSalesSummaryAsync(
+            Guid cashierUserId,
+            DateTimeOffset openedAt,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(summary);
     }
 
     private sealed class NoOpUnitOfWork : IUnitOfWork

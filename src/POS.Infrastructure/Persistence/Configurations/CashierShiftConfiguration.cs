@@ -20,6 +20,21 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
         builder.Property(s => s.ClosingCash)
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("closing_cash");
+        builder.Property(s => s.SalesTotal)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("sales_total")
+               .HasDefaultValue(Money.Zero);
+        builder.Property(s => s.CashPayments)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("cash_payments")
+               .HasDefaultValue(Money.Zero);
+        builder.Property(s => s.DigitalPayments)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("digital_payments")
+               .HasDefaultValue(Money.Zero);
+        builder.Property(s => s.HasClosingSummary)
+               .HasColumnName("has_closing_summary")
+               .HasDefaultValue(false);
         builder.Property(s => s.Notes).HasMaxLength(500);
         builder.Property(s => s.Status).HasConversion<int>();
         builder.HasIndex(s => new { s.CashierUserId, s.Status });

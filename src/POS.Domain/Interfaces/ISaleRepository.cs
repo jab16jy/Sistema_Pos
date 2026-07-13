@@ -11,6 +11,19 @@ public interface ISaleRepository
         DateTimeOffset from,
         DateTimeOffset to,
         CancellationToken cancellationToken = default);
+
+    Task<ShiftSalesSummaryData> GetShiftSalesSummaryAsync(
+        Guid cashierUserId,
+        DateTimeOffset openedAt,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult(ShiftSalesSummaryData.Empty);
+
+    Task<ShiftSalesSummaryData> GetShiftSalesSummaryAsync(
+        Guid cashierUserId,
+        DateTimeOffset openedAt,
+        DateTimeOffset closedAt,
+        CancellationToken cancellationToken = default)
+        => GetShiftSalesSummaryAsync(cashierUserId, openedAt, cancellationToken);
 }
 
 public sealed record DashboardSummaryData(
@@ -19,3 +32,8 @@ public sealed record DashboardSummaryData(
     decimal DigitalPayments,
     int LowStockCount,
     int SalesCount);
+
+public sealed record ShiftSalesSummaryData(decimal SalesTotal, decimal CashPayments, decimal DigitalPayments)
+{
+    public static ShiftSalesSummaryData Empty { get; } = new(0m, 0m, 0m);
+}
