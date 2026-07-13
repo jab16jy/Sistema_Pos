@@ -79,7 +79,7 @@ public sealed class ThermalPrinterIntegrationTests
             "Negocio", null, null, null, null, null, null, null, false, null, "COM7", null, null, null, "COP"));
 
         var customer = new Customer("Maria Perez", "123456789");
-        customer.UpdateContactInfo("Maria Perez", "123456789", "3001234567", "maria@example.com", null);
+        customer.UpdateContactInfo("Maria Perez", "123456789", "3001234567", "maria@example.com", "Calle 10 # 20-30");
         fixture.DbContext.Customers.Add(customer);
         await fixture.DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -113,6 +113,7 @@ public sealed class ThermalPrinterIntegrationTests
         Assert.Contains("123456789", text);
         Assert.Contains("3001234567", text);
         Assert.Contains("maria@example.com", text);
+        Assert.Contains("Direccion: Calle 10 # 20-30", text);
         Assert.Contains("Desc. puntos:", text);
         Assert.Contains("-$2.000", text);
     }
