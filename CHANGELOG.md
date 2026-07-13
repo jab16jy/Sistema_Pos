@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.9.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.8.0...v1.9.0) (2026-07-13)
+
+
+### Features
+
+* **invoices:** improve validation alerts and add discounts/loyalty points summary in invoice detail ([3591891](https://github.com/jab16jy/Sistema_Pos/commit/35918919f82cac05f19a5c7133699141c4dc56fd))
+* **invoices:** show loyalty discount and actual amount paid in PDF ([74e5518](https://github.com/jab16jy/Sistema_Pos/commit/74e5518c8d4b9bbfb2df7fe8aa9f9e7e9121e207))
+* **loyalty:** add configurable tier colors and wire discount/multiplier benefits ([2595e13](https://github.com/jab16jy/Sistema_Pos/commit/2595e130eb69341ba7c799643f18fac2b3eda1f0))
+* **reports:** implement PDF and Excel exports for cash closings and audits tab ([370887f](https://github.com/jab16jy/Sistema_Pos/commit/370887f85ede4e07616d850446e2d027e4ff1579))
+* **reports:** include margin analysis in top sellers export and optimize QuoteView layout ([cc64ea6](https://github.com/jab16jy/Sistema_Pos/commit/cc64ea6ee8ed48763103032b4e3c771106e204bc))
+* **shifts:** persist turno closing snapshot and reconcile counted cash against expected ([4f65d13](https://github.com/jab16jy/Sistema_Pos/commit/4f65d13618729ceeb45098e7b20898a54215b5df))
+
+
+### Bug Fixes
+
+* **settings:** gate SMTP/WhatsApp config behind Settings permission, not admin-tab nav ([856f0a3](https://github.com/jab16jy/Sistema_Pos/commit/856f0a3fb38b0bbb326954a1584c3fdcbcc70b0b))
+
 ## [1.8.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.7.0...v1.8.0) (2026-07-13)
 
 
