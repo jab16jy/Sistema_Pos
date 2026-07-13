@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.11.0...v1.12.0) (2026-07-13)
+
+
+### Features
+
+* **products:** accept CSV/XLSX catalog imports and add a file picker ([b475cb8](https://github.com/jab16jy/Sistema_Pos/commit/b475cb8e44d7ef12f2bee9763b867772a284b531))
+
 ## [1.11.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.10.0...v1.11.0) (2026-07-13)
 
 
