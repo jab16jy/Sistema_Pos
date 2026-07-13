@@ -108,6 +108,10 @@ public sealed partial class EscPosPrinterService : IPrintService
             WriteLine($"Cliente: {customer.FullName}");
             if (!string.IsNullOrWhiteSpace(customer.Identification))
                 WriteLine($"Cedula/NIT: {customer.Identification}");
+            if (!string.IsNullOrWhiteSpace(customer.Phone))
+                WriteLine($"Telefono: {customer.Phone}");
+            if (!string.IsNullOrWhiteSpace(customer.Email))
+                WriteLine($"Email: {customer.Email}");
         }
 
         Separator();
