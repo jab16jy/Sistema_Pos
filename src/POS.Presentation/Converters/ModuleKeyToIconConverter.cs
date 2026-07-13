@@ -19,7 +19,6 @@ public sealed class ModuleKeyToIconConverter : IValueConverter
         ["backup"] = PackIconKind.Backup,
         ["users"] = PackIconKind.AccountCog,
         ["audit"] = PackIconKind.ClipboardCheck,
-        ["settings"] = PackIconKind.Cog,
         ["roles"] = PackIconKind.ShieldAccount
     };
 

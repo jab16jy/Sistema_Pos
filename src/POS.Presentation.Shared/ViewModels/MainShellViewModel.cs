@@ -20,7 +20,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
     private static readonly IReadOnlySet<string> AdminHubExtraModuleKeys = new HashSet<string>
     {
-        "users", "audit", "settings", "roles"
+        "users", "audit", "roles"
     };
 
     private static readonly IReadOnlyDictionary<string, string> ModuleViewKeys = new Dictionary<string, string>
@@ -38,7 +38,6 @@ public sealed class MainShellViewModel : ViewModelBase
         ["backup"] = PermissionKeys.Admin.Backup.View,
         ["users"] = PermissionKeys.Users.View,
         ["audit"] = PermissionKeys.Audit.View,
-        ["settings"] = PermissionKeys.Settings.View,
         ["roles"] = PermissionKeys.Roles.View
     };
 
@@ -103,7 +102,6 @@ public sealed class MainShellViewModel : ViewModelBase
             new ModuleNavigationItem("backup", "Respaldos", "Crea y restaura copias de seguridad de la base de datos.", "ADM", true),
             new ModuleNavigationItem("users", "Usuarios", "Crea y gestiona usuarios del sistema.", "F1", true),
             new ModuleNavigationItem("audit", "Auditoría", "Consulta quién cambió qué y cuándo.", "Alt+A", true),
-            new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true),
             new ModuleNavigationItem("roles", "Roles", "Define roles y permisos del sistema.", "Alt+R", true)
         };
 
@@ -126,7 +124,6 @@ public sealed class MainShellViewModel : ViewModelBase
                 .Select((key, index) => allModules.First(module => module.Key == key) with { Shortcut = $"F{index + 1}" }));
 
         AdminHubModules = new ObservableCollection<ModuleNavigationItem>(hasAdminHub ? visibleAdminModules : []);
-        // Settings.View exposes the pre-existing settings shell item; it shares SettingsView with the F5 Admin entry.
         AdminHubExtraModules = new ObservableCollection<ModuleNavigationItem>(visibleAdminExtras);
         Modules = FuncbarModules;
 
@@ -248,7 +245,6 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsReportsSelected));
                 OnPropertyChanged(nameof(IsLoyaltySelected));
                 OnPropertyChanged(nameof(IsBackupSelected));
-                OnPropertyChanged(nameof(IsSettingsSelected));
                 OnPropertyChanged(nameof(IsAdminHubSelected));
                 OnPropertyChanged(nameof(IsAdminSectionSelected));
                 OnPropertyChanged(nameof(IsAdminSubmoduleSelected));
@@ -436,8 +432,6 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsBackupSelected => SelectedModule.Key == "backup";
 
-    public bool IsSettingsSelected => SelectedModule.Key == "settings";
-
     public bool IsAdminHubSelected => SelectedModule.Key == "admin";
 
     public bool IsAdminSectionSelected => IsAdminHubSelected || AdminHubModuleKeys.Contains(SelectedModule.Key) || AdminHubExtraModuleKeys.Contains(SelectedModule.Key);
@@ -447,14 +441,12 @@ public sealed class MainShellViewModel : ViewModelBase
         SelectedModule.Key != "admin";
 
     /// <summary>
-    /// Admin (F5) and Configuración share the same SettingsView screen. Rendered from a single
-    /// XAML entry point so only one RadioButton group backs the subtabs — two separate
-    /// SettingsView instances would fight over the shared "ConfigTabs" GroupName, since WPF's
-    /// RadioButton grouping ignores UserControl boundaries and leaves the loser with no tab checked.
+    /// Admin (F5) is the only entry point into SettingsView now that the redundant "Configuración"
+    /// hub tile was removed (it duplicated Admin with no distinct behavior).
     /// </summary>
-    public bool IsSettingsViewSelected => IsAdminHubSelected || IsSettingsSelected;
+    public bool IsSettingsViewSelected => IsAdminHubSelected;
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsRolesSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBackupSelected && !IsSettingsSelected && !IsAdminHubSelected;
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsRolesSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBackupSelected && !IsAdminHubSelected;
 
     public void RefreshDashboardMetrics()
     {
@@ -521,7 +513,6 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "reports", IsImplemented: true } => "Módulo Reportes activo. Consulta totales operativos separados por efectivo, digital y abonos.",
             { Key: "loyalty", IsImplemented: true } => "Módulo Puntos activo. Consulta saldo y redime puntos de lealtad.",
             { Key: "backup", IsImplemented: true } => "Módulo Respaldos activo. Crea y restaura copias de seguridad de la base de datos.",
-            { Key: "settings", IsImplemented: true } => "Módulo Configuración activo. Negocio, impresora y moneda.",
             { Key: "admin", IsImplemented: true } => "Centro de control activo. Elige un módulo administrativo para continuar.",
             _ => $"{module.Title} está planificado. Primero terminaremos el flujo mínimo de caja sin romper arquitectura."
         };
