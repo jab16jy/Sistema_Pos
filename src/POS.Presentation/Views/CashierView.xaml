@@ -628,6 +628,18 @@
                            FontWeight="SemiBold"
                            Foreground="{StaticResource BrushPrimary}" />
               </Grid>
+              <Grid Margin="0,8,0,0"
+                    Visibility="{Binding HasTierDiscount, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding TierBenefitText}" FontWeight="Medium" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding TierDiscountText}"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource BrushPrimary}" />
+              </Grid>
             </StackPanel>
           </Border>
 

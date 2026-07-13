@@ -163,7 +163,10 @@
               <DataTemplate>
                 <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,8">
                   <StackPanel>
-                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Style="{StaticResource TextH3}" />
+                    <StackPanel Orientation="Horizontal">
+                      <Border Width="12" Height="12" CornerRadius="6" Background="{Binding ColorBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                      <TextBlock Text="{Binding Name}" FontWeight="Bold" Style="{StaticResource TextH3}" />
+                    </StackPanel>
                     <TextBlock Text="{Binding PointRange}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
                     <TextBlock Text="{Binding BenefitDescription}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" Margin="0,3,0,0" />
                   </StackPanel>
@@ -181,6 +184,17 @@
             <TextBox Text="{Binding TierDiscountPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
             <TextBlock Text="Multiplicador de puntos" Style="{StaticResource MutedText}" FontSize="11" />
             <TextBox Text="{Binding TierPointsMultiplier, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" />
+            <TextBlock Text="Color del tier" Style="{StaticResource MutedText}" FontSize="11" />
+            <Grid Margin="0,3,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="28" />
+              </Grid.ColumnDefinitions>
+              <TextBox Text="{Binding TierColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+              <Border Grid.Column="2" Width="24" Height="24" CornerRadius="4" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
+                      Background="{Binding TierColorPreviewBrush}" />
+            </Grid>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
               <Button Command="{Binding NewTierCommand}" Margin="0,0,8,0">Nuevo</Button>
               <Button Command="{Binding DeleteTierCommand}" Margin="0,0,8,0">Eliminar</Button>

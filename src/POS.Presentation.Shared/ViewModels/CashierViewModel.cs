@@ -83,6 +83,10 @@ public sealed class CashierViewModel : ViewModelBase
     private CustomerPayableQuote? _loadedQuote;
     private int? _customerLoyaltyBalance;
     private decimal _customerMaxDiscount;
+    private decimal _currentTierDiscountPercent;
+    private decimal _currentTierPointsMultiplier = 1m;
+    private string? _currentTierName;
+    private string? _currentTierColorHex;
 
     public CashierViewModel(IProductLookupService productLookupService)
         : this(productLookupService, new PreviewPaymentUseCase())
@@ -427,6 +431,53 @@ public sealed class CashierViewModel : ViewModelBase
     /// <summary>Applied loyalty discount as a negative currency string, e.g. "-$5.000".</summary>
     public string LoyaltyDiscountText => $"-{FormatCurrency(LoyaltyDiscount)}";
 
+    /// <summary>Name of the assigned customer's current loyalty tier, or null when none applies.</summary>
+    public string? CurrentTierName => _currentTierName;
+
+    /// <summary>True when the assigned customer currently qualifies for a loyalty tier.</summary>
+    public bool HasCurrentTier => _currentTierName is not null;
+
+    /// <summary>Brush for the current tier's color, gray when none/invalid.</summary>
+    public System.Windows.Media.Brush CurrentTierColorBrush => TryParseBrush(_currentTierColorHex);
+
+    /// <summary>Automatic discount from the customer's current tier, applied on top of any loyalty point redemption.</summary>
+    public decimal TierDiscount => Math.Max(0m, TotalAmount * (_currentTierDiscountPercent / 100m));
+
+    /// <summary>Tier discount as a negative currency string, e.g. "-$5.000".</summary>
+    public string TierDiscountText => $"-{FormatCurrency(TierDiscount)}";
+
+    /// <summary>True when the assigned customer's tier grants an automatic discount on this sale.</summary>
+    public bool HasTierDiscount => TierDiscount > 0m;
+
+    /// <summary>Human-readable summary of the tier's discount and points multiplier.</summary>
+    public string TierBenefitText => _currentTierName is null
+        ? string.Empty
+        : $"Tier {_currentTierName}: {_currentTierDiscountPercent.ToString("0.##", ColombianCulture)}% dto. · x{_currentTierPointsMultiplier.ToString("0.##", ColombianCulture)} puntos";
+
+    private static System.Windows.Media.Brush TryParseBrush(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex))
+        {
+            return System.Windows.Media.Brushes.Gray;
+        }
+
+        try { return (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!; }
+        catch { return System.Windows.Media.Brushes.Gray; }
+    }
+
+    private void NotifyTierChanged()
+    {
+        OnPropertyChanged(nameof(CurrentTierName));
+        OnPropertyChanged(nameof(HasCurrentTier));
+        OnPropertyChanged(nameof(CurrentTierColorBrush));
+        OnPropertyChanged(nameof(TierBenefitText));
+        OnPropertyChanged(nameof(TierDiscount));
+        OnPropertyChanged(nameof(TierDiscountText));
+        OnPropertyChanged(nameof(HasTierDiscount));
+        OnPropertyChanged(nameof(NetPayable));
+        OnPropertyChanged(nameof(NetPayableText));
+    }
+
     public ICommand PrintReceiptYesCommand { get; }
 
     public ICommand PrintReceiptNoCommand { get; }
@@ -575,7 +626,7 @@ public sealed class CashierViewModel : ViewModelBase
     public string TotalText => FormatCurrency(TotalAmount);
 
     /// <summary>Amount the customer must actually pay after redeemed loyalty points are applied.</summary>
-    public decimal NetPayable => Math.Max(0m, TotalAmount - LoyaltyDiscount);
+    public decimal NetPayable => Math.Max(0m, TotalAmount - LoyaltyDiscount - TierDiscount);
 
     public string NetPayableText => FormatCurrency(NetPayable);
 
@@ -1214,6 +1265,12 @@ public sealed class CashierViewModel : ViewModelBase
             CustomerMaxDiscount = balance.RedemptionValuePerPoint > 0m
                 ? balance.Balance * balance.RedemptionValuePerPoint
                 : 0m;
+
+            _currentTierDiscountPercent = balance.CurrentTier?.DiscountPercent ?? 0m;
+            _currentTierPointsMultiplier = balance.CurrentTier?.PointsMultiplier ?? 1m;
+            _currentTierName = balance.CurrentTier?.Name;
+            _currentTierColorHex = balance.CurrentTier?.Color;
+            NotifyTierChanged();
         }
         catch (Exception)
         {
@@ -1225,6 +1282,11 @@ public sealed class CashierViewModel : ViewModelBase
     {
         CustomerLoyaltyBalance = null;
         CustomerMaxDiscount = 0m;
+        _currentTierDiscountPercent = 0m;
+        _currentTierPointsMultiplier = 1m;
+        _currentTierName = null;
+        _currentTierColorHex = null;
+        NotifyTierChanged();
     }
 
     private async Task LoadCustomerQuoteFromCommandAsync(object? parameter)
@@ -1375,8 +1437,16 @@ public sealed class CashierViewModel : ViewModelBase
 
     private CreateSaleRequest BuildCreateSaleRequest()
     {
+        // CreateSaleItemRequest.Discount is absolute money (see ConvertQuoteToSaleUseCase, which
+        // converts the same way) — CashierCartItemViewModel.Discount is a UI-facing percentage, so
+        // it must be converted here, not passed through raw.
         IReadOnlyCollection<CreateSaleItemRequest> items = CartItems
-            .Select(item => new CreateSaleItemRequest(item.ProductId, item.Quantity, item.Discount, item.Presentation))
+            .Select(item =>
+            {
+                decimal effectiveDiscountPercent = CompoundDiscount(item.Discount, _currentTierDiscountPercent);
+                decimal discountMoney = decimal.Round(item.UnitPrice * item.Quantity * effectiveDiscountPercent / 100m, 2, MidpointRounding.AwayFromZero);
+                return new CreateSaleItemRequest(item.ProductId, item.Quantity, discountMoney, item.Presentation);
+            })
             .ToArray();
 
         // Use settlement plan when a deferred amount is set; otherwise use legacy full-payment path
@@ -1402,6 +1472,22 @@ public sealed class CashierViewModel : ViewModelBase
 
         int redeemPoints = LoyaltyDiscount > 0m ? LoyaltyPointsToRedeem : 0;
         return new CreateSaleRequest(CashierUserId, CustomerId, items, payments, redeemPoints);
+    }
+
+    /// <summary>
+    /// Compounds an automatic tier discount percentage on top of a line's existing (possibly manual)
+    /// discount percentage, so the final line total is exactly (existing-discounted subtotal) reduced
+    /// by tierPercent — matching the aggregate TierDiscount shown at checkout with no rounding drift.
+    /// </summary>
+    private static decimal CompoundDiscount(decimal existingDiscountPercent, decimal tierDiscountPercent)
+    {
+        if (tierDiscountPercent <= 0m)
+        {
+            return existingDiscountPercent;
+        }
+
+        decimal remainingFactor = (1m - existingDiscountPercent / 100m) * (1m - tierDiscountPercent / 100m);
+        return decimal.Round(100m - (remainingFactor * 100m), 4, MidpointRounding.AwayFromZero);
     }
 
     private async Task ConfirmLoadedQuoteAsync(CancellationToken cancellationToken)
@@ -1482,6 +1568,9 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(TotalText));
         OnPropertyChanged(nameof(NetPayable));
         OnPropertyChanged(nameof(NetPayableText));
+        OnPropertyChanged(nameof(TierDiscount));
+        OnPropertyChanged(nameof(TierDiscountText));
+        OnPropertyChanged(nameof(HasTierDiscount));
         OnPropertyChanged(nameof(CartLineCount));
         OnPropertyChanged(nameof(CartUnitCount));
         OnPropertyChanged(nameof(CartSummaryText));

@@ -276,6 +276,18 @@
               </StackPanel>
             </Border>
 
+            <Border Background="{Binding CurrentTierColorBrush}"
+                    CornerRadius="4" Padding="10,6" Margin="0,0,0,8"
+                    Visibility="{Binding HasCurrentTier, Converter={StaticResource BoolToVisibilityConverter}}">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="Medal" Width="16" Height="16" Foreground="White" VerticalAlignment="Center" />
+                <StackPanel Margin="8,0,0,0">
+                  <TextBlock Text="{Binding CurrentTierName}" FontWeight="Bold" FontSize="12" Foreground="White" />
+                  <TextBlock Text="{Binding CurrentTierBenefit}" FontSize="11" Foreground="White" Opacity="0.9" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
             <Button Content="Reglas de lealtad"
                     Style="{StaticResource ClientesLinkButton}"
                     HorizontalAlignment="Left"

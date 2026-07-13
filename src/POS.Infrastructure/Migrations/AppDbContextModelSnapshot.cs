@@ -454,6 +454,13 @@ namespace POS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("#64748B");
+
                     b.Property<decimal>("DiscountPercent")
                         .HasColumnType("TEXT");
 

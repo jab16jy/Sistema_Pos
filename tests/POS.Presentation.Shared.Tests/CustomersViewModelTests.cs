@@ -312,6 +312,28 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public async Task SelectingCustomer_WithQualifyingTier_PopulatesCurrentTierInfo()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var loyalty = new MutableLoyaltyQueryService(customer.Id, balance: 1_500);
+        loyalty.Tiers.Add(new LoyaltyTier("Oro", 1_000, 10m, 2m));
+        var viewModel = new CustomersViewModel(
+            new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()),
+            new GetCustomerHistoryUseCase(new StaticCustomerHistoryQueryService(new CustomerHistoryResult(customer.Id, []))),
+            new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)),
+            new GetLoyaltyBalanceUseCase(loyalty));
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Equal("Oro", viewModel.CurrentTierName);
+        Assert.True(viewModel.HasCurrentTier);
+    }
+
+    [Fact]
     public void NewCommand_ClearsSelectionAndResetsHistory()
     {
         var viewModel = CreateViewModel(new InMemoryCustomerRepository());
@@ -564,6 +586,13 @@ public sealed class CustomersViewModelTests
         }
 
         public int Balance { get; set; }
+        public List<LoyaltyTier> Tiers { get; } = [];
+
+        public Task<LoyaltyTier?> GetTierByIdAsync(Guid tierId, CancellationToken cancellationToken = default)
+            => Task.FromResult<LoyaltyTier?>(null);
+
+        public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTier>>(Tiers);
 
         public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default)
             => Task.FromResult(_account.CustomerId == customerId ? _account : null);

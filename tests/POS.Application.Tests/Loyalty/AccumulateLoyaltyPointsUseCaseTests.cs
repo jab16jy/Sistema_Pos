@@ -95,11 +95,35 @@ public sealed class AccumulateLoyaltyPointsUseCaseTests
 
     // --- Stubs ---
 
+    [Fact]
+    public async Task RecordForSaleAsync_WhenCustomerAlreadyQualifiesForTier_AppliesPointsMultiplier()
+    {
+        var repo = new InMemLoyaltyRepository { ActiveRule = new LoyaltyRule(0.001m, 1m, 0) };
+        repo.Tiers.Add(new LoyaltyTier("Oro", 100, 0m, 2m));
+        var uow = new CountingUow();
+        var useCase = new AccumulateLoyaltyPointsUseCase(repo, uow);
+        var customerId = Guid.NewGuid();
+
+        // Pre-existing account already past the tier threshold (100 pts).
+        var account = new LoyaltyAccount(customerId);
+        repo.Accounts.Add(account);
+        await repo.AddTransactionAsync(new LoyaltyTransaction(account.Id, LoyaltyTransactionType.Earned, 150, null), TestContext.Current.CancellationToken);
+
+        bool recorded = await useCase.RecordForSaleAsync(
+            new EarnPointsRequest(customerId, Guid.NewGuid(), 10_000m),
+            TestContext.Current.CancellationToken);
+
+        Assert.True(recorded);
+        var earnedTransaction = repo.Transactions.Last();
+        Assert.Equal(20, earnedTransaction.Points); // FLOOR(10_000 * 0.001) = 10, x2 tier multiplier = 20
+    }
+
     private sealed class InMemLoyaltyRepository : ILoyaltyRepository
     {
         public LoyaltyRule? ActiveRule { get; set; }
         public List<LoyaltyAccount> Accounts { get; } = [];
         public List<LoyaltyTransaction> Transactions { get; } = [];
+        public List<LoyaltyTier> Tiers { get; } = [];
         private int _balance;
 
         public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
@@ -129,6 +153,9 @@ public sealed class AccumulateLoyaltyPointsUseCaseTests
 
         public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken ct = default)
             => Task.FromResult(_balance);
+
+        public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTier>>(Tiers);
 
         public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<LoyaltyRule>>([]);

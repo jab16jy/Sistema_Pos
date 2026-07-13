@@ -8,7 +8,8 @@ public sealed record LoyaltyBalanceResult(
     bool IsActive,
     IReadOnlyList<LoyaltyTransactionResult> RecentTransactions,
     decimal RedemptionValuePerPoint = 0m,
-    int MinimumRedeemPoints = 0);
+    int MinimumRedeemPoints = 0,
+    LoyaltyTierResult? CurrentTier = null);
 
 /// <summary>Summary of a single loyalty point event.</summary>
 public sealed record LoyaltyTransactionResult(
@@ -28,20 +29,23 @@ public sealed record LoyaltyTierResult(
     string Name,
     decimal MinPoints,
     decimal DiscountPercent,
-    decimal PointsMultiplier);
+    decimal PointsMultiplier,
+    string Color);
 
 public sealed record CreateLoyaltyTierRequest(
     string Name,
     decimal MinPoints,
     decimal DiscountPercent,
-    decimal PointsMultiplier);
+    decimal PointsMultiplier,
+    string Color = "#64748B");
 
 public sealed record UpdateLoyaltyTierRequest(
     Guid Id,
     string Name,
     decimal MinPoints,
     decimal DiscountPercent,
-    decimal PointsMultiplier);
+    decimal PointsMultiplier,
+    string Color = "#64748B");
 
 /// <summary>Request to accumulate points after a sale.</summary>
 public sealed record EarnPointsRequest(

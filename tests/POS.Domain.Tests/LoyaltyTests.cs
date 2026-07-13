@@ -110,6 +110,24 @@ public sealed class LoyaltyTests
         Assert.Equal(1.5m, tier.PointsMultiplier);
     }
 
+    [Fact]
+    public void LoyaltyTier_Update_RejectsInvalidColor()
+    {
+        var tier = new LoyaltyTier("Bronce", 0, 0, 1m);
+
+        Assert.Throws<ArgumentException>(() => tier.Update("Oro", 1_000, 12.5m, 1.5m, "not-a-color"));
+    }
+
+    [Fact]
+    public void LoyaltyTier_Update_AcceptsValidColor()
+    {
+        var tier = new LoyaltyTier("Bronce", 0, 0, 1m);
+
+        tier.Update("Oro", 1_000, 12.5m, 1.5m, "#FFAA00");
+
+        Assert.Equal("#FFAA00", tier.Color);
+    }
+
     [Theory]
     [InlineData(-1, 0, 1)]
     [InlineData(0, 101, 1)]

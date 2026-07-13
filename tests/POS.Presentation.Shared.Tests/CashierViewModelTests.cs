@@ -43,6 +43,113 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task SelectCustomerAsync_WithCurrentTier_AppliesAutomaticTierDiscountToNetPayable()
+    {
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var product = new ProductLookupResult(Guid.NewGuid(), "Serum", "SER-1", 2_000m, 10m);
+        var loyalty = new TieredLoyaltyRepository(customer.Id, discountPercent: 10m);
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(product),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            null,
+            null,
+            null,
+            new GetLoyaltyBalanceUseCase(loyalty))
+        {
+            SearchText = "serum",
+            Quantity = 1m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+
+        Assert.Equal(200m, viewModel.TierDiscount); // 10% of 2_000
+        Assert.Equal(1_800m, viewModel.NetPayable);
+        Assert.True(viewModel.HasTierDiscount);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WithTieredCustomer_PersistsSaleWithTierDiscountAppliedAsMoney()
+    {
+        // Regression: CashierCartItemViewModel.Discount is a percentage, but CreateSaleItemRequest.Discount
+        // (and SaleItem.Discount) is absolute money — the tier discount must be converted, not passed through
+        // raw, or the persisted Sale.Total() silently diverges from what the cashier is shown (NetPayable).
+        var product = new Product("Serum", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var loyalty = new TieredLoyaltyRepository(customer.Id, discountPercent: 10m);
+        var sales = new InMemorySaleRepository();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            null,
+            null,
+            null,
+            new GetLoyaltyBalanceUseCase(loyalty))
+        {
+            SearchText = "serum",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+        viewModel.ReceivedAmount = viewModel.NetPayable;
+
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+
+        Sale sale = Assert.Single(sales.Sales);
+        SaleItem line = Assert.Single(sale.Items);
+        Assert.Equal(200m, line.Discount.Amount); // 10% of 2_000 gross, as money — not "10" raw
+        Assert.Equal(1_800m, sale.Total().Amount); // matches viewModel.NetPayable exactly
+    }
+
+    private sealed class TieredLoyaltyRepository : ILoyaltyRepository
+    {
+        private readonly Guid _customerId;
+        private readonly decimal _discountPercent;
+        private readonly LoyaltyAccount _account;
+
+        public TieredLoyaltyRepository(Guid customerId, decimal discountPercent)
+        {
+            _customerId = customerId;
+            _discountPercent = discountPercent;
+            _account = new LoyaltyAccount(customerId);
+        }
+
+        public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default)
+            => Task.FromResult(customerId == _customerId ? _account : null);
+
+        public Task AddAccountAsync(LoyaltyAccount account, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
+        public Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default) => Task.FromResult<LoyaltyRule?>(null);
+        public Task AddRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task UpdateRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default) => Task.FromResult(500);
+        public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyRule>>([]);
+        public Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<int> GetEnrolledCustomerCountAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<int> GetRedemptionCountAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default) => Task.FromResult(0);
+        public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
+
+        public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTier>>([new LoyaltyTier("Oro", 100, _discountPercent, 1m)]);
+    }
+
+    [Fact]
     public async Task ConfirmSaleAsync_WhenCartAndPaymentAreValid_PersistsSaleAndResetsCartAfterSuccess()
     {
         var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));

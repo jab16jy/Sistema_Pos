@@ -16,7 +16,7 @@ public sealed class CreateLoyaltyTierUseCase(ILoyaltyRepository loyalty, IUnitOf
 {
     public async Task<LoyaltyTierResult> ExecuteAsync(CreateLoyaltyTierRequest request, CancellationToken cancellationToken = default)
     {
-        var tier = new LoyaltyTier(request.Name, request.MinPoints, request.DiscountPercent, request.PointsMultiplier);
+        var tier = new LoyaltyTier(request.Name, request.MinPoints, request.DiscountPercent, request.PointsMultiplier, request.Color);
         await loyalty.AddTierAsync(tier, cancellationToken).ConfigureAwait(false);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return LoyaltyTierMapper.ToResult(tier);
@@ -29,7 +29,7 @@ public sealed class UpdateLoyaltyTierUseCase(ILoyaltyRepository loyalty, IUnitOf
     {
         LoyaltyTier tier = await loyalty.GetTierByIdAsync(request.Id, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("El tier seleccionado ya no existe.");
-        tier.Update(request.Name, request.MinPoints, request.DiscountPercent, request.PointsMultiplier);
+        tier.Update(request.Name, request.MinPoints, request.DiscountPercent, request.PointsMultiplier, request.Color);
         await loyalty.UpdateTierAsync(tier, cancellationToken).ConfigureAwait(false);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
         return LoyaltyTierMapper.ToResult(tier);
@@ -53,5 +53,5 @@ public sealed class DeleteLoyaltyTierUseCase(ILoyaltyRepository loyalty, IUnitOf
 internal static class LoyaltyTierMapper
 {
     public static LoyaltyTierResult ToResult(LoyaltyTier tier)
-        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier);
+        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color);
 }

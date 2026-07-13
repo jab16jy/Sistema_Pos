@@ -45,6 +45,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private decimal _tierMinimumPoints;
     private decimal _tierDiscountPercent;
     private decimal _tierPointsMultiplier = 1m;
+    private string _tierColor = "#64748B";
 
     public LoyaltyViewModel(
         GetLoyaltyBalanceUseCase getBalance,
@@ -211,6 +212,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
                 TierMinimumPoints = value.MinPoints;
                 TierDiscountPercent = value.DiscountPercent;
                 TierPointsMultiplier = value.PointsMultiplier;
+                TierColor = value.Color;
             }
         }
     }
@@ -238,6 +240,20 @@ public sealed class LoyaltyViewModel : ViewModelBase
         get => _tierPointsMultiplier;
         set => SetProperty(ref _tierPointsMultiplier, value);
     }
+
+    public string TierColor
+    {
+        get => _tierColor;
+        set
+        {
+            if (SetProperty(ref _tierColor, value ?? "#64748B"))
+            {
+                OnPropertyChanged(nameof(TierColorPreviewBrush));
+            }
+        }
+    }
+
+    public System.Windows.Media.Brush TierColorPreviewBrush => TryParseBrush(TierColor);
 
     public async Task LoadProgramAsync(CancellationToken cancellationToken = default)
     {
@@ -289,9 +305,10 @@ public sealed class LoyaltyViewModel : ViewModelBase
 
     public async Task SaveTierAsync(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(TierName) || TierMinimumPoints < 0 || TierDiscountPercent is < 0 or > 100 || TierPointsMultiplier <= 0)
+        bool hasValidColor = !string.IsNullOrWhiteSpace(TierColor) && System.Text.RegularExpressions.Regex.IsMatch(TierColor, "^#[0-9A-Fa-f]{6}$");
+        if (string.IsNullOrWhiteSpace(TierName) || TierMinimumPoints < 0 || TierDiscountPercent is < 0 or > 100 || TierPointsMultiplier <= 0 || !hasValidColor)
         {
-            Message = "Revisa el tier: nombre obligatorio, mínimo no negativo, descuento entre 0 y 100 y multiplicador mayor a cero.";
+            Message = "Revisa el tier: nombre obligatorio, mínimo no negativo, descuento entre 0 y 100, multiplicador mayor a cero y color en formato #RRGGBB.";
             return;
         }
 
@@ -306,12 +323,12 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             if (SelectedTier is null)
             {
-                await _createTier!.ExecuteAsync(new CreateLoyaltyTierRequest(TierName, TierMinimumPoints, TierDiscountPercent, TierPointsMultiplier), cancellationToken).ConfigureAwait(true);
+                await _createTier!.ExecuteAsync(new CreateLoyaltyTierRequest(TierName, TierMinimumPoints, TierDiscountPercent, TierPointsMultiplier, TierColor), cancellationToken).ConfigureAwait(true);
                 Message = "Tier creado correctamente.";
             }
             else
             {
-                await _updateTier!.ExecuteAsync(new UpdateLoyaltyTierRequest(SelectedTier.Id, TierName, TierMinimumPoints, TierDiscountPercent, TierPointsMultiplier), cancellationToken).ConfigureAwait(true);
+                await _updateTier!.ExecuteAsync(new UpdateLoyaltyTierRequest(SelectedTier.Id, TierName, TierMinimumPoints, TierDiscountPercent, TierPointsMultiplier, TierColor), cancellationToken).ConfigureAwait(true);
                 Message = "Tier actualizado correctamente.";
             }
 
@@ -362,6 +379,18 @@ public sealed class LoyaltyViewModel : ViewModelBase
         TierMinimumPoints = 0;
         TierDiscountPercent = 0;
         TierPointsMultiplier = 1m;
+        TierColor = "#64748B";
+    }
+
+    private static System.Windows.Media.Brush TryParseBrush(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex))
+        {
+            return System.Windows.Media.Brushes.Gray;
+        }
+
+        try { return (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!; }
+        catch { return System.Windows.Media.Brushes.Gray; }
     }
 
     public async Task SaveRulesAsync(CancellationToken cancellationToken = default)
@@ -574,7 +603,8 @@ public sealed record LoyaltyTierPresentation(
     string Name,
     decimal MinPoints,
     decimal DiscountPercent,
-    decimal PointsMultiplier)
+    decimal PointsMultiplier,
+    string Color)
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -582,9 +612,16 @@ public sealed record LoyaltyTierPresentation(
     public string BenefitDescription =>
         $"{DiscountPercent.ToString("0.##", ColombianCulture)}% descuento · {PointsMultiplier.ToString("0.##", ColombianCulture)}x puntos";
     public string ChipKind => DiscountPercent > 0 ? "warning" : PointsMultiplier > 1 ? "primary" : "neutral";
+    public System.Windows.Media.Brush ColorBrush => TryParseBrush(Color);
+
+    private static System.Windows.Media.Brush TryParseBrush(string hex)
+    {
+        try { return (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!; }
+        catch { return System.Windows.Media.Brushes.Gray; }
+    }
 
     public static LoyaltyTierPresentation From(LoyaltyTierResult tier)
-        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier);
+        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color);
 }
 
 /// <summary>Presentation row for real persisted program movements.</summary>

@@ -43,26 +43,38 @@ public sealed class AccumulateLoyaltyPointsUseCase
             return false;
         }
 
-        var points = rule.PointsFor(new Money(request.SaleTotal));
-        if (points == 0)
+        var basePoints = rule.PointsFor(new Money(request.SaleTotal));
+        if (basePoints == 0)
         {
             // Below threshold — no transaction
             return false;
         }
 
         var account = await _loyalty.GetAccountByCustomerIdAsync(request.CustomerId, cancellationToken).ConfigureAwait(false);
+        var balanceBeforeSale = account is null ? 0 : await _loyalty.GetBalanceAsync(account.Id, cancellationToken).ConfigureAwait(false);
+
+        // Multiplier is based on the tier held BEFORE this sale's points are added, so points
+        // just earned can't retroactively bump the multiplier that earned them.
+        var tiers = await _loyalty.GetTiersAsync(cancellationToken).ConfigureAwait(false);
+        var currentTier = tiers.Where(t => t.MinPoints <= balanceBeforeSale).OrderByDescending(t => t.MinPoints).FirstOrDefault();
+        var points = currentTier is null ? basePoints : (int)Math.Floor(basePoints * currentTier.PointsMultiplier);
+
         if (account is null)
         {
             account = new LoyaltyAccount(request.CustomerId);
             await _loyalty.AddAccountAsync(account, cancellationToken).ConfigureAwait(false);
         }
 
+        var description = currentTier is not null && currentTier.PointsMultiplier != 1m
+            ? $"Points earned from sale {request.SaleId} (tier {currentTier.Name} x{currentTier.PointsMultiplier})"
+            : $"Points earned from sale {request.SaleId}";
+
         var transaction = new LoyaltyTransaction(
             account.Id,
             LoyaltyTransactionType.Earned,
             points,
             request.SaleId,
-            $"Points earned from sale {request.SaleId}");
+            description);
 
         await _loyalty.AddTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
         return true;

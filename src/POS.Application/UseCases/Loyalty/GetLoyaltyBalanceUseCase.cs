@@ -28,6 +28,10 @@ public sealed class GetLoyaltyBalanceUseCase
         var transactions = await _loyalty.GetTransactionsAsync(account.Id, recentTransactionCount, cancellationToken).ConfigureAwait(false);
         var activeRule = await _loyalty.GetActiveRuleAsync(cancellationToken).ConfigureAwait(false);
 
+        var tiers = await _loyalty.GetTiersAsync(cancellationToken).ConfigureAwait(false);
+        var currentTierEntity = tiers.Where(t => t.MinPoints <= balance).OrderByDescending(t => t.MinPoints).FirstOrDefault();
+        var currentTier = currentTierEntity is null ? null : LoyaltyTierMapper.ToResult(currentTierEntity);
+
         var transactionResults = transactions
             .Select(t => new LoyaltyTransactionResult(
                 t.Id,
@@ -46,6 +50,7 @@ public sealed class GetLoyaltyBalanceUseCase
             account.IsActive,
             transactionResults,
             activeRule?.RedemptionValuePerPoint ?? 0m,
-            activeRule?.MinimumRedeemPoints ?? 0);
+            activeRule?.MinimumRedeemPoints ?? 0,
+            currentTier);
     }
 }

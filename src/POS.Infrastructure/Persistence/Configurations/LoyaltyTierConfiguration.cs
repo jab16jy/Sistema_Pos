@@ -15,5 +15,6 @@ internal sealed class LoyaltyTierConfiguration : IEntityTypeConfiguration<Loyalt
         builder.Property(t => t.MinPoints).HasColumnType("TEXT");
         builder.Property(t => t.DiscountPercent).HasColumnType("TEXT");
         builder.Property(t => t.PointsMultiplier).HasColumnType("TEXT").HasDefaultValue(1.0m);
+        builder.Property(t => t.Color).IsRequired().HasMaxLength(9).HasDefaultValue("#64748B");
     }
 }

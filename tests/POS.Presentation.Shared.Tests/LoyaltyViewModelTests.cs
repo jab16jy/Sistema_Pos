@@ -176,7 +176,8 @@ public sealed class LoyaltyViewModelTests
             TierName = "Oro",
             TierMinimumPoints = 1_000,
             TierDiscountPercent = 10m,
-            TierPointsMultiplier = 1.5m
+            TierPointsMultiplier = 1.5m,
+            TierColor = "#FFAA00"
         };
 
         await vm.SaveTierAsync(TestContext.Current.CancellationToken);
@@ -184,7 +185,16 @@ public sealed class LoyaltyViewModelTests
         var tier = Assert.Single(vm.Tiers);
         Assert.Equal("Oro", tier.Name);
         Assert.Equal("10% descuento · 1,5x puntos", tier.BenefitDescription);
+        Assert.Equal("#FFAA00", tier.Color);
         Assert.Contains("creado", vm.Message, StringComparison.OrdinalIgnoreCase);
+
+        vm.SelectedTier = tier;
+        vm.TierColor = "#00AAFF";
+        await vm.SaveTierAsync(TestContext.Current.CancellationToken);
+
+        var updated = Assert.Single(vm.Tiers);
+        Assert.Equal("#00AAFF", updated.Color);
+        Assert.Contains("actualizado", vm.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void SetEntityId(object entity, Guid id)

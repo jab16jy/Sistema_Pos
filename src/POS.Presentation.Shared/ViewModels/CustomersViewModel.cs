@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Customers;
+using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Receivables;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
@@ -34,6 +35,9 @@ public sealed class CustomersViewModel : ViewModelBase
     private bool _includeInactive;
     private string _message = "Selecciona un cliente o registra uno nuevo.";
     private int _loyaltyPoints;
+    private string _currentTierName = string.Empty;
+    private string _currentTierBenefit = string.Empty;
+    private string? _currentTierColorHex;
     private int _totalCustomersCount;
     private int _activeCustomersCount;
     private string _historyFilter = "all";
@@ -146,6 +150,7 @@ public sealed class CustomersViewModel : ViewModelBase
                 else
                 {
                     LoyaltyPoints = 0;
+                    ApplyCurrentTier(null);
                     OutstandingBalance = 0m;
                     HistoryEntries.Clear();
                     OpenReceivables.Clear();
@@ -230,6 +235,48 @@ public sealed class CustomersViewModel : ViewModelBase
     {
         get => _loyaltyPoints;
         private set => SetProperty(ref _loyaltyPoints, value);
+    }
+
+    /// <summary>Name of the selected customer's current loyalty tier, empty when none applies.</summary>
+    public string CurrentTierName
+    {
+        get => _currentTierName;
+        private set => SetProperty(ref _currentTierName, value);
+    }
+
+    /// <summary>Formatted benefit summary for the current tier, e.g. "10% descuento · x2 puntos".</summary>
+    public string CurrentTierBenefit
+    {
+        get => _currentTierBenefit;
+        private set => SetProperty(ref _currentTierBenefit, value);
+    }
+
+    /// <summary>True when the selected customer currently qualifies for a loyalty tier.</summary>
+    public bool HasCurrentTier => !string.IsNullOrEmpty(_currentTierName);
+
+    /// <summary>Brush for the current tier's color, gray when none/invalid.</summary>
+    public System.Windows.Media.Brush CurrentTierColorBrush => TryParseBrush(_currentTierColorHex);
+
+    private static System.Windows.Media.Brush TryParseBrush(string? hex)
+    {
+        if (string.IsNullOrWhiteSpace(hex))
+        {
+            return System.Windows.Media.Brushes.Gray;
+        }
+
+        try { return (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!; }
+        catch { return System.Windows.Media.Brushes.Gray; }
+    }
+
+    private void ApplyCurrentTier(LoyaltyTierResult? tier)
+    {
+        CurrentTierName = tier?.Name ?? string.Empty;
+        CurrentTierBenefit = tier is null
+            ? string.Empty
+            : $"{tier.DiscountPercent.ToString("0.##", ColombianCulture)}% descuento · x{tier.PointsMultiplier.ToString("0.##", ColombianCulture)} puntos";
+        _currentTierColorHex = tier?.Color;
+        OnPropertyChanged(nameof(HasCurrentTier));
+        OnPropertyChanged(nameof(CurrentTierColorBrush));
     }
 
     /// <summary>Count of currently loaded customers (reflects the active search/filter, not a separate global aggregate).</summary>
@@ -473,6 +520,7 @@ public sealed class CustomersViewModel : ViewModelBase
         if (_getLoyaltyBalance is null)
         {
             LoyaltyPoints = 0;
+            ApplyCurrentTier(null);
             return;
         }
 
@@ -480,12 +528,14 @@ public sealed class CustomersViewModel : ViewModelBase
         {
             var balance = await _getLoyaltyBalance.ExecuteAsync(customerId, recentTransactionCount: 1, cancellationToken).ConfigureAwait(true);
             LoyaltyPoints = balance?.Balance ?? 0;
+            ApplyCurrentTier(balance?.CurrentTier);
         }
         catch (Exception ex)
         {
             // Show the failure instead of silently reporting 0 points — a swallowed DB error
             // here looks identical to "customer has no points" and hides real defects.
             LoyaltyPoints = 0;
+            ApplyCurrentTier(null);
             Message = $"Error al consultar puntos del cliente: {ex.Message}";
         }
     }
@@ -533,6 +583,7 @@ public sealed class CustomersViewModel : ViewModelBase
         Address = null;
         IsActive = true;
         LoyaltyPoints = 0;
+        ApplyCurrentTier(null);
         OutstandingBalance = 0m;
         HistoryEntries.Clear();
         OpenReceivables.Clear();
