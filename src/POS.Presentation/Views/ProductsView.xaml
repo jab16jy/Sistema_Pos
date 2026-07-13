@@ -418,7 +418,7 @@
                     <StackPanel Orientation="Horizontal">
                       <materialDesign:PackIcon Kind="FileUpload" Width="18" Height="18"
                                                 Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="0,0,8,0" />
-                      <TextBlock Text="Importar desde CSV" Style="{StaticResource TextBody}" FontWeight="SemiBold"
+                      <TextBlock Text="Importar desde CSV o XLSX" Style="{StaticResource TextBody}" FontWeight="SemiBold"
                                  Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" />
                       <materialDesign:PackIcon Kind="ChevronDown" Width="18" Height="18"
                                                 Foreground="{StaticResource BrushMuted}" VerticalAlignment="Center" Margin="8,0,0,0" />
@@ -428,17 +428,28 @@
                   <StackPanel Visibility="{Binding IsCsvSectionOpen, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,8,0,0">
                     <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="4" Padding="8" Margin="0,0,0,8">
                       <TextBlock FontFamily="Consolas" FontSize="11" Style="{StaticResource MutedText}" TextWrapping="Wrap">
-                        Columnas esperadas:
+                        Columnas esperadas (formato propio):
                         <LineBreak />
                         name, categoryId, costPrice, salePrice,
                         <LineBreak />
                         currentStock, minimumStock, description,
                         <LineBreak />
                         barcode, taxRate
+                        <LineBreak />
+                        También acepta exportes de Tipo, Código,
+                        <LineBreak />
+                        Nombre, Precios, Impuestos, Stock, Estado.
                       </TextBlock>
                     </Border>
-                    <TextBlock Text="Ruta del archivo CSV" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-                    <TextBox Text="{Binding CsvPath, Mode=TwoWay}" Tag="C:\ruta\archivo.csv" Margin="0,0,0,8" />
+                    <TextBlock Text="Archivo CSV o XLSX" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBox Grid.Column="0" Text="{Binding CsvPath, Mode=TwoWay}" Tag="C:\ruta\archivo.csv o .xlsx" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="Examinar" Click="BrowseCsvFile_OnClick" Margin="8,0,0,0" />
+                    </Grid>
                     <Button Command="{Binding ImportCsvCommand}" HorizontalAlignment="Left" Padding="12,6">
                       <StackPanel Orientation="Horizontal">
                         <materialDesign:PackIcon Kind="Upload" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />

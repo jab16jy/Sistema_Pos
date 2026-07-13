@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using POS.Application.DTOs.Products;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -12,12 +13,45 @@ public sealed class ImportProductsCsvUseCase
     private readonly IProductRepository _products;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IInventoryRepository? _inventory;
+    private readonly ICategoryRepository? _categories;
 
-    public ImportProductsCsvUseCase(IProductRepository products, IUnitOfWork unitOfWork, IInventoryRepository? inventory = null)
+    // Maps both the internal schema (name,categoryId,costPrice,...) and external accounting-software
+    // exports (Alegra/Siigo style: Tipo,Código,Nombre,Unidad,Precios,Impuestos,Stock,Estado) to the
+    // same canonical field set, so one parser handles either file without a format toggle.
+    private static readonly IReadOnlyDictionary<string, string> HeaderAliases = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["barcode"] = "barcode",
+        ["codigo"] = "barcode",
+        ["name"] = "name",
+        ["nombre"] = "name",
+        ["categoryid"] = "categoryid",
+        ["tipo"] = "categoryname",
+        ["categoria"] = "categoryname",
+        ["categoryname"] = "categoryname",
+        ["costprice"] = "costprice",
+        ["preciocosto"] = "costprice",
+        ["saleprice"] = "saleprice",
+        ["precios"] = "saleprice",
+        ["precio"] = "saleprice",
+        ["currentstock"] = "currentstock",
+        ["stock"] = "currentstock",
+        ["minimumstock"] = "minimumstock",
+        ["stockminimo"] = "minimumstock",
+        ["description"] = "description",
+        ["descripcion"] = "description",
+        ["taxrate"] = "taxrate",
+        ["impuestos"] = "taxrate",
+        ["impuesto"] = "taxrate",
+        ["estado"] = "status",
+        ["status"] = "status",
+    };
+
+    public ImportProductsCsvUseCase(IProductRepository products, IUnitOfWork unitOfWork, IInventoryRepository? inventory = null, ICategoryRepository? categories = null)
     {
         _products = products;
         _unitOfWork = unitOfWork;
         _inventory = inventory;
+        _categories = categories;
     }
 
     public async Task<ImportProductsCsvResult> ExecuteAsync(ImportProductsCsvRequest request, CancellationToken ct = default)
@@ -37,17 +71,21 @@ public sealed class ImportProductsCsvUseCase
             return new ImportProductsCsvResult(0, 0, ["El CSV debe incluir encabezados y al menos un producto."]);
         }
 
-        var headers = lines[0]
-            .Select((name, index) => new { Name = NormalizeHeader(name), Index = index })
+        // Some exports prepend title/owner/NIT rows before the real header row; scan for it instead
+        // of assuming line 0.
+        int headerRowIndex = FindHeaderRowIndex(lines);
+        var headers = lines[headerRowIndex]
+            .Select((name, index) => new { Name = MapHeader(name), Index = index })
             .Where(h => !string.IsNullOrWhiteSpace(h.Name))
-            .ToDictionary(h => h.Name, h => h.Index, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(h => h.Name, h => h.Index, StringComparer.Ordinal);
 
         var errors = new List<string>();
         var importedBarcodes = new HashSet<string>(StringComparer.Ordinal);
+        var categoryIdsByName = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
         var imported = 0;
         var skipped = 0;
 
-        for (var rowIndex = 1; rowIndex < lines.Count; rowIndex++)
+        for (var rowIndex = headerRowIndex + 1; rowIndex < lines.Count; rowIndex++)
         {
             var row = lines[rowIndex];
             var lineNo = rowIndex + 1;
@@ -58,14 +96,18 @@ public sealed class ImportProductsCsvUseCase
                 // that a later valid row with the same code would need.
                 string? rawBarcode = Get(row, headers, "barcode");
                 string name = Required(row, headers, "name", lineNo);
-                Guid categoryId = Guid.Parse(Required(row, headers, "categoryid", lineNo));
-                Money cost = new(ParseDecimal(Required(row, headers, "costprice", lineNo), lineNo, "costPrice"));
+                Guid categoryId = await ResolveCategoryAsync(row, headers, lineNo, categoryIdsByName, ct).ConfigureAwait(false);
+                string? rawCost = Get(row, headers, "costprice");
+                Money? cost = string.IsNullOrWhiteSpace(rawCost) ? null : new Money(ParseDecimal(rawCost, lineNo, "costPrice"));
                 Money sale = new(ParseDecimal(Required(row, headers, "saleprice", lineNo), lineNo, "salePrice"));
-                decimal initialStock = ParseDecimal(Get(row, headers, "currentstock") ?? "0", lineNo, "currentStock");
+                // Source systems sometimes use negative stock as an "untracked" sentinel rather than
+                // a real negative balance; clamp to zero instead of letting it blow up StockQuantity.
+                decimal initialStock = Math.Max(0m, ParseDecimal(Get(row, headers, "currentstock") ?? "0", lineNo, "currentStock"));
                 StockQuantity minStock = new(ParseDecimal(Get(row, headers, "minimumstock") ?? "0", lineNo, "minimumStock"));
                 string? description = Get(row, headers, "description");
                 Barcode? barcodeVo = string.IsNullOrWhiteSpace(rawBarcode) ? null : new Barcode(rawBarcode);
-                decimal taxRate = ParseDecimal(Get(row, headers, "taxrate") ?? "19", lineNo, "taxRate");
+                decimal taxRate = ParseTaxRate(Get(row, headers, "taxrate") ?? "19", lineNo);
+                string? status = Get(row, headers, "status");
 
                 // Only reserve the canonical barcode after the row is fully validated.
                 string? canonical = barcodeVo?.Value;
@@ -92,6 +134,11 @@ public sealed class ImportProductsCsvUseCase
                 var seedStock = new StockQuantity(ledgerAvailable ? 0m : initialStock);
 
                 var product = new Product(name, categoryId, cost, sale, seedStock, minStock, description, barcodeVo, taxRate);
+                if (!string.IsNullOrWhiteSpace(status) && status.Contains("inactiv", StringComparison.OrdinalIgnoreCase))
+                {
+                    product.Deactivate();
+                }
+
                 await _products.AddAsync(product, ct).ConfigureAwait(false);
 
                 if (ledgerAvailable && initialStock > 0m)
@@ -118,8 +165,86 @@ public sealed class ImportProductsCsvUseCase
         return new ImportProductsCsvResult(imported, skipped, errors);
     }
 
+    private async Task<Guid> ResolveCategoryAsync(
+        IReadOnlyList<string> row,
+        IReadOnlyDictionary<string, int> headers,
+        int lineNo,
+        Dictionary<string, Guid> cache,
+        CancellationToken ct)
+    {
+        string? rawId = Get(row, headers, "categoryid");
+        if (!string.IsNullOrWhiteSpace(rawId))
+        {
+            return Guid.Parse(rawId);
+        }
+
+        string categoryName = Required(row, headers, "categoryname", lineNo);
+        if (cache.TryGetValue(categoryName, out var cachedId))
+        {
+            return cachedId;
+        }
+
+        if (_categories is null)
+        {
+            throw new InvalidOperationException($"No se puede resolver la categoría '{categoryName}' sin acceso al repositorio de categorías.");
+        }
+
+        Category? existing = (await _categories.GetAllAsync(ct).ConfigureAwait(false))
+            .FirstOrDefault(c => string.Equals(c.Name, categoryName, StringComparison.OrdinalIgnoreCase));
+
+        Guid categoryId;
+        if (existing is not null)
+        {
+            categoryId = existing.Id;
+        }
+        else
+        {
+            var category = new Category(categoryName);
+            await _categories.AddAsync(category, ct).ConfigureAwait(false);
+            // Flush immediately: the product row inserted right after this needs the category's FK
+            // to already exist, and the batch-wide SaveChanges only happens once at the end.
+            await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
+            categoryId = category.Id;
+        }
+
+        cache[categoryName] = categoryId;
+        return categoryId;
+    }
+
+    private static int FindHeaderRowIndex(IReadOnlyList<IReadOnlyList<string>> lines)
+    {
+        for (var i = 0; i < lines.Count; i++)
+        {
+            if (lines[i].Select(MapHeader).Contains("name"))
+            {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    private static string MapHeader(string header)
+    {
+        string normalized = NormalizeHeader(header);
+        return HeaderAliases.TryGetValue(normalized, out var canonical) ? canonical : normalized;
+    }
+
     private static string NormalizeHeader(string header)
-        => header.Trim().Replace("_", string.Empty, StringComparison.Ordinal).Replace(" ", string.Empty, StringComparison.Ordinal).ToLowerInvariant();
+    {
+        string stripped = header.Trim().Replace("_", string.Empty, StringComparison.Ordinal).Replace(" ", string.Empty, StringComparison.Ordinal).ToLowerInvariant();
+        string decomposed = stripped.Normalize(NormalizationForm.FormD);
+        var sb = new StringBuilder(decomposed.Length);
+        foreach (char c in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark)
+            {
+                sb.Append(c);
+            }
+        }
+
+        return sb.ToString().Normalize(NormalizationForm.FormC);
+    }
 
     private static string? Get(IReadOnlyList<string> row, IReadOnlyDictionary<string, int> headers, string name)
         => headers.TryGetValue(name, out var index) && index < row.Count ? row[index].Trim() : null;
@@ -135,10 +260,17 @@ public sealed class ImportProductsCsvUseCase
                 ? parsed
                 : throw new FormatException($"'{field}' no es un número válido en la línea {lineNo}.");
 
+    private static decimal ParseTaxRate(string value, int lineNo)
+    {
+        // Accepts plain numbers ("19") and percentage labels ("IVA 19%").
+        string digits = new(value.Where(c => char.IsAsciiDigit(c) || c is '.' or ',').ToArray());
+        return string.IsNullOrWhiteSpace(digits) ? 0m : ParseDecimal(digits, lineNo, "taxRate");
+    }
+
     private static IReadOnlyList<string> ParseCsvLine(string line)
     {
         var values = new List<string>();
-        var current = new System.Text.StringBuilder();
+        var current = new StringBuilder();
         var inQuotes = false;
 
         for (var i = 0; i < line.Length; i++)

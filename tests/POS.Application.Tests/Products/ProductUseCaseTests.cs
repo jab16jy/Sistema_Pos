@@ -250,6 +250,39 @@ public sealed class ProductUseCaseTests
         Assert.Equal("ROW-BLOCK", imported.Barcode);
     }
 
+    [Fact]
+    public async Task ImportProductsCsvAsync_WithExternalAccountingExportSchema_AutoCreatesCategoryAndClampsNegativeStock()
+    {
+        var products = new InMemoryProductRepository();
+        var categories = new InMemoryCategoryRepository();
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = new ImportProductsCsvUseCase(products, unitOfWork, categories: categories);
+        // Mirrors an Alegra/Siigo-style export: 3 preamble rows, then Tipo,Código,Nombre,... headers.
+        var csv = string.Join('\n',
+            "Gestión de productos y servicios,,,,,,,",
+            "ELVIS ALBERTO CONDE JIMENEZ,,,,,,,",
+            "72213179,,,,,,,",
+            "Tipo,Código,Nombre,Unidad,Precios,Impuestos,Stock,Estado",
+            "Producto,78762,ACEITE ALMENDRAS,unidad,65000,IVA 19%,-1,Active",
+            "Producto,7762,PEEL BOOSTER,unidad,85000,IVA 0%,0,Active",
+            "Servicio,SRV001,MASAJE,unidad,40000,IVA 19%,-1,Active");
+
+        ImportProductsCsvResult result = await useCase.ExecuteAsync(new ImportProductsCsvRequest(csv), TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, result.Imported);
+        Assert.Equal(0, result.Skipped);
+        Assert.Empty(result.Errors);
+        Assert.Equal(3, products.Products.Count);
+        Assert.All(products.Products, p => Assert.Equal(0m, p.CurrentStock));
+        Assert.Equal(19m, products.Products[0].TaxRate);
+        Assert.Equal(0m, products.Products[1].TaxRate);
+        IReadOnlyList<Category> allCategories = await categories.GetAllAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(2, allCategories.Count);
+        Guid productoCategoryId = products.Products[0].CategoryId;
+        Assert.Equal(productoCategoryId, products.Products[1].CategoryId);
+        Assert.NotEqual(productoCategoryId, products.Products[2].CategoryId);
+    }
+
     private static Product CreateProduct(string name, string? barcode) => new(
         name,
         Guid.NewGuid(),
@@ -317,7 +350,11 @@ public sealed class ProductUseCaseTests
         public Task<Category?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(_categories.GetValueOrDefault(id));
 
-        public Task AddAsync(Category category, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task AddAsync(Category category, CancellationToken cancellationToken = default)
+        {
+            _categories[category.Id] = category;
+            return Task.CompletedTask;
+        }
 
         public Task UpdateAsync(Category category, CancellationToken cancellationToken = default) => Task.CompletedTask;
 

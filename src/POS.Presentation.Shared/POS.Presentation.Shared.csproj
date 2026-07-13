@@ -6,4 +6,7 @@
   <ItemGroup>
     <ProjectReference Include="..\POS.Application\POS.Application.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" />
+  </ItemGroup>
 </Project>

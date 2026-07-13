@@ -63,4 +63,18 @@ public partial class ProductsView
             }
         }
     }
+
+    private void BrowseCsvFile_OnClick(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Selecciona el archivo de productos a importar",
+            Filter = "Archivos de productos (*.csv;*.xlsx)|*.csv;*.xlsx|CSV (*.csv)|*.csv|Excel (*.xlsx)|*.xlsx|Todos los archivos (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog() == true && DataContext is ProductsViewModel viewModel)
+        {
+            viewModel.CsvPath = dialog.FileName;
+        }
+    }
 }

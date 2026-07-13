@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Text;
 using System.Windows.Input;
 using System.IO;
+using ClosedXML.Excel;
 using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.DTOs.Inventory;
 using POS.Application.DTOs.Products;
@@ -623,13 +625,16 @@ public sealed class ProductsViewModel : ViewModelBase
 
         if (string.IsNullOrWhiteSpace(CsvPath) || !File.Exists(CsvPath))
         {
-            Message = "Escribe la ruta de un archivo CSV existente.";
+            Message = "Escribe la ruta de un archivo CSV o XLSX existente.";
             return;
         }
 
         try
         {
-            var content = await File.ReadAllTextAsync(CsvPath, cancellationToken).ConfigureAwait(true);
+            bool isXlsx = string.Equals(Path.GetExtension(CsvPath), ".xlsx", StringComparison.OrdinalIgnoreCase);
+            var content = isXlsx
+                ? ReadXlsxAsCsv(CsvPath)
+                : await File.ReadAllTextAsync(CsvPath, cancellationToken).ConfigureAwait(true);
             var result = await _importProductsCsv.ExecuteAsync(new ImportProductsCsvRequest(content, OperatorUserId), cancellationToken).ConfigureAwait(true);
             Message = result.Errors.Count == 0
                 ? $"Importación lista: {result.Imported} producto(s), {result.Skipped} omitido(s)."
@@ -641,6 +646,35 @@ public sealed class ProductsViewModel : ViewModelBase
             Message = ex.Message;
         }
     }
+
+    /// <summary>Reads the first sheet of an .xlsx file and renders it as CSV text so the same import parser handles both formats.</summary>
+    private static string ReadXlsxAsCsv(string path)
+    {
+        using var workbook = new XLWorkbook(path);
+        var worksheet = workbook.Worksheets.First();
+        int lastColumn = worksheet.LastColumnUsed()?.ColumnNumber() ?? 0;
+        var sb = new StringBuilder();
+
+        foreach (var row in worksheet.RowsUsed())
+        {
+            var cells = new string[lastColumn];
+            for (var col = 1; col <= lastColumn; col++)
+            {
+                // GetString() (not GetFormattedString()) so a thousands-separated price like
+                // "65,000.00" never smuggles an extra comma into the CSV column split.
+                cells[col - 1] = EscapeCsvField(row.Cell(col).GetString());
+            }
+
+            sb.AppendLine(string.Join(',', cells));
+        }
+
+        return sb.ToString();
+    }
+
+    private static string EscapeCsvField(string value)
+        => value.Contains(',') || value.Contains('"') || value.Contains('\n')
+            ? $"\"{value.Replace("\"", "\"\"")}\""
+            : value;
 
     private void NewProduct()
     {
