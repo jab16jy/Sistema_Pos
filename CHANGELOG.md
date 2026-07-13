@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.9.0...v1.10.0) (2026-07-13)
+
+
+### Features
+
+* **loyalty:** add color picker dialog, accept dot/comma in tier multiplier, and improve cashier search behavior ([2d7f826](https://github.com/jab16jy/Sistema_Pos/commit/2d7f826a4c6d50149dacb854e08eaa5b05ac2bed))
+
 ## [1.9.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.8.0...v1.9.0) (2026-07-13)
 
 
