@@ -13,9 +13,9 @@ using Xunit;
 namespace POS.Presentation.Shared.Tests;
 
 /// <summary>
-/// Productos administers MinimumStock as master data, but CurrentStock is always read-only, both
-/// when creating and editing — every stock change belongs to Inventario/Compras/Ventas so saldo e
-/// historial stay reconcilable.
+/// Productos administers stock as master data only: it can seed an initial balance when creating a
+/// product (recorded as an InventoryMovement), but stock is read-only when editing — every later
+/// change belongs to Inventario/Compras/Ventas so saldo e historial stay reconcilable.
 /// </summary>
 public sealed class ProductsViewModelStockEditTests
 {
@@ -67,7 +67,7 @@ public sealed class ProductsViewModelStockEditTests
     }
 
     [Fact]
-    public async Task CreatingProduct_StockIsNotEditable_OnlyMinimumStockIs()
+    public async Task CreatingProductWithInitialStock_SeedsViaAuditedInitialBalanceMovement()
     {
         Category category = new("Sin categoría");
         var productRepo = new CapturingProductRepository();
@@ -90,21 +90,24 @@ public sealed class ProductsViewModelStockEditTests
 
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
 
-        // No product selected → creating a new one. Stock is still not editable from Productos.
-        Assert.False(viewModel.IsStockEditable);
-        Assert.Equal("Stock actual", viewModel.StockFieldLabel);
+        // No product selected → creating a new one. The stock field is the initial balance.
+        Assert.True(viewModel.IsStockEditable);
+        Assert.Equal("Existencia inicial", viewModel.StockFieldLabel);
 
         viewModel.Name = "Arroz";
         viewModel.CategoryId = category.Id;
         viewModel.SalePrice = 3_000m;
-        viewModel.MinimumStock = 5m;
-        viewModel.CurrentStock = 20m; // Forcing the bound value must not seed any stock.
+        viewModel.CurrentStock = 20m;
         await viewModel.SaveAsync(TestContext.Current.CancellationToken);
 
+        // Product seeded to exactly the initial balance, reached through a single audited movement.
         Product created = Assert.Single(productRepo.Added);
-        Assert.Equal(0m, created.CurrentStock);
-        Assert.Equal(5m, created.MinimumStock);
-        Assert.Empty(inventoryRepo.Movements);
+        Assert.Equal(20m, created.CurrentStock);
+
+        InventoryMovement movement = Assert.Single(inventoryRepo.Movements);
+        Assert.Equal(InventoryMovementType.InitialBalance, movement.Type);
+        Assert.Equal(20m, movement.Quantity);
+        Assert.Equal(created.Id, movement.ProductId);
     }
 
     private sealed class CapturingProductRepository : IProductRepository

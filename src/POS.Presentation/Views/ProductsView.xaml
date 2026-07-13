@@ -344,7 +344,8 @@
                 <StackPanel>
                   <TextBlock Text="{Binding StockFieldLabel}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
                   <TextBox Text="{Binding CurrentStock, Mode=TwoWay}" Tag="0" IsEnabled="{Binding IsStockEditable}" />
-                  <TextBlock Text="Ajusta el stock desde Inventario" Style="{StaticResource MutedText}" FontSize="10" Margin="0,2,0,0" />
+                  <TextBlock Text="Ajusta el stock desde Inventario" Style="{StaticResource MutedText}" FontSize="10" Margin="0,2,0,0"
+                             Visibility="{Binding HasSelectedProduct, Converter={StaticResource BoolToVisibilityConverter}}" />
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                   <TextBlock Text="Stock minimo" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
