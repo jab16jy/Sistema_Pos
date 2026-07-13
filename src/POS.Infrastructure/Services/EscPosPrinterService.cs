@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Interfaces;
 using POS.Domain.Entities;
@@ -20,6 +21,24 @@ public sealed partial class EscPosPrinterService : IPrintService
     private static readonly byte[] CmdNormalSize = [0x1D, 0x21, 0x00];
 
     private static readonly CultureInfo CopCulture = CultureInfo.GetCultureInfo("es-CO");
+
+    // ponytail: logo.bin is a pre-rendered 1bpp raster (280x213 dots) baked from logo/Newlogo.png —
+    // no image library needed at runtime. Regenerate it offline if the logo artwork changes.
+    private const int LogoWidthDots = 280;
+    private const int LogoHeightDots = 213;
+    private static readonly Lazy<byte[]> LogoRasterCommand = new(BuildLogoRasterCommand);
+
+    private static byte[] BuildLogoRasterCommand()
+    {
+        using Stream? stream = typeof(EscPosPrinterService).Assembly
+            .GetManifestResourceStream("POS.Infrastructure.Assets.receipt-logo.bin");
+        if (stream is null)
+            return [];
+
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+        return EscPosCommands.BuildRasterImageCommand(memory.ToArray(), LogoWidthDots, LogoHeightDots);
+    }
 
     private readonly IPrinterSettingsResolver _printerSettingsResolver;
     private readonly IThermalPrinterTransport _transport;
@@ -82,8 +101,15 @@ public sealed partial class EscPosPrinterService : IPrintService
         Write(EscPosCommands.Init);
         Write(EscPosCommands.SelectCodePageWpc1252);
 
-        // ── Header ──────────────────────────────────────────────────────────
+        // ── Logo ────────────────────────────────────────────────────────────
         Write(EscPosCommands.CenterAlign);
+        if (LogoRasterCommand.Value.Length > 0)
+        {
+            Write(LogoRasterCommand.Value);
+            WriteLine();
+        }
+
+        // ── Header ──────────────────────────────────────────────────────────
         Write(EscPosCommands.BoldOn);
         Write(CmdDoubleSize);
         WriteLine(settings?.BusinessName ?? "POS Local");
@@ -92,6 +118,8 @@ public sealed partial class EscPosPrinterService : IPrintService
 
         if (!string.IsNullOrWhiteSpace(settings?.BusinessAddress))
             WriteLine(settings.BusinessAddress);
+        if (!string.IsNullOrWhiteSpace(settings?.BusinessPhone))
+            WriteLine($"Tel: {settings.BusinessPhone}");
         if (!string.IsNullOrWhiteSpace(settings?.TaxId))
             WriteLine($"NIT: {settings.TaxId}");
 
@@ -102,6 +130,7 @@ public sealed partial class EscPosPrinterService : IPrintService
         Separator();
         WriteLine($"Factura: {sale.InvoiceNumber}");
         WriteLine($"Fecha:   {sale.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm}");
+        WriteLine();
 
         if (customer is not null)
         {
@@ -112,9 +141,13 @@ public sealed partial class EscPosPrinterService : IPrintService
                 WriteLine($"Telefono: {customer.Phone}");
             if (!string.IsNullOrWhiteSpace(customer.Email))
                 WriteLine($"Email: {customer.Email}");
+            if (!string.IsNullOrWhiteSpace(customer.Address))
+                WriteLine($"Direccion: {customer.Address}");
+            WriteLine();
         }
 
         Separator();
+        WriteLine();
 
         // ── Line items ───────────────────────────────────────────────────────
         foreach (var item in sale.Items)
@@ -129,10 +162,12 @@ public sealed partial class EscPosPrinterService : IPrintService
             // 32-char line: name(20) qty(5) price(7)
             var line = $"{name,-20}{qty,5} {subtotal,6}";
             WriteLine(line);
-            WriteLine($"  {PresentationLabel(item.Presentation, item.UnitsPerPresentation)}");
+            WriteLine($"  {PresentationLabel(item.Presentation, item.UnitsPerPresentation)} · Vr unit: {FormatCurrency(item.UnitPrice.Amount)}");
+            WriteLine();
         }
 
         Separator();
+        WriteLine();
 
         // ── Totals ───────────────────────────────────────────────────────────
         WriteLine($"{"Base gravable:",-20}{FormatCurrency(sale.TaxableBaseTotal().Amount),12}");
@@ -168,18 +203,28 @@ public sealed partial class EscPosPrinterService : IPrintService
                 _ => p.Method.ToString()
             })
             .Distinct();
+        WriteLine();
         WriteLine($"Método: {string.Join(", ", methods)}");
 
+        WriteLine();
         Separator();
 
         // ── Footer ───────────────────────────────────────────────────────────
         Write(EscPosCommands.CenterAlign);
         WriteLine();
+        WriteLine("Acumula y canjea puntos de lealtad");
+        WriteLine("en cada compra.");
+        WriteLine();
         WriteLine("¡Gracias por su compra!");
         WriteLine("Conserve su recibo.");
-        WriteLine();
-        WriteLine();
-        WriteLine();
+        WriteLine("Generado en EPOS");
+
+        // ponytail: ~10 blank feeds ≈ 4cm at the printer's default ~4mm line spacing — leaves
+        // room for the customer's verification strip. Tune the count if your printer's default
+        // line spacing differs.
+        for (int i = 0; i < 10; i++)
+            WriteLine();
+
         Write(EscPosCommands.FullCut);
 
         return [.. buf];

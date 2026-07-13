@@ -22,4 +22,18 @@ internal static class EscPosCommands
     public static readonly byte[] FullCut = [0x1D, 0x56, 0x00];
 
     public static byte[] Encode(string text) => Encoding.Latin1.GetBytes(text);
+
+    /// <summary>Wraps pre-packed 1bpp raster bits (MSB-first, 1=print) in a GS v 0 raster image command.</summary>
+    public static byte[] BuildRasterImageCommand(byte[] packedBits, int widthDots, int heightDots)
+    {
+        int widthBytes = (widthDots + 7) / 8;
+        List<byte> command =
+        [
+            0x1D, 0x76, 0x30, 0x00,
+            (byte)(widthBytes & 0xFF), (byte)((widthBytes >> 8) & 0xFF),
+            (byte)(heightDots & 0xFF), (byte)((heightDots >> 8) & 0xFF)
+        ];
+        command.AddRange(packedBits);
+        return [.. command];
+    }
 }

@@ -141,15 +141,8 @@ public sealed class LabelPrintService : ILabelPrintService
             }
         }
 
-        List<byte> command =
-        [
-            0x1D, 0x76, 0x30, 0x00,
-            (byte)(widthBytes & 0xFF), (byte)((widthBytes >> 8) & 0xFF),
-            (byte)(pixelData.Height & 0xFF), (byte)((pixelData.Height >> 8) & 0xFF)
-        ];
-        command.AddRange(rasterBytes);
-        command.Add(0x0A);
-        return [.. command];
+        byte[] command = EscPosCommands.BuildRasterImageCommand(rasterBytes, pixelData.Width, pixelData.Height);
+        return [.. command, 0x0A];
     }
 
     private static IEnumerable<string> WrapText(string value, int maxLineLength)
