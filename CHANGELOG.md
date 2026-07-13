@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.7.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.6.0...v1.7.0) (2026-07-13)
+
+
+### Features
+
+* **auth:** add role administration guardrails ([575aae7](https://github.com/jab16jy/Sistema_Pos/commit/575aae7e9636964168ac6d2e7c090a3d24440bca))
+* **auth:** establish role permission foundation ([a37525e](https://github.com/jab16jy/Sistema_Pos/commit/a37525e91fd11e34a3cbad15bfef1106a445fd0d))
+* **ui:** wire role permission management ([a122a6b](https://github.com/jab16jy/Sistema_Pos/commit/a122a6bd1ebe3b347fcf5a1cc24957537261b37c))
+
+
+### Bug Fixes
+
+* **db:** seed system roles and backfill Users.RoleId before RBAC FK ([1f866dd](https://github.com/jab16jy/Sistema_Pos/commit/1f866dd947fa656b70ece38ed7eb5af14b88ac65))
+* **ui:** restore module icons in the admin Configuración hub ([e4ff0b0](https://github.com/jab16jy/Sistema_Pos/commit/e4ff0b0547cc621a3c9dd9976b5dddf496c32717))
+
 ## [1.6.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.5.1...v1.6.0) (2026-07-12)
 
 
