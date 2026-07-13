@@ -18,7 +18,7 @@ public sealed class LoginViewModelTests
         var hashService = new FakePasswordHashService();
         var auditLogRepository = new FakeAuditLogRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var loginUseCase = new LoginUseCase(userRepository, hashService, auditLogRepository, unitOfWork);
+        var loginUseCase = new LoginUseCase(userRepository, new EmptyRoleRepository(), hashService, auditLogRepository, unitOfWork);
         var session = new FakeWritableSession();
         var viewModel = new LoginViewModel(loginUseCase, session)
         {
@@ -42,7 +42,7 @@ public sealed class LoginViewModelTests
         var hashService = new FakePasswordHashService();
         var auditLogRepository = new FakeAuditLogRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var loginUseCase = new LoginUseCase(userRepository, hashService, auditLogRepository, unitOfWork);
+        var loginUseCase = new LoginUseCase(userRepository, new EmptyRoleRepository(), hashService, auditLogRepository, unitOfWork);
         var session = new FakeWritableSession();
         var viewModel = new LoginViewModel(loginUseCase, session)
         {
@@ -66,7 +66,7 @@ public sealed class LoginViewModelTests
         var hashService = new FakePasswordHashService();
         var auditLogRepository = new FakeAuditLogRepository();
         var unitOfWork = new FakeUnitOfWork();
-        var loginUseCase = new LoginUseCase(userRepository, hashService, auditLogRepository, unitOfWork);
+        var loginUseCase = new LoginUseCase(userRepository, new EmptyRoleRepository(), hashService, auditLogRepository, unitOfWork);
         var session = new FakeWritableSession();
         var viewModel = new LoginViewModel(loginUseCase, session)
         {
@@ -109,6 +109,9 @@ public sealed class LoginViewModelTests
 
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default)
+            => Task.FromResult(0);
     }
 
     private sealed class FakePasswordHashService : IPasswordHashService
@@ -130,6 +133,19 @@ public sealed class LoginViewModelTests
             => Task.CompletedTask;
     }
 
+    private sealed class EmptyRoleRepository : IRoleRepository
+    {
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
     private sealed class FakeUnitOfWork : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -140,14 +156,18 @@ public sealed class LoginViewModelTests
     {
         public Guid OperatorId { get; private set; }
         public string Username { get; private set; } = string.Empty;
-        public UserRole Role { get; private set; }
+        public Guid RoleId { get; private set; }
+        public string RoleName { get; private set; } = string.Empty;
+        public IReadOnlySet<string> Permissions { get; private set; } = new HashSet<string>();
         public bool IsAuthenticated { get; private set; }
 
-        public void SetUser(Guid operatorId, string username, UserRole role)
+        public void SetUser(Guid operatorId, string username, Guid roleId, string roleName, IReadOnlySet<string> permissions)
         {
             OperatorId = operatorId;
             Username = username;
-            Role = role;
+            RoleId = roleId;
+            RoleName = roleName;
+            Permissions = permissions;
             IsAuthenticated = true;
         }
 

@@ -71,6 +71,7 @@ public static class DependencyInjection
         services.AddScoped<ILoyaltyRepository, LoyaltyRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 
         // Infrastructure services

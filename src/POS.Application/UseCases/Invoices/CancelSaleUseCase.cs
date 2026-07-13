@@ -1,4 +1,6 @@
 using POS.Application.DTOs.Invoices;
+using POS.Application.UseCases.Auth;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
@@ -13,6 +15,7 @@ public sealed class CancelSaleUseCase
     private readonly IProductRepository _products;
     private readonly IInventoryRepository _inventory;
     private readonly IUserRepository _users;
+    private readonly IRoleRepository _roles;
     private readonly IUnitOfWork _unitOfWork;
 
     public CancelSaleUseCase(
@@ -20,12 +23,14 @@ public sealed class CancelSaleUseCase
         IProductRepository products,
         IInventoryRepository inventory,
         IUserRepository users,
+        IRoleRepository roles,
         IUnitOfWork unitOfWork)
     {
         _sales = sales;
         _products = products;
         _inventory = inventory;
         _users = users;
+        _roles = roles;
         _unitOfWork = unitOfWork;
     }
 
@@ -41,10 +46,10 @@ public sealed class CancelSaleUseCase
             throw new ArgumentException("Cancellation reason is required.", nameof(request));
         }
 
-        var user = await _users.GetByIdAsync(request.CancelledByUserId, cancellationToken).ConfigureAwait(false)
-            ?? throw new UnauthorizedActionException("CancelSale");
-
-        if (user.Role != UserRole.Administrator)
+        string? unauthorized = await PermissionAuthorization.EnsureHasPermissionAsync(
+            _users, _roles, request.CancelledByUserId, PermissionKeys.Invoices.Cancel,
+            "No tienes permiso para anular facturas.", cancellationToken).ConfigureAwait(false);
+        if (unauthorized is not null)
         {
             throw new UnauthorizedActionException("CancelSale");
         }

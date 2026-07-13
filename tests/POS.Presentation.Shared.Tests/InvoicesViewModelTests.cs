@@ -148,13 +148,14 @@ public sealed class InvoicesViewModelTests
             new POS.Domain.ValueObjects.StockQuantity(10m),
             new POS.Domain.ValueObjects.StockQuantity(2m));
         var sale = CreateCompletedSale(product);
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var salesRepository = new SingleSaleRepository(sale);
         var cancelSale = new CancelSaleUseCase(
             salesRepository,
             new SingleProductRepository(product),
             new RecordingInventoryRepository(),
             new SingleUserRepository(adminUser),
+            new SystemRoleRepository(),
             new NoOpUnitOfWork());
 
         var viewModel = new InvoicesViewModel(
@@ -177,7 +178,7 @@ public sealed class InvoicesViewModelTests
             cancelSale: cancelSale)
         {
             OperatorUserId = adminUser.Id,
-            CurrentUserRole = UserRole.Administrator
+            CurrentRoleId = POS.Domain.Authorization.RoleConstants.AdministratorRoleId
         };
 
         await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
@@ -213,7 +214,7 @@ public sealed class InvoicesViewModelTests
                 new NoOpUnitOfWork(),
                 new EmptyUserRepository()))
         {
-            CurrentUserRole = UserRole.Cashier
+            CurrentRoleId = POS.Domain.Authorization.RoleConstants.CashierRoleId
         };
 
         await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
@@ -406,6 +407,22 @@ public sealed class InvoicesViewModelTests
             => Task.FromResult<IReadOnlyList<User>>([]);
 
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class SystemRoleRepository : IRoleRepository
+    {
+        private static readonly Role Administrator = Role.CreateSystemRole(POS.Domain.Authorization.RoleConstants.AdministratorRoleId, POS.Domain.Authorization.RoleConstants.AdministratorRoleName);
+        private static readonly Role Cashier = Role.CreateSystemRole(POS.Domain.Authorization.RoleConstants.CashierRoleId, POS.Domain.Authorization.RoleConstants.CashierRoleName);
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(id == Administrator.Id ? Administrator : id == Cashier.Id ? Cashier : null);
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([Administrator, Cashier]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 
     private sealed class SingleUserRepository : IUserRepository
@@ -428,6 +445,7 @@ public sealed class InvoicesViewModelTests
             => Task.FromResult<IReadOnlyList<User>>([_user]);
 
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(_user.RoleId == roleId && _user.IsActive ? 1 : 0);
     }
 
     private sealed class NoOpUnitOfWork : IUnitOfWork

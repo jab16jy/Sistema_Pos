@@ -1,5 +1,9 @@
 using POS.Application.DTOs.Settings;
+using POS.Application.Interfaces;
+using POS.Application.UseCases.Auth;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
+using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.UseCases.Settings;
@@ -7,14 +11,21 @@ namespace POS.Application.UseCases.Settings;
 public sealed class LoadSettingsUseCase
 {
     private readonly ISettingsRepository _settings;
+    private readonly ICurrentOperatorSession _session;
 
-    public LoadSettingsUseCase(ISettingsRepository settings)
+    public LoadSettingsUseCase(ISettingsRepository settings, ICurrentOperatorSession session)
     {
         _settings = settings;
+        _session = session;
     }
 
     public async Task<SettingsResult?> ExecuteAsync(CancellationToken cancellationToken = default)
     {
+        if (PermissionAuthorization.EnsureHasPermission(_session, PermissionKeys.Settings.View, "Unauthorized") is not null)
+        {
+            throw new UnauthorizedActionException("LoadSettings");
+        }
+
         BusinessSettings? settings = await _settings.GetAsync(cancellationToken).ConfigureAwait(false);
         return settings is null ? null : ToResult(settings);
     }

@@ -13,7 +13,9 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         // Existing rows (and every FK column that references users, e.g. Sales.CashierUserId)
         // store the Guid as lowercase TEXT via HasConversion<string>. Without this conversion,
         // EF binds Guid parameters as uppercase TEXT, so lookups by Id never match — that broke
-        // AdminUserAuthorization's re-check and made GetAuditLogs reject real administrators.
+        // Permission checks rely on this mapping because SQLite Guid parameter casing must match stored text.
         builder.Property(u => u.Id).HasConversion<string>();
+        builder.Property(u => u.RoleId).HasConversion<string>();
+        builder.HasOne<Role>().WithMany().HasForeignKey(u => u.RoleId).OnDelete(DeleteBehavior.Restrict);
     }
 }

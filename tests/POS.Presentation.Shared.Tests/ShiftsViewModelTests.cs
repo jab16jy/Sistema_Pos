@@ -123,7 +123,10 @@ public sealed class ShiftsViewModelTests
     {
         public Guid OperatorId { get; } = Guid.NewGuid();
         public string Username { get; } = "cajero";
-        public UserRole Role { get; } = UserRole.Cashier;
+        public Guid RoleId { get; } = POS.Domain.Authorization.RoleConstants.CashierRoleId;
+        public string RoleName => POS.Domain.Authorization.RoleConstants.CashierRoleName;
+        public IReadOnlySet<string> Permissions => new HashSet<string>(POS.Domain.Authorization.PermissionKeys.CashierDefaults);
+        public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => true;
     }
 }

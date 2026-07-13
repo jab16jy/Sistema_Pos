@@ -58,8 +58,8 @@ public sealed class SettingsViewModelTests
             "COP",
             []);
         var viewModel = new SettingsViewModel(
-            new LoadSettingsUseCase(new StubSettingsRepository(settings)),
-            new SaveSettingsUseCase(new StubMutableSettingsRepository(), new StubUnitOfWork()),
+            new LoadSettingsUseCase(new StubSettingsRepository(settings), new StubOperatorSession()),
+            new SaveSettingsUseCase(new StubMutableSettingsRepository(), new StubUnitOfWork(), new StubOperatorSession()),
             emailService: null,
             whatsAppService: new StubWhatsAppService());
 
@@ -140,7 +140,10 @@ public sealed class SettingsViewModelTests
     {
         public Guid OperatorId => Guid.NewGuid();
         public string Username => "maria";
-        public POS.Domain.Enums.UserRole Role => POS.Domain.Enums.UserRole.Administrator;
+        public Guid RoleId => POS.Domain.Authorization.RoleConstants.AdministratorRoleId;
+        public string RoleName => POS.Domain.Authorization.RoleConstants.AdministratorRoleName;
+        public IReadOnlySet<string> Permissions => new HashSet<string>(POS.Domain.Authorization.PermissionKeys.All);
+        public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => true;
     }
 

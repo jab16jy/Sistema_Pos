@@ -57,7 +57,7 @@ public sealed class InvoiceUseCaseTests
         var inventory = new InMemoryInventoryRepository();
         var returns = new InMemorySaleReturnRepository();
         var unitOfWork = new CountingUnitOfWork();
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
@@ -86,7 +86,7 @@ public sealed class InvoiceUseCaseTests
         var product = CreateProduct();
         var sale = CreateCompletedSale(product);
         sale.MarkReturned();
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
@@ -109,7 +109,7 @@ public sealed class InvoiceUseCaseTests
         var inventory = new InMemoryInventoryRepository();
         var returns = new InMemorySaleReturnRepository();
         var uow = new CountingUnitOfWork();
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
@@ -139,7 +139,7 @@ public sealed class InvoiceUseCaseTests
         var product = CreateProduct();
         var sale = CreateCompletedSale(product);
         var saleItemId = sale.Items.Single().Id;
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
@@ -161,7 +161,7 @@ public sealed class InvoiceUseCaseTests
         var product = CreateProduct();
         var sale = CreateCompletedSale(product);
         var returns = new InMemorySaleReturnRepository();
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
@@ -186,7 +186,7 @@ public sealed class InvoiceUseCaseTests
     {
         var product = CreateProduct();
         var sale = CreateCompletedSale(product);
-        var cashierUser = new User("cashier", "hash", UserRole.Cashier);
+        var cashierUser = new User("cashier", "hash", POS.Domain.Authorization.RoleConstants.CashierRoleId);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
@@ -201,11 +201,39 @@ public sealed class InvoiceUseCaseTests
     }
 
     [Fact]
+    public async Task ProcessReturnAsync_CustomRoleWithInvoicesCancel_RemainsDeniedWithoutMutatingSaleOrStock()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var role = new Role("Invoice Canceller");
+        var grant = new RolePermission(role.Id, POS.Domain.Authorization.PermissionKeys.Invoices.Cancel);
+        var user = new User("canceller", "hash", role.Id);
+        var inventory = new InMemoryInventoryRepository();
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            inventory,
+            new InMemorySaleReturnRepository(),
+            new CountingUnitOfWork(),
+            new InMemoryUserRepository(user));
+        decimal stockBefore = product.CurrentStock;
+
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, user.Id, "Attempted return"),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(POS.Domain.Authorization.PermissionKeys.Invoices.Cancel, grant.PermissionKey);
+        Assert.Equal(SaleStatus.Completed, sale.Status);
+        Assert.Equal(stockBefore, product.CurrentStock);
+        Assert.Empty(inventory.AddedMovements);
+    }
+
+    [Fact]
     public async Task ProcessReturnAsync_WhenUserNotFound_ThrowsUnauthorizedActionException()
     {
         var product = CreateProduct();
         var sale = CreateCompletedSale(product);
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
@@ -227,12 +255,13 @@ public sealed class InvoiceUseCaseTests
         var sale = CreateCompletedSale(product);
         var inventory = new InMemoryInventoryRepository();
         var unitOfWork = new CountingUnitOfWork();
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var useCase = new CancelSaleUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
             inventory,
             new InMemoryUserRepository(adminUser),
+            new TestRoleRepository(),
             unitOfWork);
 
         await useCase.ExecuteAsync(
@@ -253,17 +282,40 @@ public sealed class InvoiceUseCaseTests
     {
         var product = CreateProduct();
         var sale = CreateCompletedSale(product);
-        var cashierUser = new User("cashier", "hash", UserRole.Cashier);
+        var cashierUser = new User("cashier", "hash", POS.Domain.Authorization.RoleConstants.CashierRoleId);
         var useCase = new CancelSaleUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
             new InMemoryInventoryRepository(),
             new InMemoryUserRepository(cashierUser),
+            new TestRoleRepository(),
             new CountingUnitOfWork());
 
         await Assert.ThrowsAsync<UnauthorizedActionException>(() => useCase.ExecuteAsync(
             new CancelSaleRequest(sale.Id, cashierUser.Id, "Intento sin permisos"),
             TestContext.Current.CancellationToken));
+
+        Assert.Equal(SaleStatus.Completed, sale.Status);
+    }
+
+    [Fact]
+    public async Task CancelSaleAsync_WhenCustomRoleHasInvoicesCancel_CancelsSale()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var role = new Role("Invoice Canceller");
+        var user = new User("canceller", "hash", role.Id);
+        var useCase = new CancelSaleUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            new InMemoryUserRepository(user),
+            new CustomRoleRepository(role, new HashSet<string> { POS.Domain.Authorization.PermissionKeys.Invoices.Cancel }),
+            new CountingUnitOfWork());
+
+        await useCase.ExecuteAsync(new CancelSaleRequest(sale.Id, user.Id, "Permiso personalizado"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(SaleStatus.Cancelled, sale.Status);
     }
 
     [Fact]
@@ -272,12 +324,13 @@ public sealed class InvoiceUseCaseTests
         var product = CreateProduct();
         var sale = CreateCompletedSale(product);
         sale.MarkReturned();
-        var adminUser = new User("admin", "hash", UserRole.Administrator);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var useCase = new CancelSaleUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
             new InMemoryInventoryRepository(),
             new InMemoryUserRepository(adminUser),
+            new TestRoleRepository(),
             new CountingUnitOfWork());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
@@ -445,5 +498,36 @@ public sealed class InvoiceUseCaseTests
 
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default)
+            => Task.FromResult(_user.RoleId == roleId && _user.IsActive ? 1 : 0);
+    }
+
+    private sealed class TestRoleRepository : IRoleRepository
+    {
+        private static readonly Role Administrator = Role.CreateSystemRole(POS.Domain.Authorization.RoleConstants.AdministratorRoleId, POS.Domain.Authorization.RoleConstants.AdministratorRoleName);
+        private static readonly Role Cashier = Role.CreateSystemRole(POS.Domain.Authorization.RoleConstants.CashierRoleId, POS.Domain.Authorization.RoleConstants.CashierRoleName);
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(id == Administrator.Id ? Administrator : id == Cashier.Id ? Cashier : null);
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([Administrator, Cashier]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class CustomRoleRepository(Role role, IReadOnlySet<string> grants) : IRoleRepository
+    {
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(id == role.Id ? role : null);
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(name == role.Name ? role : null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([role]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(roleId == role.Id && grants.Contains(permissionKey));
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(grants);
+        public Task AddAsync(Role addedRole, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role updatedRole, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 }

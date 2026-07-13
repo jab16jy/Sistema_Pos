@@ -18,7 +18,7 @@ public sealed class BackupViewModelTests
             "Store", null, null, null, null, null, null, null, false, null, null, null, "C:/Backups", "COP");
         var repository = new StubMutableSettingsRepository(settings);
         var viewModel = new BackupViewModel(
-            new LoadSettingsUseCase(repository),
+            new LoadSettingsUseCase(repository, new StubOperatorSession()),
             new TriggerManualBackupUseCase(repository, new StubBackupService(), new StubUnitOfWork(), new StubOperatorSession()));
 
         await viewModel.BackupAsync(TestContext.Current.CancellationToken);
@@ -35,7 +35,7 @@ public sealed class BackupViewModelTests
     {
         var repository = new StubMutableSettingsRepository(null);
         var viewModel = new BackupViewModel(
-            new LoadSettingsUseCase(repository),
+            new LoadSettingsUseCase(repository, new StubOperatorSession()),
             new TriggerManualBackupUseCase(repository, new StubBackupService(), new StubUnitOfWork(), new StubOperatorSession()));
 
         bool restored = await viewModel.RestoreAsync("C:/backup.db", TestContext.Current.CancellationToken);
@@ -78,7 +78,10 @@ public sealed class BackupViewModelTests
     {
         public Guid OperatorId => Guid.NewGuid();
         public string Username => "maria";
-        public UserRole Role => UserRole.Administrator;
+        public Guid RoleId => POS.Domain.Authorization.RoleConstants.AdministratorRoleId;
+        public string RoleName => POS.Domain.Authorization.RoleConstants.AdministratorRoleName;
+        public IReadOnlySet<string> Permissions => new HashSet<string>(POS.Domain.Authorization.PermissionKeys.All);
+        public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => true;
     }
 }

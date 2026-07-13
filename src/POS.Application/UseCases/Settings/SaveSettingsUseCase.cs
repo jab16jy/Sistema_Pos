@@ -1,6 +1,9 @@
 using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Auth;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
+using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.UseCases.Settings;
@@ -10,19 +13,27 @@ public sealed class SaveSettingsUseCase
     private readonly ISettingsRepository _settings;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPrinterCommandValidator? _printerCommandValidator;
+    private readonly ICurrentOperatorSession _session;
 
     public SaveSettingsUseCase(
         ISettingsRepository settings,
         IUnitOfWork unitOfWork,
+        ICurrentOperatorSession session,
         IPrinterCommandValidator? printerCommandValidator = null)
     {
         _settings = settings;
         _unitOfWork = unitOfWork;
         _printerCommandValidator = printerCommandValidator;
+        _session = session;
     }
 
     public async Task<SettingsResult> ExecuteAsync(SaveSettingsRequest request, CancellationToken cancellationToken = default)
     {
+        if (PermissionAuthorization.EnsureHasPermission(_session, PermissionKeys.Settings.Edit, "Unauthorized") is not null)
+        {
+            throw new UnauthorizedActionException("SaveSettings");
+        }
+
         BusinessSettings? settings = await _settings.GetAsync(cancellationToken).ConfigureAwait(false);
         if (settings is null)
         {

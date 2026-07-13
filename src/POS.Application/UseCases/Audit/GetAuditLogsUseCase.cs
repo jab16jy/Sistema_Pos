@@ -1,5 +1,6 @@
 using POS.Application.DTOs.Audit;
 using POS.Application.UseCases.Auth;
+using POS.Domain.Authorization;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
@@ -10,11 +11,13 @@ public sealed class GetAuditLogsUseCase
 {
     private readonly IAuditLogRepository _auditLogs;
     private readonly IUserRepository _users;
+    private readonly IRoleRepository _roles;
 
-    public GetAuditLogsUseCase(IAuditLogRepository auditLogs, IUserRepository users)
+    public GetAuditLogsUseCase(IAuditLogRepository auditLogs, IUserRepository users, IRoleRepository roles)
     {
         _auditLogs = auditLogs;
         _users = users;
+        _roles = roles;
     }
 
     public async Task<IReadOnlyList<AuditLogEntry>> ExecuteAsync(
@@ -25,8 +28,8 @@ public sealed class GetAuditLogsUseCase
     {
         // Restriction used to live only in MainShellViewModel's UI gating — enforce it here too so
         // any caller with the DI container (not just the admin hub) is denied read access.
-        string? unauthorized = await AdminUserAuthorization.EnsureAdministratorAsync(
-            _users, requestingUserId, "Solo un administrador puede consultar la auditoría.", ct).ConfigureAwait(false);
+        string? unauthorized = await PermissionAuthorization.EnsureHasPermissionAsync(
+            _users, _roles, requestingUserId, PermissionKeys.Audit.View, "No tienes permiso para consultar la auditoría.", ct).ConfigureAwait(false);
         if (unauthorized is not null)
         {
             throw new UnauthorizedActionException("GetAuditLogs");

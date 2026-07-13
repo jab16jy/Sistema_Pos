@@ -39,7 +39,8 @@ internal static class AppBootstrapper
     internal static MainShellViewModel BuildMainShellViewModel(IServiceProvider sp)
     {
         var session = sp.GetRequiredService<ICurrentOperatorSession>();
-        var role = session.Role;
+        var roleId = session.RoleId;
+        var roleName = session.RoleName;
         var username = session.Username;
         List<string> moduleWarnings = [];
 
@@ -204,7 +205,7 @@ internal static class AppBootstrapper
                 TryResolveOptional<GetInvoiceDetailUseCase>(sp))
             {
                 OperatorUserId = cashier.CashierUserId,
-                CurrentUserRole = session.Role
+                CurrentRoleId = session.RoleId
             },
             moduleWarnings);
 
@@ -264,7 +265,7 @@ internal static class AppBootstrapper
             () => new AuditLogViewModel(sp.GetRequiredService<GetAuditLogsUseCase>(), session),
             moduleWarnings);
 
-        var shellViewModel = new MainShellViewModel(cashier, dashboardUseCase, role, username)
+        var shellViewModel = new MainShellViewModel(cashier, dashboardUseCase, roleId, roleName, username)
         {
             Quote = quote,
             QuoteHistory = quoteHistory,

@@ -82,7 +82,7 @@ public sealed class LoginViewModel : ViewModelBase
             var result = await _loginUseCase.ExecuteAsync(new LoginRequest(Username, Password)).ConfigureAwait(true);
             if (result.Success)
             {
-                _session.SetUser(result.UserId, result.Username, result.Role);
+                _session.SetUser(result.UserId, result.Username, result.RoleId, result.RoleName, result.Permissions ?? new HashSet<string>());
                 LoginSucceeded?.Invoke();
             }
             else

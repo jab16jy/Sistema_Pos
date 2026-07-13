@@ -12,8 +12,8 @@ public sealed class SettingsViewModelExceptionTests
     public async Task LoadCommand_WhenLoadFails_SetsRecoverableMessage()
     {
         var viewModel = new SettingsViewModel(
-            new LoadSettingsUseCase(new ThrowingSettingsRepository()),
-            new SaveSettingsUseCase(new ThrowingSettingsRepository(), new NoOpUnitOfWork()));
+            new LoadSettingsUseCase(new ThrowingSettingsRepository(), new NoOpOperatorSession()),
+            new SaveSettingsUseCase(new ThrowingSettingsRepository(), new NoOpUnitOfWork(), new NoOpOperatorSession()));
 
         viewModel.LoadCommand.Execute(null);
         await Task.Delay(50, TestContext.Current.CancellationToken);
@@ -48,7 +48,10 @@ public sealed class SettingsViewModelExceptionTests
     {
         public Guid OperatorId => Guid.Empty;
         public string Username => string.Empty;
-        public POS.Domain.Enums.UserRole Role => POS.Domain.Enums.UserRole.Cashier;
+        public Guid RoleId => POS.Domain.Authorization.RoleConstants.CashierRoleId;
+        public string RoleName => POS.Domain.Authorization.RoleConstants.CashierRoleName;
+        public IReadOnlySet<string> Permissions => new HashSet<string>();
+        public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => false;
     }
 }

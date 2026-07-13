@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
@@ -18,19 +19,33 @@ public static class DatabaseSchemaRollout
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await dbContext.Database.MigrateAsync(cancellationToken);
         await NormalizeLegacyUnixTimestampDateTimesAsync(dbContext, cancellationToken);
-        await SeedDefaultAdminAsync(scope.ServiceProvider, dbContext, cancellationToken);
+        await SeedDefaultRolesAndAdminAsync(scope.ServiceProvider, dbContext, cancellationToken);
         await SeedDefaultLoyaltyProgramAsync(dbContext, cancellationToken);
         await BackfillMissingLoyaltyPointsAsync(dbContext, cancellationToken);
         await CatalogWorkbookBootstrapper.SeedAsync(dbContext, cancellationToken);
     }
 
-    private static async Task SeedDefaultAdminAsync(IServiceProvider sp, AppDbContext dbContext, CancellationToken ct)
+    private static async Task SeedDefaultRolesAndAdminAsync(IServiceProvider sp, AppDbContext dbContext, CancellationToken ct)
     {
+        if (!await dbContext.Roles.AnyAsync(ct))
+        {
+            dbContext.Roles.AddRange(
+                Role.CreateSystemRole(RoleConstants.AdministratorRoleId, RoleConstants.AdministratorRoleName),
+                Role.CreateSystemRole(RoleConstants.CashierRoleId, RoleConstants.CashierRoleName));
+            await dbContext.SaveChangesAsync(ct);
+        }
+
+        if (!await dbContext.RolePermissions.AnyAsync(permission => permission.RoleId == RoleConstants.CashierRoleId, ct))
+        {
+            dbContext.RolePermissions.AddRange(PermissionKeys.CashierDefaults.Select(key => new RolePermission(RoleConstants.CashierRoleId, key)));
+            await dbContext.SaveChangesAsync(ct);
+        }
+
         if (await dbContext.Users.AnyAsync(ct))
             return;
 
         var hasher = sp.GetRequiredService<IPasswordHashService>();
-        var admin = new User("admin", hasher.HashPassword("admin123"), UserRole.Administrator);
+        var admin = new User("admin", hasher.HashPassword("admin123"), RoleConstants.AdministratorRoleId);
         dbContext.Users.Add(admin);
         await dbContext.SaveChangesAsync(ct);
     }

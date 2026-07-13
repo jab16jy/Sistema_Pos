@@ -6,6 +6,7 @@ using POS.Application.DTOs.Invoices;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Invoices;
+using POS.Domain.Authorization;
 using POS.Domain.Exceptions;
 using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
@@ -55,7 +56,7 @@ public sealed class InvoicesViewModel : ViewModelBase
     private string _message = "Busca facturas por fecha, cliente o número.";
     private int _currentPage = 1;
     private bool _hasMorePages;
-    private UserRole _currentUserRole = UserRole.Cashier;
+    private Guid _currentRoleId;
 
     public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
 
@@ -278,12 +279,12 @@ public sealed class InvoicesViewModel : ViewModelBase
 
     public Guid OperatorUserId { get; set; }
 
-    public UserRole CurrentUserRole
+    public Guid CurrentRoleId
     {
-        get => _currentUserRole;
+        get => _currentRoleId;
         set
         {
-            if (SetProperty(ref _currentUserRole, value))
+            if (SetProperty(ref _currentRoleId, value))
             {
                 OnPropertyChanged(nameof(IsAdministrator));
                 RaiseSelectionDependentCommands();
@@ -291,7 +292,7 @@ public sealed class InvoicesViewModel : ViewModelBase
         }
     }
 
-    public bool IsAdministrator => CurrentUserRole == UserRole.Administrator;
+    public bool IsAdministrator => RoleConstants.IsSystemAdministrator(CurrentRoleId);
 
     public Task LoadFirstPageAsync(CancellationToken cancellationToken = default)
     {

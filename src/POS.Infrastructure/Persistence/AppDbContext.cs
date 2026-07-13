@@ -25,6 +25,8 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<TaxProfile> TaxProfiles => Set<TaxProfile>();
     public DbSet<Sale> Sales => Set<Sale>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Role> Roles => Set<Role>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Supplier> Suppliers => Set<Supplier>();
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
@@ -202,7 +204,7 @@ v => DateTimeOffset.Parse(v))
             ["Barcode"] = "Código de barras",
             ["IsActive"] = "Estado",
             ["Username"] = "Usuario",
-            ["Role"] = "Rol",
+            ["RoleId"] = "Rol",
             ["Email"] = "Correo",
             ["Phone"] = "Teléfono",
             ["Address"] = "Dirección",

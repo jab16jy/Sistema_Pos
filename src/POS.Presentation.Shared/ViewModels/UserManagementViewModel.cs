@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Auth;
-using POS.Domain.Enums;
+using POS.Domain.Authorization;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
@@ -18,9 +18,9 @@ public sealed class UserManagementViewModel : ViewModelBase
     private UserSummary? _selectedUser;
     private string _newUsername = string.Empty;
     private string _newPassword = string.Empty;
-    private UserRole _newRole = UserRole.Cashier;
+    private Guid _newRole = RoleConstants.CashierRoleId;
     private string _editPassword = string.Empty;
-    private UserRole _editRole = UserRole.Cashier;
+    private Guid _editRole = RoleConstants.CashierRoleId;
     private string _statusMessage = string.Empty;
     private bool _hasError;
     private bool _isLoading;
@@ -46,7 +46,7 @@ public sealed class UserManagementViewModel : ViewModelBase
 
     public ObservableCollection<UserSummary> Users { get; } = new();
 
-    public IReadOnlyList<UserRole> AvailableRoles { get; } = [UserRole.Cashier, UserRole.Administrator];
+    public IReadOnlyList<Guid> AvailableRoles { get; } = [RoleConstants.CashierRoleId, RoleConstants.AdministratorRoleId];
 
     public UserSummary? SelectedUser
     {
@@ -56,7 +56,7 @@ public sealed class UserManagementViewModel : ViewModelBase
             if (SetProperty(ref _selectedUser, value) && value is not null)
             {
                 EditPassword = string.Empty;
-                EditRole = value.Role;
+                EditRole = value.RoleId;
                 ((RelayCommand)SaveEditCommand).RaiseCanExecuteChanged();
                 ((RelayCommand)DeactivateCommand).RaiseCanExecuteChanged();
             }
@@ -75,7 +75,7 @@ public sealed class UserManagementViewModel : ViewModelBase
         set => SetProperty(ref _newPassword, value);
     }
 
-    public UserRole NewRole
+    public Guid NewRole
     {
         get => _newRole;
         set => SetProperty(ref _newRole, value);
@@ -87,7 +87,7 @@ public sealed class UserManagementViewModel : ViewModelBase
         set => SetProperty(ref _editPassword, value);
     }
 
-    public UserRole EditRole
+    public Guid EditRole
     {
         get => _editRole;
         set => SetProperty(ref _editRole, value);
@@ -111,7 +111,7 @@ public sealed class UserManagementViewModel : ViewModelBase
         private set => SetProperty(ref _isLoading, value);
     }
 
-    public bool IsAdmin => _session.IsAuthenticated && _session.Role == UserRole.Administrator;
+    public bool IsAdmin => _session.IsAuthenticated && RoleConstants.IsSystemAdministrator(_session.RoleId);
 
     public ICommand LoadUsersCommand { get; }
     public ICommand CreateUserCommand { get; }
@@ -171,7 +171,7 @@ public sealed class UserManagementViewModel : ViewModelBase
             }
             NewUsername = string.Empty;
             NewPassword = string.Empty;
-            NewRole = UserRole.Cashier;
+            NewRole = RoleConstants.CashierRoleId;
             StatusMessage = "Usuario creado correctamente.";
             await LoadAsync();
         }

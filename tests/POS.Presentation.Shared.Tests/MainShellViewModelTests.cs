@@ -120,7 +120,8 @@ public sealed class MainShellViewModelTests
         var viewModel = new MainShellViewModel(
             new CashierViewModel(new PrototypeProductLookupService()),
             null,
-            UserRole.Cashier,
+            POS.Domain.Authorization.RoleConstants.CashierRoleId,
+            POS.Domain.Authorization.RoleConstants.CashierRoleName,
             "cajero1");
 
         Assert.Equal(["cashier", "customers", "quotes", "invoices", "shifts"], viewModel.FuncbarModules.Select(module => module.Key));
@@ -136,7 +137,8 @@ public sealed class MainShellViewModelTests
         var viewModel = new MainShellViewModel(
             new CashierViewModel(new PrototypeProductLookupService()),
             null,
-            UserRole.Cashier,
+            POS.Domain.Authorization.RoleConstants.CashierRoleId,
+            POS.Domain.Authorization.RoleConstants.CashierRoleName,
             "cajero1");
 
         viewModel.SelectedModule = viewModel.FuncbarModules.Single(module => module.Key == "shifts");

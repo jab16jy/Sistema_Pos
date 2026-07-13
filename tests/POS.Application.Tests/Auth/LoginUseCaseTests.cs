@@ -26,16 +26,16 @@ public sealed class LoginUseCaseTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var userRepository = new UserRepository(dbContext);
-        var admin = new User("admin", "hash:1234", UserRole.Administrator);
+        var admin = new User("admin", "hash:1234", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         await userRepository.AddAsync(admin, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var auditRepository = new AuditLogRepository(dbContext);
-        var useCase = new LoginUseCase(userRepository, new FakePasswordHashService(), auditRepository, dbContext);
+        var useCase = new LoginUseCase(userRepository, new RoleRepository(dbContext), new FakePasswordHashService(), auditRepository, dbContext);
 
         LoginResult result = await useCase.ExecuteAsync(new LoginRequest("admin", "1234"), TestContext.Current.CancellationToken);
 
         Assert.True(result.Success);
-        var logs = await GetLogsAsync(auditRepository, userRepository, admin.Id, TestContext.Current.CancellationToken);
+        var logs = await GetLogsAsync(auditRepository, userRepository, dbContext, admin.Id, TestContext.Current.CancellationToken);
         AuditLogEntry loginLog = Assert.Single(logs, l => l.Action == "Login");
         Assert.Equal("admin", loginLog.Username);
         Assert.Equal(admin.Id, loginLog.UserId);
@@ -49,16 +49,16 @@ public sealed class LoginUseCaseTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var userRepository = new UserRepository(dbContext);
-        var admin = new User("admin", "hash:1234", UserRole.Administrator);
+        var admin = new User("admin", "hash:1234", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         await userRepository.AddAsync(admin, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var auditRepository = new AuditLogRepository(dbContext);
-        var useCase = new LoginUseCase(userRepository, new FakePasswordHashService(), auditRepository, dbContext);
+        var useCase = new LoginUseCase(userRepository, new RoleRepository(dbContext), new FakePasswordHashService(), auditRepository, dbContext);
 
         LoginResult result = await useCase.ExecuteAsync(new LoginRequest("admin", "wrong"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        var logs = await GetLogsAsync(auditRepository, userRepository, admin.Id, TestContext.Current.CancellationToken);
+        var logs = await GetLogsAsync(auditRepository, userRepository, dbContext, admin.Id, TestContext.Current.CancellationToken);
         AuditLogEntry failedLog = Assert.Single(logs, l => l.Action == "LoginFailed");
         Assert.Equal("admin", failedLog.Username);
         Assert.Equal(admin.Id, failedLog.UserId);
@@ -72,16 +72,16 @@ public sealed class LoginUseCaseTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var userRepository = new UserRepository(dbContext);
-        var admin = new User("admin", "hash:1234", UserRole.Administrator);
+        var admin = new User("admin", "hash:1234", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         await userRepository.AddAsync(admin, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var auditRepository = new AuditLogRepository(dbContext);
-        var useCase = new LoginUseCase(userRepository, new FakePasswordHashService(), auditRepository, dbContext);
+        var useCase = new LoginUseCase(userRepository, new RoleRepository(dbContext), new FakePasswordHashService(), auditRepository, dbContext);
 
         LoginResult result = await useCase.ExecuteAsync(new LoginRequest("ghost", "1234"), TestContext.Current.CancellationToken);
 
         Assert.False(result.Success);
-        var logs = await GetLogsAsync(auditRepository, userRepository, admin.Id, TestContext.Current.CancellationToken);
+        var logs = await GetLogsAsync(auditRepository, userRepository, dbContext, admin.Id, TestContext.Current.CancellationToken);
         AuditLogEntry failedLog = Assert.Single(logs, l => l.Action == "LoginFailed");
         Assert.Equal("ghost", failedLog.Username);
         Assert.Null(failedLog.UserId);
@@ -95,7 +95,7 @@ public sealed class LoginUseCaseTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var userRepository = new UserRepository(dbContext);
-        var admin = new User("admin", "hash:1234", UserRole.Administrator);
+        var admin = new User("admin", "hash:1234", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         await userRepository.AddAsync(admin, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var auditRepository = new AuditLogRepository(dbContext);
@@ -103,7 +103,7 @@ public sealed class LoginUseCaseTests
 
         await useCase.ExecuteAsync(admin.Id, "admin", TestContext.Current.CancellationToken);
 
-        var logs = await GetLogsAsync(auditRepository, userRepository, admin.Id, TestContext.Current.CancellationToken);
+        var logs = await GetLogsAsync(auditRepository, userRepository, dbContext, admin.Id, TestContext.Current.CancellationToken);
         AuditLogEntry logoutLog = Assert.Single(logs, l => l.Action == "Logout");
         Assert.Equal("admin", logoutLog.Username);
         Assert.Equal(admin.Id, logoutLog.UserId);
@@ -112,9 +112,10 @@ public sealed class LoginUseCaseTests
     private static Task<IReadOnlyList<AuditLogEntry>> GetLogsAsync(
         AuditLogRepository auditRepository,
         UserRepository userRepository,
+        AppDbContext dbContext,
         Guid requestingUserId,
         CancellationToken ct)
-        => new GetAuditLogsUseCase(auditRepository, userRepository).ExecuteAsync(requestingUserId, 10, null, ct);
+        => new GetAuditLogsUseCase(auditRepository, userRepository, new RoleRepository(dbContext)).ExecuteAsync(requestingUserId, 10, null, ct);
 
     private static AppDbContext CreateDbContext(SqliteConnection connection)
     {

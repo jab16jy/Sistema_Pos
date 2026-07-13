@@ -66,13 +66,13 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 1. Domain foundation (design §12 step 1)
 
-- [ ] **1.1** Create `src/POS.Domain/Authorization/PermissionKeys.cs` — nested static classes per module
+- [x] **1.1** Create `src/POS.Domain/Authorization/PermissionKeys.cs` — nested static classes per module
       exactly as specified in design §1.3 (all v1-enforced + all catalog-only modules), plus the
       reflection-built `All` property, plus `CashierDefaults` static array per design §6.3's exact list
       (`Cashier.Sell`, `Customers.View/Create/Edit`, `Quotes.View/Create/Convert`,
       `Invoices.View/Reprint/Return`, `Shifts.View/Open/Close` — 12 keys, nothing else).
       Spec: role-permissions "Permission catalog is code-owned in the Domain layer".
-- [ ] **1.2** Test: `POS.Domain.Tests` — `PermissionKeys.All` contains every gated key and every `.View`
+- [x] **1.2** Test: `POS.Domain.Tests` — `PermissionKeys.All` contains every gated key and every `.View`
       key (assert presence of a representative sample: `Users.Create`, `Roles.AssignPermissions`,
       `Admin.Backup.Restore`, `Products.View`, `Invoices.Cancel`); `CashierDefaults` contains exactly the
       12 design §6.3 keys and explicitly does NOT contain any admin-hub `.View` key (`Users.View`,
@@ -80,25 +80,25 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
       `Inventory.View`, `Suppliers.View`, `Reports.View`, `Loyalty.View`) or `Invoices.Cancel`.
       Spec: role-permissions "Full catalog is enumerable"; design §6.3 correction (Cashier must NOT gain
       admin-hub visibility — this is the exact defect the design review caught and fixed).
-- [ ] **1.3** Create `src/POS.Domain/Authorization/RoleConstants.cs` — `AdministratorRoleId`,
+- [x] **1.3** Create `src/POS.Domain/Authorization/RoleConstants.cs` — `AdministratorRoleId`,
       `CashierRoleId` (exact Guids from design §6.1), name consts, `IsSystemAdministrator(Guid)`.
-- [ ] **1.4** Test: `POS.Domain.Tests` — `RoleConstants.AdministratorRoleId` and `CashierRoleId` are both
+- [x] **1.4** Test: `POS.Domain.Tests` — `RoleConstants.AdministratorRoleId` and `CashierRoleId` are both
       non-default (`!= Guid.Empty`) and distinct from each other; `IsSystemAdministrator` returns true
       only for the admin id. (Explicit non-blocking-risk item: guard against seed-Guid collision.)
-- [ ] **1.5** Create `src/POS.Domain/Entities/Role.cs` per design §1.1 exactly (private ctor, public ctor,
+- [x] **1.5** Create `src/POS.Domain/Entities/Role.cs` per design §1.1 exactly (private ctor, public ctor,
       `CreateSystemRole` factory, `Rename`, `Deactivate`, `Touch`, `NormalizeName`). No navigation
       collection to `RolePermission` (design decision, §1.1).
-- [ ] **1.6** Test: `POS.Domain.Tests` — `Role` ctor rejects empty/whitespace name; `CreateSystemRole`
+- [x] **1.6** Test: `POS.Domain.Tests` — `Role` ctor rejects empty/whitespace name; `CreateSystemRole`
       sets `IsSystem = true` and the given `Id`; `Rename` trims and rejects empty, bumps `UpdatedAt`;
       `Deactivate` flips `IsActive` to false.
-- [ ] **1.7** Create `src/POS.Domain/Entities/RolePermission.cs` per design §1.2 exactly (composite key,
+- [x] **1.7** Create `src/POS.Domain/Entities/RolePermission.cs` per design §1.2 exactly (composite key,
       ctor guards on empty `roleId`/`permissionKey`).
-- [ ] **1.8** Test: `POS.Domain.Tests` — `RolePermission` ctor rejects `Guid.Empty` roleId and
+- [x] **1.8** Test: `POS.Domain.Tests` — `RolePermission` ctor rejects `Guid.Empty` roleId and
       empty/whitespace permissionKey.
 
 ### 2. User swap + enum deletion (design §12 step 2 — gated on all ~64 UserRole references migrating first)
 
-- [ ] **2.1** Investigation/checklist step (not a code change): run
+- [x] **2.1** Investigation/checklist step (not a code change): run
       `grep -rn "UserRole" src/ tests/` to produce the authoritative current reference list (the
       design's "~64 files" figure is from exploration and may have drifted). Group findings into: (a)
       `User` entity itself, (b) session/DTO plumbing (`ICurrentOperatorSession`, `InMemoryUserSession`,
@@ -106,35 +106,35 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
       ViewModels (`MainShellViewModel`, `InvoicesViewModel`, `UserManagementViewModel`), (e) seeding
       (`DatabaseSchemaRollout`), (f) test files referencing `UserRole`. This grouping drives tasks 2.2
       through 2.8 and confirms nothing is missed before 2.9 deletes the enum.
-- [ ] **2.2** Modify `src/POS.Domain/Entities/User.cs` per design §1.5: ctor takes `Guid roleId` instead
+- [x] **2.2** Modify `src/POS.Domain/Entities/User.cs` per design §1.5: ctor takes `Guid roleId` instead
       of `UserRole role`; `RoleId` property replaces `Role`; `ChangeRole(Guid)` replaces
       `UpdateRole(UserRole)`; remove `using POS.Domain.Enums;`. No navigation property (design decision).
       Spec: role-permissions "User has exactly one role".
-- [ ] **2.3** Test: `POS.Domain.Tests` — `User` ctor rejects `Guid.Empty` roleId; `ChangeRole` updates
+- [x] **2.3** Test: `POS.Domain.Tests` — `User` ctor rejects `Guid.Empty` roleId; `ChangeRole` updates
       `RoleId`.
       Spec: role-permissions "User is created with a single role" scenario.
-- [ ] **2.4** Modify `src/POS.Application/Interfaces/ICurrentOperatorSession.cs` per design §5.1: remove
+- [x] **2.4** Modify `src/POS.Application/Interfaces/ICurrentOperatorSession.cs` per design §5.1: remove
       `UserRole Role`, add `Guid RoleId`, `string RoleName`, `IReadOnlySet<string> Permissions`,
       `bool HasPermission(string permissionKey)`. Update the paired `IWritableOperatorSession.SetUser(...)`
       signature to the design §5.3 shape (`Guid id, string username, Guid roleId, string roleName,
       IReadOnlySet<string> permissions`).
-- [ ] **2.5** Modify `src/POS.Infrastructure/Persistence/InMemoryUserSession.cs` per design §5.3 exactly
+- [x] **2.5** Modify `src/POS.Infrastructure/Persistence/InMemoryUserSession.cs` per design §5.3 exactly
       (empty-set default when unauthenticated, not "Cashier" — explicit spec requirement).
       Spec: user-auth "Unauthenticated session has no permissions".
-- [ ] **2.6** Test: `POS.Application.Tests` or `POS.Infrastructure.Tests` (wherever `InMemoryUserSession`
+- [x] **2.6** Test: `POS.Application.Tests` or `POS.Infrastructure.Tests` (wherever `InMemoryUserSession`
       is currently tested) — unauthenticated session has empty `Permissions` and `HasPermission` returns
       false for any key; after `SetUser`, `HasPermission` reflects the passed set; `ClearSession` resets
       to empty.
-- [ ] **2.7** Modify `src/POS.Application/DTOs/Auth/AuthDtos.cs` — `LoginResult` per design §5.4 (adds
+- [x] **2.7** Modify `src/POS.Application/DTOs/Auth/AuthDtos.cs` — `LoginResult` per design §5.4 (adds
       `RoleId`, `RoleName`, nullable `Permissions`; removes `Role` field/enum usage).
-- [ ] **2.8** Fix remaining compile breaks from the enum swap in non-WPF, non-seeding code identified in
+- [x] **2.8** Fix remaining compile breaks from the enum swap in non-WPF, non-seeding code identified in
       2.1(c)/(f) that are not covered by a later dedicated task — i.e., anything referencing `UserRole`
       that isn't `AdminUserAuthorization` (handled in Slice 1 §5), seeding (task 4.x), or WPF (Slice 3).
       Do NOT touch WPF ViewModels here — they are explicitly Slice 3 and are expected to be temporarily
       broken until then (acceptable within this atomic-swap slice per design §1.4/D9; the slice as a
       whole must compile by task 2.9, WPF projects may need a throwaway stub or are simply included in
       this same slice's compile scope — see note below).
-- [ ] **2.9** Delete `src/POS.Domain/Enums/UserRole.cs`. This task MUST be the last step of this
+- [x] **2.9** Delete `src/POS.Domain/Enums/UserRole.cs`. This task MUST be the last step of this
       sub-section, only after 2.1–2.8 confirm no remaining reference outside WPF/seeding/gate code that
       subsequent Slice-1 tasks (3.x, 4.x, 5.x, 6.x) will fix. **Note**: because WPF (`MainShellViewModel`,
       `InvoicesViewModel`, `UserManagementViewModel`) is design-assigned to Slice 3 but the solution as a
@@ -148,38 +148,38 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 3. EF layer (design §12 step 3)
 
-- [ ] **3.1** Create `src/POS.Infrastructure/Persistence/Configurations/RoleConfiguration.cs` per design
+- [x] **3.1** Create `src/POS.Infrastructure/Persistence/Configurations/RoleConfiguration.cs` per design
       §3.1 exactly. **Checklist item, do not skip**: `builder.Property(r => r.Id).HasConversion<string>()`
       MUST be present — omitting it reproduces the documented prior bug where EF binds Guid as
       uppercase TEXT and lookups silently never match.
-- [ ] **3.2** Create `src/POS.Infrastructure/Persistence/Configurations/RolePermissionConfiguration.cs`
+- [x] **3.2** Create `src/POS.Infrastructure/Persistence/Configurations/RolePermissionConfiguration.cs`
       per design §3.2 exactly. **Checklist item**: `builder.Property(rp => rp.RoleId).HasConversion<string>()`
       MUST be present (same mandatory conversion, second occurrence in this same task).
-- [ ] **3.3** Modify `src/POS.Infrastructure/Persistence/Configurations/UserConfiguration.cs` per design
+- [x] **3.3** Modify `src/POS.Infrastructure/Persistence/Configurations/UserConfiguration.cs` per design
       §3.3: add `RoleId` property with `HasConversion<string>()` (**checklist item, third and last
       mandatory occurrence of this conversion in this change**) and the `HasOne<Role>().WithMany()`
       FK with `DeleteBehavior.Restrict`.
-- [ ] **3.4** Modify `src/POS.Infrastructure/Persistence/AppDbContext.cs` — add
+- [x] **3.4** Modify `src/POS.Infrastructure/Persistence/AppDbContext.cs` — add
       `DbSet<Role> Roles => Set<Role>();` and `DbSet<RolePermission> RolePermissions => Set<RolePermission>();`
       after the `Users` DbSet (design §3.4).
-- [ ] **3.5** Create `src/POS.Domain/Interfaces/IRoleRepository.cs` per design §4.1 exactly (9 methods:
+- [x] **3.5** Create `src/POS.Domain/Interfaces/IRoleRepository.cs` per design §4.1 exactly (9 methods:
       `GetByIdAsync`, `GetByNameAsync`, `GetAllAsync`, `HasPermissionAsync`, `GetPermissionKeysAsync`,
       `AddAsync`, `UpdateAsync`, `ReplacePermissionsAsync`, `CountUsersInRoleAsync`).
-- [ ] **3.6** Create `src/POS.Infrastructure/Persistence/Repositories/RoleRepository.cs` (or wherever
+- [x] **3.6** Create `src/POS.Infrastructure/Persistence/Repositories/RoleRepository.cs` (or wherever
       `UserRepository` lives — mirror its location) implementing `IRoleRepository`, following the
       `UserRepository` pattern (constructor-injected `AppDbContext`, async EF queries).
       `ReplacePermissionsAsync` does NOT call `SaveChangesAsync` itself (design §4.1 — the calling use
       case owns the commit so rename + permission-replace are atomic).
-- [ ] **3.7** Modify `src/POS.Domain/Interfaces/IUserRepository.cs` — add
+- [x] **3.7** Modify `src/POS.Domain/Interfaces/IUserRepository.cs` — add
       `Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default);` (design §4.2).
-- [ ] **3.8** Implement `CountActiveUsersInRoleAsync` in `UserRepository`.
-- [ ] **3.9** Test: `POS.Infrastructure.Tests` (or equivalent integration test project against a real/
+- [x] **3.8** Implement `CountActiveUsersInRoleAsync` in `UserRepository`.
+- [x] **3.9** Test: `POS.Infrastructure.Tests` (or equivalent integration test project against a real/
       in-memory SQLite context) — `RoleRepository.ReplacePermissionsAsync` deletes prior grants and
       inserts the new set in one logical operation; `HasPermissionAsync` / `GetPermissionKeysAsync`
       round-trip correctly; **EF Guid conversion regression guard**: a `RolePermission` row and a
       `User.RoleId` value round-trip and a lookup-by-id matches (this is the specific test named as
       required — it is what would have caught the historical uppercase-TEXT bug).
-- [ ] **3.10** Generate the migration: run `dotnet ef migrations add ReplaceUserRoleEnumWithRbac` from
+- [x] **3.10** Generate the migration: run `dotnet ef migrations add ReplaceUserRoleEnumWithRbac` from
       the Infrastructure project **after** tasks 3.1–3.8 compile. Do NOT hand-write the generated
       `.Designer.cs`/model snapshot — regenerate via the CLI per design §3.5. Verify the generated `Up`/
       `Down` match design §3.5's described contents (Roles table, RolePermissions table, drop
@@ -187,13 +187,13 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 4. Seeding (design §12 step 4)
 
-- [ ] **4.1** Modify `src/POS.Infrastructure/DatabaseSchemaRollout.cs`: rename `SeedDefaultAdminAsync` →
+- [x] **4.1** Modify `src/POS.Infrastructure/DatabaseSchemaRollout.cs`: rename `SeedDefaultAdminAsync` →
       `SeedDefaultRolesAndAdminAsync`, implement the 3-step order from design §6.2 (seed both system
       roles idempotently → seed Cashier's `RolePermission` rows from `PermissionKeys.CashierDefaults`,
       Administrator gets zero rows → seed the `admin` user pointed at `RoleConstants.AdministratorRoleId`),
       each step guarded by its own `AnyAsync` check.
       Spec: role-permissions "System roles are seeded on empty database", "Seeding is idempotent".
-- [ ] **4.2** Test: `POS.Infrastructure.Tests` — seeding on empty DB creates exactly Administrator +
+- [x] **4.2** Test: `POS.Infrastructure.Tests` — seeding on empty DB creates exactly Administrator +
       Cashier system roles, both `IsActive = true`; admin user's `RoleId` equals
       `RoleConstants.AdministratorRoleId`; Cashier role's persisted grants exactly match
       `PermissionKeys.CashierDefaults` (set-equality assertion, catching the exact §6.3 defect class the
@@ -204,11 +204,11 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 5. Gate (design §12 step 5)
 
-- [ ] **5.1** Create `src/POS.Application/UseCases/Auth/PermissionAuthorization.cs` per design §2 exactly
+- [x] **5.1** Create `src/POS.Application/UseCases/Auth/PermissionAuthorization.cs` per design §2 exactly
       — both overloads (`EnsureHasPermission` session fast-path, `EnsureHasPermissionAsync` repository
       fallback with the Administrator bypass short-circuit via `RoleConstants.IsSystemAdministrator`).
       Spec: role-permissions "PermissionAuthorization gate".
-- [ ] **5.2** Test: `POS.Application.Tests` — for both overloads: admin bypass allows without a
+- [x] **5.2** Test: `POS.Application.Tests` — for both overloads: admin bypass allows without a
       `RolePermission` row lookup (assert the repository's `HasPermissionAsync` is never called on the
       admin path, or use a role with zero rows to prove it's not row-based); non-admin with the granted
       key allows; non-admin without the key denies; inactive requester denies even when role is
@@ -216,73 +216,73 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
       Spec: role-permissions "Administrator bypasses permission checks", "Non-administrator role with
       the required grant succeeds", "Non-administrator role without the required grant is denied",
       "Inactive requester is denied regardless of role".
-- [ ] **5.3** Replace all 4 `AdminUserAuthorization.EnsureAdministratorAsync` call sites per design §2.1
+- [x] **5.3** Replace all 4 `AdminUserAuthorization.EnsureAdministratorAsync` call sites per design §2.1
       table: `CreateUserUseCase.cs` → `PermissionKeys.Users.Create`; `UpdateUserUseCase.cs` →
       `PermissionKeys.Users.Edit`; `DeactivateUserUseCase.cs` → `PermissionKeys.Users.Deactivate`;
       `GetAuditLogsUseCase.cs` → `PermissionKeys.Audit.View`.
       Spec: role-permissions "Users and Roles module gating" (Create scenario); audit-trail "Audit log
       viewing is permission-gated".
-- [ ] **5.4** Test updates for 5.3's four use cases — existing "denies non-admin" tests become "denies
+- [x] **5.4** Test updates for 5.3's four use cases — existing "denies non-admin" tests become "denies
       caller without the specific key"; add a case for a custom role granted the specific key but not
       Administrator succeeding (proves it's no longer admin-or-nothing).
       Spec: role-permissions "User without Users.Create is denied creating a user"; audit-trail "User
       without Audit.View is denied reading audit logs", "Administrator retains audit log access via the
       bypass".
-- [ ] **5.5** Delete `src/POS.Application/UseCases/Auth/AdminUserAuthorization.cs` — confirm (via
+- [x] **5.5** Delete `src/POS.Application/UseCases/Auth/AdminUserAuthorization.cs` — confirm (via
       grep/build) it has zero remaining callers after 5.3.
-- [ ] **5.6** Modify `src/POS.Application/UseCases/Invoices/CancelSaleUseCase.cs`: delete the inline
+- [x] **5.6** Modify `src/POS.Application/UseCases/Invoices/CancelSaleUseCase.cs`: delete the inline
       `if (user.Role != UserRole.Administrator) throw ...` check, replace with
       `PermissionAuthorization.EnsureHasPermissionAsync(..., PermissionKeys.Invoices.Cancel, ct)`
       authorizing `request.CancelledByUserId`, throwing `UnauthorizedActionException("CancelSale")` on
       deny (matches existing throw shape).
       Spec: role-permissions "CancelSaleUseCase unified onto PermissionAuthorization";
       invoice-management "Sale cancellation authorization" (MODIFIED requirement).
-- [ ] **5.7** Test: `POS.Application.Tests` — Cashier without `Invoices.Cancel` denied, sale status
+- [x] **5.7** Test: `POS.Application.Tests` — Cashier without `Invoices.Cancel` denied, sale status
       unchanged; Administrator succeeds via bypass; custom role explicitly granted `Invoices.Cancel`
       succeeds; assert no inline `UserRole` comparison remains (structural/behavioral proof, e.g. a
       custom non-admin role WITH the grant succeeds — this could not pass under the old inline check).
       Spec: invoice-management all 3 scenarios ("Cashier without Invoices.Cancel is denied cancelling a
       sale", "Administrator succeeds cancelling a sale via the bypass", "Custom role explicitly granted
       Invoices.Cancel succeeds").
-- [ ] **5.8** Add new gates (session fast-path, no prior check existed) per design §2.1 second table:
+- [x] **5.8** Add new gates (session fast-path, no prior check existed) per design §2.1 second table:
       `TriggerManualBackupUseCase.cs` → `Admin.Backup.Create`, deny returns
       `ManualBackupResult(false, <msg>, null)`; `RestoreBackupUseCase.cs` → `Admin.Backup.Restore`, deny
       returns `RestoreBackupResult(false, <msg>)`. Both require injecting `ICurrentOperatorSession` (new
       dependency per design §2 table).
       Spec: system-settings "Manual backup creation is permission-gated", "Backup restore is
       permission-gated"; role-permissions "Backup Create and Restore are distinct permission keys".
-- [ ] **5.9** Test: `POS.Application.Tests` — the exact Create-vs-Restore matrix required by the user and
+- [x] **5.9** Test: `POS.Application.Tests` — the exact Create-vs-Restore matrix required by the user and
       named in the spec: role with only `Admin.Backup.Create` → denied on Restore, allowed on Create;
       role with `Admin.Backup.Restore` → allowed on Restore; role with neither → denied on both.
       Spec: system-settings both scenarios; role-permissions all 4 "Backup Create and Restore are
       distinct permission keys" scenarios (this is the explicitly user-required backup test coverage).
-- [ ] **5.10** Add new gates for Settings per design §2.1 note (throw `UnauthorizedActionException` on
+- [x] **5.10** Add new gates for Settings per design §2.1 note (throw `UnauthorizedActionException` on
       deny, per D6): `SaveSettingsUseCase.cs` → `Settings.Edit`; `LoadSettingsUseCase.cs` →
       `Settings.View`; `UpdateBackupDirectoryUseCase.cs` → `Settings.Edit`. All session fast-path,
       inject `ICurrentOperatorSession`.
       Spec: system-settings "Settings view and edit are permission-gated" (all 3 scenarios).
-- [ ] **5.11** Test: `POS.Application.Tests` — `LoadSettingsUseCase` throws without `Settings.View`;
+- [x] **5.11** Test: `POS.Application.Tests` — `LoadSettingsUseCase` throws without `Settings.View`;
       `SaveSettingsUseCase` throws without `Settings.Edit`, settings unchanged; `UpdateBackupDirectoryUseCase`
       succeeds with `Settings.Edit`, persists the path.
       Spec: system-settings all 3 "Settings view and edit are permission-gated" scenarios.
 
 ### 6. Login snapshot (design §12 step 6)
 
-- [ ] **6.1** Modify `src/POS.Application/UseCases/Auth/LoginUseCase.cs` per design §5.5: inject
+- [x] **6.1** Modify `src/POS.Application/UseCases/Auth/LoginUseCase.cs` per design §5.5: inject
       `IRoleRepository`, after credential validation load the role, materialize
       `new HashSet<string>(PermissionKeys.All)` for the Administrator role or
       `GetPermissionKeysAsync(role.Id, ct)` otherwise, return the extended `LoginResult`.
       Spec: user-auth "Login snapshots the role's permission set into the session" (both scenarios).
-- [ ] **6.2** Modify `src/POS.Presentation/AppBootstrapper.cs` (design §5.5 note, lines ~42/~207/~267):
+- [x] **6.2** Modify `src/POS.Presentation/AppBootstrapper.cs` (design §5.5 note, lines ~42/~207/~267):
       read `result.RoleName`/`result.Permissions` instead of `session.Role`; call the new
       `SetUser(id, username, roleId, roleName, permissions)` signature.
-- [ ] **6.3** Test: `POS.Application.Tests` — login for a custom role "Report Viewer" granted only
+- [x] **6.3** Test: `POS.Application.Tests` — login for a custom role "Report Viewer" granted only
       `Reports.View` populates `session.Permissions` with exactly `{Reports.View}` and `RoleId` matches;
       login for Administrator yields `HasPermission` true for every valid key including one not
       explicitly enumerated in any row; unauthenticated session has empty permissions.
       Spec: user-auth "Login populates session permissions for a custom role", "Login grants
       Administrator full access via bypass", "Unauthenticated session has no permissions".
-- [ ] **6.4** Test: `POS.Application.Tests` — **session snapshot / "effective on next login" behavior**
+- [x] **6.4** Test: `POS.Application.Tests` — **session snapshot / "effective on next login" behavior**
       (explicitly user-required coverage): a logged-in user's session `Permissions` does NOT change when
       an admin edits that user's role's grants mid-session (assert the live session object is unaffected
       by a `ReplacePermissionsAsync` call on the same role); a subsequent fresh login for the same user

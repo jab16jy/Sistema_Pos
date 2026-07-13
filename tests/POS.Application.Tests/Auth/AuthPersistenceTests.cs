@@ -27,9 +27,9 @@ public sealed class AuthPersistenceTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var repository = new UserRepository(dbContext);
         var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
-        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService(), dbContext);
+        var useCase = new CreateUserUseCase(repository, new RoleRepository(dbContext), new FakePasswordHashService(), dbContext);
 
-        (bool ok, string? error) = await useCase.ExecuteAsync("cajero1", "1234", UserRole.Cashier, admin.Id, TestContext.Current.CancellationToken);
+        (bool ok, string? error) = await useCase.ExecuteAsync("cajero1", "1234", POS.Domain.Authorization.RoleConstants.CashierRoleId, admin.Id, TestContext.Current.CancellationToken);
 
         Assert.True(ok, error);
         // Regression: before the fix AddAsync only staged the entity and never saved, so this query returned nothing.
@@ -45,15 +45,15 @@ public sealed class AuthPersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var repository = new UserRepository(dbContext);
-        var cashier = new User("cajero-actual", "hash", UserRole.Cashier);
+        var cashier = new User("cajero-actual", "hash", POS.Domain.Authorization.RoleConstants.CashierRoleId);
         await repository.AddAsync(cashier, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService(), dbContext);
+        var useCase = new CreateUserUseCase(repository, new RoleRepository(dbContext), new FakePasswordHashService(), dbContext);
 
-        (bool ok, string? error) = await useCase.ExecuteAsync("nuevo", "1234", UserRole.Administrator, cashier.Id, TestContext.Current.CancellationToken);
+        (bool ok, string? error) = await useCase.ExecuteAsync("nuevo", "1234", POS.Domain.Authorization.RoleConstants.AdministratorRoleId, cashier.Id, TestContext.Current.CancellationToken);
 
         Assert.False(ok);
-        Assert.Contains("administrador", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("permiso", error, StringComparison.OrdinalIgnoreCase);
         Assert.Null(await repository.GetByUsernameAsync("nuevo", TestContext.Current.CancellationToken));
     }
 
@@ -66,12 +66,12 @@ public sealed class AuthPersistenceTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var repository = new UserRepository(dbContext);
         var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
-        var useCase = new CreateUserUseCase(repository, new FakePasswordHashService(), dbContext);
+        var useCase = new CreateUserUseCase(repository, new RoleRepository(dbContext), new FakePasswordHashService(), dbContext);
 
-        await useCase.ExecuteAsync("cajero1", "1234", UserRole.Cashier, admin.Id, TestContext.Current.CancellationToken);
+        await useCase.ExecuteAsync("cajero1", "1234", POS.Domain.Authorization.RoleConstants.CashierRoleId, admin.Id, TestContext.Current.CancellationToken);
 
         System.Collections.Generic.IReadOnlyList<AuditLogEntry> logs =
-            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), repository)
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), repository, new RoleRepository(dbContext))
                 .ExecuteAsync(admin.Id, 10, null, TestContext.Current.CancellationToken);
 
         Assert.Contains(logs, l => l.EntityName == "User" && l.Username == "admin");
@@ -92,18 +92,18 @@ public sealed class AuthPersistenceTests
             using (IServiceScope seedScope = provider.CreateScope())
             {
                 var users = seedScope.ServiceProvider.GetRequiredService<POS.Domain.Interfaces.IUserRepository>();
-                var admin = new User("carlos", "hash", UserRole.Administrator);
+                var admin = new User("carlos", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
                 adminId = admin.Id;
                 await users.AddAsync(admin, TestContext.Current.CancellationToken);
             }
 
             // Simulate a logged-in operator, then perform an audited write in a request scope.
-            provider.GetRequiredService<IWritableOperatorSession>().SetUser(adminId, "carlos", UserRole.Administrator);
+            provider.GetRequiredService<IWritableOperatorSession>().SetUser(adminId, "carlos", POS.Domain.Authorization.RoleConstants.AdministratorRoleId, POS.Domain.Authorization.RoleConstants.AdministratorRoleName, new HashSet<string>(POS.Domain.Authorization.PermissionKeys.All));
 
             using (IServiceScope scope = provider.CreateScope())
             {
                 var createUser = scope.ServiceProvider.GetRequiredService<CreateUserUseCase>();
-                (bool ok, string? error) = await createUser.ExecuteAsync("cajero1", "1234", UserRole.Cashier, adminId, TestContext.Current.CancellationToken);
+                (bool ok, string? error) = await createUser.ExecuteAsync("cajero1", "1234", POS.Domain.Authorization.RoleConstants.CashierRoleId, adminId, TestContext.Current.CancellationToken);
                 Assert.True(ok, error);
             }
 
@@ -142,7 +142,7 @@ public sealed class AuthPersistenceTests
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         IReadOnlyList<AuditLogEntry> logs =
-            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository)
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository, new RoleRepository(dbContext))
                 .ExecuteAsync(admin.Id, 10, null, TestContext.Current.CancellationToken);
 
         // An admin reading the audit log can't interpret a raw Guid; the invoice number is what they see on receipts/screen.
@@ -165,7 +165,7 @@ public sealed class AuthPersistenceTests
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         IReadOnlyList<AuditLogEntry> logs =
-            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository)
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository, new RoleRepository(dbContext))
                 .ExecuteAsync(admin.Id, 10, null, TestContext.Current.CancellationToken);
 
         // "el id del cliente" the admin recognizes is the cédula/NIT (Identification), not the internal Guid.
@@ -190,7 +190,7 @@ public sealed class AuthPersistenceTests
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         IReadOnlyList<AuditLogEntry> logs =
-            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository)
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository, new RoleRepository(dbContext))
                 .ExecuteAsync(admin.Id, 10, null, TestContext.Current.CancellationToken);
 
         // The row is gone after delete, so the name must be baked into the detail when the delete is audited.
@@ -214,7 +214,7 @@ public sealed class AuthPersistenceTests
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         IReadOnlyList<AuditLogEntry> logs =
-            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository)
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository, new RoleRepository(dbContext))
                 .ExecuteAsync(admin.Id, 10, null, TestContext.Current.CancellationToken);
 
         // A raw "Registro creado." tells the admin nothing; they need the product, quantity and reason.
@@ -232,10 +232,10 @@ public sealed class AuthPersistenceTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var userRepository = new UserRepository(dbContext);
-        var cashier = new User("cajero", "hash", UserRole.Cashier);
+        var cashier = new User("cajero", "hash", POS.Domain.Authorization.RoleConstants.CashierRoleId);
         await userRepository.AddAsync(cashier, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
-        var useCase = new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository);
+        var useCase = new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository, new RoleRepository(dbContext));
 
         await Assert.ThrowsAsync<POS.Domain.Exceptions.UnauthorizedActionException>(
             () => useCase.ExecuteAsync(cashier.Id, 10, null, TestContext.Current.CancellationToken));
@@ -330,7 +330,7 @@ public sealed class AuthPersistenceTests
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         IReadOnlyList<AuditLogEntry> logs =
-            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository)
+            await new GetAuditLogsUseCase(new AuditLogRepository(dbContext), userRepository, new RoleRepository(dbContext))
                 .ExecuteAsync(admin.Id, 10, null, TestContext.Current.CancellationToken);
 
         // Both are business identifiers an admin recognizes; the raw Guid would not be.
@@ -342,7 +342,7 @@ public sealed class AuthPersistenceTests
 
     private static async Task<User> SeedAdminAsync(AppDbContext dbContext, UserRepository repository, CancellationToken ct)
     {
-        var admin = new User("admin-seed", "hash", UserRole.Administrator);
+        var admin = new User("admin-seed", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         await repository.AddAsync(admin, ct);
         await dbContext.SaveChangesAsync(ct);
         return admin;
@@ -370,7 +370,10 @@ public sealed class AuthPersistenceTests
 
         public Guid OperatorId => Guid.NewGuid();
         public string Username { get; }
-        public UserRole Role => UserRole.Administrator;
+        public Guid RoleId => POS.Domain.Authorization.RoleConstants.AdministratorRoleId;
+        public string RoleName => POS.Domain.Authorization.RoleConstants.AdministratorRoleName;
+        public IReadOnlySet<string> Permissions => new HashSet<string>(POS.Domain.Authorization.PermissionKeys.All);
+        public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => true;
     }
 }

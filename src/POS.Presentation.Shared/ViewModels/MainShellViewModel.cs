@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Sales;
-using POS.Domain.Enums;
+using POS.Domain.Authorization;
 using POS.Presentation.Shared.Commands;
 using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.Shell;
@@ -41,17 +41,17 @@ public sealed class MainShellViewModel : ViewModelBase
     }
 
     public MainShellViewModel(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboardSummaryUseCase)
-        : this(cashier, dashboardSummaryUseCase, UserRole.Administrator, string.Empty)
+        : this(cashier, dashboardSummaryUseCase, RoleConstants.AdministratorRoleId, RoleConstants.AdministratorRoleName, string.Empty)
     {
     }
 
-    public MainShellViewModel(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboardSummaryUseCase, UserRole role, string username)
+    public MainShellViewModel(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboardSummaryUseCase, Guid roleId, string roleName, string username)
     {
         Cashier = cashier ?? throw new ArgumentNullException(nameof(cashier));
         Cashier.SaleCompleted += RefreshDashboardMetrics;
         _dashboardSummaryUseCase = dashboardSummaryUseCase;
-        Role = role;
-        OperatorDisplayName = BuildDisplayName(username, role);
+        RoleId = roleId;
+        OperatorDisplayName = BuildDisplayName(username, roleName);
 
         var allModules = new[]
         {
@@ -72,7 +72,7 @@ public sealed class MainShellViewModel : ViewModelBase
             new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true)
         };
 
-        var isAdmin = role == UserRole.Administrator;
+        var isAdmin = RoleConstants.IsSystemAdministrator(roleId);
 
         FuncbarModules = isAdmin
             ? new ObservableCollection<ModuleNavigationItem>(allModules.Take(5))
@@ -113,7 +113,7 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public event Action? LogoutRequested;
 
-    public UserRole Role { get; }
+    public Guid RoleId { get; }
     public string OperatorDisplayName { get; }
 
     public ObservableCollection<ModuleNavigationItem> Modules { get; }
@@ -483,10 +483,9 @@ public sealed class MainShellViewModel : ViewModelBase
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";
 
-    private static string BuildDisplayName(string username, UserRole role)
+    private static string BuildDisplayName(string username, string roleName)
     {
         if (string.IsNullOrEmpty(username)) return string.Empty;
-        var roleName = role == UserRole.Administrator ? "Administrador" : "Cajero";
         return $"{username} — {roleName}";
     }
 }

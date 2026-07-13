@@ -62,7 +62,7 @@ public sealed class CommercialPresentationFlowTests
         sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(220_000m), new Money(220_000m)));
         sale.Complete();
 
-        var administrator = new User("admin", "hash", UserRole.Administrator);
+        var administrator = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
         var inventory = new InventoryRepository();
         var returns = new SaleReturnRepository();
         var useCase = new ProcessReturnUseCase(
@@ -281,6 +281,21 @@ public sealed class CommercialPresentationFlowTests
             Task.FromResult<IReadOnlyList<User>>([user]);
 
         public Task UpdateAsync(User entity, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(user.RoleId == roleId && user.IsActive ? 1 : 0);
+    }
+
+    private sealed class AdministratorRoleRepository : IRoleRepository
+    {
+        private static readonly Role Administrator = Role.CreateSystemRole(POS.Domain.Authorization.RoleConstants.AdministratorRoleId, POS.Domain.Authorization.RoleConstants.AdministratorRoleName);
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(id == Administrator.Id ? Administrator : null);
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([Administrator]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(false);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 
     private sealed class DocumentSendLogRepository(IReadOnlyList<DocumentSendLog> logs) : IDocumentSendLogRepository

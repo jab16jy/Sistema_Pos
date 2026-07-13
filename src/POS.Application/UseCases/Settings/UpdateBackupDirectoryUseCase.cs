@@ -1,4 +1,8 @@
+using POS.Application.Interfaces;
+using POS.Application.UseCases.Auth;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
+using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
 namespace POS.Application.UseCases.Settings;
@@ -11,16 +15,23 @@ public sealed class UpdateBackupDirectoryUseCase
 {
     private readonly ISettingsRepository _settings;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentOperatorSession _session;
 
-    public UpdateBackupDirectoryUseCase(ISettingsRepository settings, IUnitOfWork unitOfWork)
+    public UpdateBackupDirectoryUseCase(ISettingsRepository settings, IUnitOfWork unitOfWork, ICurrentOperatorSession session)
     {
         _settings = settings;
         _unitOfWork = unitOfWork;
+        _session = session;
     }
 
     /// <returns>False when no business settings exist yet (nothing to update).</returns>
     public async Task<bool> ExecuteAsync(string? backupDirectory, CancellationToken cancellationToken = default)
     {
+        if (PermissionAuthorization.EnsureHasPermission(_session, PermissionKeys.Settings.Edit, "Unauthorized") is not null)
+        {
+            throw new UnauthorizedActionException("UpdateBackupDirectory");
+        }
+
         BusinessSettings? settings = await _settings.GetAsync(cancellationToken).ConfigureAwait(false);
         if (settings is null)
         {

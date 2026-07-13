@@ -34,7 +34,12 @@ public sealed class AppBootstrapperSmokeTests
                 User admin = await dbContext.Users.AsNoTracking()
                     .SingleAsync(user => user.Username == "admin", TestContext.Current.CancellationToken);
 
-                writableSession.SetUser(admin.Id, admin.Username, admin.Role);
+                writableSession.SetUser(
+                    admin.Id,
+                    admin.Username,
+                    admin.RoleId,
+                    POS.Domain.Authorization.RoleConstants.AdministratorRoleName,
+                    new HashSet<string>(POS.Domain.Authorization.PermissionKeys.All));
 
                 MainShellViewModel shell = AppBootstrapper.BuildMainShellViewModel(scope.ServiceProvider);
 

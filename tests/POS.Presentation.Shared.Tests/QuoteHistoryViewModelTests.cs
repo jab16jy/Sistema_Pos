@@ -611,7 +611,10 @@ public sealed class QuoteHistoryViewModelTests
     {
         public Guid OperatorId { get; } = operatorId;
         public string Username => "cashier";
-        public UserRole Role => UserRole.Cashier;
+        public Guid RoleId => POS.Domain.Authorization.RoleConstants.CashierRoleId;
+        public string RoleName => POS.Domain.Authorization.RoleConstants.CashierRoleName;
+        public IReadOnlySet<string> Permissions => new HashSet<string>(POS.Domain.Authorization.PermissionKeys.CashierDefaults);
+        public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => OperatorId != Guid.Empty;
     }
 

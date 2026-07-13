@@ -1,5 +1,7 @@
 using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
+using POS.Application.UseCases.Auth;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 
@@ -28,6 +30,13 @@ public sealed class TriggerManualBackupUseCase
         ManualBackupRequest request,
         CancellationToken cancellationToken = default)
     {
+        string? unauthorized = PermissionAuthorization.EnsureHasPermission(
+            _session, PermissionKeys.Admin.Backup.Create, "No tienes permiso para crear respaldos.");
+        if (unauthorized is not null)
+        {
+            return new ManualBackupResult(false, unauthorized, null);
+        }
+
         BusinessSettings? settings = await _settings.GetAsync(cancellationToken).ConfigureAwait(false);
         string? destinationDirectory = Normalize(request.DestinationDirectory) ?? Normalize(settings?.BackupDirectory);
 

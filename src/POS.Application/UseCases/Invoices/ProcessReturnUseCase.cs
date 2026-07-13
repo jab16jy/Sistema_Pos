@@ -1,4 +1,5 @@
 using POS.Application.DTOs.Invoices;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
@@ -39,11 +40,10 @@ public sealed class ProcessReturnUseCase
             throw new ArgumentException("Processed by user id is required.", nameof(request));
         }
 
-        // R-IR-05: Only administrators can process sale returns
         var user = await _users.GetByIdAsync(request.ProcessedByUserId, cancellationToken).ConfigureAwait(false)
             ?? throw new UnauthorizedActionException("ProcessReturn");
 
-        if (user.Role != UserRole.Administrator)
+        if (!RoleConstants.IsSystemAdministrator(user.RoleId))
         {
             throw new UnauthorizedActionException("ProcessReturn");
         }
