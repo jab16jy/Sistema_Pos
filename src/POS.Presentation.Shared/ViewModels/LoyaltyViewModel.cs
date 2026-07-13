@@ -4,6 +4,7 @@ using System.Windows.Input;
 using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Loyalty;
 using POS.Application.UseCases.Loyalty;
+using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
@@ -47,6 +48,9 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private decimal _tierPointsMultiplier = 1m;
     private string _tierPointsMultiplierText = "1";
     private string _tierColor = "#64748B";
+    private LoyaltyTierTextForeground _tierTextForeground = LoyaltyTierTextForeground.White;
+    private decimal? _pendingTierPointsMultiplier = 1m;
+    private bool _isTierPointsMultiplierTextValid = true;
 
     public LoyaltyViewModel(
         GetLoyaltyBalanceUseCase getBalance,
@@ -94,6 +98,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
     public ObservableCollection<LoyaltyTransactionResult> Transactions { get; }
     public ObservableCollection<LoyaltyTierPresentation> Tiers { get; }
     public ObservableCollection<LoyaltyProgramTransactionEntry> ProgramTransactions { get; }
+    public IReadOnlyList<LoyaltyTierTextForeground> TierTextForegroundOptions { get; } = [LoyaltyTierTextForeground.Black, LoyaltyTierTextForeground.White];
 
     public ICommand LoadBalanceCommand { get; }
     public ICommand RedeemCommand { get; }
@@ -214,6 +219,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
                 TierDiscountPercent = value.DiscountPercent;
                 TierPointsMultiplier = value.PointsMultiplier;
                 TierColor = value.Color;
+                TierTextForeground = value.TextForeground;
             }
         }
     }
@@ -243,8 +249,11 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             if (SetProperty(ref _tierPointsMultiplier, value))
             {
+                _pendingTierPointsMultiplier = value;
+                _isTierPointsMultiplierTextValid = value > 0m;
                 _tierPointsMultiplierText = value.ToString("0.##", ColombianCulture);
                 OnPropertyChanged(nameof(TierPointsMultiplierText));
+                OnPropertyChanged(nameof(IsTierPointsMultiplierTextValid));
             }
         }
     }
@@ -254,14 +263,27 @@ public sealed class LoyaltyViewModel : ViewModelBase
         get => _tierPointsMultiplierText;
         set
         {
-            if (SetProperty(ref _tierPointsMultiplierText, value ?? "1"))
+            if (SetProperty(ref _tierPointsMultiplierText, value ?? string.Empty))
             {
-                if (TryParseFlexibleDecimal(value, out decimal parsedValue))
-                {
+                _isTierPointsMultiplierTextValid = TryParsePositiveDecimal(value, out decimal parsedValue);
+                _pendingTierPointsMultiplier = _isTierPointsMultiplierTextValid ? parsedValue : null;
+                if (_isTierPointsMultiplierTextValid)
                     _tierPointsMultiplier = parsedValue;
-                    OnPropertyChanged(nameof(TierPointsMultiplier));
-                }
+                OnPropertyChanged(nameof(TierPointsMultiplier));
+                OnPropertyChanged(nameof(IsTierPointsMultiplierTextValid));
             }
+        }
+    }
+
+    public bool IsTierPointsMultiplierTextValid => _isTierPointsMultiplierTextValid;
+
+    public LoyaltyTierTextForeground TierTextForeground
+    {
+        get => _tierTextForeground;
+        set
+        {
+            if (SetProperty(ref _tierTextForeground, value))
+                OnPropertyChanged(nameof(TierTextForegroundPreviewBrush));
         }
     }
 
@@ -278,6 +300,9 @@ public sealed class LoyaltyViewModel : ViewModelBase
     }
 
     public System.Windows.Media.Brush TierColorPreviewBrush => TryParseBrush(TierColor);
+    public System.Windows.Media.Brush TierTextForegroundPreviewBrush => TierTextForeground == LoyaltyTierTextForeground.Black
+        ? System.Windows.Media.Brushes.Black
+        : System.Windows.Media.Brushes.White;
 
     public async Task LoadProgramAsync(CancellationToken cancellationToken = default)
     {
@@ -330,7 +355,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
     public async Task SaveTierAsync(CancellationToken cancellationToken = default)
     {
         bool hasValidColor = !string.IsNullOrWhiteSpace(TierColor) && System.Text.RegularExpressions.Regex.IsMatch(TierColor, "^#[0-9A-Fa-f]{6}$");
-        if (string.IsNullOrWhiteSpace(TierName) || TierMinimumPoints < 0 || TierDiscountPercent is < 0 or > 100 || TierPointsMultiplier <= 0 || !hasValidColor)
+        if (string.IsNullOrWhiteSpace(TierName) || TierMinimumPoints < 0 || TierDiscountPercent is < 0 or > 100 || !_isTierPointsMultiplierTextValid || _pendingTierPointsMultiplier is not > 0m || !hasValidColor)
         {
             Message = "Revisa el tier: nombre obligatorio, mínimo no negativo, descuento entre 0 y 100, multiplicador mayor a cero y color en formato #RRGGBB.";
             return;
@@ -347,12 +372,12 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             if (SelectedTier is null)
             {
-                await _createTier!.ExecuteAsync(new CreateLoyaltyTierRequest(TierName, TierMinimumPoints, TierDiscountPercent, TierPointsMultiplier, TierColor), cancellationToken).ConfigureAwait(true);
+                await _createTier!.ExecuteAsync(new CreateLoyaltyTierRequest(TierName, TierMinimumPoints, TierDiscountPercent, _pendingTierPointsMultiplier.Value, TierColor, TierTextForeground), cancellationToken).ConfigureAwait(true);
                 Message = "Tier creado correctamente.";
             }
             else
             {
-                await _updateTier!.ExecuteAsync(new UpdateLoyaltyTierRequest(SelectedTier.Id, TierName, TierMinimumPoints, TierDiscountPercent, TierPointsMultiplier, TierColor), cancellationToken).ConfigureAwait(true);
+                await _updateTier!.ExecuteAsync(new UpdateLoyaltyTierRequest(SelectedTier.Id, TierName, TierMinimumPoints, TierDiscountPercent, _pendingTierPointsMultiplier.Value, TierColor, TierTextForeground), cancellationToken).ConfigureAwait(true);
                 Message = "Tier actualizado correctamente.";
             }
 
@@ -404,6 +429,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
         TierDiscountPercent = 0;
         TierPointsMultiplier = 1m;
         TierColor = "#64748B";
+        TierTextForeground = LoyaltyTierTextForeground.White;
     }
 
     private static System.Windows.Media.Brush TryParseBrush(string? hex)
@@ -417,7 +443,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
         catch { return System.Windows.Media.Brushes.Gray; }
     }
 
-    private static bool TryParseFlexibleDecimal(string? input, out decimal result)
+    private static bool TryParsePositiveDecimal(string? input, out decimal result)
     {
         result = 0m;
         if (string.IsNullOrWhiteSpace(input))
@@ -425,8 +451,10 @@ public sealed class LoyaltyViewModel : ViewModelBase
             return false;
         }
 
-        string normalized = input.Replace(',', '.').Trim();
-        return decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out result);
+        string normalized = input.Trim().Replace(',', '.');
+        return System.Text.RegularExpressions.Regex.IsMatch(normalized, "^\\d+(\\.\\d+)?$")
+            && decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out result)
+            && result > 0m;
     }
 
     public async Task SaveRulesAsync(CancellationToken cancellationToken = default)
@@ -584,10 +612,10 @@ public sealed class LoyaltyViewModel : ViewModelBase
         foreach (var transaction in overview.RecentTransactions)
         {
             ProgramTransactions.Add(new LoyaltyProgramTransactionEntry(
-                transaction.Type.Equals("Redeemed", StringComparison.OrdinalIgnoreCase) ? "Canje de puntos" : "Puntos acumulados",
+                TransactionTitle(transaction.Type),
                 BuildTransactionMeta(transaction),
                 transaction.Points > 0 ? $"+{transaction.Points.ToString("N0", ColombianCulture)}" : transaction.Points.ToString("N0", ColombianCulture),
-                transaction.Points >= 0 ? "earn" : "redeem",
+                TransactionKind(transaction.Type),
                 transaction.CustomerName,
                 transaction.InvoiceNumber,
                 transaction.CreatedAt,
@@ -620,6 +648,22 @@ public sealed class LoyaltyViewModel : ViewModelBase
         return string.Join(" · ", details);
     }
 
+    private static string TransactionTitle(string type) => type switch
+    {
+        "Earned" => "Puntos acumulados",
+        "EarnReversed" => "Reversión de puntos acumulados",
+        "Redeemed" => "Canje de puntos",
+        "RedemptionRestored" => "Restauración de canje",
+        _ => type
+    };
+
+    private static string TransactionKind(string type) => type switch
+    {
+        "Earned" or "RedemptionRestored" => "earn",
+        "Redeemed" or "EarnReversed" => "redeem",
+        _ => "neutral"
+    };
+
     private void ApplyRule(LoyaltyRuleResult rule)
     {
         PointsPerCurrencyUnit = rule.PointsPerCurrencyUnit;
@@ -640,7 +684,8 @@ public sealed record LoyaltyTierPresentation(
     decimal MinPoints,
     decimal DiscountPercent,
     decimal PointsMultiplier,
-    string Color)
+    string Color,
+    LoyaltyTierTextForeground TextForeground)
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -649,6 +694,7 @@ public sealed record LoyaltyTierPresentation(
         $"{DiscountPercent.ToString("0.##", ColombianCulture)}% descuento · {PointsMultiplier.ToString("0.##", ColombianCulture)}x puntos";
     public string ChipKind => DiscountPercent > 0 ? "warning" : PointsMultiplier > 1 ? "primary" : "neutral";
     public System.Windows.Media.Brush ColorBrush => TryParseBrush(Color);
+    public System.Windows.Media.Brush TextForegroundBrush => TextForeground == LoyaltyTierTextForeground.Black ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.White;
 
     private static System.Windows.Media.Brush TryParseBrush(string hex)
     {
@@ -657,7 +703,7 @@ public sealed record LoyaltyTierPresentation(
     }
 
     public static LoyaltyTierPresentation From(LoyaltyTierResult tier)
-        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color);
+        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color, tier.TextForeground);
 }
 
 /// <summary>Presentation row for real persisted program movements.</summary>

@@ -168,6 +168,7 @@ public static class DependencyInjection
 
         // New POS modules use cases
         services.AddScoped<AccumulateLoyaltyPointsUseCase>();
+        services.AddScoped<CompensateSaleLoyaltyUseCase>();
         services.AddScoped<RedeemLoyaltyPointsUseCase>();
         services.AddScoped<GetLoyaltyBalanceUseCase>();
         services.AddScoped<GetLoyaltyProgramOverviewUseCase>();

@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Repositories;
 using Xunit;
@@ -32,5 +33,35 @@ public sealed class LoyaltyRepositoryTests
 
         Assert.False(tracked.IsActive);
         Assert.False((await db.LoyaltyRules.SingleAsync(TestContext.Current.CancellationToken)).IsActive);
+    }
+
+    [Fact]
+    public async Task LoyaltyLedger_UsesTypedMetrics_SignedBalance_AndUniqueCompensationLinks()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        await using var db = new AppDbContext(options);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var tier = new LoyaltyTier("Bronze", 0m);
+        var customer = new Customer("Ana Gomez", "123");
+        var account = new LoyaltyAccount(customer.Id);
+        var saleId = Guid.NewGuid();
+        var earned = new LoyaltyTransaction(account.Id, LoyaltyTransactionType.Earned, 100, saleId);
+        var redeemed = new LoyaltyTransaction(account.Id, LoyaltyTransactionType.Redeemed, -40, saleId);
+        db.AddRange(tier, customer, account, earned, redeemed);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        db.AddRange(LoyaltyTransaction.CreateCompensation(earned, "Return"), LoyaltyTransaction.CreateCompensation(redeemed, "Return"));
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var repository = new LoyaltyRepository(db);
+        Assert.Equal(LoyaltyTierTextForeground.White, (await repository.GetTiersAsync(TestContext.Current.CancellationToken)).Single().TextForeground);
+        Assert.Equal(0, await repository.GetBalanceAsync(account.Id, TestContext.Current.CancellationToken));
+        Assert.Equal(100, await repository.GetTotalIssuedPointsAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(1, await repository.GetRedemptionCountAsync(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken));
+
+        db.LoyaltyTransactions.Add(LoyaltyTransaction.CreateCompensation(earned, "Duplicate"));
+        await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
     }
 }

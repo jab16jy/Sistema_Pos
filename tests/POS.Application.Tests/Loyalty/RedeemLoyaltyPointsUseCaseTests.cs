@@ -46,6 +46,18 @@ public sealed class RedeemLoyaltyPointsUseCaseTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithNegativeBalance_RejectsFurtherRedemption()
+    {
+        var customerId = Guid.NewGuid();
+        var account = new LoyaltyAccount(customerId);
+        var repo = new InMemLoyaltyRepository(account, new LoyaltyRule(0.001m, 1m, 0), balance: -25);
+        var useCase = new RedeemLoyaltyPointsUseCase(repo, new CountingUow());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 1, SaleTotal: 100m), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WhenNoActiveRule_Throws()
     {
         var customerId = Guid.NewGuid();

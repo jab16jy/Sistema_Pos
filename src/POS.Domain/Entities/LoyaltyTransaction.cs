@@ -3,8 +3,7 @@ using POS.Domain.Enums;
 namespace POS.Domain.Entities;
 
 /// <summary>
-/// Represents a single loyalty point event (earn or redeem).
-/// Points are signed: positive for Earned, negative for Redeemed.
+/// Represents one immutable, signed loyalty point movement.
 /// </summary>
 public sealed class LoyaltyTransaction
 {
@@ -19,29 +18,56 @@ public sealed class LoyaltyTransaction
         int points,
         Guid? saleId,
         string? description = null)
+        : this(loyaltyAccountId, type, points, saleId, description, null)
+    {
+        if (type is LoyaltyTransactionType.EarnReversed or LoyaltyTransactionType.RedemptionRestored)
+            throw new ArgumentException("Compensation transactions must be created from their source transaction.", nameof(type));
+    }
+
+    private LoyaltyTransaction(
+        Guid loyaltyAccountId,
+        LoyaltyTransactionType type,
+        int points,
+        Guid? saleId,
+        string? description,
+        Guid? compensatesTransactionId)
     {
         if (loyaltyAccountId == Guid.Empty)
         {
             throw new ArgumentException("Loyalty account id is required.", nameof(loyaltyAccountId));
         }
 
-        if (type == LoyaltyTransactionType.Earned && points <= 0)
-        {
-            throw new ArgumentException("Earned transactions must have positive points.", nameof(points));
-        }
-
-        if (type == LoyaltyTransactionType.Redeemed && points >= 0)
-        {
-            throw new ArgumentException("Redeemed transactions must have negative points.", nameof(points));
-        }
+        ValidateTypeAndPoints(type, points);
 
         Id = Guid.NewGuid();
         LoyaltyAccountId = loyaltyAccountId;
         Type = type;
         Points = points;
         SaleId = saleId;
+        CompensatesTransactionId = compensatesTransactionId;
         Description = description?.Trim() ?? string.Empty;
         CreatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public static LoyaltyTransaction CreateCompensation(LoyaltyTransaction source, string reason, int? pointsToCompensate = null)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        if (source.SaleId is null)
+            throw new ArgumentException("Only sale-linked transactions can be compensated.", nameof(source));
+
+        var type = source.Type switch
+        {
+            LoyaltyTransactionType.Earned => LoyaltyTransactionType.EarnReversed,
+            LoyaltyTransactionType.Redeemed => LoyaltyTransactionType.RedemptionRestored,
+            _ => throw new ArgumentException("Only original earned or redeemed transactions can be compensated.", nameof(source))
+        };
+
+        int magnitude = pointsToCompensate ?? Math.Abs(source.Points);
+        if (magnitude <= 0 || magnitude > Math.Abs(source.Points))
+            throw new ArgumentOutOfRangeException(nameof(pointsToCompensate), "Compensation points must be positive and cannot exceed the source amount.");
+
+        int points = type == LoyaltyTransactionType.EarnReversed ? -magnitude : magnitude;
+        return new LoyaltyTransaction(source.LoyaltyAccountId, type, points, source.SaleId, reason, source.Id);
     }
 
     public Guid Id { get; private set; }
@@ -54,6 +80,25 @@ public sealed class LoyaltyTransaction
     /// <summary>Reference to the sale that triggered this transaction (nullable for manual adjustments).</summary>
     public Guid? SaleId { get; private set; }
 
+    /// <summary>The immutable source movement corrected by this compensation, when applicable.</summary>
+    public Guid? CompensatesTransactionId { get; private set; }
+
     public string Description { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+
+    private static void ValidateTypeAndPoints(LoyaltyTransactionType type, int points)
+    {
+        if (points == 0)
+            throw new ArgumentException("Loyalty transactions must have non-zero points.", nameof(points));
+
+        bool valid = type switch
+        {
+            LoyaltyTransactionType.Earned or LoyaltyTransactionType.RedemptionRestored => points > 0,
+            LoyaltyTransactionType.Redeemed or LoyaltyTransactionType.EarnReversed => points < 0,
+            _ => false
+        };
+
+        if (!valid)
+            throw new ArgumentException($"Transaction type '{type}' has an invalid point sign.", nameof(points));
+    }
 }

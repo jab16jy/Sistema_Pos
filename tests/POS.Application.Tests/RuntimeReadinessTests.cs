@@ -56,6 +56,30 @@ public sealed class RuntimeReadinessTests
     }
 
     [Fact]
+    public async Task MigrateAsync_AppliesLoyaltyCompensationAndTierForegroundMigrationToExistingTier()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseSqlite(connection)
+            .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning))
+            .Options;
+        await using var dbContext = new AppDbContext(options);
+
+        await dbContext.Database.MigrateAsync("20260713063301_AddLoyaltyTierColor", TestContext.Current.CancellationToken);
+        Guid tierId = Guid.NewGuid();
+        await dbContext.Database.ExecuteSqlRawAsync(
+            "INSERT INTO LOYALTY_TIERS (Id, Name, MinPoints, DiscountPercent, PointsMultiplier, Color) VALUES ({0}, {1}, {2}, {3}, {4}, {5})",
+            [tierId.ToString(), "Existing", "0.0", "0.0", "1.0", "#64748B"],
+            TestContext.Current.CancellationToken);
+
+        await dbContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
+
+        LoyaltyTier tier = await dbContext.LoyaltyTiers.SingleAsync(item => item.Id == tierId, TestContext.Current.CancellationToken);
+        Assert.Equal(LoyaltyTierTextForeground.White, tier.TextForeground);
+    }
+
+    [Fact]
     public async Task SmtpEmailService_WhenConfigurationIsMissing_FailsWithRecoverableMessage()
     {
         var service = new SmtpEmailService(new SmtpRuntimeOptions());

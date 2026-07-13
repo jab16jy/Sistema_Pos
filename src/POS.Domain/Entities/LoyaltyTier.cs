@@ -1,3 +1,5 @@
+using POS.Domain.Enums;
+
 namespace POS.Domain.Entities;
 
 public sealed class LoyaltyTier
@@ -7,10 +9,10 @@ public sealed class LoyaltyTier
         Name = string.Empty;
     }
 
-    public LoyaltyTier(string name, decimal minPoints, decimal discountPercent = 0, decimal pointsMultiplier = 1.0m, string color = "#64748B")
+    public LoyaltyTier(string name, decimal minPoints, decimal discountPercent = 0, decimal pointsMultiplier = 1.0m, string color = "#64748B", LoyaltyTierTextForeground textForeground = LoyaltyTierTextForeground.White)
     {
         Id = Guid.NewGuid();
-        Update(name, minPoints, discountPercent, pointsMultiplier, color);
+        Update(name, minPoints, discountPercent, pointsMultiplier, color, textForeground);
     }
 
     public Guid Id { get; private set; }
@@ -19,11 +21,12 @@ public sealed class LoyaltyTier
     public decimal DiscountPercent { get; private set; }
     public decimal PointsMultiplier { get; private set; }
     public string Color { get; private set; } = "#64748B";
+    public LoyaltyTierTextForeground TextForeground { get; private set; } = LoyaltyTierTextForeground.White;
 
     public void Update(decimal minPoints, decimal discountPercent, decimal pointsMultiplier)
-        => Update(Name, minPoints, discountPercent, pointsMultiplier, Color);
+        => Update(Name, minPoints, discountPercent, pointsMultiplier, Color, TextForeground);
 
-    public void Update(string name, decimal minPoints, decimal discountPercent, decimal pointsMultiplier, string color = "#64748B")
+    public void Update(string name, decimal minPoints, decimal discountPercent, decimal pointsMultiplier, string color = "#64748B", LoyaltyTierTextForeground textForeground = LoyaltyTierTextForeground.White)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Tier name is required.", nameof(name));
@@ -40,10 +43,14 @@ public sealed class LoyaltyTier
         if (string.IsNullOrWhiteSpace(color) || !System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9A-Fa-f]{6}$"))
             throw new ArgumentException("Tier color must be a hex value like #RRGGBB.", nameof(color));
 
+        if (textForeground is not LoyaltyTierTextForeground.Black and not LoyaltyTierTextForeground.White)
+            throw new ArgumentOutOfRangeException(nameof(textForeground), "Tier text foreground must be Black or White.");
+
         Name = name.Trim();
         MinPoints = minPoints;
         DiscountPercent = discountPercent;
         PointsMultiplier = pointsMultiplier;
         Color = color;
+        TextForeground = textForeground;
     }
 }

@@ -208,7 +208,7 @@ public sealed class CreateSaleUseCase
         if (_accumulatePoints is not null && request.CustomerId.HasValue)
         {
             await _accumulatePoints.RecordForSaleAsync(
-                new EarnPointsRequest(request.CustomerId.Value, sale.Id, sale.Total().Amount),
+                new EarnPointsRequest(request.CustomerId.Value, sale.Id, sale.EffectiveEarnableTotal().Amount),
                 cancellationToken).ConfigureAwait(false);
         }
 

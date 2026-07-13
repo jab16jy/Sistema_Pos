@@ -156,6 +156,36 @@ public sealed class InvoiceUseCaseTests
     }
 
     [Fact]
+    public async Task ProcessReturnAsync_PartialReturn_WhenSaleItemIsDuplicated_RejectsWithoutStagingAnyMutation()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var saleItemId = sale.Items.Single().Id;
+        var inventory = new InMemoryInventoryRepository();
+        var returns = new InMemorySaleReturnRepository();
+        var unitOfWork = new CountingUnitOfWork();
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            inventory,
+            returns,
+            unitOfWork,
+            new InMemoryUserRepository(adminUser));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Duplicate line",
+                [new ReturnLineRequest(saleItemId, 1, 1_500m), new ReturnLineRequest(saleItemId, 1, 1_500m)]),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(SaleStatus.Completed, sale.Status);
+        Assert.Equal(8m, product.CurrentStock);
+        Assert.Empty(inventory.AddedMovements);
+        Assert.Null(await returns.GetBySaleIdAsync(sale.Id, TestContext.Current.CancellationToken));
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
     public async Task ProcessReturnAsync_SecondReturn_RejectedByOneReturnPerSaleGuard()
     {
         var product = CreateProduct();

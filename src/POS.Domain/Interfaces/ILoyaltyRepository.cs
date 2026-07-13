@@ -13,6 +13,10 @@ public interface ILoyaltyRepository
     /// <summary>Persists a new loyalty transaction (earn or redeem).</summary>
     Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default);
 
+    /// <summary>Returns every persisted loyalty movement linked to a sale, including compensations.</summary>
+    Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
+
     /// <summary>Returns the most recent transactions for an account, ordered by date descending.</summary>
     Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default);
 

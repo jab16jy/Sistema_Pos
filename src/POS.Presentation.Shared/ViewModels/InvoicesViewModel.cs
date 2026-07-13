@@ -281,7 +281,7 @@ public sealed class InvoicesViewModel : ViewModelBase
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(Message) || 
+            if (string.IsNullOrWhiteSpace(Message) ||
                 Message == "Busca facturas por fecha, cliente o número." ||
                 Message.StartsWith("Mostrando", StringComparison.OrdinalIgnoreCase))
             {

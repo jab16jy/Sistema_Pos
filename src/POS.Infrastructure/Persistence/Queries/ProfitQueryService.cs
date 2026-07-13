@@ -46,7 +46,7 @@ public sealed class ProfitQueryService : IProfitQueryService
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        var flatItems = sales.SelectMany(s => s.Items.Select(si => new 
+        var flatItems = sales.SelectMany(s => s.Items.Select(si => new
         {
             Item = si,
             SaleId = s.Id,
@@ -55,7 +55,7 @@ public sealed class ProfitQueryService : IProfitQueryService
 
         return flatItems
             .GroupBy(x => (x.Item.ProductId, x.Item.ProductName))
-            .Select(g => 
+            .Select(g =>
             {
                 var uniqueSalesCount = g.Select(x => x.SaleId).Distinct().Count();
                 var registeredCustomersCount = g.Where(x => x.CustomerId.HasValue).Select(x => x.CustomerId!.Value).Distinct().Count();

@@ -38,6 +38,7 @@ public sealed class CustomersViewModel : ViewModelBase
     private string _currentTierName = string.Empty;
     private string _currentTierBenefit = string.Empty;
     private string? _currentTierColorHex;
+    private POS.Domain.Enums.LoyaltyTierTextForeground _currentTierTextForeground = POS.Domain.Enums.LoyaltyTierTextForeground.White;
     private int _totalCustomersCount;
     private int _activeCustomersCount;
     private string _historyFilter = "all";
@@ -256,6 +257,9 @@ public sealed class CustomersViewModel : ViewModelBase
 
     /// <summary>Brush for the current tier's color, gray when none/invalid.</summary>
     public System.Windows.Media.Brush CurrentTierColorBrush => TryParseBrush(_currentTierColorHex);
+    public System.Windows.Media.Brush CurrentTierTextForegroundBrush => _currentTierTextForeground == POS.Domain.Enums.LoyaltyTierTextForeground.Black
+        ? System.Windows.Media.Brushes.Black
+        : System.Windows.Media.Brushes.White;
 
     private static System.Windows.Media.Brush TryParseBrush(string? hex)
     {
@@ -275,8 +279,10 @@ public sealed class CustomersViewModel : ViewModelBase
             ? string.Empty
             : $"{tier.DiscountPercent.ToString("0.##", ColombianCulture)}% descuento · x{tier.PointsMultiplier.ToString("0.##", ColombianCulture)} puntos";
         _currentTierColorHex = tier?.Color;
+        _currentTierTextForeground = tier?.TextForeground ?? POS.Domain.Enums.LoyaltyTierTextForeground.White;
         OnPropertyChanged(nameof(HasCurrentTier));
         OnPropertyChanged(nameof(CurrentTierColorBrush));
+        OnPropertyChanged(nameof(CurrentTierTextForegroundBrush));
     }
 
     /// <summary>Count of currently loaded customers (reflects the active search/filter, not a separate global aggregate).</summary>

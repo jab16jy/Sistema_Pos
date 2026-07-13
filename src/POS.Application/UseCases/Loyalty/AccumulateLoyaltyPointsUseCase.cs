@@ -59,6 +59,9 @@ public sealed class AccumulateLoyaltyPointsUseCase
         var currentTier = tiers.Where(t => t.MinPoints <= balanceBeforeSale).OrderByDescending(t => t.MinPoints).FirstOrDefault();
         var points = currentTier is null ? basePoints : (int)Math.Floor(basePoints * currentTier.PointsMultiplier);
 
+        if (points == 0)
+            return false;
+
         if (account is null)
         {
             account = new LoyaltyAccount(request.CustomerId);

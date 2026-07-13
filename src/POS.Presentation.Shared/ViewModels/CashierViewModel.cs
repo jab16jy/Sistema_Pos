@@ -87,6 +87,7 @@ public sealed class CashierViewModel : ViewModelBase
     private decimal _currentTierPointsMultiplier = 1m;
     private string? _currentTierName;
     private string? _currentTierColorHex;
+    private POS.Domain.Enums.LoyaltyTierTextForeground _currentTierTextForeground = POS.Domain.Enums.LoyaltyTierTextForeground.White;
 
     public CashierViewModel(IProductLookupService productLookupService)
         : this(productLookupService, new PreviewPaymentUseCase())
@@ -439,6 +440,9 @@ public sealed class CashierViewModel : ViewModelBase
 
     /// <summary>Brush for the current tier's color, gray when none/invalid.</summary>
     public System.Windows.Media.Brush CurrentTierColorBrush => TryParseBrush(_currentTierColorHex);
+    public System.Windows.Media.Brush CurrentTierTextForegroundBrush => _currentTierTextForeground == POS.Domain.Enums.LoyaltyTierTextForeground.Black
+        ? System.Windows.Media.Brushes.Black
+        : System.Windows.Media.Brushes.White;
 
     /// <summary>Automatic discount from the customer's current tier, applied on top of any loyalty point redemption.</summary>
     public decimal TierDiscount => Math.Max(0m, TotalAmount * (_currentTierDiscountPercent / 100m));
@@ -470,6 +474,7 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(CurrentTierName));
         OnPropertyChanged(nameof(HasCurrentTier));
         OnPropertyChanged(nameof(CurrentTierColorBrush));
+        OnPropertyChanged(nameof(CurrentTierTextForegroundBrush));
         OnPropertyChanged(nameof(TierBenefitText));
         OnPropertyChanged(nameof(TierDiscount));
         OnPropertyChanged(nameof(TierDiscountText));
@@ -1293,6 +1298,7 @@ public sealed class CashierViewModel : ViewModelBase
             _currentTierPointsMultiplier = balance.CurrentTier?.PointsMultiplier ?? 1m;
             _currentTierName = balance.CurrentTier?.Name;
             _currentTierColorHex = balance.CurrentTier?.Color;
+            _currentTierTextForeground = balance.CurrentTier?.TextForeground ?? POS.Domain.Enums.LoyaltyTierTextForeground.White;
             NotifyTierChanged();
         }
         catch (Exception)
@@ -1309,6 +1315,7 @@ public sealed class CashierViewModel : ViewModelBase
         _currentTierPointsMultiplier = 1m;
         _currentTierName = null;
         _currentTierColorHex = null;
+        _currentTierTextForeground = POS.Domain.Enums.LoyaltyTierTextForeground.White;
         NotifyTierChanged();
     }
 

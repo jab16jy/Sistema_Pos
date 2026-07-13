@@ -109,6 +109,12 @@ public sealed class Sale
 
     public Money Total() => new(_items.Sum(item => item.Subtotal().Amount));
 
+    public Money LoyaltyPointsTenderTotal() => new(_payments
+        .Where(payment => payment.Method == PaymentMethod.LoyaltyPoints)
+        .Sum(payment => payment.Amount.Amount));
+
+    public Money EffectiveEarnableTotal() => new(Math.Max(0m, Total().Amount - LoyaltyPointsTenderTotal().Amount));
+
     public Money TaxTotal() => new(_items.Sum(item => item.TaxAmount().Amount));
 
     public Money TaxableBaseTotal() => new(_items.Sum(item => item.TaxableBaseAmount().Amount));

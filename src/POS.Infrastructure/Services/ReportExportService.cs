@@ -640,19 +640,19 @@ public sealed class ReportExportService : IReportExportService
     {
         var marginMap = margins.ToDictionary(m => m.ProductId);
 
-        AddExcelHeader(worksheet, 4, 
-            "Ranking", 
-            "Producto", 
-            "Transacciones", 
-            "Compradores Únicos", 
-            "Unidades Vendidas", 
-            "Precio Prom. (COP)", 
-            "Costo Prom. (COP)", 
-            "Margen Prom. (COP)", 
-            "Ingreso Total (COP)", 
-            "Costo Total (COP)", 
-            "Margen Total (COP)", 
-            "Ratio Margen %", 
+        AddExcelHeader(worksheet, 4,
+            "Ranking",
+            "Producto",
+            "Transacciones",
+            "Compradores Únicos",
+            "Unidades Vendidas",
+            "Precio Prom. (COP)",
+            "Costo Prom. (COP)",
+            "Margen Prom. (COP)",
+            "Ingreso Total (COP)",
+            "Costo Total (COP)",
+            "Margen Total (COP)",
+            "Ratio Margen %",
             "% de Ventas Totales");
 
         if (topSellers.Count == 0)
@@ -930,7 +930,7 @@ public sealed class ReportExportService : IReportExportService
     {
         var diff = (s.ClosingCash ?? 0m) - s.ExpectedCash;
         string diffText = diff == 0 ? "Cuadra" : (diff > 0 ? $"+{FormatCurrency(diff)}" : $"-{FormatCurrency(Math.Abs(diff))}");
-        
+
         container.Column(column =>
         {
             column.Spacing(8);
@@ -984,7 +984,7 @@ public sealed class ReportExportService : IReportExportService
                 {
                     var diff = (s.ClosingCash ?? 0m) - s.ExpectedCash;
                     string diffText = diff == 0 ? "Cuadra" : (diff > 0 ? $"+{FormatCurrency(diff)}" : $"-{FormatCurrency(Math.Abs(diff))}");
-                    
+
                     table.Cell().Element(CellStyle).Text(s.CashierUsername).Bold();
                     table.Cell().Element(CellStyle).Text(s.OpenedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
                     table.Cell().Element(CellStyle).Text(s.ClosedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—");
@@ -992,7 +992,7 @@ public sealed class ReportExportService : IReportExportService
                     table.Cell().Element(CellStyle).AlignRight().Text(s.HasClosingSummary ? FormatCurrency(s.SalesTotal) : "—");
                     table.Cell().Element(CellStyle).AlignRight().Text(s.HasClosingSummary ? FormatCurrency(s.ExpectedCash) : "—");
                     table.Cell().Element(CellStyle).AlignRight().Text(s.ClosingCash.HasValue ? FormatCurrency(s.ClosingCash.Value) : "—");
-                    
+
                     var diffCell = table.Cell().Element(CellStyle).AlignRight();
                     if (diff == 0)
                         diffCell.Text(diffText).FontColor("#2E7D32");

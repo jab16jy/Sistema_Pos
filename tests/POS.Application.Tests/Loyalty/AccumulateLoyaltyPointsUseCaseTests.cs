@@ -118,6 +118,20 @@ public sealed class AccumulateLoyaltyPointsUseCaseTests
         Assert.Equal(20, earnedTransaction.Points); // FLOOR(10_000 * 0.001) = 10, x2 tier multiplier = 20
     }
 
+    [Fact]
+    public async Task RecordForSaleAsync_WhenTierMultiplierFloorsToZero_DoesNotCreateAccountOrTransaction()
+    {
+        var repo = new InMemLoyaltyRepository { ActiveRule = new LoyaltyRule(0.001m, 1m, 0) };
+        repo.Tiers.Add(new LoyaltyTier("Half", 0, 0m, 0.5m));
+        var useCase = new AccumulateLoyaltyPointsUseCase(repo, new CountingUow());
+
+        bool recorded = await useCase.RecordForSaleAsync(new EarnPointsRequest(Guid.NewGuid(), Guid.NewGuid(), 1_000m), TestContext.Current.CancellationToken);
+
+        Assert.False(recorded);
+        Assert.Empty(repo.Accounts);
+        Assert.Empty(repo.Transactions);
+    }
+
     private sealed class InMemLoyaltyRepository : ILoyaltyRepository
     {
         public LoyaltyRule? ActiveRule { get; set; }

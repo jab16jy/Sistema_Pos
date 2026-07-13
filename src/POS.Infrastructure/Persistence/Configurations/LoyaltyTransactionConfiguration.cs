@@ -14,13 +14,20 @@ internal sealed class LoyaltyTransactionConfiguration : IEntityTypeConfiguration
         builder.Property(t => t.LoyaltyAccountId).HasConversion<string>();
         builder.Property(t => t.Type).HasConversion<int>();
         builder.Property(t => t.SaleId).HasConversion<string?>();
+        builder.Property(t => t.CompensatesTransactionId).HasConversion<string?>();
         builder.Property(t => t.Description).HasMaxLength(500);
 
         builder.HasIndex(t => t.LoyaltyAccountId);
+        builder.HasIndex(t => t.CompensatesTransactionId).IsUnique();
 
         builder.HasOne<LoyaltyAccount>()
                .WithMany()
                .HasForeignKey(t => t.LoyaltyAccountId)
                .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<LoyaltyTransaction>()
+               .WithMany()
+               .HasForeignKey(t => t.CompensatesTransactionId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

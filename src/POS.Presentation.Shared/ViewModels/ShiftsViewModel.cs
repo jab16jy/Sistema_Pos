@@ -5,12 +5,15 @@ using POS.Application.Interfaces;
 using POS.Application.UseCases.Shifts;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
+using System.Globalization;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
 
 public sealed class ShiftsViewModel : ViewModelBase
 {
+    private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+
     private readonly StartShiftUseCase _startShift;
     private readonly CloseShiftUseCase _closeShift;
     private readonly GetShiftsUseCase _getShifts;
@@ -133,13 +136,13 @@ public sealed class ShiftsViewModel : ViewModelBase
         get
         {
             var active = Shifts.FirstOrDefault(s => s.Status == ShiftStatus.Open);
-            return active is not null ? $"${active.OpeningCash:N0}" : "—";
+            return active is not null ? $"${active.OpeningCash.ToString("N0", ColombianCulture)}" : "—";
         }
     }
 
     public string ActiveShiftSalesTotal
     {
-        get => $"${_activeShiftSalesSummary.SalesTotal:N0}";
+        get => $"${_activeShiftSalesSummary.SalesTotal.ToString("N0", ColombianCulture)}";
     }
 
     // ── Presentation-only: Open shift panel ──
@@ -189,9 +192,9 @@ public sealed class ShiftsViewModel : ViewModelBase
         }
     }
 
-    public string ExpectedCashFormatted => ExpectedCash > 0 ? $"${ExpectedCash:N0}" : "—";
+    public string ExpectedCashFormatted => ExpectedCash > 0 ? $"${ExpectedCash.ToString("N0", ColombianCulture)}" : "—";
 
-    public string ExpectedDigitalFormatted => $"${_activeShiftSalesSummary.DigitalPayments:N0}";
+    public string ExpectedDigitalFormatted => $"${_activeShiftSalesSummary.DigitalPayments.ToString("N0", ColombianCulture)}";
 
     public decimal CloseDifference => CountedCash - ExpectedCash;
 
@@ -202,7 +205,7 @@ public sealed class ShiftsViewModel : ViewModelBase
             if (CountedCash == 0 && ExpectedCash == 0) return string.Empty;
             var diff = CloseDifference;
             if (diff == 0) return "Cuadra";
-            return diff > 0 ? $"+${Math.Abs(diff):N0}" : $"-${Math.Abs(diff):N0}";
+            return diff > 0 ? $"+${Math.Abs(diff).ToString("N0", ColombianCulture)}" : $"-${Math.Abs(diff).ToString("N0", ColombianCulture)}";
         }
     }
 
@@ -317,11 +320,11 @@ public sealed class ShiftsViewModel : ViewModelBase
         var statusChipKind = s.Status == ShiftStatus.Open ? "success" : "neutral";
         var openedFormatted = s.OpenedAt.ToString("yyyy-MM-dd HH:mm");
         var closedFormatted = s.ClosedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—";
-        var openingFormatted = $"${s.OpeningCash:N0}";
-        var closingFormatted = s.ClosingCash.HasValue ? $"${s.ClosingCash.Value:N0}" : "—";
-        var salesTotalFormatted = s.HasClosingSummary ? $"${s.SalesTotal:N0}" : "—";
-        var digitalPaymentsFormatted = s.HasClosingSummary ? $"Digital: ${s.DigitalPayments:N0}" : string.Empty;
-        var expectedCashFormatted = s.HasClosingSummary ? $"${s.ExpectedCash:N0}" : "—";
+        var openingFormatted = $"${s.OpeningCash.ToString("N0", ColombianCulture)}";
+        var closingFormatted = s.ClosingCash.HasValue ? $"${s.ClosingCash.Value.ToString("N0", ColombianCulture)}" : "—";
+        var salesTotalFormatted = s.HasClosingSummary ? $"${s.SalesTotal.ToString("N0", ColombianCulture)}" : "—";
+        var digitalPaymentsFormatted = s.HasClosingSummary ? $"Digital: ${s.DigitalPayments.ToString("N0", ColombianCulture)}" : string.Empty;
+        var expectedCashFormatted = s.HasClosingSummary ? $"${s.ExpectedCash.ToString("N0", ColombianCulture)}" : "—";
 
         string differenceLabel;
         string differenceKind;
@@ -346,12 +349,12 @@ public sealed class ShiftsViewModel : ViewModelBase
             }
             else if (diff > 0)
             {
-                differenceLabel = $"+${Math.Abs(diff):N0}";
+                differenceLabel = $"+${Math.Abs(diff).ToString("N0", ColombianCulture)}";
                 differenceKind = "primary";
             }
             else
             {
-                differenceLabel = $"-${Math.Abs(diff):N0}";
+                differenceLabel = $"-${Math.Abs(diff).ToString("N0", ColombianCulture)}";
                 differenceKind = "error";
             }
         }

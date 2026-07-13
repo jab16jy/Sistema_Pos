@@ -97,6 +97,41 @@ public sealed class LoyaltyTests
         Assert.Equal(LoyaltyTransactionType.Redeemed, tx.Type);
     }
 
+    [Theory]
+    [InlineData(LoyaltyTransactionType.EarnReversed, 1)]
+    [InlineData(LoyaltyTransactionType.RedemptionRestored, -1)]
+    [InlineData(LoyaltyTransactionType.Earned, 0)]
+    [InlineData(LoyaltyTransactionType.Redeemed, 0)]
+    public void LoyaltyTransaction_RejectsInvalidTypeAndSign(LoyaltyTransactionType type, int points)
+    {
+        Assert.Throws<ArgumentException>(() => new LoyaltyTransaction(Guid.NewGuid(), type, points, Guid.NewGuid()));
+    }
+
+    [Fact]
+    public void LoyaltyTransaction_CreateCompensation_PreservesSourceSaleAndLinksSource()
+    {
+        var source = new LoyaltyTransaction(Guid.NewGuid(), LoyaltyTransactionType.Redeemed, -25, Guid.NewGuid());
+
+        LoyaltyTransaction compensation = LoyaltyTransaction.CreateCompensation(source, "Sale return", pointsToCompensate: 10);
+
+        Assert.Equal(LoyaltyTransactionType.RedemptionRestored, compensation.Type);
+        Assert.Equal(10, compensation.Points);
+        Assert.Equal(source.Id, compensation.CompensatesTransactionId);
+        Assert.Equal(source.SaleId, compensation.SaleId);
+    }
+
+    [Fact]
+    public void Sale_EffectiveEarnableTotal_ExcludesLoyaltyPointsTender()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(10m), new StockQuantity(1m));
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(10m), new Money(0m));
+        sale.AddPayment(new Payment(PaymentMethod.LoyaltyPoints, new Money(1_000m)));
+
+        Assert.Equal(1_000m, sale.LoyaltyPointsTenderTotal().Amount);
+        Assert.Equal(9_000m, sale.EffectiveEarnableTotal().Amount);
+    }
+
     [Fact]
     public void LoyaltyTier_Update_ChangesThresholdAndBenefits()
     {
@@ -126,6 +161,15 @@ public sealed class LoyaltyTests
         tier.Update("Oro", 1_000, 12.5m, 1.5m, "#FFAA00");
 
         Assert.Equal("#FFAA00", tier.Color);
+    }
+
+    [Fact]
+    public void LoyaltyTier_DefaultsTextForegroundToWhite_AndRejectsUnsupportedValue()
+    {
+        var tier = new LoyaltyTier("Bronce", 0);
+
+        Assert.Equal(LoyaltyTierTextForeground.White, tier.TextForeground);
+        Assert.Throws<ArgumentOutOfRangeException>(() => tier.Update("Bronce", 0, 0, 1m, "#64748B", (LoyaltyTierTextForeground)99));
     }
 
     [Theory]

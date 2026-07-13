@@ -477,6 +477,11 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue(1.0m);
 
+                    b.Property<int>("TextForeground")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(2);
+
                     b.HasKey("Id");
 
                     b.ToTable("LOYALTY_TIERS", (string)null);
@@ -486,6 +491,9 @@ namespace POS.Infrastructure.Migrations
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CompensatesTransactionId")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTimeOffset>("CreatedAt")
@@ -510,6 +518,9 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompensatesTransactionId")
+                        .IsUnique();
 
                     b.HasIndex("LoyaltyAccountId");
 
@@ -1440,6 +1451,11 @@ namespace POS.Infrastructure.Migrations
 
             modelBuilder.Entity("POS.Domain.Entities.LoyaltyTransaction", b =>
                 {
+                    b.HasOne("POS.Domain.Entities.LoyaltyTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("CompensatesTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("POS.Domain.Entities.LoyaltyAccount", null)
                         .WithMany()
                         .HasForeignKey("LoyaltyAccountId")

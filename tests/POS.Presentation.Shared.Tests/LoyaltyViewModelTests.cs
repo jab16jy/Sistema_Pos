@@ -177,7 +177,8 @@ public sealed class LoyaltyViewModelTests
             TierMinimumPoints = 1_000,
             TierDiscountPercent = 10m,
             TierPointsMultiplier = 1.5m,
-            TierColor = "#FFAA00"
+            TierColor = "#FFAA00",
+            TierTextForeground = Domain.Enums.LoyaltyTierTextForeground.Black
         };
 
         await vm.SaveTierAsync(TestContext.Current.CancellationToken);
@@ -186,6 +187,7 @@ public sealed class LoyaltyViewModelTests
         Assert.Equal("Oro", tier.Name);
         Assert.Equal("10% descuento · 1,5x puntos", tier.BenefitDescription);
         Assert.Equal("#FFAA00", tier.Color);
+        Assert.Equal(Domain.Enums.LoyaltyTierTextForeground.Black, tier.TextForeground);
         Assert.Contains("creado", vm.Message, StringComparison.OrdinalIgnoreCase);
 
         vm.SelectedTier = tier;
@@ -214,6 +216,29 @@ public sealed class LoyaltyViewModelTests
         };
 
         Assert.Equal(expectedValue, vm.TierPointsMultiplier);
+    }
+
+    [Fact]
+    public async Task SaveTierAsync_InvalidMultiplierText_DoesNotReusePriorParsedValue()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var unitOfWork = new FakeUnitOfWork();
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, unitOfWork),
+            getTiers: new GetLoyaltyTiersUseCase(repo),
+            createTier: new CreateLoyaltyTierUseCase(repo, unitOfWork))
+        {
+            TierName = "Oro",
+            TierPointsMultiplierText = "1.5"
+        };
+        vm.TierPointsMultiplierText = "abc";
+
+        await vm.SaveTierAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(vm.IsTierPointsMultiplierTextValid);
+        Assert.Empty(repo.Tiers);
+        Assert.Contains("Revisa el tier", vm.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void SetEntityId(object entity, Guid id)

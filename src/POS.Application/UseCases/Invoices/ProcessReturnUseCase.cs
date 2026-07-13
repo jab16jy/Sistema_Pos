@@ -1,4 +1,5 @@
 using POS.Application.DTOs.Invoices;
+using POS.Application.UseCases.Loyalty;
 using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -16,6 +17,7 @@ public sealed class ProcessReturnUseCase
     private readonly ISaleReturnRepository _saleReturns;
     private readonly IUserRepository _users;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly CompensateSaleLoyaltyUseCase? _compensateLoyalty;
 
     public ProcessReturnUseCase(
         ISaleRepository sales,
@@ -23,7 +25,8 @@ public sealed class ProcessReturnUseCase
         IInventoryRepository inventory,
         ISaleReturnRepository saleReturns,
         IUnitOfWork unitOfWork,
-        IUserRepository users)
+        IUserRepository users,
+        CompensateSaleLoyaltyUseCase? compensateLoyalty = null)
     {
         _sales = sales;
         _products = products;
@@ -31,6 +34,7 @@ public sealed class ProcessReturnUseCase
         _saleReturns = saleReturns;
         _unitOfWork = unitOfWork;
         _users = users;
+        _compensateLoyalty = compensateLoyalty;
     }
 
     public async Task<Guid> ExecuteAsync(ProcessReturnRequest request, CancellationToken cancellationToken = default)
@@ -61,11 +65,13 @@ public sealed class ProcessReturnUseCase
             throw new InvalidOperationException("Sale already returned.");
         }
 
+        bool isPartialReturn = request.Items is { Count: > 0 };
+        if (isPartialReturn)
+            ValidatePartialReturnItems(sale, request.Items!);
+
         sale.MarkReturned();
 
         var saleReturn = new SaleReturn(sale.Id, request.ProcessedByUserId, request.Reason);
-
-        bool isPartialReturn = request.Items is { Count: > 0 };
 
         if (isPartialReturn)
         {
@@ -76,6 +82,21 @@ public sealed class ProcessReturnUseCase
         {
             // Full return — restore all items
             await ProcessFullReturnAsync(request, sale, saleReturn, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (_compensateLoyalty is not null)
+        {
+            if (isPartialReturn)
+            {
+                var returnedLines = request.Items!
+                    .Select(line => new CompensateSaleLoyaltyUseCase.PartialReturnLine(line.SaleItemId, line.QuantityReturned))
+                    .ToList();
+                await _compensateLoyalty.CompensatePartialAsync(sale, returnedLines, $"Sale return: {request.Reason}", cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await _compensateLoyalty.CompensateFullAsync(sale, $"Sale return: {request.Reason}", cancellationToken).ConfigureAwait(false);
+            }
         }
 
         await _saleReturns.AddAsync(saleReturn, cancellationToken).ConfigureAwait(false);
@@ -154,6 +175,25 @@ public sealed class ProcessReturnUseCase
                 item.Subtotal());
 
             saleReturn.AddItem(returnItem);
+        }
+    }
+
+    private static void ValidatePartialReturnItems(Sale sale, IReadOnlyList<ReturnLineRequest> lines)
+    {
+        HashSet<Guid> returnedItemIds = [];
+        foreach (ReturnLineRequest line in lines)
+        {
+            if (!returnedItemIds.Add(line.SaleItemId))
+                throw new InvalidOperationException($"Sale item '{line.SaleItemId}' appears more than once in the partial return.");
+
+            SaleItem saleItem = sale.Items.FirstOrDefault(item => item.Id == line.SaleItemId)
+                ?? throw new InvalidOperationException($"Sale item '{line.SaleItemId}' was not found in sale '{sale.Id}'.");
+
+            if (line.QuantityReturned <= 0 || line.QuantityReturned > (int)saleItem.Quantity)
+            {
+                throw new InvalidOperationException(
+                    $"Quantity returned ({line.QuantityReturned}) for item '{saleItem.ProductName}' must be in [1, {(int)saleItem.Quantity}].");
+            }
         }
     }
 }

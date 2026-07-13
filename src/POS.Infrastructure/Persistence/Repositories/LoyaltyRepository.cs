@@ -30,6 +30,12 @@ public sealed class LoyaltyRepository : ILoyaltyRepository
         await _dbContext.LoyaltyTransactions.AddAsync(transaction, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
+        => await _dbContext.LoyaltyTransactions
+            .Where(transaction => transaction.SaleId == saleId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
     public async Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(
         Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default)
     {
@@ -87,18 +93,19 @@ public sealed class LoyaltyRepository : ILoyaltyRepository
 
     public async Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default)
     {
-        return await _dbContext.LoyaltyTransactions
+        return (await _dbContext.LoyaltyTransactions
             .AsNoTracking()
             .Where(t => t.LoyaltyAccountId == loyaltyAccountId)
-            .SumAsync(t => t.Points, cancellationToken)
-            .ConfigureAwait(false);
+            .Select(t => (int?)t.Points)
+            .SumAsync(cancellationToken)
+            .ConfigureAwait(false)) ?? 0;
     }
 
     public async Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.LoyaltyTransactions
             .AsNoTracking()
-            .Where(t => t.Points > 0)
+            .Where(t => t.Type == LoyaltyTransactionType.Earned)
             .SumAsync(t => t.Points, cancellationToken)
             .ConfigureAwait(false);
     }

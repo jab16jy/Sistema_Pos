@@ -184,7 +184,7 @@
             <TextBox Text="{Binding TierDiscountPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
             <TextBlock Text="Multiplicador de puntos" Style="{StaticResource MutedText}" FontSize="11" />
             <TextBox Text="{Binding TierPointsMultiplierText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" />
-            <TextBlock Text="Color del tier" Style="{StaticResource MutedText}" FontSize="11" />
+             <TextBlock Text="Color del tier" Style="{StaticResource MutedText}" FontSize="11" />
             <Grid Margin="0,3,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -194,8 +194,13 @@
               <TextBox Text="{Binding TierColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
               <Border Grid.Column="2" Width="24" Height="24" CornerRadius="4" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
                       Background="{Binding TierColorPreviewBrush}" Cursor="Hand" MouseLeftButtonDown="OnColorPreviewMouseLeftButtonDown"
-                      ToolTip="Presiona para seleccionar color" />
-            </Grid>
+                       ToolTip="Presiona para seleccionar color" />
+             </Grid>
+             <TextBlock Text="Color del texto" Style="{StaticResource MutedText}" FontSize="11" />
+             <ComboBox ItemsSource="{Binding TierTextForegroundOptions}" SelectedItem="{Binding TierTextForeground, Mode=TwoWay}" Margin="0,3,0,8" />
+             <Border Background="{Binding TierColorPreviewBrush}" Padding="8" CornerRadius="4" Margin="0,0,0,8">
+               <TextBlock Text="Vista previa del tier" Foreground="{Binding TierTextForegroundPreviewBrush}" HorizontalAlignment="Center" />
+             </Border>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
               <Button Command="{Binding NewTierCommand}" Margin="0,0,8,0">Nuevo</Button>
               <Button Command="{Binding DeleteTierCommand}" Margin="0,0,8,0">Eliminar</Button>

@@ -1,5 +1,6 @@
 using POS.Application.DTOs.Invoices;
 using POS.Application.UseCases.Auth;
+using POS.Application.UseCases.Loyalty;
 using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -17,6 +18,7 @@ public sealed class CancelSaleUseCase
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly CompensateSaleLoyaltyUseCase? _compensateLoyalty;
 
     public CancelSaleUseCase(
         ISaleRepository sales,
@@ -24,7 +26,8 @@ public sealed class CancelSaleUseCase
         IInventoryRepository inventory,
         IUserRepository users,
         IRoleRepository roles,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        CompensateSaleLoyaltyUseCase? compensateLoyalty = null)
     {
         _sales = sales;
         _products = products;
@@ -32,6 +35,7 @@ public sealed class CancelSaleUseCase
         _users = users;
         _roles = roles;
         _unitOfWork = unitOfWork;
+        _compensateLoyalty = compensateLoyalty;
     }
 
     public async Task ExecuteAsync(CancelSaleRequest request, CancellationToken cancellationToken = default)
@@ -70,6 +74,11 @@ public sealed class CancelSaleUseCase
             await _inventory.AddMovementAsync(
                 new InventoryMovement(product.Id, InventoryMovementType.Return, quantity, $"Sale cancellation: {request.Reason}", request.CancelledByUserId, sale.Id),
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        if (_compensateLoyalty is not null)
+        {
+            await _compensateLoyalty.CompensateFullAsync(sale, $"Sale cancellation: {request.Reason}", cancellationToken).ConfigureAwait(false);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

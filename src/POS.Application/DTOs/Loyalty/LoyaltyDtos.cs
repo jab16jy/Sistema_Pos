@@ -1,3 +1,5 @@
+using POS.Domain.Enums;
+
 namespace POS.Application.DTOs.Loyalty;
 
 /// <summary>Current loyalty balance and account status for a customer.</summary>
@@ -30,14 +32,16 @@ public sealed record LoyaltyTierResult(
     decimal MinPoints,
     decimal DiscountPercent,
     decimal PointsMultiplier,
-    string Color);
+    string Color,
+    LoyaltyTierTextForeground TextForeground);
 
 public sealed record CreateLoyaltyTierRequest(
     string Name,
     decimal MinPoints,
     decimal DiscountPercent,
     decimal PointsMultiplier,
-    string Color = "#64748B");
+    string Color = "#64748B",
+    LoyaltyTierTextForeground TextForeground = LoyaltyTierTextForeground.White);
 
 public sealed record UpdateLoyaltyTierRequest(
     Guid Id,
@@ -45,7 +49,8 @@ public sealed record UpdateLoyaltyTierRequest(
     decimal MinPoints,
     decimal DiscountPercent,
     decimal PointsMultiplier,
-    string Color = "#64748B");
+    string Color = "#64748B",
+    LoyaltyTierTextForeground TextForeground = LoyaltyTierTextForeground.White);
 
 /// <summary>Request to accumulate points after a sale.</summary>
 public sealed record EarnPointsRequest(
