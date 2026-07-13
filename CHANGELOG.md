@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.13.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.12.0...v1.13.0) (2026-07-13)
+
+
+### Features
+
+* **settings:** add explicit printer port override ([c2dbff1](https://github.com/jab16jy/Sistema_Pos/commit/c2dbff1bbd4f6d546e63e27c68afa30686d55423))
+
+
+### Bug Fixes
+
+* **printing:** send Latin1 + WPC1252 codepage instead of UTF-8 ([d64463c](https://github.com/jab16jy/Sistema_Pos/commit/d64463c2f9ebc52429f8587a00cc492d4b934232))
+* **products:** rename stock field label to "Stock inicial" ([3a60c71](https://github.com/jab16jy/Sistema_Pos/commit/3a60c71d9a47226e48c6b0ea8cbca25770670b06))
+* **products:** stock is never editable from Productos, even on create ([6a5857e](https://github.com/jab16jy/Sistema_Pos/commit/6a5857e982feb44da7eb62e583d41112097dc767))
+* **users:** show "Cajero"/"Administrador" in Users/Roles UI only ([bf92922](https://github.com/jab16jy/Sistema_Pos/commit/bf92922ad798800eef669d37a7eb1f723978539a))
+
 ## [1.12.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.11.0...v1.12.0) (2026-07-13)
 
 
