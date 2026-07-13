@@ -14,3 +14,6 @@ Features:
 
 Focus:
 Maintainable, scalable, testable enterprise software with MVVM, dependency injection, repository pattern, CQRS where appropriate, and modern Material Design UI.
+
+Future ideas (not scheduled):
+- Direct ESC/POS printing (QZ Tray / Star CloudPRNT style): talk to USB/network thermal printers directly instead of relying on a Windows-installed printer driver. Removes the "add the printer in Windows first" setup step for the end customer. Bigger than an installer change — it's a new communication layer alongside the existing InstalledPrinterProvider (winspool.drv) path.
