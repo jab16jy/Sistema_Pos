@@ -92,7 +92,7 @@ public sealed class ProductsViewModelStockEditTests
 
         // No product selected → creating a new one. The stock field is the initial balance.
         Assert.True(viewModel.IsStockEditable);
-        Assert.Equal("Existencia inicial", viewModel.StockFieldLabel);
+        Assert.Equal("Stock inicial", viewModel.StockFieldLabel);
 
         viewModel.Name = "Arroz";
         viewModel.CategoryId = category.Id;

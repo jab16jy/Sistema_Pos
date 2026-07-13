@@ -201,7 +201,7 @@ public sealed class ProductsViewModel : ViewModelBase
     /// </summary>
     public bool IsStockEditable => _selectedProduct is null;
 
-    public string StockFieldLabel => _selectedProduct is null ? "Existencia inicial" : "Stock actual";
+    public string StockFieldLabel => _selectedProduct is null ? "Stock inicial" : "Stock actual";
 
     private async Task LoadSupplierRelationshipsAsync(Guid productId, CancellationToken cancellationToken = default)
     {
