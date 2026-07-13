@@ -1,7 +1,8 @@
 <UserControl x:Class="POS.Presentation.Views.RolesManagementView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:data="clr-namespace:System.Windows.Data;assembly=PresentationFramework">
+             xmlns:data="clr-namespace:System.Windows.Data;assembly=PresentationFramework"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
   <UserControl.Resources>
     <CollectionViewSource x:Key="GroupedPermissionOptions" Source="{Binding PermissionOptions}">
       <CollectionViewSource.GroupDescriptions>
@@ -9,35 +10,72 @@
       </CollectionViewSource.GroupDescriptions>
     </CollectionViewSource>
   </UserControl.Resources>
-  <Grid>
+  <Grid Margin="0,8">
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="300" />
+      <ColumnDefinition Width="320" />
       <ColumnDefinition Width="12" />
       <ColumnDefinition Width="*" />
     </Grid.ColumnDefinitions>
 
+    <!-- ══ COL 1: Lista de Roles ══ -->
     <Border Style="{StaticResource Card}">
-      <StackPanel>
-        <DockPanel Margin="0,0,0,12">
-          <Button DockPanel.Dock="Right" Content="Actualizar" Command="{Binding LoadRolesCommand}" Style="{StaticResource PrimaryButton}" />
-          <StackPanel>
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+          <Button DockPanel.Dock="Right" 
+                  Command="{Binding LoadRolesCommand}" 
+                  Style="{StaticResource PrimaryButton}" 
+                  Padding="8,0"
+                  Height="36"
+                  ToolTip="Actualizar lista de roles">
+            <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" />
+          </Button>
+          <StackPanel Margin="0,0,8,0">
             <TextBlock Text="Roles" Style="{StaticResource TextH2}" FontWeight="Bold" />
-            <TextBlock Text="Selecciona un rol para editar sus permisos." Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+            <TextBlock Text="Selecciona un rol para editar sus permisos." Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" />
           </StackPanel>
         </DockPanel>
-        <ListBox ItemsSource="{Binding Roles}" SelectedItem="{Binding SelectedRole, Mode=TwoWay}" BorderThickness="0">
+
+        <ListBox Grid.Row="1" 
+                 ItemsSource="{Binding Roles}" 
+                 SelectedItem="{Binding SelectedRole, Mode=TwoWay}" 
+                 BorderThickness="0" 
+                 Background="Transparent">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <StackPanel Margin="8">
-                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                <TextBlock Text="{Binding IsSystem, StringFormat=Sistema: {0}}" Style="{StaticResource MutedText}" FontSize="11" />
-              </StackPanel>
+              <Grid Margin="4,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="34" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                
+                <Border Width="34" Height="34" CornerRadius="17" Background="{StaticResource BrushPrimaryContainer}">
+                  <materialDesign:PackIcon Kind="Shield" Foreground="{StaticResource BrushPrimary}" Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                
+                <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Style="{StaticResource TextBody}" />
+                </StackPanel>
+                
+                <Border Grid.Column="2" 
+                        VerticalAlignment="Center" 
+                        Visibility="{Binding IsSystem, Converter={StaticResource BoolToVisibilityConverter}}" 
+                        Style="{StaticResource ChipSuccessStyle}">
+                  <TextBlock Text="Sistema" FontSize="10" Foreground="{StaticResource BrushSuccess}" FontWeight="Medium" />
+                </Border>
+              </Grid>
             </DataTemplate>
           </ListBox.ItemTemplate>
         </ListBox>
-      </StackPanel>
+      </Grid>
     </Border>
 
+    <!-- ══ COL 2: Detalle y Permisos del Rol ══ -->
     <Border Grid.Column="2" Style="{StaticResource Card}">
       <Grid>
         <Grid.RowDefinitions>
@@ -45,36 +83,95 @@
           <RowDefinition Height="*" />
           <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <StackPanel>
-          <TextBlock Text="Nombre del rol" Style="{StaticResource MutedText}" />
-          <TextBox Text="{Binding RoleName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,10" />
-          <StackPanel Orientation="Horizontal">
-            <Button Content="Crear rol" Command="{Binding CreateRoleCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
-            <Button Content="Guardar cambios" Command="{Binding SaveRoleCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
-            <Button Content="Desactivar" Command="{Binding DeactivateRoleCommand}" />
+        
+        <!-- Formulario Superior -->
+        <StackPanel Grid.Row="0">
+          <DockPanel Margin="0,0,0,16">
+            <materialDesign:PackIcon Kind="ShieldEdit" Foreground="{StaticResource BrushPrimary}" Width="24" Height="24" VerticalAlignment="Center" DockPanel.Dock="Left" />
+            <TextBlock Margin="8,0,0,0" VerticalAlignment="Center" FontWeight="SemiBold">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource TextH2}">
+                  <Setter Property="Text" Value="Crear nuevo rol" />
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding SelectedRole, Converter={StaticResource NullToVisibilityConverter}}" Value="Visible">
+                      <Setter Property="Text" Value="Editar rol seleccionado" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </DockPanel>
+
+          <TextBlock Text="Nombre del rol" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+          <TextBox Text="{Binding RoleName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                   Tag="Ej. Cajero, Administrador..." 
+                   Margin="0,0,0,16" />
+          
+          <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+            <Button Command="{Binding CreateRoleCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Height="36" Padding="12,0">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Text="Crear rol" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding SaveRoleCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Height="36" Padding="12,0">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Text="Guardar cambios" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding DeactivateRoleCommand}" Style="{StaticResource DangerButton}" Height="36" Padding="12,0">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="BlockHelper" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Text="Desactivar" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
           </StackPanel>
         </StackPanel>
-        <ScrollViewer Grid.Row="1" Margin="0,16,0,12">
-          <ItemsControl ItemsSource="{Binding Source={StaticResource GroupedPermissionOptions}}">
-            <ItemsControl.GroupStyle>
-              <GroupStyle>
-                <GroupStyle.HeaderTemplate>
-                  <DataTemplate><TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="0,10,0,4" /></DataTemplate>
-                </GroupStyle.HeaderTemplate>
-              </GroupStyle>
-            </ItemsControl.GroupStyle>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <CheckBox Content="{Binding Key}"
-                          IsChecked="{Binding IsGranted, Mode=TwoWay}"
-                          IsEnabled="{Binding IsEnabled}"
-                          Margin="0,3" />
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
+
+        <!-- Listado de Permisos Agrupados -->
+        <ScrollViewer Grid.Row="1" Margin="0,16,0,12" VerticalScrollBarVisibility="Auto">
+          <StackPanel>
+            <TextBlock Text="Permisos del Rol" Style="{StaticResource TextH3}" FontWeight="SemiBold" Margin="0,0,0,8" />
+            <ItemsControl ItemsSource="{Binding Source={StaticResource GroupedPermissionOptions}}">
+              <ItemsControl.GroupStyle>
+                <GroupStyle>
+                  <GroupStyle.HeaderTemplate>
+                    <DataTemplate>
+                      <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Margin="0,12,0,6" Padding="0,4">
+                        <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" FontSize="13" />
+                      </Border>
+                    </DataTemplate>
+                  </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+              </ItemsControl.GroupStyle>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Border BorderThickness="0,0,0,1" BorderBrush="{StaticResource BrushBorder}" Padding="8,8" Background="Transparent">
+                    <Grid>
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                      </Grid.ColumnDefinitions>
+                      <CheckBox IsChecked="{Binding IsGranted, Mode=TwoWay}"
+                                IsEnabled="{Binding IsEnabled}"
+                                VerticalAlignment="Top"
+                                Margin="0,2,12,0" />
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" Style="{StaticResource TextBody}" />
+                        <TextBlock Text="{Binding Description}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,2,0,0" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
         </ScrollViewer>
+
+        <!-- Mensajes y Alertas de Estado -->
         <StackPanel Grid.Row="2">
-          <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Foreground="{StaticResource BrushPrimary}" />
           <TextBlock Text="{Binding HasError, StringFormat=Error: {0}}" Foreground="{StaticResource BrushDanger}" Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}" />
         </StackPanel>
       </Grid>

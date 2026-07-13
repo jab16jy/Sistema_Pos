@@ -1,113 +1,199 @@
 <UserControl x:Class="POS.Presentation.Views.UserManagementView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:converters="clr-namespace:POS.Presentation.Converters">
   <UserControl.Resources>
-    <SolidColorBrush x:Key="BrushPrimary" Color="#0284C7" />
-    <SolidColorBrush x:Key="BrushAccent" Color="#0D9488" />
+    <converters:RoleIdToNameConverter x:Key="RoleIdToNameConverter" />
   </UserControl.Resources>
 
-  <Grid>
+  <Grid Margin="0,8">
     <Grid.ColumnDefinitions>
       <ColumnDefinition Width="*" />
-      <ColumnDefinition Width="320" />
+      <ColumnDefinition Width="12" />
+      <ColumnDefinition Width="340" />
     </Grid.ColumnDefinitions>
 
-    <!-- Left: user list -->
-    <Border Style="{StaticResource Card}" Margin="0,0,12,0">
-      <StackPanel>
-        <Grid Margin="0,0,0,12">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="Auto" />
-          </Grid.ColumnDefinitions>
-          <StackPanel>
+    <!-- ══ COL 1: Lista de Usuarios ══ -->
+    <Border Style="{StaticResource Card}">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <DockPanel Grid.Row="0" Margin="0,0,0,16">
+          <Button DockPanel.Dock="Right" 
+                  Command="{Binding LoadUsersCommand}" 
+                  Style="{StaticResource PrimaryButton}" 
+                  Padding="8,0"
+                  Height="36"
+                  ToolTip="Actualizar lista de usuarios">
+            <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" />
+          </Button>
+          <StackPanel Margin="0,0,8,0">
             <TextBlock Text="Usuarios del sistema" Style="{StaticResource TextH2}" FontWeight="Bold" />
-            <TextBlock Text="Administra accesos, contraseñas y roles." Style="{StaticResource MutedText}" />
+            <TextBlock Text="Administra accesos, contraseñas y roles." Style="{StaticResource MutedText}" FontSize="11" />
           </StackPanel>
-          <Button Grid.Column="1" Content="Actualizar lista" Command="{Binding LoadUsersCommand}"
-                  Style="{StaticResource PrimaryButton}" VerticalAlignment="Top" />
-        </Grid>
+        </DockPanel>
 
-        <DataGrid ItemsSource="{Binding Users}"
-                  SelectedItem="{Binding SelectedUser, Mode=TwoWay}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True"
-                  CanUserAddRows="False"
-                  SelectionMode="Single"
-                  MaxHeight="400">
-          <DataGrid.Columns>
-            <DataGridTextColumn Header="Usuario" Binding="{Binding Username}" Width="*" />
-            <DataGridTextColumn Header="Rol" Binding="{Binding RoleId}" Width="120" />
-            <DataGridCheckBoxColumn Header="Activo" Binding="{Binding IsActive}" Width="70" />
-          </DataGrid.Columns>
-        </DataGrid>
+        <!-- ListBox de Usuarios -->
+        <ListBox Grid.Row="1" 
+                 ItemsSource="{Binding Users}" 
+                 SelectedItem="{Binding SelectedUser, Mode=TwoWay}" 
+                 BorderThickness="0" 
+                 Background="Transparent"
+                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <Grid Margin="4,6">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="38" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
+                <!-- Avatar redondo con las iniciales del nombre de usuario -->
+                <Border Width="38" Height="38" CornerRadius="19" Background="{StaticResource BrushPrimaryContainer}">
+                  <TextBlock Text="{Binding Username, Converter={StaticResource InitialsConverter}}" 
+                             Foreground="{StaticResource BrushPrimary}" 
+                             FontWeight="Bold" 
+                             Style="{StaticResource TextBody}" 
+                             HorizontalAlignment="Center" 
+                             VerticalAlignment="Center" />
+                </Border>
+
+                <!-- Info: Username y Rol mapeado -->
+                <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Username}" FontWeight="SemiBold" Style="{StaticResource TextBody}" />
+                  <TextBlock Style="{StaticResource MutedText}" FontSize="11">
+                    <TextBlock.Text>
+                      <MultiBinding Converter="{StaticResource RoleIdToNameConverter}">
+                        <Binding Path="RoleId" />
+                        <Binding Path="DataContext.AvailableRoles" RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                      </MultiBinding>
+                    </TextBlock.Text>
+                  </TextBlock>
+                </StackPanel>
+
+                <!-- Chip de Estado (Activo / Inactivo) -->
+                <Border Grid.Column="2" VerticalAlignment="Center">
+                  <Border.Style>
+                    <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsActive}" Value="True">
+                          <Setter Property="Background" Value="{StaticResource BrushSuccessContainer}" />
+                          <Setter Property="BorderBrush" Value="{StaticResource BrushSuccess}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </Border.Style>
+                  <TextBlock FontSize="10" FontWeight="Medium">
+                    <TextBlock.Style>
+                      <Style TargetType="TextBlock">
+                        <Setter Property="Text" Value="Inactivo" />
+                        <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
+                        <Style.Triggers>
+                          <DataTrigger Binding="{Binding IsActive}" Value="True">
+                            <Setter Property="Text" Value="Activo" />
+                            <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                          </DataTrigger>
+                        </Style.Triggers>
+                      </Style>
+                    </TextBlock.Style>
+                  </TextBlock>
+                </Border>
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </Grid>
+    </Border>
+
+    <!-- ══ COL 2: Formularios (Crear y Editar) ══ -->
+    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+      <StackPanel>
+        
+        <!-- Tarjeta: Nuevo Usuario -->
+        <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,12">
+              <materialDesign:PackIcon Kind="AccountPlus" Foreground="{StaticResource BrushPrimary}" Width="20" Height="20" VerticalAlignment="Center" DockPanel.Dock="Left" />
+              <TextBlock Text="Nuevo usuario" Style="{StaticResource TextH3}" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </DockPanel>
+
+            <TextBlock Text="Nombre de usuario" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
+            <TextBox Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}" Tag="Ej. juan.perez" Margin="0,0,0,10" />
+
+            <TextBlock Text="Contraseña (mín. 4 caracteres)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
+            <PasswordBox x:Name="NewPasswordBox" Margin="0,0,0,10" PasswordChanged="NewPasswordBox_PasswordChanged" />
+
+            <TextBlock Text="Rol" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
+            <ComboBox ItemsSource="{Binding AvailableRoles}"
+                      DisplayMemberPath="Name"
+                      SelectedValuePath="Id"
+                      SelectedValue="{Binding NewRole, Mode=TwoWay}"
+                      Margin="0,0,0,16" />
+
+            <Button Command="{Binding CreateUserCommand}" Style="{StaticResource PrimaryButton}" Height="36" Padding="12,0">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Text="Crear usuario" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </Border>
+
+        <!-- Tarjeta: Editar Usuario Seleccionado -->
+        <Border Style="{StaticResource Card}"
+                Visibility="{Binding SelectedUser, Converter={StaticResource NullToVisibilityConverter}}">
+          <StackPanel>
+            <DockPanel Margin="0,0,0,4">
+              <materialDesign:PackIcon Kind="AccountCog" Foreground="{StaticResource BrushPrimary}" Width="20" Height="20" VerticalAlignment="Center" DockPanel.Dock="Left" />
+              <TextBlock Text="{Binding SelectedUser.Username, StringFormat='Editar: {0}'}"
+                         Style="{StaticResource TextH3}" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </DockPanel>
+            <TextBlock Text="Deja la contraseña vacía para no cambiarla." Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,12" />
+
+            <TextBlock Text="Nueva contraseña (opcional)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
+            <PasswordBox x:Name="EditPasswordBox" Margin="0,0,0,10" PasswordChanged="EditPasswordBox_PasswordChanged" />
+
+            <TextBlock Text="Rol" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
+            <ComboBox ItemsSource="{Binding AvailableRoles}"
+                      DisplayMemberPath="Name"
+                      SelectedValuePath="Id"
+                      SelectedValue="{Binding EditRole, Mode=TwoWay}"
+                      Margin="0,0,0,16" />
+
+            <StackPanel Orientation="Horizontal">
+              <Button Command="{Binding SaveEditCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Height="36" Padding="12,0">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Guardar" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding DeactivateCommand}" Style="{StaticResource DangerButton}" Height="36" Padding="12,0">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="AccountOff" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Desactivar" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <!-- Mensaje de Estado / Alertas -->
         <Border Background="{StaticResource BrushDangerSoft}" BorderBrush="{StaticResource BrushDanger}"
-                BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,10,0,0"
+                BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,12,0,0"
                 Visibility="{Binding HasError, Converter={StaticResource BoolToVisibilityConverter}}">
           <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource BrushDanger}" TextWrapping="Wrap" />
         </Border>
-        <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" Margin="0,10,0,0"
+        
+        <TextBlock Text="{Binding StatusMessage}" Style="{StaticResource MutedText}" Margin="0,12,0,0"
                    Visibility="{Binding HasError, Converter={StaticResource BooleanNegationToVisibilityConverter}}"
-                   TextWrapping="Wrap" />
+                   TextWrapping="Wrap" Foreground="{StaticResource BrushPrimary}" />
       </StackPanel>
-    </Border>
-
-    <!-- Right: forms -->
-    <StackPanel Grid.Column="1">
-      <!-- Create new user -->
-      <Border Style="{StaticResource Card}" Margin="0,0,0,12">
-        <StackPanel>
-          <TextBlock Text="Nuevo usuario" Style="{StaticResource TextH3}" FontWeight="Bold" Margin="0,0,0,12" />
-
-          <TextBlock Text="Nombre de usuario" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-          <TextBox Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" Margin="0,0,0,10" />
-
-          <TextBlock Text="Contraseña (mín. 4 caracteres)" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-          <PasswordBox x:Name="NewPasswordBox" Padding="8,6" Margin="0,0,0,10"
-                       PasswordChanged="NewPasswordBox_PasswordChanged" />
-
-          <TextBlock Text="Rol" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-           <ComboBox ItemsSource="{Binding AvailableRoles}"
-                     DisplayMemberPath="Name"
-                     SelectedValuePath="Id"
-                     SelectedValue="{Binding NewRole, Mode=TwoWay}"
-                    Padding="8,6" Margin="0,0,0,14" />
-
-          <Button Content="Crear usuario" Command="{Binding CreateUserCommand}"
-                  Style="{StaticResource PrimaryButton}" />
-        </StackPanel>
-      </Border>
-
-      <!-- Edit selected user -->
-      <Border Style="{StaticResource Card}"
-              Visibility="{Binding SelectedUser, Converter={StaticResource NullToVisibilityConverter}}">
-        <StackPanel>
-          <TextBlock Text="{Binding SelectedUser.Username, StringFormat='Editar: {0}'}"
-                     Style="{StaticResource TextH3}" FontWeight="Bold" Margin="0,0,0,4" />
-          <TextBlock Text="Deja la contraseña vacía para no cambiarla."
-                     Style="{StaticResource MutedText}" Margin="0,0,0,12" />
-
-          <TextBlock Text="Nueva contraseña (opcional)" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-          <PasswordBox x:Name="EditPasswordBox" Padding="8,6" Margin="0,0,0,10"
-                       PasswordChanged="EditPasswordBox_PasswordChanged" />
-
-          <TextBlock Text="Rol" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-           <ComboBox ItemsSource="{Binding AvailableRoles}"
-                     DisplayMemberPath="Name"
-                     SelectedValuePath="Id"
-                     SelectedValue="{Binding EditRole, Mode=TwoWay}"
-                    Padding="8,6" Margin="0,0,0,14" />
-
-          <StackPanel Orientation="Horizontal">
-            <Button Content="Guardar cambios" Command="{Binding SaveEditCommand}"
-                    Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" />
-            <Button Content="Desactivar usuario" Command="{Binding DeactivateCommand}"
-                    Background="{StaticResource BrushDanger}" Foreground="White" BorderThickness="0"
-                    Padding="12,8" Cursor="Hand" />
-          </StackPanel>
-        </StackPanel>
-      </Border>
-    </StackPanel>
+    </ScrollViewer>
   </Grid>
 </UserControl>

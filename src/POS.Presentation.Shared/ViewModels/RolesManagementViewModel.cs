@@ -19,10 +19,14 @@ public sealed class PermissionOptionRow : ViewModelBase
         Key = key;
         Module = module;
         _isGranted = isGranted;
+        DisplayName = GetPermissionDisplayName(key);
+        Description = GetPermissionDescription(key);
     }
 
     public string Key { get; }
     public string Module { get; }
+    public string DisplayName { get; }
+    public string Description { get; }
 
     public bool IsGranted
     {
@@ -37,6 +41,136 @@ public sealed class PermissionOptionRow : ViewModelBase
     }
 
     public void SetEnabled(bool enabled) => IsEnabled = enabled;
+
+    private static string GetPermissionDisplayName(string key)
+    {
+        return key switch
+        {
+            "Users.View" => "Ver usuarios",
+            "Users.Create" => "Crear usuarios",
+            "Users.Edit" => "Editar usuarios",
+            "Users.Deactivate" => "Desactivar usuarios",
+            "Roles.View" => "Ver roles",
+            "Roles.Create" => "Crear roles",
+            "Roles.Edit" => "Editar roles",
+            "Roles.Deactivate" => "Desactivar roles",
+            "Roles.AssignPermissions" => "Asignar permisos",
+            "Audit.View" => "Ver bitácora de auditoría",
+            "Settings.View" => "Ver configuración",
+            "Settings.Edit" => "Editar configuración",
+            "Admin.Backup.View" => "Ver copias de seguridad",
+            "Admin.Backup.Create" => "Crear copias de seguridad",
+            "Admin.Backup.Restore" => "Restaurar copias de seguridad",
+            "Invoices.View" => "Ver facturas",
+            "Invoices.Reprint" => "Reimprimir facturas",
+            "Invoices.Return" => "Gestionar devoluciones",
+            "Invoices.Cancel" => "Anular facturas",
+            "Cashier.Sell" => "Realizar ventas",
+            "Products.View" => "Ver catálogo de productos",
+            "Products.Create" => "Crear productos",
+            "Products.Edit" => "Editar productos",
+            "Products.Delete" => "Eliminar productos",
+            "Products.Import" => "Importar productos masivamente",
+            "Categories.View" => "Ver categorías",
+            "Categories.Create" => "Crear categorías",
+            "Categories.Edit" => "Editar categorías",
+            "Categories.Delete" => "Eliminar categorías",
+            "Inventory.View" => "Ver stock e inventario",
+            "Inventory.Adjust" => "Ajustar stock e inventario",
+            "Quotes.View" => "Ver cotizaciones",
+            "Quotes.Create" => "Crear cotizaciones",
+            "Quotes.Convert" => "Convertir cotizaciones a venta",
+            "Suppliers.View" => "Ver proveedores",
+            "Suppliers.Create" => "Crear proveedores",
+            "Suppliers.Edit" => "Editar proveedores",
+            "Suppliers.Delete" => "Eliminar proveedores",
+            "Purchases.View" => "Ver compras a proveedores",
+            "Purchases.Create" => "Registrar compras de mercancía",
+            "Customers.View" => "Ver clientes",
+            "Customers.Create" => "Registrar nuevos clientes",
+            "Customers.Edit" => "Editar clientes",
+            "Receivables.View" => "Ver cuentas por cobrar",
+            "Receivables.ApplyPayment" => "Registrar abonos y pagos",
+            "Reports.View" => "Ver reportes y estadísticas",
+            "CashRegister.Close" => "Realizar arqueo y cierre de caja",
+            "Shifts.View" => "Ver turnos de trabajo",
+            "Shifts.Open" => "Abrir turnos de trabajo",
+            "Shifts.Close" => "Cerrar turnos de trabajo",
+            "Loyalty.View" => "Ver puntos de fidelidad",
+            "Loyalty.Redeem" => "Canjear puntos de fidelidad",
+            "Loyalty.ConfigureRules" => "Configurar reglas de fidelidad",
+            "Loyalty.ManageTiers" => "Administrar niveles de fidelidad",
+            "Barcode.View" => "Ver códigos de barras",
+            "Barcode.Print" => "Imprimir códigos de barras",
+            "Documents.Send" => "Enviar comprobantes electrónicos",
+            _ => key
+        };
+    }
+
+    private static string GetPermissionDescription(string key)
+    {
+        return key switch
+        {
+            "Users.View" => "Permite ver la lista de usuarios del sistema y sus detalles básicos.",
+            "Users.Create" => "Permite registrar nuevos usuarios en el sistema.",
+            "Users.Edit" => "Permite modificar los datos y el rol de los usuarios existentes.",
+            "Users.Deactivate" => "Permite desactivar o suspender temporalmente a un usuario.",
+            "Roles.View" => "Permite consultar los roles definidos y sus permisos asociados.",
+            "Roles.Create" => "Permite crear nuevos roles de usuario en el sistema.",
+            "Roles.Edit" => "Permite modificar el nombre de los roles existentes.",
+            "Roles.Deactivate" => "Permite desactivar roles creados (excepto los del sistema).",
+            "Roles.AssignPermissions" => "Permite asignar o revocar permisos específicos a los roles.",
+            "Audit.View" => "Permite visualizar el registro de auditoría y bitácora del sistema.",
+            "Settings.View" => "Permite ver la configuración general del sistema.",
+            "Settings.Edit" => "Permite modificar los parámetros y configuraciones globales.",
+            "Admin.Backup.View" => "Permite ver el historial de copias de seguridad de la base de datos.",
+            "Admin.Backup.Create" => "Permite realizar una nueva copia de seguridad del sistema.",
+            "Admin.Backup.Restore" => "Permite restaurar el sistema a partir de una copia de seguridad.",
+            "Invoices.View" => "Permite buscar y consultar facturas de venta emitidas.",
+            "Invoices.Reprint" => "Permite reimprimir copias físicas o digitales de las facturas.",
+            "Invoices.Return" => "Permite gestionar devoluciones de productos facturados.",
+            "Invoices.Cancel" => "Permite anular facturas registradas en el sistema.",
+            "Cashier.Sell" => "Permite abrir el módulo de ventas y realizar cobros en caja.",
+            "Products.View" => "Permite visualizar el catálogo y detalles de los productos.",
+            "Products.Create" => "Permite agregar nuevos productos al inventario.",
+            "Products.Edit" => "Permite modificar la información, precios y detalles de productos.",
+            "Products.Delete" => "Permite eliminar de forma permanente productos del catálogo.",
+            "Products.Import" => "Permite importar productos de forma masiva (ej. Excel/CSV).",
+            "Categories.View" => "Permite consultar las categorías de productos configuradas.",
+            "Categories.Create" => "Permite crear nuevas categorías para organizar los productos.",
+            "Categories.Edit" => "Permite editar el nombre y propiedades de las categorías.",
+            "Categories.Delete" => "Permite eliminar categorías de productos existentes.",
+            "Inventory.View" => "Permite ver existencias, stock actual y Kardex de inventario.",
+            "Inventory.Adjust" => "Permite realizar ajustes manuales de entrada o salida al stock.",
+            "Quotes.View" => "Permite ver el listado de cotizaciones y presupuestos.",
+            "Quotes.Create" => "Permite elaborar y registrar nuevas cotizaciones.",
+            "Quotes.Convert" => "Permite convertir una cotización en una venta o factura directa.",
+            "Suppliers.View" => "Permite consultar la lista de proveedores registrados.",
+            "Suppliers.Create" => "Permite registrar nuevos proveedores.",
+            "Suppliers.Edit" => "Permite modificar los datos de contacto y comerciales de proveedores.",
+            "Suppliers.Delete" => "Permite dar de baja o eliminar proveedores de la base de datos.",
+            "Purchases.View" => "Permite consultar las órdenes y facturas de compras a proveedores.",
+            "Purchases.Create" => "Permite registrar nuevas compras de mercancía recibida.",
+            "Customers.View" => "Permite consultar el listado y cuentas de clientes.",
+            "Customers.Create" => "Permite registrar nuevos clientes en el sistema.",
+            "Customers.Edit" => "Permite modificar la información general y límites de crédito de clientes.",
+            "Receivables.View" => "Permite ver el estado de cuentas por cobrar y saldos pendientes.",
+            "Receivables.ApplyPayment" => "Permite registrar abonos y pagos de clientes a sus deudas.",
+            "Reports.View" => "Permite visualizar reportes estadísticos y resúmenes financieros.",
+            "CashRegister.Close" => "Permite realizar el cierre diario de caja y arqueo de dinero.",
+            "Shifts.View" => "Permite monitorear los turnos de trabajo de los cajeros.",
+            "Shifts.Open" => "Permite iniciar o abrir un nuevo turno de trabajo.",
+            "Shifts.Close" => "Permite finalizar o cerrar el turno de trabajo activo.",
+            "Loyalty.View" => "Permite consultar el estado de puntos y clientes fidelizados.",
+            "Loyalty.Redeem" => "Permite canjear puntos acumulados por beneficios o descuentos.",
+            "Loyalty.ConfigureRules" => "Permite ajustar las reglas de acumulación de puntos por compras.",
+            "Loyalty.ManageTiers" => "Permite administrar niveles de fidelización de clientes.",
+            "Barcode.View" => "Permite ver las etiquetas y códigos de barras de los productos.",
+            "Barcode.Print" => "Permite mandar a imprimir etiquetas de códigos de barras.",
+            "Documents.Send" => "Permite enviar facturas o documentos tributarios por correo/API.",
+            _ => "Permiso del sistema."
+        };
+    }
 }
 
 public sealed class RolesManagementViewModel : ViewModelBase
