@@ -1,7 +1,7 @@
 ; Inno Setup script for EPOS (Sistema POS) — builds EPOS-setup.exe.
 ; The release process publishes a fresh, self-contained single-file executable to build_output.
 #define MyAppName "EPOS"
-#define MyAppVersion "1.7.0"
+#define MyAppVersion "1.8.0"
 #define MyAppPublisher "EPOS"
 #define MyAppExeName "EPOS.exe"
 
