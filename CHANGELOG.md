@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.8.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.7.0...v1.8.0) (2026-07-13)
+
+
+### Features
+
+* **admin:** add human-readable permission labels and redesign roles/users screens ([ba41db3](https://github.com/jab16jy/Sistema_Pos/commit/ba41db3f6825bb382dabf5cc01483da8dcda0a3d))
+
+
+### Bug Fixes
+
+* **ui:** remove redundant Configuración tile from Admin hub ([6a0d1d0](https://github.com/jab16jy/Sistema_Pos/commit/6a0d1d08bbc0a47643c2c48efa5c477ccfdaefd8))
+
 ## [1.7.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.6.0...v1.7.0) (2026-07-13)
 
 
