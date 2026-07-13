@@ -1,7 +1,9 @@
 using System.Globalization;
 using ClosedXML.Excel;
 using POS.Application.DTOs.Reporting;
+using POS.Application.DTOs.Shifts;
 using POS.Application.Interfaces;
+using POS.Domain.Enums;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -158,6 +160,67 @@ public sealed class ReportExportService : IReportExportService
         var comparisonSheet = workbook.Worksheets.Add("Comparativo");
         ConfigureWorksheetTitle(comparisonSheet, 6, "Comparativo de períodos", period, generatedAt);
         AddPeriodComparisonSheet(comparisonSheet, comparison);
+
+        using var ms = new MemoryStream();
+        workbook.SaveAs(ms);
+        return Task.FromResult(ms.ToArray());
+    }
+
+    public Task<byte[]> ExportClosingsReportPdfAsync(IReadOnlyList<ShiftSummary> shifts, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(shifts);
+        ct.ThrowIfCancellationRequested();
+
+        string period = "Últimos cierres y arqueos de caja";
+        DateTimeOffset generatedAt = DateTimeOffset.Now;
+        var bytes = Document.Create(container =>
+        {
+            container.Page(page =>
+            {
+                ConfigureReportPage(page, "Cierres y arqueos", period, generatedAt);
+                page.Content().Scale(ReportContentScale).Column(column =>
+                {
+                    column.Spacing(12);
+                    column.Item().Text("Resumen de turnos y cierres de caja").FontSize(16).Bold();
+                    column.Item().Text("A continuación se detallan los turnos cerrados recientemente y los turnos que aún están abiertos pendientes de arqueo.")
+                        .FontSize(9).FontColor(LabelColor);
+
+                    var closedShifts = shifts.Where(s => s.Status == ShiftStatus.Closed).OrderByDescending(s => s.ClosedAt).ToList();
+                    if (closedShifts.Count > 0)
+                    {
+                        var lastClosed = closedShifts[0];
+                        column.Item().Element(card => ComposeLastClosedShiftKpi(card, lastClosed));
+                    }
+
+                    column.Item().Element(section => ComposeClosedShiftsTable(section, closedShifts));
+
+                    var openShifts = shifts.Where(s => s.Status == ShiftStatus.Open).OrderBy(s => s.OpenedAt).ToList();
+                    column.Item().Element(section => ComposeOpenShiftsTable(section, openShifts));
+                });
+            });
+        }).GeneratePdf();
+
+        return Task.FromResult(bytes);
+    }
+
+    public Task<byte[]> ExportClosingsReportExcelAsync(IReadOnlyList<ShiftSummary> shifts, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(shifts);
+        ct.ThrowIfCancellationRequested();
+
+        using var workbook = new XLWorkbook();
+        string period = "Últimos cierres y arqueos de caja";
+        DateTimeOffset generatedAt = DateTimeOffset.Now;
+
+        var closedSheet = workbook.Worksheets.Add("Cierres de Caja");
+        ConfigureWorksheetTitle(closedSheet, 8, "Reporte de Cierres y Arqueos", period, generatedAt);
+        var closedShifts = shifts.Where(s => s.Status == ShiftStatus.Closed).OrderByDescending(s => s.ClosedAt).ToList();
+        AddExcelClosedShifts(closedSheet, closedShifts);
+
+        var openSheet = workbook.Worksheets.Add("Turnos Abiertos");
+        ConfigureWorksheetTitle(openSheet, 4, "Turnos Abiertos (Pendientes de Arqueo)", period, generatedAt);
+        var openShifts = shifts.Where(s => s.Status == ShiftStatus.Open).OrderBy(s => s.OpenedAt).ToList();
+        AddExcelOpenShifts(openSheet, openShifts);
 
         using var ms = new MemoryStream();
         workbook.SaveAs(ms);
@@ -809,4 +872,216 @@ public sealed class ReportExportService : IReportExportService
     private static IContainer DataCellStyle(IContainer container, bool isEmphasized) =>
         (isEmphasized ? container.Background("#F2F2F2") : container)
             .BorderBottom(0.5f).BorderColor("#ECECEC").PaddingVertical(6).PaddingHorizontal(6);
+
+    private static void ComposeLastClosedShiftKpi(IContainer container, ShiftSummary s)
+    {
+        var diff = (s.ClosingCash ?? 0m) - s.ExpectedCash;
+        string diffText = diff == 0 ? "Cuadra" : (diff > 0 ? $"+{FormatCurrency(diff)}" : $"-{FormatCurrency(Math.Abs(diff))}");
+        
+        container.Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Último cierre registrado").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn();
+                    columns.RelativeColumn();
+                    columns.RelativeColumn();
+                    columns.RelativeColumn();
+                });
+
+                AddKpi(table, "Cajero", s.CashierUsername);
+                AddKpi(table, "Fecha de Cierre", s.ClosedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—");
+                AddKpi(table, "Efectivo Entregado", s.ClosingCash ?? 0m);
+                AddKpi(table, "Diferencia", diffText);
+            });
+        });
+    }
+
+    private static void ComposeClosedShiftsTable(IContainer container, IReadOnlyList<ShiftSummary> closedShifts)
+    {
+        container.Element(CardStyle).Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Cierres de Caja (Últimos 10)").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(1.5f);
+                    columns.RelativeColumn(2f);
+                    columns.RelativeColumn(2f);
+                    columns.RelativeColumn(1.5f);
+                    columns.RelativeColumn(1.5f);
+                    columns.RelativeColumn(1.5f);
+                    columns.RelativeColumn(1.5f);
+                    columns.RelativeColumn(1.5f);
+                });
+                AddTableHeader(table, "Cajero", "Apertura", "Cierre", "Base", "Ventas", "Esperado", "Entregado", "Diferencia");
+
+                if (closedShifts.Count == 0)
+                {
+                    AddEmptyTableRow(table, 8, "Sin cierres de caja registrados.");
+                    return;
+                }
+
+                foreach (var s in closedShifts)
+                {
+                    var diff = (s.ClosingCash ?? 0m) - s.ExpectedCash;
+                    string diffText = diff == 0 ? "Cuadra" : (diff > 0 ? $"+{FormatCurrency(diff)}" : $"-{FormatCurrency(Math.Abs(diff))}");
+                    
+                    table.Cell().Element(CellStyle).Text(s.CashierUsername).Bold();
+                    table.Cell().Element(CellStyle).Text(s.OpenedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
+                    table.Cell().Element(CellStyle).Text(s.ClosedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—");
+                    table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(s.OpeningCash));
+                    table.Cell().Element(CellStyle).AlignRight().Text(s.HasClosingSummary ? FormatCurrency(s.SalesTotal) : "—");
+                    table.Cell().Element(CellStyle).AlignRight().Text(s.HasClosingSummary ? FormatCurrency(s.ExpectedCash) : "—");
+                    table.Cell().Element(CellStyle).AlignRight().Text(s.ClosingCash.HasValue ? FormatCurrency(s.ClosingCash.Value) : "—");
+                    
+                    var diffCell = table.Cell().Element(CellStyle).AlignRight();
+                    if (diff == 0)
+                        diffCell.Text(diffText).FontColor("#2E7D32");
+                    else if (diff > 0)
+                        diffCell.Text(diffText).Bold().FontColor("#1565C0");
+                    else
+                        diffCell.Text(diffText).Bold().FontColor("#C62828");
+                }
+            });
+        });
+    }
+
+    private static void ComposeOpenShiftsTable(IContainer container, IReadOnlyList<ShiftSummary> openShifts)
+    {
+        container.Element(CardStyle).Column(column =>
+        {
+            column.Spacing(8);
+            column.Item().Text("Turnos Abiertos / Pendientes de Arqueo").FontSize(11).Bold();
+            column.Item().Table(table =>
+            {
+                table.ColumnsDefinition(columns =>
+                {
+                    columns.RelativeColumn(2f);
+                    columns.RelativeColumn(3f);
+                    columns.RelativeColumn(2f);
+                    columns.RelativeColumn(3f);
+                });
+                AddTableHeader(table, "Cajero", "Fecha de Apertura", "Base de Apertura", "Estado");
+
+                if (openShifts.Count == 0)
+                {
+                    AddEmptyTableRow(table, 4, "No hay turnos abiertos en este momento.");
+                    return;
+                }
+
+                foreach (var s in openShifts)
+                {
+                    table.Cell().Element(CellStyle).Text(s.CashierUsername).Bold();
+                    table.Cell().Element(CellStyle).Text(s.OpenedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm"));
+                    table.Cell().Element(CellStyle).AlignRight().Text(FormatCurrency(s.OpeningCash));
+                    table.Cell().Element(CellStyle).Text("Abierto (Activo)").FontColor("#2E7D32").Bold();
+                }
+            });
+        });
+    }
+
+    private static void AddExcelClosedShifts(IXLWorksheet worksheet, IReadOnlyList<ShiftSummary> closedShifts)
+    {
+        AddExcelSectionTitle(worksheet, 4, 1, 8, "Cierres de Caja Registrados");
+        AddExcelHeader(worksheet, 5, "Cajero", "Apertura", "Cierre", "Base de Apertura", "Ventas en Efectivo", "Efectivo Esperado", "Efectivo Entregado", "Diferencia");
+
+        int currentRow = 6;
+        if (closedShifts.Count == 0)
+        {
+            worksheet.Range(currentRow, 1, currentRow, 8).Merge();
+            worksheet.Cell(currentRow, 1).Value = "Sin cierres de caja registrados.";
+            worksheet.Cell(currentRow, 1).Style.Font.Italic = true;
+            worksheet.Cell(currentRow, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            currentRow++;
+        }
+        else
+        {
+            foreach (var s in closedShifts)
+            {
+                var diff = (s.ClosingCash ?? 0m) - s.ExpectedCash;
+
+                worksheet.Cell(currentRow, 1).Value = s.CashierUsername;
+                worksheet.Cell(currentRow, 2).Value = s.OpenedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                worksheet.Cell(currentRow, 3).Value = s.ClosedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
+                worksheet.Cell(currentRow, 4).Value = s.OpeningCash;
+                worksheet.Cell(currentRow, 5).Value = s.HasClosingSummary ? s.SalesTotal : 0m;
+                worksheet.Cell(currentRow, 6).Value = s.HasClosingSummary ? s.ExpectedCash : 0m;
+                worksheet.Cell(currentRow, 7).Value = s.ClosingCash ?? 0m;
+                worksheet.Cell(currentRow, 8).Value = diff;
+
+                worksheet.Range(currentRow, 4, currentRow, 8).Style.NumberFormat.Format = CurrencyFormat;
+
+                if (diff == 0)
+                {
+                    worksheet.Cell(currentRow, 8).Style.Font.FontColor = XLColor.DarkGreen;
+                }
+                else if (diff > 0)
+                {
+                    worksheet.Cell(currentRow, 8).Style.Font.FontColor = XLColor.FromHtml("#1565C0");
+                    worksheet.Cell(currentRow, 8).Style.Font.Bold = true;
+                }
+                else
+                {
+                    worksheet.Cell(currentRow, 8).Style.Font.FontColor = XLColor.DarkRed;
+                    worksheet.Cell(currentRow, 8).Style.Font.Bold = true;
+                }
+
+                currentRow++;
+            }
+        }
+
+        FormatExcelTable(worksheet, 5, currentRow - 1, 8, freezeRows: 5);
+        worksheet.Column(1).Width = 18;
+        worksheet.Column(2).Width = 22;
+        worksheet.Column(3).Width = 22;
+        worksheet.Column(4).Width = 18;
+        worksheet.Column(5).Width = 18;
+        worksheet.Column(6).Width = 18;
+        worksheet.Column(7).Width = 18;
+        worksheet.Column(8).Width = 18;
+    }
+
+    private static void AddExcelOpenShifts(IXLWorksheet worksheet, IReadOnlyList<ShiftSummary> openShifts)
+    {
+        AddExcelSectionTitle(worksheet, 4, 1, 4, "Turnos Abiertos (Activos)");
+        AddExcelHeader(worksheet, 5, "Cajero", "Fecha de Apertura", "Base de Apertura", "Estado");
+
+        int currentRow = 6;
+        if (openShifts.Count == 0)
+        {
+            worksheet.Range(currentRow, 1, currentRow, 4).Merge();
+            worksheet.Cell(currentRow, 1).Value = "No hay turnos abiertos en este momento.";
+            worksheet.Cell(currentRow, 1).Style.Font.Italic = true;
+            worksheet.Cell(currentRow, 1).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            currentRow++;
+        }
+        else
+        {
+            foreach (var s in openShifts)
+            {
+                worksheet.Cell(currentRow, 1).Value = s.CashierUsername;
+                worksheet.Cell(currentRow, 2).Value = s.OpenedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+                worksheet.Cell(currentRow, 3).Value = s.OpeningCash;
+                worksheet.Cell(currentRow, 4).Value = "Abierto (Activo)";
+
+                worksheet.Cell(currentRow, 3).Style.NumberFormat.Format = CurrencyFormat;
+                worksheet.Cell(currentRow, 4).Style.Font.FontColor = XLColor.DarkGreen;
+                worksheet.Cell(currentRow, 4).Style.Font.Bold = true;
+
+                currentRow++;
+            }
+        }
+
+        FormatExcelTable(worksheet, 5, currentRow - 1, 4, freezeRows: 5);
+        worksheet.Column(1).Width = 18;
+        worksheet.Column(2).Width = 22;
+        worksheet.Column(3).Width = 18;
+        worksheet.Column(4).Width = 18;
+    }
 }

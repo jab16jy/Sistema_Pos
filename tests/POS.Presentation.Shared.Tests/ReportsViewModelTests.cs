@@ -1,4 +1,5 @@
 using POS.Application.DTOs.Reporting;
+using POS.Application.DTOs.Shifts;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Shifts;
 using POS.Domain.Entities;
@@ -377,7 +378,7 @@ public sealed class ReportsViewModelTests
     public async Task LoadClosingsAsync_PopulatesRecentClosingsFromClosedShiftsOnly()
     {
         var closedShift = new CashierShift(Guid.NewGuid(), "Ana", new Money(100_000m));
-        closedShift.Close(new Money(100_000m));
+        closedShift.Close(new Money(100_000m), ShiftClosingSummary.Empty, DateTimeOffset.UtcNow);
         var openShift = new CashierShift(Guid.NewGuid(), "Luis", new Money(50_000m));
 
         var repo = new StubCashierShiftRepository([closedShift, openShift]);
@@ -417,7 +418,7 @@ public sealed class ReportsViewModelTests
     {
         var vm = new ReportsViewModel(new StubGetOperationalReportUseCase(MakeReport()));
         var shiftId = Guid.NewGuid();
-        var row = new ShiftRowPresentation(shiftId, "Luis", "Abierto", "success", "2026-01-01 08:00", "—", "$50.000", "—", "—", "neutral", true);
+        var row = new ShiftRowPresentation(shiftId, "Luis", "Abierto", "success", "2026-01-01 08:00", "—", "$50.000", "—", "—", string.Empty, "—", "—", "neutral", true);
 
         Guid? raised = null;
         vm.ShiftOpenRequested += id => raised = id;
@@ -517,10 +518,10 @@ public sealed class ReportsViewModelTests
     public async Task LoadClosingsAsync_ProjectsSurplusAndShortageDifferenceBranches()
     {
         var surplusShift = new CashierShift(Guid.NewGuid(), "Surplus", new Money(100_000m));
-        surplusShift.Close(new Money(120_000m));
+        surplusShift.Close(new Money(120_000m), ShiftClosingSummary.Empty, DateTimeOffset.UtcNow);
 
         var shortageShift = new CashierShift(Guid.NewGuid(), "Shortage", new Money(100_000m));
-        shortageShift.Close(new Money(80_000m));
+        shortageShift.Close(new Money(80_000m), ShiftClosingSummary.Empty, DateTimeOffset.UtcNow);
 
         var repo = new StubCashierShiftRepository([surplusShift, shortageShift]);
         var getShifts = new GetShiftsUseCase(repo);
@@ -608,6 +609,8 @@ public sealed class ReportsViewModelTests
         public Task<byte[]> ExportOperationalReportExcelAsync(OperationalReportDto report, DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
         public Task<byte[]> ExportProfitReportPdfAsync(IReadOnlyList<TopSellerResult> topSellers, PeriodComparisonResult comparison, IReadOnlyList<ProductMarginResult> margins, DateOnly from, DateOnly to, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
         public Task<byte[]> ExportProfitReportExcelAsync(IReadOnlyList<TopSellerResult> topSellers, PeriodComparisonResult comparison, IReadOnlyList<ProductMarginResult> margins, DateOnly from, DateOnly to, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
+        public Task<byte[]> ExportClosingsReportPdfAsync(IReadOnlyList<ShiftSummary> shifts, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
+        public Task<byte[]> ExportClosingsReportExcelAsync(IReadOnlyList<ShiftSummary> shifts, CancellationToken ct = default) => Task.FromResult(Array.Empty<byte>());
     }
 
     private sealed class StubGetOperationalReportUseCase : IGetOperationalReportUseCase

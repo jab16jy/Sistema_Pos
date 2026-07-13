@@ -28,6 +28,7 @@ public sealed class ReportsViewModel : ViewModelBase
     private DateTimeOffset _lastOperationalTo;
     private DateOnly _lastAnalyticsFrom;
     private DateOnly _lastAnalyticsTo;
+    private IReadOnlyList<ShiftSummary>? _lastLoadedShifts;
 
     private decimal _reportBilledTotal;
     private decimal _reportCashCollected;
@@ -136,6 +137,14 @@ public sealed class ReportsViewModel : ViewModelBase
         ExportProfitExcelCommand = new RelayCommand(
             _ => RunSafe(ExportProfitAsync(pdf: false), ex => SetUnhandledError($"Error al exportar: {ex.Message}")),
             _ => _exportService is not null && _periodComparison is not null);
+
+        ExportClosingsPdfCommand = new RelayCommand(
+            _ => RunSafe(ExportClosingsAsync(pdf: true), ex => SetUnhandledError($"Error al exportar: {ex.Message}")),
+            _ => _exportService is not null && _lastLoadedShifts is not null && _lastLoadedShifts.Count > 0);
+
+        ExportClosingsExcelCommand = new RelayCommand(
+            _ => RunSafe(ExportClosingsAsync(pdf: false), ex => SetUnhandledError($"Error al exportar: {ex.Message}")),
+            _ => _exportService is not null && _lastLoadedShifts is not null && _lastLoadedShifts.Count > 0);
 
         LoadClosingsCommand = new RelayCommand(
             _ => RunSafe(LoadClosingsAsync(), ex => SetUnhandledError($"Error al cargar cierres: {ex.Message}")),
@@ -383,6 +392,8 @@ public sealed class ReportsViewModel : ViewModelBase
     public ICommand ExportOperationalExcelCommand { get; }
     public ICommand ExportProfitPdfCommand { get; }
     public ICommand ExportProfitExcelCommand { get; }
+    public ICommand ExportClosingsPdfCommand { get; }
+    public ICommand ExportClosingsExcelCommand { get; }
     public ICommand LoadClosingsCommand { get; }
 
     // ── Analytics collections ──
@@ -559,6 +570,8 @@ public sealed class ReportsViewModel : ViewModelBase
         ((RelayCommand)ExportOperationalExcelCommand).RaiseCanExecuteChanged();
         ((RelayCommand)ExportProfitPdfCommand).RaiseCanExecuteChanged();
         ((RelayCommand)ExportProfitExcelCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)ExportClosingsPdfCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)ExportClosingsExcelCommand).RaiseCanExecuteChanged();
     }
 
     private void ClearTotals()
@@ -689,6 +702,7 @@ public sealed class ReportsViewModel : ViewModelBase
             }
 
             _lastClosedShift = closed.FirstOrDefault();
+            _lastLoadedShifts = shifts;
 
             OnPropertyChanged(nameof(HasLastClosedShift));
             OnPropertyChanged(nameof(LastClosedShiftCashier));
@@ -708,6 +722,7 @@ public sealed class ReportsViewModel : ViewModelBase
         finally
         {
             IsLoading = false;
+            RaiseExportCommandsCanExecuteChanged();
         }
     }
 
@@ -757,6 +772,31 @@ public sealed class ReportsViewModel : ViewModelBase
         {
             HasError = true;
             ErrorMessage = $"Error al exportar: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ExportClosingsAsync(bool pdf)
+    {
+        if (_exportService is null || _lastLoadedShifts is null || _lastLoadedShifts.Count == 0) return;
+        try
+        {
+            IsLoading = true;
+            byte[] data = pdf
+                ? await _exportService.ExportClosingsReportPdfAsync(_lastLoadedShifts).ConfigureAwait(true)
+                : await _exportService.ExportClosingsReportExcelAsync(_lastLoadedShifts).ConfigureAwait(true);
+
+            string ext = pdf ? "pdf" : "xlsx";
+            string name = $"Reporte_Cierres_{DateTime.Now:yyyyMMdd_HHmmss}.{ext}";
+            FileExportRequested?.Invoke(this, (name, data));
+        }
+        catch (Exception ex)
+        {
+            HasError = true;
+            ErrorMessage = $"Error al exportar cierres: {ex.Message}";
         }
         finally
         {

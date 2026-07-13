@@ -596,7 +596,7 @@
                     </TextBlock.Style>
                   </TextBlock>
                 </Grid>
-                <!-- Reuses the Operational report export (no dedicated cash-closing export exists yet) -->
+                <!-- Exports the dedicated cash-closings and audits report -->
                 <Grid>
                   <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -604,10 +604,10 @@
                   </Grid.ColumnDefinitions>
                   <TextBlock Text="Exportar evidencia" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
                   <StackPanel Grid.Column="1" Orientation="Horizontal">
-                    <Button Command="{Binding ExportOperationalPdfCommand}" Padding="8,0" Margin="0,0,6,0" ToolTip="Exportar PDF">
+                    <Button Command="{Binding ExportClosingsPdfCommand}" Padding="8,0" Margin="0,0,6,0" ToolTip="Exportar PDF">
                       <materialDesign:PackIcon Kind="FilePdfBox" Width="16" Height="16" />
                     </Button>
-                    <Button Content="Excel" Command="{Binding ExportOperationalExcelCommand}" Style="{StaticResource PrimaryButton}" />
+                    <Button Content="Excel" Command="{Binding ExportClosingsExcelCommand}" Style="{StaticResource PrimaryButton}" />
                   </StackPanel>
                 </Grid>
               </StackPanel>
