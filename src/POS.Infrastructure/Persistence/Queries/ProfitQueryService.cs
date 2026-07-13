@@ -36,15 +36,41 @@ public sealed class ProfitQueryService : IProfitQueryService
     public async Task<IReadOnlyList<TopSellerResult>> GetTopSellersAsync(
         DateOnly from, DateOnly to, int top = 10, CancellationToken cancellationToken = default)
     {
-        var items = await CompletedSaleItemsAsync(from, to, cancellationToken).ConfigureAwait(false);
+        var (fromOffset, toOffset) = ToRange(from, to);
 
-        return items
-            .GroupBy(si => (si.ProductId, si.ProductName))
-            .Select(g => new TopSellerResult(
-                g.Key.ProductId,
-                g.Key.ProductName,
-                (int)g.Sum(si => si.Quantity),
-                g.Sum(si => (si.UnitPrice.Amount * si.Quantity) - si.Discount.Amount)))
+        var sales = await _dbContext.Sales
+            .AsNoTracking()
+            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.CreatedAt >= fromOffset && s.CreatedAt <= toOffset)
+            .Include(s => s.Items)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var flatItems = sales.SelectMany(s => s.Items.Select(si => new 
+        {
+            Item = si,
+            SaleId = s.Id,
+            CustomerId = s.CustomerId
+        }));
+
+        return flatItems
+            .GroupBy(x => (x.Item.ProductId, x.Item.ProductName))
+            .Select(g => 
+            {
+                var uniqueSalesCount = g.Select(x => x.SaleId).Distinct().Count();
+                var registeredCustomersCount = g.Where(x => x.CustomerId.HasValue).Select(x => x.CustomerId!.Value).Distinct().Count();
+                var anonymousPurchasesCount = g.Where(x => !x.CustomerId.HasValue).Select(x => x.SaleId).Distinct().Count();
+                var totalBuyersCount = registeredCustomersCount + anonymousPurchasesCount;
+
+                return new TopSellerResult(
+                    g.Key.ProductId,
+                    g.Key.ProductName,
+                    (int)g.Sum(x => x.Item.Quantity),
+                    g.Sum(x => (x.Item.UnitPrice.Amount * x.Item.Quantity) - x.Item.Discount.Amount),
+                    uniqueSalesCount,
+                    totalBuyersCount
+                );
+            })
             .OrderByDescending(r => r.UnitsSold)
             .Take(top)
             .ToList();

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
+using System.IO;
 using POS.Application.DTOs.BarcodeLabels;
 using POS.Application.DTOs.Inventory;
 using POS.Application.DTOs.Products;

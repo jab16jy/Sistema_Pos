@@ -150,8 +150,8 @@ public sealed class ReportExportService : IReportExportService
         AddProfitSummary(summary, topSellers, comparison, margins);
 
         var topSellersSheet = workbook.Worksheets.Add("Top vendidos");
-        ConfigureWorksheetTitle(topSellersSheet, 5, "Productos más vendidos", period, generatedAt);
-        AddTopSellersSheet(topSellersSheet, topSellers, comparison.CurrentRevenue);
+        ConfigureWorksheetTitle(topSellersSheet, 13, "Productos más vendidos", period, generatedAt);
+        AddTopSellersSheet(topSellersSheet, topSellers, comparison.CurrentRevenue, margins);
 
         var marginsSheet = workbook.Worksheets.Add("Márgenes");
         ConfigureWorksheetTitle(marginsSheet, 6, "Margen por producto", period, generatedAt);
@@ -632,12 +632,32 @@ public sealed class ReportExportService : IReportExportService
         worksheet.Columns(5, 6).Width = 20;
     }
 
-    private static void AddTopSellersSheet(IXLWorksheet worksheet, IReadOnlyList<TopSellerResult> topSellers, decimal totalRevenue)
+    private static void AddTopSellersSheet(
+        IXLWorksheet worksheet,
+        IReadOnlyList<TopSellerResult> topSellers,
+        decimal totalRevenue,
+        IReadOnlyList<ProductMarginResult> margins)
     {
-        AddExcelHeader(worksheet, 4, "Ranking", "Producto", "Unidades", "Ingreso (COP)", "% de ventas");
+        var marginMap = margins.ToDictionary(m => m.ProductId);
+
+        AddExcelHeader(worksheet, 4, 
+            "Ranking", 
+            "Producto", 
+            "Transacciones", 
+            "Compradores Únicos", 
+            "Unidades Vendidas", 
+            "Precio Prom. (COP)", 
+            "Costo Prom. (COP)", 
+            "Margen Prom. (COP)", 
+            "Ingreso Total (COP)", 
+            "Costo Total (COP)", 
+            "Margen Total (COP)", 
+            "Ratio Margen %", 
+            "% de Ventas Totales");
+
         if (topSellers.Count == 0)
         {
-            worksheet.Range(5, 1, 5, 5).Merge();
+            worksheet.Range(5, 1, 5, 13).Merge();
             worksheet.Cell(5, 1).Value = "Sin productos vendidos en el período seleccionado.";
             worksheet.Cell(5, 1).Style.Font.Italic = true;
             worksheet.Cell(5, 1).Style.Font.FontColor = XLColor.DimGray;
@@ -648,23 +668,56 @@ public sealed class ReportExportService : IReportExportService
             {
                 TopSellerResult seller = topSellers[index];
                 int row = 5 + index;
+
+                decimal totalCost = 0m;
+                decimal grossMargin = 0m;
+                decimal marginPercent = 0m;
+                if (marginMap.TryGetValue(seller.ProductId, out var margin))
+                {
+                    totalCost = margin.TotalCost;
+                    grossMargin = margin.GrossMargin;
+                    marginPercent = margin.MarginPercent / 100m;
+                }
+
+                decimal avgPrice = seller.UnitsSold > 0 ? seller.TotalRevenue / seller.UnitsSold : 0m;
+                decimal avgCost = seller.UnitsSold > 0 ? totalCost / seller.UnitsSold : 0m;
+                decimal avgMargin = seller.UnitsSold > 0 ? grossMargin / seller.UnitsSold : 0m;
+
                 worksheet.Cell(row, 1).Value = index + 1;
                 worksheet.Cell(row, 2).Value = seller.ProductName;
-                worksheet.Cell(row, 3).Value = seller.UnitsSold;
-                worksheet.Cell(row, 4).Value = seller.TotalRevenue;
-                worksheet.Cell(row, 4).Style.NumberFormat.Format = CurrencyFormat;
-                worksheet.Cell(row, 5).Value = totalRevenue == 0m ? 0m : seller.TotalRevenue / totalRevenue;
-                worksheet.Cell(row, 5).Style.NumberFormat.Format = PercentageFormat;
+                worksheet.Cell(row, 3).Value = seller.TransactionCount;
+                worksheet.Cell(row, 4).Value = seller.UniqueCustomersCount;
+                worksheet.Cell(row, 5).Value = seller.UnitsSold;
+                worksheet.Cell(row, 6).Value = avgPrice;
+                worksheet.Cell(row, 7).Value = avgCost;
+                worksheet.Cell(row, 8).Value = avgMargin;
+                worksheet.Cell(row, 9).Value = seller.TotalRevenue;
+                worksheet.Cell(row, 10).Value = totalCost;
+                worksheet.Cell(row, 11).Value = grossMargin;
+                worksheet.Cell(row, 12).Value = marginPercent;
+                worksheet.Cell(row, 13).Value = totalRevenue == 0m ? 0m : seller.TotalRevenue / totalRevenue;
+
+                worksheet.Range(row, 6, row, 11).Style.NumberFormat.Format = CurrencyFormat;
+                worksheet.Cell(row, 12).Style.NumberFormat.Format = PercentageFormat;
+                worksheet.Cell(row, 13).Style.NumberFormat.Format = PercentageFormat;
             }
         }
 
         int lastRow = Math.Max(5, 4 + topSellers.Count);
-        FormatExcelTable(worksheet, 4, lastRow, 5, freezeRows: 4);
-        worksheet.Column(1).Width = 12;
+        FormatExcelTable(worksheet, 4, lastRow, 13, freezeRows: 4);
+        worksheet.Column(1).Width = 10;
         worksheet.Column(2).Width = 38;
-        worksheet.Column(3).Width = 14;
-        worksheet.Column(4).Width = 18;
-        worksheet.Column(5).Width = 14;
+        worksheet.Column(3).Width = 16;
+        worksheet.Column(4).Width = 20;
+        worksheet.Column(5).Width = 18;
+        worksheet.Column(6).Width = 18;
+        worksheet.Column(7).Width = 18;
+        worksheet.Column(8).Width = 18;
+        worksheet.Column(9).Width = 20;
+        worksheet.Column(10).Width = 20;
+        worksheet.Column(11).Width = 20;
+        worksheet.Column(12).Width = 16;
+        worksheet.Column(13).Width = 20;
     }
 
     private static void AddMarginsSheet(IXLWorksheet worksheet, IReadOnlyList<ProductMarginResult> margins)

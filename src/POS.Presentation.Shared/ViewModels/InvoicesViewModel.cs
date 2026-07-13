@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
+using System.IO;
 using POS.Application.DTOs.Communication;
 using POS.Application.DTOs.Invoices;
 using POS.Application.Interfaces;

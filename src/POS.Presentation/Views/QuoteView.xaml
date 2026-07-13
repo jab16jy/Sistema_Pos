@@ -496,12 +496,14 @@
               </TextBlock.Style>
             </TextBlock>
 
-           <ScrollViewer Grid.Row="4">
-             <ListBox ItemsSource="{Binding Quotes}"
+            <ListBox Grid.Row="4"
+                      ItemsSource="{Binding Quotes}"
                       SelectedItem="{Binding SelectedQuote, Mode=TwoWay}"
                       BorderThickness="0"
                       Background="Transparent"
-                      HorizontalContentAlignment="Stretch">
+                      HorizontalContentAlignment="Stretch"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                <ListBox.ItemContainerStyle>
                  <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
                    <Setter Property="Padding" Value="0" />
@@ -609,7 +611,6 @@
                 </DataTemplate>
                </ListBox.ItemTemplate>
              </ListBox>
-           </ScrollViewer>
 
            <Grid Grid.Row="5" Margin="14,8">
             <Grid.ColumnDefinitions>

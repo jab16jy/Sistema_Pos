@@ -12,7 +12,9 @@ public sealed record TopSellerResult(
     Guid ProductId,
     string ProductName,
     int UnitsSold,
-    decimal TotalRevenue);
+    decimal TotalRevenue,
+    int TransactionCount = 0,
+    int UniqueCustomersCount = 0);
 
 public sealed record PeriodComparisonResult(
     decimal CurrentRevenue,
