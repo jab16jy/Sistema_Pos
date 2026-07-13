@@ -485,12 +485,12 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ## Cross-cutting final check (end of Slice 3, or a short standalone task if the orchestrator prefers)
 
-- [ ] **15.1** Full-repo grep for `UserRole` and `AdminUserAuthorization` returns zero matches outside
+- [x] **15.1** Full-repo grep for `UserRole` and `AdminUserAuthorization` returns zero matches outside
       this change's own historical docs/comments. Confirms spec "User has exactly one role" ("The
       `UserRole` enum MUST be fully removed from the codebase; no code path may reference it after this
       change") and the `AdminUserAuthorization` deletion (task 5.5) has no orphaned references introduced
       later in Slices 2–3.
-- [ ] **15.2** Confirm the deferred-module spec requirement holds with no extra work needed: spot-check
+- [x] **15.2** Confirm the deferred-module spec requirement holds with no extra work needed: spot-check
       one deferred use case (e.g. `CreateProductUseCase`) has NOT been touched by this change and has no
       new permission gate — this is intentionally a no-op verification task, not an implementation task,
       confirming the cut line in proposal §2 was respected.
