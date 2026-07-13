@@ -45,6 +45,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private decimal _tierMinimumPoints;
     private decimal _tierDiscountPercent;
     private decimal _tierPointsMultiplier = 1m;
+    private string _tierPointsMultiplierText = "1";
     private string _tierColor = "#64748B";
 
     public LoyaltyViewModel(
@@ -238,7 +239,30 @@ public sealed class LoyaltyViewModel : ViewModelBase
     public decimal TierPointsMultiplier
     {
         get => _tierPointsMultiplier;
-        set => SetProperty(ref _tierPointsMultiplier, value);
+        set
+        {
+            if (SetProperty(ref _tierPointsMultiplier, value))
+            {
+                _tierPointsMultiplierText = value.ToString("0.##", ColombianCulture);
+                OnPropertyChanged(nameof(TierPointsMultiplierText));
+            }
+        }
+    }
+
+    public string TierPointsMultiplierText
+    {
+        get => _tierPointsMultiplierText;
+        set
+        {
+            if (SetProperty(ref _tierPointsMultiplierText, value ?? "1"))
+            {
+                if (TryParseFlexibleDecimal(value, out decimal parsedValue))
+                {
+                    _tierPointsMultiplier = parsedValue;
+                    OnPropertyChanged(nameof(TierPointsMultiplier));
+                }
+            }
+        }
     }
 
     public string TierColor
@@ -391,6 +415,18 @@ public sealed class LoyaltyViewModel : ViewModelBase
 
         try { return (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString(hex)!; }
         catch { return System.Windows.Media.Brushes.Gray; }
+    }
+
+    private static bool TryParseFlexibleDecimal(string? input, out decimal result)
+    {
+        result = 0m;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        string normalized = input.Replace(',', '.').Trim();
+        return decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out result);
     }
 
     public async Task SaveRulesAsync(CancellationToken cancellationToken = default)

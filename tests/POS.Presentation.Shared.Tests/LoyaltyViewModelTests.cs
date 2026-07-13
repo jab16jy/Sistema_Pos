@@ -197,6 +197,25 @@ public sealed class LoyaltyViewModelTests
         Assert.Contains("actualizado", vm.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("1.5", 1.5)]
+    [InlineData("1,5", 1.5)]
+    [InlineData("2", 2.0)]
+    [InlineData("2.25", 2.25)]
+    [InlineData("2,25", 2.25)]
+    public void TierPointsMultiplierText_ParsesFlexibleDecimalFormats(string inputText, decimal expectedValue)
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, new FakeUnitOfWork()))
+        {
+            TierPointsMultiplierText = inputText
+        };
+
+        Assert.Equal(expectedValue, vm.TierPointsMultiplier);
+    }
+
     private static void SetEntityId(object entity, Guid id)
     {
         var prop = entity.GetType().GetProperty("Id");

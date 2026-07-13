@@ -183,7 +183,7 @@
             <TextBlock Text="Descuento (%)" Style="{StaticResource MutedText}" FontSize="11" />
             <TextBox Text="{Binding TierDiscountPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
             <TextBlock Text="Multiplicador de puntos" Style="{StaticResource MutedText}" FontSize="11" />
-            <TextBox Text="{Binding TierPointsMultiplier, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" />
+            <TextBox Text="{Binding TierPointsMultiplierText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" />
             <TextBlock Text="Color del tier" Style="{StaticResource MutedText}" FontSize="11" />
             <Grid Margin="0,3,0,8">
               <Grid.ColumnDefinitions>
@@ -193,7 +193,8 @@
               </Grid.ColumnDefinitions>
               <TextBox Text="{Binding TierColor, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
               <Border Grid.Column="2" Width="24" Height="24" CornerRadius="4" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1"
-                      Background="{Binding TierColorPreviewBrush}" />
+                      Background="{Binding TierColorPreviewBrush}" Cursor="Hand" MouseLeftButtonDown="OnColorPreviewMouseLeftButtonDown"
+                      ToolTip="Presiona para seleccionar color" />
             </Grid>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
               <Button Command="{Binding NewTierCommand}" Margin="0,0,8,0">Nuevo</Button>

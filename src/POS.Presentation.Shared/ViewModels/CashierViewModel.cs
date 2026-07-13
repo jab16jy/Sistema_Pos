@@ -700,11 +700,33 @@ public sealed class CashierViewModel : ViewModelBase
         }
     }
 
+    public async Task HandleSearchEnterAsync(
+        bool isSuggestionNavigated,
+        CancellationToken cancellationToken = default)
+    {
+        if (isSuggestionNavigated && SelectedProduct is not null)
+        {
+            AddProductAndResetSearch(SelectedProduct);
+            return;
+        }
+
+        bool hasExactBarcodeMatch = await TryHandleScannerInputAsync(cancellationToken).ConfigureAwait(true);
+        if (!hasExactBarcodeMatch && SelectedProduct is not null)
+        {
+            AddProductAndResetSearch(SelectedProduct);
+        }
+    }
+
     public async Task HandleScannerInputAsync(CancellationToken cancellationToken = default)
+    {
+        await TryHandleScannerInputAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    private async Task<bool> TryHandleScannerInputAsync(CancellationToken cancellationToken)
     {
         if (Interlocked.CompareExchange(ref _scannerInputInProgress, 1, 0) != 0)
         {
-            return;
+            return true;
         }
 
         try
@@ -713,7 +735,7 @@ public sealed class CashierViewModel : ViewModelBase
             if (normalized.Length == 0)
             {
                 Message = "Escanea un código o escribe un producto para buscar.";
-                return;
+                return true;
             }
 
             CancelAutocompleteSearch();
@@ -733,10 +755,11 @@ public sealed class CashierViewModel : ViewModelBase
             if (exactMatch is null)
             {
                 Message = $"No encontramos un producto activo para el código '{normalized}'. Revisa el código e intenta de nuevo.";
-                return;
+                return false;
             }
 
             AddProductAndResetSearch(new CashierProductSearchResultViewModel(exactMatch));
+            return true;
         }
         finally
         {

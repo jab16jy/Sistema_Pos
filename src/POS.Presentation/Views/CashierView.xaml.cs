@@ -49,17 +49,7 @@ public partial class CashierView : UserControl
         e.Handled = true;
         try
         {
-            string query = SearchTextBox.Text.Trim();
-            bool isNumeric = query.Length > 0 && query.All(char.IsDigit);
-
-            if ((_isSuggestionNavigated || !isNumeric) && viewModel.SelectedProduct is not null)
-            {
-                viewModel.AddProductAndResetSearch(viewModel.SelectedProduct);
-            }
-            else
-            {
-                await viewModel.HandleScannerInputAsync();
-            }
+            await viewModel.HandleSearchEnterAsync(_isSuggestionNavigated);
         }
         catch (Exception ex)
         {

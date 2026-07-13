@@ -660,6 +660,43 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task HandleSearchEnterAsync_WithAlphanumericBarcodeAndSelectedSuggestion_AddsExactBarcodeProduct()
+    {
+        var suggestedProduct = new ProductLookupResult(Guid.NewGuid(), "Producto sugerido", "ABC-100", 5_000m, 10m);
+        var barcodeProduct = new ProductLookupResult(Guid.NewGuid(), "Producto del código", "ABC-123", 4_000m, 10m);
+        var viewModel = new CashierViewModel(new MultiProductLookupService(suggestedProduct, barcodeProduct))
+        {
+            SearchText = "ABC-123"
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(suggestedProduct.ProductId, viewModel.SelectedProduct?.ProductId);
+
+        await viewModel.HandleSearchEnterAsync(
+            isSuggestionNavigated: false,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(barcodeProduct.ProductId, Assert.Single(viewModel.CartItems).ProductId);
+    }
+
+    [Fact]
+    public async Task HandleSearchEnterAsync_WithTypedTextAndSelectedSuggestion_AddsSuggestionWhenNoExactBarcodeMatches()
+    {
+        var suggestedProduct = new ProductLookupResult(Guid.NewGuid(), "Producto sugerido", "ABC-100", 5_000m, 10m);
+        var viewModel = new CashierViewModel(new StaticProductLookupService(suggestedProduct))
+        {
+            SearchText = "Producto sugerido"
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+
+        await viewModel.HandleSearchEnterAsync(
+            isSuggestionNavigated: false,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(suggestedProduct.ProductId, Assert.Single(viewModel.CartItems).ProductId);
+    }
+
+    [Fact]
     public async Task ConfirmCustomerSelectionAsync_AssignsKeyboardSelectedCustomer()
     {
         var first = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
