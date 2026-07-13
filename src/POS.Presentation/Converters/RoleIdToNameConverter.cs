@@ -14,7 +14,7 @@ public sealed class RoleIdToNameConverter : IMultiValueConverter
         if (values.Length >= 2 && values[0] is Guid roleId && values[1] is IEnumerable<RoleSummary> roles)
         {
             var role = roles.FirstOrDefault(r => r.Id == roleId);
-            return role?.Name ?? "Sin Rol";
+            return role is null ? "Sin Rol" : RoleDisplayNames.ToDisplayName(role.Name);
         }
         return string.Empty;
     }

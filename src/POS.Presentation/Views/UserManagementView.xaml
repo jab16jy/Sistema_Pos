@@ -5,6 +5,7 @@
              xmlns:converters="clr-namespace:POS.Presentation.Converters">
   <UserControl.Resources>
     <converters:RoleIdToNameConverter x:Key="RoleIdToNameConverter" />
+    <converters:RoleNameToDisplayNameConverter x:Key="RoleNameToDisplayNameConverter" />
   </UserControl.Resources>
 
   <Grid Margin="0,8">
@@ -131,10 +132,15 @@
 
             <TextBlock Text="Rol" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
             <ComboBox ItemsSource="{Binding AvailableRoles}"
-                      DisplayMemberPath="Name"
                       SelectedValuePath="Id"
                       SelectedValue="{Binding NewRole, Mode=TwoWay}"
-                      Margin="0,0,0,16" />
+                      Margin="0,0,0,16">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Name, Converter={StaticResource RoleNameToDisplayNameConverter}}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
 
             <Button Command="{Binding CreateUserCommand}" Style="{StaticResource PrimaryButton}" Height="36" Padding="12,0">
               <StackPanel Orientation="Horizontal">
@@ -161,10 +167,15 @@
 
             <TextBlock Text="Rol" Style="{StaticResource MutedText}" FontSize="11" Margin="0,4,0,4" />
             <ComboBox ItemsSource="{Binding AvailableRoles}"
-                      DisplayMemberPath="Name"
                       SelectedValuePath="Id"
                       SelectedValue="{Binding EditRole, Mode=TwoWay}"
-                      Margin="0,0,0,16" />
+                      Margin="0,0,0,16">
+              <ComboBox.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding Name, Converter={StaticResource RoleNameToDisplayNameConverter}}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
 
             <StackPanel Orientation="Horizontal">
               <Button Command="{Binding SaveEditCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Height="36" Padding="12,0">
