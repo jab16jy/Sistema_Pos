@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.13.1...v1.13.2) (2026-07-13)
+
+
+### Bug Fixes
+
+* **printing:** add customer phone and email to thermal receipt ([31ebbb9](https://github.com/jab16jy/Sistema_Pos/commit/31ebbb93e68324577a8c69c84de3d51096bf7563))
+
 ## [1.13.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.13.0...v1.13.1) (2026-07-13)
 
 
