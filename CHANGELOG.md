@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.13.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.13.0...v1.13.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **printing:** show customer and loyalty discount on thermal receipt ([b4da8dc](https://github.com/jab16jy/Sistema_Pos/commit/b4da8dc0b9591f466903e2f0a9f9b084fc0bd9a3))
+
 ## [1.13.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.12.0...v1.13.0) (2026-07-13)
 
 
