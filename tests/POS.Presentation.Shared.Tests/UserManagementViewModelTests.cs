@@ -18,8 +18,8 @@ public sealed class UserManagementViewModelTests
         var viewModel = new UserManagementViewModel(
             new GetAllUsersUseCase(repository, session),
             new CreateUserUseCase(repository, new ThrowingRoleRepository(), new FakePasswordHashService(), new NoOpUnitOfWork()),
-            new UpdateUserUseCase(repository, new ThrowingRoleRepository(), new FakePasswordHashService()),
-            new DeactivateUserUseCase(repository, new ThrowingRoleRepository()),
+            new UpdateUserUseCase(repository, new ThrowingRoleRepository(), new FakePasswordHashService(), new NoOpUnitOfWork()),
+            new DeactivateUserUseCase(repository, new ThrowingRoleRepository(), new NoOpUnitOfWork()),
             session);
 
         viewModel.LoadUsersCommand.Execute(null);
@@ -37,8 +37,8 @@ public sealed class UserManagementViewModelTests
         var viewModel = new UserManagementViewModel(
             new GetAllUsersUseCase(repository, session),
             new CreateUserUseCase(repository, new ThrowingRoleRepository(), new FakePasswordHashService(), new NoOpUnitOfWork()),
-            new UpdateUserUseCase(repository, new ThrowingRoleRepository(), new FakePasswordHashService()),
-            new DeactivateUserUseCase(repository, new ThrowingRoleRepository()),
+            new UpdateUserUseCase(repository, new ThrowingRoleRepository(), new FakePasswordHashService(), new NoOpUnitOfWork()),
+            new DeactivateUserUseCase(repository, new ThrowingRoleRepository(), new NoOpUnitOfWork()),
             session)
         {
             NewUsername = "nuevo",

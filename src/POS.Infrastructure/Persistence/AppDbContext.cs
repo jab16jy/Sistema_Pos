@@ -1,8 +1,10 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using POS.Application.Interfaces;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 
 namespace POS.Infrastructure.Persistence;
@@ -102,18 +104,46 @@ v => DateTimeOffset.Parse(v))
     public async Task ExecuteInTransactionAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(operation);
-        await using var transaction = await Database.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+        await Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await operation(cancellationToken).ConfigureAwait(false);
-            await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            var connection = (SqliteConnection)Database.GetDbConnection();
+            await using var transaction = connection.BeginTransaction(deferred: true);
+            await Database.UseTransactionAsync(transaction, cancellationToken).ConfigureAwait(false);
+
+            try
+            {
+                await operation(cancellationToken).ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+                ChangeTracker.Clear();
+
+                if (IsSqliteTransactionConflict(exception))
+                    throw new TransactionConflictException(exception);
+
+                throw;
+            }
         }
-        catch
+        finally
         {
-            await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
-            ChangeTracker.Clear();
-            throw;
+            await Database.UseTransactionAsync(null, cancellationToken).ConfigureAwait(false);
+            await Database.CloseConnectionAsync().ConfigureAwait(false);
         }
+    }
+
+    private static bool IsSqliteTransactionConflict(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is SqliteException { SqliteErrorCode: 5 or 6 })
+                return true;
+        }
+
+        return false;
     }
 
     private void AddAuditEntries()

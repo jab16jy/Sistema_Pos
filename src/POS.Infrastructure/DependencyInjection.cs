@@ -15,6 +15,7 @@ using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Receivables;
 using POS.Application.UseCases.Reporting;
+using POS.Application.UseCases.Roles;
 using POS.Application.UseCases.Sales;
 using POS.Application.UseCases.Settings;
 using POS.Application.UseCases.Shifts;
@@ -157,6 +158,12 @@ public static class DependencyInjection
         services.AddScoped<CreateUserUseCase>();
         services.AddScoped<UpdateUserUseCase>();
         services.AddScoped<DeactivateUserUseCase>();
+
+        // Roles and permissions use cases
+        services.AddScoped<GetAllRolesUseCase>();
+        services.AddScoped<CreateRoleUseCase>();
+        services.AddScoped<UpdateRoleUseCase>();
+        services.AddScoped<DeactivateRoleUseCase>();
 
         // New POS modules use cases
         services.AddScoped<AccumulateLoyaltyPointsUseCase>();

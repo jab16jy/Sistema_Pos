@@ -17,7 +17,10 @@ public sealed class RoleRepository : IRoleRepository
     public Task UpdateAsync(Role role, CancellationToken ct = default) { _dbContext.Roles.Update(role); return Task.CompletedTask; }
     public async Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default)
     {
-        await _dbContext.RolePermissions.Where(permission => permission.RoleId == roleId).ExecuteDeleteAsync(ct);
+        var existingPermissions = await _dbContext.RolePermissions
+            .Where(permission => permission.RoleId == roleId)
+            .ToListAsync(ct);
+        _dbContext.RolePermissions.RemoveRange(existingPermissions);
         await _dbContext.RolePermissions.AddRangeAsync(keys.Select(key => new RolePermission(roleId, key)), ct);
     }
     public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => _dbContext.Users.CountAsync(user => user.RoleId == roleId, ct);

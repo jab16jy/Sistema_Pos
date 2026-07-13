@@ -101,7 +101,7 @@ public sealed class PermissionAuthorizationTests
         var createRole = new Role("User Creator");
         var editRole = new Role("User Editor");
         var deactivateRole = new Role("User Deactivator");
-        roles.Add(createRole, new HashSet<string> { PermissionKeys.Users.Create });
+        roles.Add(createRole, new HashSet<string> { PermissionKeys.Users.Create, PermissionKeys.Roles.AssignPermissions });
         roles.Add(editRole, new HashSet<string> { PermissionKeys.Users.Edit });
         roles.Add(deactivateRole, new HashSet<string> { PermissionKeys.Users.Deactivate });
         var creator = new User("creator", "hash", createRole.Id);
@@ -115,9 +115,9 @@ public sealed class PermissionAuthorizationTests
 
         var create = await new CreateUserUseCase(users, roles, new FakePasswordHashService(), new NoOpUnitOfWork())
             .ExecuteAsync("new-user", "1234", RoleConstants.CashierRoleId, creator.Id, TestContext.Current.CancellationToken);
-        var edit = await new UpdateUserUseCase(users, roles, new FakePasswordHashService())
+        var edit = await new UpdateUserUseCase(users, roles, new FakePasswordHashService(), new NoOpUnitOfWork())
             .ExecuteAsync(target.Id, "5678", RoleConstants.CashierRoleId, editor.Id, TestContext.Current.CancellationToken);
-        var deactivate = await new DeactivateUserUseCase(users, roles)
+        var deactivate = await new DeactivateUserUseCase(users, roles, new NoOpUnitOfWork())
             .ExecuteAsync(target.Id, deactivator.Id, TestContext.Current.CancellationToken);
 
         Assert.True(create.Success, create.Error);
@@ -178,7 +178,7 @@ public sealed class PermissionAuthorizationTests
         users.Add(administrator);
         roles.Add(editorRole, new HashSet<string> { PermissionKeys.Users.Edit });
         roles.Add(Role.CreateSystemRole(RoleConstants.AdministratorRoleId, RoleConstants.AdministratorRoleName));
-        var useCase = new UpdateUserUseCase(users, roles, new FakePasswordHashService());
+        var useCase = new UpdateUserUseCase(users, roles, new FakePasswordHashService(), new NoOpUnitOfWork());
 
         var selfPromotion = await useCase.ExecuteAsync(editor.Id, null, RoleConstants.AdministratorRoleId, editor.Id, TestContext.Current.CancellationToken);
         var mutateAdministrator = await useCase.ExecuteAsync(administrator.Id, "5678", RoleConstants.AdministratorRoleId, editor.Id, TestContext.Current.CancellationToken);

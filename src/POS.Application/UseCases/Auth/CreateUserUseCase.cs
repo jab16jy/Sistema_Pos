@@ -42,6 +42,16 @@ public sealed class CreateUserUseCase
             }
         }
 
+        var roleAssignmentAuthorizationError = await PermissionAuthorization.EnsureHasPermissionAsync(
+            _users,
+            _roles,
+            requestingUserId,
+            PermissionKeys.Roles.AssignPermissions,
+            "No tienes permiso para asignar roles.",
+            ct).ConfigureAwait(false);
+        if (roleAssignmentAuthorizationError is not null)
+            return (false, roleAssignmentAuthorizationError);
+
         if (string.IsNullOrWhiteSpace(username))
             return (false, "El nombre de usuario es requerido.");
         if (string.IsNullOrWhiteSpace(password) || password.Length < 4)

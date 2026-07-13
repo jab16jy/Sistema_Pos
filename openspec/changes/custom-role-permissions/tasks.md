@@ -298,18 +298,18 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 7. Guardrails (design §12 step 7)
 
-- [ ] **7.1** Modify `src/POS.Application/UseCases/Users/DeactivateUserUseCase.cs`: after auth + user
+- [x] **7.1** Modify `src/POS.Application/UseCases/Users/DeactivateUserUseCase.cs`: after auth + user
       lookup, if `user.RoleId == RoleConstants.AdministratorRoleId` AND
       `await _users.CountActiveUsersInRoleAsync(AdministratorRoleId) <= 1` → deny with the design §7
       message. Guard runs before mutating the entity.
       Spec: role-permissions "Self-lockout guardrails" — "Deny deactivating the last active
       administrator", "Allow deactivating an administrator when another remains active".
-- [ ] **7.2** Modify `src/POS.Application/UseCases/Users/UpdateUserUseCase.cs`: replace `UserRole newRole`
+- [x] **7.2** Modify `src/POS.Application/UseCases/Users/UpdateUserUseCase.cs`: replace `UserRole newRole`
       param with `Guid newRoleId` (design §7 note); if reassigning the last active administrator away
       from the Administrator role → deny.
       Spec: role-permissions "Deny reassigning the last active administrator's role away from
       Administrator".
-- [ ] **7.3** Test: `POS.Application.Tests` — exactly the 4 self-lockout scenarios named as required user
+- [x] **7.3** Test: `POS.Application.Tests` — exactly the 4 self-lockout scenarios named as required user
       coverage: deny deactivating the sole active admin; allow deactivating an admin when a second admin
       remains active (and confirm the deactivated user's `IsActive` becomes false); deny reassigning the
       sole active admin's role away from Administrator (and confirm `RoleId` remains unchanged); (the
@@ -319,14 +319,14 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 8. Role use cases (design §12 step 8)
 
-- [ ] **8.1** Create `src/POS.Application/UseCases/Roles/GetAllRolesUseCase.cs` per design §8.1
+- [x] **8.1** Create `src/POS.Application/UseCases/Roles/GetAllRolesUseCase.cs` per design §8.1
       (`RoleSummary` record, gate `Roles.View`).
-- [ ] **8.2** Create `src/POS.Application/UseCases/Roles/CreateRoleUseCase.cs` per design §8.2: gate
+- [x] **8.2** Create `src/POS.Application/UseCases/Roles/CreateRoleUseCase.cs` per design §8.2: gate
       `Roles.Create`; validate name non-empty and not taken (`GetByNameAsync`); validate every key ∈
       `PermissionKeys.All` (reject unknown keys); create `Role`, `ReplacePermissionsAsync`, one
       `SaveChanges`.
       Spec: role-permissions "Assigning a permission persists a RolePermission row".
-- [ ] **8.3** Create `src/POS.Application/UseCases/Roles/UpdateRoleUseCase.cs` per design §8.3 and the D5
+- [x] **8.3** Create `src/POS.Application/UseCases/Roles/UpdateRoleUseCase.cs` per design §8.3 and the D5
       grant-diff subroutine detailed in design §13: gate `Roles.Edit`; load current grants via
       `GetPermissionKeysAsync`; compare with incoming set via `IReadOnlySet<string>.SetEquals` (ordinal);
       if not equal, additionally gate `Roles.AssignPermissions`; admin-strip guard — for the
@@ -336,7 +336,7 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
       Spec: role-permissions "Revoking a permission removes the RolePermission row", "User without
       Roles.AssignPermissions is denied editing role grants", "Deny stripping permissions from the
       system Administrator role".
-- [ ] **8.4** Test: `POS.Application.Tests` — **grant-diff subroutine, explicit non-blocking-risk item**:
+- [x] **8.4** Test: `POS.Application.Tests` — **grant-diff subroutine, explicit non-blocking-risk item**:
       `SetEquals` comparison correctly identifies unchanged-grant renames (only `Roles.Edit` required) vs
       changed-grant edits (both `Roles.Edit` and `Roles.AssignPermissions` required); cover the
       empty-set-vs-empty-set case (rename-only on a role with zero grants) and the
@@ -346,19 +346,19 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
       Spec: role-permissions "User without Roles.AssignPermissions is denied editing role grants",
       "Assigning a permission persists a RolePermission row", "Revoking a permission removes the
       RolePermission row".
-- [ ] **8.5** Test: `POS.Application.Tests` — **self-lockout guardrail #4** (admin-strip): attempting to
+- [x] **8.5** Test: `POS.Application.Tests` — **self-lockout guardrail #4** (admin-strip): attempting to
       modify the Administrator role's permission grants in any way (add or remove) via `UpdateRoleUseCase`
       is denied and the role's grant state (zero rows) remains unchanged.
       Spec: role-permissions "Deny stripping permissions from the system Administrator role".
-- [ ] **8.6** Test: `POS.Application.Tests` — `CreateRoleUseCase` rejects a duplicate name; rejects a
+- [x] **8.6** Test: `POS.Application.Tests` — `CreateRoleUseCase` rejects a duplicate name; rejects a
       request containing a key not in `PermissionKeys.All`.
-- [ ] **8.7** Create `src/POS.Application/UseCases/Roles/DeactivateRoleUseCase.cs` per design §8.4: gate
+- [x] **8.7** Create `src/POS.Application/UseCases/Roles/DeactivateRoleUseCase.cs` per design §8.4: gate
       `Roles.Deactivate`; deny if `role.IsSystem`; deny if `CountUsersInRoleAsync(roleId) > 0`; else
       `Deactivate()` + `UpdateAsync` + `SaveChanges`. Confirm no `DeleteRoleUseCase` file exists anywhere
       in the change (spec explicitly requires its absence).
       Spec: role-permissions "System roles cannot be deactivated" (both scenarios), "Roles assigned to a
       user cannot be deactivated" (both scenarios), "No delete role use case exists".
-- [ ] **8.8** Test: `POS.Application.Tests` — deny deactivating Administrator (IsSystem); deny
+- [x] **8.8** Test: `POS.Application.Tests` — deny deactivating Administrator (IsSystem); deny
       deactivating Cashier (IsSystem); deny deactivating a custom role with an assigned user (active or
       inactive assignment); allow deactivating an unassigned custom role, confirm `IsActive` becomes
       false.
@@ -367,11 +367,11 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 9. DI registration (design §12 step 9)
 
-- [ ] **9.1** Modify `src/POS.Infrastructure/DependencyInjection.cs` per design §10: register
+- [x] **9.1** Modify `src/POS.Infrastructure/DependencyInjection.cs` per design §10: register
       `IRoleRepository → RoleRepository` near the `IUserRepository` registration (~line 73); register
       `GetAllRolesUseCase`, `CreateRoleUseCase`, `UpdateRoleUseCase`, `DeactivateRoleUseCase` near the
       user-management use case block (~line 155–158).
-- [ ] **9.2** Verify (build-only check, no new test file): the app builds and starts with the new DI
+- [x] **9.2** Verify (build-only check, no new test file): the app builds and starts with the new DI
       graph — `LoginUseCase`'s new `IRoleRepository` dependency and the settings/backup use cases' new
       `ICurrentOperatorSession` dependency resolve without a missing-registration error (both are
       already-registered service types, per design §10's note — confirm, don't assume).
