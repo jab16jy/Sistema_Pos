@@ -150,11 +150,29 @@ public sealed class InvoicesViewModel : ViewModelBase
             if (SetProperty(ref _selectedInvoiceDetail, value))
             {
                 OnPropertyChanged(nameof(HasSelectedInvoiceDetail));
+                OnPropertyChanged(nameof(HasDiscounts));
+                OnPropertyChanged(nameof(HasTotalItemDiscounts));
+                OnPropertyChanged(nameof(HasLoyaltyDiscount));
+                OnPropertyChanged(nameof(SubtotalBeforeDiscounts));
+                OnPropertyChanged(nameof(TotalItemDiscounts));
+                OnPropertyChanged(nameof(LoyaltyDiscount));
+                OnPropertyChanged(nameof(TotalDiscounts));
+                OnPropertyChanged(nameof(NetTotal));
             }
         }
     }
 
     public bool HasSelectedInvoiceDetail => SelectedInvoiceDetail is not null;
+
+    public bool HasDiscounts => TotalDiscounts > 0;
+    public bool HasTotalItemDiscounts => TotalItemDiscounts > 0;
+    public bool HasLoyaltyDiscount => LoyaltyDiscount > 0;
+
+    public decimal SubtotalBeforeDiscounts => SelectedInvoiceDetail?.Items.Sum(i => i.Subtotal + i.Discount) ?? 0m;
+    public decimal TotalItemDiscounts => SelectedInvoiceDetail?.Items.Sum(i => i.Discount) ?? 0m;
+    public decimal LoyaltyDiscount => SelectedInvoiceDetail?.Payments.Where(p => p.Method == PaymentMethod.LoyaltyPoints).Sum(p => p.Amount) ?? 0m;
+    public decimal TotalDiscounts => TotalItemDiscounts + LoyaltyDiscount;
+    public decimal NetTotal => SelectedInvoiceDetail is null ? 0m : SelectedInvoiceDetail.Total - LoyaltyDiscount;
 
     public bool IsInvoiceDetailLoading
     {
@@ -249,7 +267,41 @@ public sealed class InvoicesViewModel : ViewModelBase
     public string Message
     {
         get => _message;
-        private set => SetProperty(ref _message, value);
+        private set
+        {
+            if (SetProperty(ref _message, value))
+            {
+                OnPropertyChanged(nameof(MessageType));
+            }
+        }
+    }
+
+    public string MessageType
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(Message) || 
+                Message == "Busca facturas por fecha, cliente o número." ||
+                Message.StartsWith("Mostrando", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Info";
+            }
+
+            bool containsErrorKeywords = Message.Contains("error", StringComparison.OrdinalIgnoreCase) ||
+                                         Message.Contains("no está disponible", StringComparison.OrdinalIgnoreCase) ||
+                                         Message.Contains("No encontramos", StringComparison.OrdinalIgnoreCase) ||
+                                         Message.Contains("no se pudo", StringComparison.OrdinalIgnoreCase) ||
+                                         Message.Contains("No tienes permiso", StringComparison.OrdinalIgnoreCase) ||
+                                         Message.StartsWith("Ingresa", StringComparison.OrdinalIgnoreCase) ||
+                                         Message.StartsWith("Selecciona", StringComparison.OrdinalIgnoreCase);
+
+            if (containsErrorKeywords)
+            {
+                return "Error";
+            }
+
+            return "Success";
+        }
     }
 
     public int CurrentPage
