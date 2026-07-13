@@ -24,13 +24,15 @@
             <TextBlock Text="Centro de control" />
           </StackPanel>
         </RadioButton>
-        <RadioButton x:Name="TabBusiness" GroupName="ConfigTabs" Style="{StaticResource SubtabItemStyle}">
+        <RadioButton x:Name="TabBusiness" GroupName="ConfigTabs" Style="{StaticResource SubtabItemStyle}"
+                     Visibility="{Binding CanViewIntegrations, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel Orientation="Horizontal">
             <materialDesign:PackIcon Kind="Storefront" Width="16" Height="16" Margin="0,0,4,0" />
             <TextBlock Text="Negocio" />
           </StackPanel>
         </RadioButton>
-        <RadioButton x:Name="TabIntegrations" GroupName="ConfigTabs" Style="{StaticResource SubtabItemStyle}">
+        <RadioButton x:Name="TabIntegrations" GroupName="ConfigTabs" Style="{StaticResource SubtabItemStyle}"
+                     Visibility="{Binding CanViewIntegrations, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel Orientation="Horizontal">
             <materialDesign:PackIcon Kind="Hub" Width="16" Height="16" Margin="0,0,4,0" />
             <TextBlock Text="Impresión y envíos" />

@@ -5,6 +5,7 @@ using System.Windows.Input;
 using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Settings;
+using POS.Domain.Authorization;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
@@ -16,6 +17,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly IEmailService? _emailService;
     private readonly IWhatsAppService? _whatsAppService;
     private readonly IInstalledPrinterProvider? _printerProvider;
+    private readonly ICurrentOperatorSession? _session;
 
     // Virtual/system printers that are never a receipt target — excluded from auto-detection
     // (still listed, so the user can pick one manually if they ever need to).
@@ -49,13 +51,15 @@ public sealed class SettingsViewModel : ViewModelBase
         SaveSettingsUseCase saveSettings,
         IEmailService? emailService = null,
         IWhatsAppService? whatsAppService = null,
-        IInstalledPrinterProvider? printerProvider = null)
+        IInstalledPrinterProvider? printerProvider = null,
+        ICurrentOperatorSession? session = null)
     {
         _loadSettings = loadSettings;
         _saveSettings = saveSettings;
         _emailService = emailService;
         _whatsAppService = whatsAppService;
         _printerProvider = printerProvider;
+        _session = session;
 
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar configuración: {ex.Message}"));
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar configuración: {ex.Message}"));
@@ -65,6 +69,12 @@ public sealed class SettingsViewModel : ViewModelBase
 
         RefreshPrinters();
     }
+
+    /// <summary>Gates the SMTP/WhatsApp/backup tabs separately from admin-hub navigation, so reaching the
+    /// hub (e.g. for Inventario) doesn't imply Settings access.</summary>
+    public bool CanViewIntegrations => _session?.HasPermission(PermissionKeys.Settings.View) ?? false;
+
+    public bool CanEditIntegrations => _session?.HasPermission(PermissionKeys.Settings.Edit) ?? false;
 
     public ObservableCollection<SettingsWarning> Warnings { get; } = [];
 
@@ -387,6 +397,12 @@ public sealed class SettingsViewModel : ViewModelBase
     /// </summary>
     public async Task TestEmailAsync(CancellationToken cancellationToken = default)
     {
+        if (!CanEditIntegrations)
+        {
+            Message = "No tienes permiso para gestionar la configuración de correo.";
+            return;
+        }
+
         if (_emailService is null)
         {
             Message = "El envío de correo no está disponible en este entorno.";
@@ -430,6 +446,12 @@ public sealed class SettingsViewModel : ViewModelBase
     /// </summary>
     public async Task TestWhatsAppAsync(CancellationToken cancellationToken = default)
     {
+        if (!CanEditIntegrations)
+        {
+            Message = "No tienes permiso para gestionar la configuración de WhatsApp.";
+            return;
+        }
+
         if (_whatsAppService is null)
         {
             Message = "El envío por WhatsApp no está disponible en este entorno.";

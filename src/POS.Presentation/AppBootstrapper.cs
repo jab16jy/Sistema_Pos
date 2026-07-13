@@ -214,7 +214,8 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<SaveSettingsUseCase>(),
                 TryResolveOptional<POS.Application.Interfaces.IEmailService>(sp),
                 TryResolveOptional<POS.Application.Interfaces.IWhatsAppService>(sp),
-                TryResolveOptional<POS.Application.Interfaces.IInstalledPrinterProvider>(sp)),
+                TryResolveOptional<POS.Application.Interfaces.IInstalledPrinterProvider>(sp),
+                session),
             moduleWarnings);
 
         BackupViewModel? backup = TryCreateOptionalModule(
