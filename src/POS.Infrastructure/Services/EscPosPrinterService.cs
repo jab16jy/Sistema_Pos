@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Globalization;
-using System.Text;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Interfaces;
 using POS.Domain.Entities;
@@ -17,14 +16,8 @@ namespace POS.Infrastructure.Services;
 /// </summary>
 public sealed partial class EscPosPrinterService : IPrintService
 {
-    private static readonly byte[] CmdInit = [0x1B, 0x40];
-    private static readonly byte[] CmdCenterAlign = [0x1B, 0x61, 0x01];
-    private static readonly byte[] CmdLeftAlign = [0x1B, 0x61, 0x00];
-    private static readonly byte[] CmdBoldOn = [0x1B, 0x45, 0x01];
-    private static readonly byte[] CmdBoldOff = [0x1B, 0x45, 0x00];
     private static readonly byte[] CmdDoubleSize = [0x1D, 0x21, 0x11];
     private static readonly byte[] CmdNormalSize = [0x1D, 0x21, 0x00];
-    private static readonly byte[] CmdFullCut = [0x1D, 0x56, 0x00];
 
     private static readonly CultureInfo CopCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -75,19 +68,20 @@ public sealed partial class EscPosPrinterService : IPrintService
     {
         var buf = new List<byte>();
         void Write(byte[] b) => buf.AddRange(b);
-        void WriteText(string text) => buf.AddRange(Encoding.UTF8.GetBytes(text));
+        void WriteText(string text) => buf.AddRange(EscPosCommands.Encode(text));
         void WriteLine(string text = "") => WriteText(text + "\n");
         void Separator() => WriteLine("--------------------------------");
 
-        Write(CmdInit);
+        Write(EscPosCommands.Init);
+        Write(EscPosCommands.SelectCodePageWpc1252);
 
         // ── Header ──────────────────────────────────────────────────────────
-        Write(CmdCenterAlign);
-        Write(CmdBoldOn);
+        Write(EscPosCommands.CenterAlign);
+        Write(EscPosCommands.BoldOn);
         Write(CmdDoubleSize);
         WriteLine(settings?.BusinessName ?? "POS Local");
         Write(CmdNormalSize);
-        Write(CmdBoldOff);
+        Write(EscPosCommands.BoldOff);
 
         if (!string.IsNullOrWhiteSpace(settings?.BusinessAddress))
             WriteLine(settings.BusinessAddress);
@@ -97,7 +91,7 @@ public sealed partial class EscPosPrinterService : IPrintService
         WriteLine();
 
         // ── Invoice metadata ─────────────────────────────────────────────────
-        Write(CmdLeftAlign);
+        Write(EscPosCommands.LeftAlign);
         Separator();
         WriteLine($"Factura: {sale.InvoiceNumber}");
         WriteLine($"Fecha:   {sale.CreatedAt.ToLocalTime():yyyy-MM-dd HH:mm}");
@@ -124,9 +118,9 @@ public sealed partial class EscPosPrinterService : IPrintService
         // ── Totals ───────────────────────────────────────────────────────────
         WriteLine($"{"Base gravable:",-20}{FormatCurrency(sale.TaxableBaseTotal().Amount),12}");
         WriteLine($"{"IVA incluido:",-20}{FormatCurrency(sale.TaxTotal().Amount),12}");
-        Write(CmdBoldOn);
+        Write(EscPosCommands.BoldOn);
         WriteLine($"{"TOTAL:",-20}{FormatCurrency(sale.Total().Amount),12}");
-        Write(CmdBoldOff);
+        Write(EscPosCommands.BoldOff);
 
         var cashPayment = sale.Payments.FirstOrDefault(p => p.Method == PaymentMethod.Cash);
         if (cashPayment is not null)
@@ -154,14 +148,14 @@ public sealed partial class EscPosPrinterService : IPrintService
         Separator();
 
         // ── Footer ───────────────────────────────────────────────────────────
-        Write(CmdCenterAlign);
+        Write(EscPosCommands.CenterAlign);
         WriteLine();
         WriteLine("¡Gracias por su compra!");
         WriteLine("Conserve su recibo.");
         WriteLine();
         WriteLine();
         WriteLine();
-        Write(CmdFullCut);
+        Write(EscPosCommands.FullCut);
 
         return [.. buf];
     }

@@ -11,13 +11,6 @@ public sealed class LabelPrintService : ILabelPrintService
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
-    private static readonly byte[] CmdInit = [0x1B, 0x40];
-    private static readonly byte[] CmdCenterAlign = [0x1B, 0x61, 0x01];
-    private static readonly byte[] CmdLeftAlign = [0x1B, 0x61, 0x00];
-    private static readonly byte[] CmdBoldOn = [0x1B, 0x45, 0x01];
-    private static readonly byte[] CmdBoldOff = [0x1B, 0x45, 0x00];
-    private static readonly byte[] CmdFullCut = [0x1D, 0x56, 0x00];
-
     private readonly IPrinterSettingsResolver _printerSettingsResolver;
     private readonly IThermalPrinterTransport _transport;
 
@@ -64,43 +57,44 @@ public sealed class LabelPrintService : ILabelPrintService
     {
         List<byte> buffer = [];
         void Write(params byte[] bytes) => buffer.AddRange(bytes);
-        void WriteText(string text) => buffer.AddRange(System.Text.Encoding.UTF8.GetBytes(text));
+        void WriteText(string text) => buffer.AddRange(EscPosCommands.Encode(text));
         void WriteLine(string text = "") => WriteText(text + "\n");
 
-        Write(CmdInit);
+        Write(EscPosCommands.Init);
+        Write(EscPosCommands.SelectCodePageWpc1252);
         Write([0x1B, 0x32]);
 
         foreach (LabelRequest label in labels)
         {
             for (int copyIndex = 0; copyIndex < copies; copyIndex++)
             {
-                Write(CmdCenterAlign);
-                Write(CmdBoldOn);
+                Write(EscPosCommands.CenterAlign);
+                Write(EscPosCommands.BoldOn);
                 foreach (string line in WrapText(label.ProductName, 24).Take(2))
                 {
                     WriteLine(line.ToUpperInvariant());
                 }
-                Write(CmdBoldOff);
+                Write(EscPosCommands.BoldOff);
 
                 byte[] raster = BuildBarcodeRaster(label.BarcodeValue, label.Symbology);
                 Write(raster);
 
-                Write(CmdCenterAlign);
+                Write(EscPosCommands.CenterAlign);
                 WriteLine(label.BarcodeValue);
                 if (label.Price > 0)
                 {
-                    Write(CmdBoldOn);
+                    Write(EscPosCommands.BoldOn);
                     WriteLine($"${label.Price.ToString("N0", ColombianCulture)}");
-                    Write(CmdBoldOff);
+                    Write(EscPosCommands.BoldOff);
                 }
 
-                Write(CmdLeftAlign);
+                Write(EscPosCommands.LeftAlign);
                 WriteLine();
                 WriteLine();
             }
         }
 
-        Write(CmdFullCut);
+        Write(EscPosCommands.FullCut);
         return [.. buffer];
     }
 
