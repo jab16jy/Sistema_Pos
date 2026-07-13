@@ -9,12 +9,11 @@ namespace POS.Infrastructure.Migrations
     public partial class ReplaceUserRoleEnumWithRbac : Migration
     {
         /// <inheritdoc />
+        private const string AdministratorRoleId = "00000000-0000-0000-0000-0000000000a1";
+        private const string CashierRoleId = "00000000-0000-0000-0000-0000000000c2";
+
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Role",
-                table: "Users");
-
             migrationBuilder.AddColumn<string>(
                 name: "RoleId",
                 table: "Users",
@@ -55,6 +54,30 @@ namespace POS.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
+
+            // Seed the two system roles before backfilling Users.RoleId, since the FK
+            // added below requires every existing user to point at a real role row.
+            migrationBuilder.InsertData(
+                table: "Roles",
+                columns: new[] { "Id", "Name", "IsSystem", "IsActive", "CreatedAt", "UpdatedAt" },
+                values: new object[,]
+                {
+                    { AdministratorRoleId, "Administrator", true, true, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow },
+                    { CashierRoleId, "Cashier", true, true, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow }
+                });
+
+            // Old UserRole enum: Administrator = 1, Cashier = 2. Anything else defaults to Cashier.
+            migrationBuilder.Sql($"""
+                UPDATE Users
+                SET RoleId = CASE Role
+                    WHEN 1 THEN '{AdministratorRoleId}'
+                    ELSE '{CashierRoleId}'
+                END
+                """);
+
+            migrationBuilder.DropColumn(
+                name: "Role",
+                table: "Users");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_RoleId",
