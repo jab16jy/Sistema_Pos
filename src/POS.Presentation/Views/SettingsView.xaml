@@ -73,20 +73,16 @@
                   <materialDesign:PackIcon Kind="Apps" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
                   <TextBlock Text="Módulos de gestión" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
-                <UniformGrid Columns="2" Rows="2">
-                  <controls:QuickLink TitleText="Productos" Subtitle="Catálogo, precios y variantes." IconKind="PackageVariant" Margin="0,0,8,8"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubModules[0], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <controls:QuickLink TitleText="Inventario" Subtitle="Existencias, ajustes y movimientos de stock." IconKind="Warehouse" Margin="0,0,0,8"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubModules[1], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <controls:QuickLink TitleText="Compras" Subtitle="Órdenes a proveedores y recepción de mercancía." IconKind="Cart" Margin="0,0,8,0"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubModules[2], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <controls:QuickLink TitleText="Reportes" Subtitle="Ventas, KPIs y analítica del negocio." IconKind="ChartBox"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubModules[3], RelativeSource={RelativeSource AncestorType=Window}}" />
-                </UniformGrid>
+                <ItemsControl ItemsSource="{Binding DataContext.AdminHubModules, RelativeSource={RelativeSource AncestorType=Window}}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="0,0,8,8">
+                        <StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /></StackPanel>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
               </StackPanel>
             </Border>
 
@@ -96,23 +92,16 @@
                   <materialDesign:PackIcon Kind="ViewDashboard" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
                   <TextBlock Text="Utilidades agrupadas" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
-                <UniformGrid Columns="2" Rows="3">
-                  <controls:QuickLink TitleText="Turnos y cierre operativo" Subtitle="Apertura, arqueo y cierre del turno actual." IconKind="ClockOutline" Margin="0,0,8,8"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubModules[4], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <controls:QuickLink TitleText="Programa de lealtad" Subtitle="Reglas, tiers, canje y vigencias." IconKind="StarCircle" Margin="0,0,0,8"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubModules[5], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <controls:QuickLink TitleText="Usuarios y permisos" Subtitle="Alta, baja, roles y bloqueo de acciones sensibles." IconKind="AccountCog" Margin="0,0,0,8"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubExtraModules[0], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <controls:QuickLink TitleText="Auditoría operativa" Subtitle="Consulta cambios, devoluciones y movimientos críticos." IconKind="ClipboardCheck" Margin="0,0,8,0"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubExtraModules[1], RelativeSource={RelativeSource AncestorType=Window}}" />
-                  <controls:QuickLink TitleText="Respaldos" Subtitle="Copias de seguridad y restauración de la base de datos." IconKind="Backup"
-                                      Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                      CommandParameter="{Binding DataContext.AdminHubModules[6], RelativeSource={RelativeSource AncestorType=Window}}" />
-                </UniformGrid>
+                <ItemsControl ItemsSource="{Binding DataContext.AdminHubExtraModules, RelativeSource={RelativeSource AncestorType=Window}}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Button Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="0,0,8,8">
+                        <StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /></StackPanel>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
               </StackPanel>
             </Border>
 

@@ -37,7 +37,7 @@
                   MaxHeight="400">
           <DataGrid.Columns>
             <DataGridTextColumn Header="Usuario" Binding="{Binding Username}" Width="*" />
-            <DataGridTextColumn Header="Rol" Binding="{Binding Role}" Width="120" />
+            <DataGridTextColumn Header="Rol" Binding="{Binding RoleId}" Width="120" />
             <DataGridCheckBoxColumn Header="Activo" Binding="{Binding IsActive}" Width="70" />
           </DataGrid.Columns>
         </DataGrid>
@@ -68,8 +68,10 @@
                        PasswordChanged="NewPasswordBox_PasswordChanged" />
 
           <TextBlock Text="Rol" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-          <ComboBox ItemsSource="{Binding AvailableRoles}"
-                    SelectedItem="{Binding NewRole, Mode=TwoWay}"
+           <ComboBox ItemsSource="{Binding AvailableRoles}"
+                     DisplayMemberPath="Name"
+                     SelectedValuePath="Id"
+                     SelectedValue="{Binding NewRole, Mode=TwoWay}"
                     Padding="8,6" Margin="0,0,0,14" />
 
           <Button Content="Crear usuario" Command="{Binding CreateUserCommand}"
@@ -91,8 +93,10 @@
                        PasswordChanged="EditPasswordBox_PasswordChanged" />
 
           <TextBlock Text="Rol" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-          <ComboBox ItemsSource="{Binding AvailableRoles}"
-                    SelectedItem="{Binding EditRole, Mode=TwoWay}"
+           <ComboBox ItemsSource="{Binding AvailableRoles}"
+                     DisplayMemberPath="Name"
+                     SelectedValuePath="Id"
+                     SelectedValue="{Binding EditRole, Mode=TwoWay}"
                     Padding="8,6" Margin="0,0,0,14" />
 
           <StackPanel Orientation="Horizontal">

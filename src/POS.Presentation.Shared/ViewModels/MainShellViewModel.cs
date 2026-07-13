@@ -18,10 +18,39 @@ public sealed class MainShellViewModel : ViewModelBase
         "products", "inventory", "suppliers", "reports", "shifts", "loyalty", "backup"
     };
 
+    private static readonly IReadOnlySet<string> AdminHubExtraModuleKeys = new HashSet<string>
+    {
+        "users", "audit", "settings", "roles"
+    };
+
+    private static readonly IReadOnlyDictionary<string, string> ModuleViewKeys = new Dictionary<string, string>
+    {
+        ["cashier"] = PermissionKeys.Cashier.Sell,
+        ["customers"] = PermissionKeys.Customers.View,
+        ["quotes"] = PermissionKeys.Quotes.View,
+        ["invoices"] = PermissionKeys.Invoices.View,
+        ["products"] = PermissionKeys.Products.View,
+        ["inventory"] = PermissionKeys.Inventory.View,
+        ["suppliers"] = PermissionKeys.Suppliers.View,
+        ["reports"] = PermissionKeys.Reports.View,
+        ["shifts"] = PermissionKeys.Shifts.View,
+        ["loyalty"] = PermissionKeys.Loyalty.View,
+        ["backup"] = PermissionKeys.Admin.Backup.View,
+        ["users"] = PermissionKeys.Users.View,
+        ["audit"] = PermissionKeys.Audit.View,
+        ["settings"] = PermissionKeys.Settings.View,
+        ["roles"] = PermissionKeys.Roles.View
+    };
+
     // Cashiers get an operational funcbar only (no admin hub). Turnos is reachable directly
     // so they can open/close their own shift.
     private static readonly IReadOnlyList<string> CashierFuncbarKeys =
         ["cashier", "customers", "quotes", "invoices", "shifts"];
+
+    private static readonly IReadOnlySet<string> AlwaysVisibleOperationalFuncbarKeys = new HashSet<string>
+    {
+        "cashier", "customers", "quotes", "invoices"
+    };
 
     private readonly GetDashboardSummaryUseCase? _dashboardSummaryUseCase;
     private ModuleNavigationItem _selectedModule;
@@ -41,17 +70,22 @@ public sealed class MainShellViewModel : ViewModelBase
     }
 
     public MainShellViewModel(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboardSummaryUseCase)
-        : this(cashier, dashboardSummaryUseCase, RoleConstants.AdministratorRoleId, RoleConstants.AdministratorRoleName, string.Empty)
+        : this(cashier, dashboardSummaryUseCase, new HashSet<string>(PermissionKeys.All, StringComparer.Ordinal), RoleConstants.AdministratorRoleName, string.Empty)
     {
     }
 
-    public MainShellViewModel(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboardSummaryUseCase, Guid roleId, string roleName, string username)
+    public MainShellViewModel(
+        CashierViewModel cashier,
+        GetDashboardSummaryUseCase? dashboardSummaryUseCase,
+        IReadOnlySet<string> permissions,
+        string roleName,
+        string username)
     {
         Cashier = cashier ?? throw new ArgumentNullException(nameof(cashier));
         Cashier.SaleCompleted += RefreshDashboardMetrics;
         _dashboardSummaryUseCase = dashboardSummaryUseCase;
-        RoleId = roleId;
         OperatorDisplayName = BuildDisplayName(username, roleName);
+        var visiblePermissions = permissions ?? throw new ArgumentNullException(nameof(permissions));
 
         var allModules = new[]
         {
@@ -69,24 +103,31 @@ public sealed class MainShellViewModel : ViewModelBase
             new ModuleNavigationItem("backup", "Respaldos", "Crea y restaura copias de seguridad de la base de datos.", "ADM", true),
             new ModuleNavigationItem("users", "Usuarios", "Crea y gestiona usuarios del sistema.", "F1", true),
             new ModuleNavigationItem("audit", "Auditoría", "Consulta quién cambió qué y cuándo.", "Alt+A", true),
-            new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true)
+            new ModuleNavigationItem("settings", "Configuración", "Negocio, impresora, backup y moneda.", "F6", true),
+            new ModuleNavigationItem("roles", "Roles", "Define roles y permisos del sistema.", "Alt+R", true)
         };
 
-        var isAdmin = RoleConstants.IsSystemAdministrator(roleId);
+        var visibleAdminModules = allModules
+            .Where(module => AdminHubModuleKeys.Contains(module.Key) && HasViewPermission(module.Key, visiblePermissions))
+            .ToArray();
+        var visibleAdminExtras = allModules
+            .Where(module => AdminHubExtraModuleKeys.Contains(module.Key) && HasViewPermission(module.Key, visiblePermissions))
+            .ToArray();
+        // Shifts is operational for Cashier and also appears in the administrator hub; its view grant
+        // alone must not turn the Cashier funcbar into an administrator surface.
+        bool hasAdminHub = visibleAdminModules.Any(module => module.Key != "shifts") || visibleAdminExtras.Length > 0;
 
-        FuncbarModules = isAdmin
-            ? new ObservableCollection<ModuleNavigationItem>(allModules.Take(5))
-            : new ObservableCollection<ModuleNavigationItem>(
-                CashierFuncbarKeys.Select((key, i) => allModules.First(m => m.Key == key) with { Shortcut = $"F{i + 1}" }));
+        var funcbarKeys = hasAdminHub
+            ? new[] { "cashier", "customers", "quotes", "invoices", "admin" }
+            : CashierFuncbarKeys;
+        FuncbarModules = new ObservableCollection<ModuleNavigationItem>(
+            funcbarKeys
+                .Where(key => key == "admin" || AlwaysVisibleOperationalFuncbarKeys.Contains(key) || HasViewPermission(key, visiblePermissions))
+                .Select((key, index) => allModules.First(module => module.Key == key) with { Shortcut = $"F{index + 1}" }));
 
-        // Admin-only hubs stay empty for cashiers, so Productos/Inventario/Usuarios/Auditoría/etc.
-        // are unreachable from the shell — role gating, not just hidden buttons.
-        AdminHubModules = isAdmin
-            ? new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => AdminHubModuleKeys.Contains(m.Key)))
-            : new ObservableCollection<ModuleNavigationItem>();
-        AdminHubExtraModules = isAdmin
-            ? new ObservableCollection<ModuleNavigationItem>(allModules.Where(m => m.Key is "users" or "audit"))
-            : new ObservableCollection<ModuleNavigationItem>();
+        AdminHubModules = new ObservableCollection<ModuleNavigationItem>(hasAdminHub ? visibleAdminModules : []);
+        // Settings.View exposes the pre-existing settings shell item; it shares SettingsView with the F5 Admin entry.
+        AdminHubExtraModules = new ObservableCollection<ModuleNavigationItem>(visibleAdminExtras);
         Modules = FuncbarModules;
 
         Metrics = new ObservableCollection<DashboardMetric>
@@ -97,7 +138,7 @@ public sealed class MainShellViewModel : ViewModelBase
             new("Stock bajo", "0", "Se conectará al inventario SQLite.")
         };
 
-        _selectedModule = Modules[0];
+        _selectedModule = Modules.FirstOrDefault() ?? throw new InvalidOperationException("No module is available for the current permission snapshot.");
         _operatorMessage = "Escanea el código o escribe el nombre del producto. Este prototipo no guarda datos todavía.";
         SelectModuleCommand = new RelayCommand(SelectModule, CanSelectModule);
         LogoutCommand = new RelayCommand(_ => LogoutRequested?.Invoke());
@@ -113,7 +154,6 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public event Action? LogoutRequested;
 
-    public Guid RoleId { get; }
     public string OperatorDisplayName { get; }
 
     public ObservableCollection<ModuleNavigationItem> Modules { get; }
@@ -158,6 +198,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public UserManagementViewModel? UserManagement { get; init; }
 
+    public RolesManagementViewModel? RolesManagement { get; init; }
+
     public ShiftsViewModel? Shifts { get; init; }
 
     public AuditLogViewModel? AuditLog { get; init; }
@@ -195,6 +237,7 @@ public sealed class MainShellViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsCashierSelected));
                 OnPropertyChanged(nameof(IsShiftsSelected));
                 OnPropertyChanged(nameof(IsUsersSelected));
+                OnPropertyChanged(nameof(IsRolesSelected));
                 OnPropertyChanged(nameof(IsAuditSelected));
                 OnPropertyChanged(nameof(IsProductsSelected));
                 OnPropertyChanged(nameof(IsInventorySelected));
@@ -369,6 +412,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsUsersSelected => SelectedModule.Key == "users";
 
+    public bool IsRolesSelected => SelectedModule.Key == "roles";
+
     public bool IsShiftsSelected => SelectedModule.Key == "shifts";
 
     public bool IsAuditSelected => SelectedModule.Key == "audit";
@@ -395,10 +440,10 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public bool IsAdminHubSelected => SelectedModule.Key == "admin";
 
-    public bool IsAdminSectionSelected => IsAdminHubSelected || AdminHubModuleKeys.Contains(SelectedModule.Key);
+    public bool IsAdminSectionSelected => IsAdminHubSelected || AdminHubModuleKeys.Contains(SelectedModule.Key) || AdminHubExtraModuleKeys.Contains(SelectedModule.Key);
 
     public bool IsAdminSubmoduleSelected =>
-        (AdminHubModuleKeys.Contains(SelectedModule.Key) || SelectedModule.Key == "users" || SelectedModule.Key == "audit") &&
+        (AdminHubModuleKeys.Contains(SelectedModule.Key) || AdminHubExtraModuleKeys.Contains(SelectedModule.Key)) &&
         SelectedModule.Key != "admin";
 
     /// <summary>
@@ -409,7 +454,7 @@ public sealed class MainShellViewModel : ViewModelBase
     /// </summary>
     public bool IsSettingsViewSelected => IsAdminHubSelected || IsSettingsSelected;
 
-    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBackupSelected && !IsSettingsSelected && !IsAdminHubSelected;
+    public bool IsPlannedModuleSelected => !IsCashierSelected && !IsShiftsSelected && !IsUsersSelected && !IsRolesSelected && !IsAuditSelected && !IsProductsSelected && !IsInventorySelected && !IsQuotesSelected && !IsCustomersSelected && !IsPurchasesSelected && !IsInvoicesSelected && !IsReportsSelected && !IsLoyaltySelected && !IsBackupSelected && !IsSettingsSelected && !IsAdminHubSelected;
 
     public void RefreshDashboardMetrics()
     {
@@ -465,6 +510,7 @@ public sealed class MainShellViewModel : ViewModelBase
             { Key: "cashier", IsImplemented: true } => "Módulo Caja activo. Escanea productos, cobra y confirma ventas.",
             { Key: "shifts", IsImplemented: true } => "Módulo Turnos activo. Controla apertura y cierre por cajero.",
             { Key: "users", IsImplemented: true } => "Módulo Usuarios activo. Gestiona accesos y contraseñas.",
+            { Key: "roles", IsImplemented: true } => "Módulo Roles activo. Define permisos para cada rol.",
             { Key: "audit", IsImplemented: true } => "Módulo Auditoría activo. Revisa cambios y operaciones recientes.",
             { Key: "products", IsImplemented: true } => "Módulo Productos activo. Registra catálogo, precios, stock mínimo y códigos.",
             { Key: "inventory", IsImplemented: true } => "Módulo Inventario activo. Consulta existencias, bajo stock y movimientos.",
@@ -482,6 +528,9 @@ public sealed class MainShellViewModel : ViewModelBase
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";
+
+    private static bool HasViewPermission(string moduleKey, IReadOnlySet<string> permissions) =>
+        ModuleViewKeys.TryGetValue(moduleKey, out string? permissionKey) && permissions.Contains(permissionKey);
 
     private static string BuildDisplayName(string username, string roleName)
     {

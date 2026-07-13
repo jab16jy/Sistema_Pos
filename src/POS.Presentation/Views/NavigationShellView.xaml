@@ -152,6 +152,15 @@
         </Border>
       </Grid>
 
+      <Grid Visibility="{Binding IsRolesSelected, Converter={StaticResource BoolToVisibilityConverter}}">
+        <local:RolesManagementView DataContext="{Binding RolesManagement}"
+                                   Visibility="{Binding DataContext.RolesManagement, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />
+        <Border Style="{StaticResource Card}"
+                Visibility="{Binding DataContext.RolesManagement, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource InverseNullToVisibilityConverter}}">
+          <TextBlock Text="Gestión de roles no disponible en este entorno." Style="{StaticResource MutedText}" />
+        </Border>
+      </Grid>
+
       <Grid Visibility="{Binding IsAuditSelected, Converter={StaticResource BoolToVisibilityConverter}}">
         <local:AuditLogView DataContext="{Binding AuditLog}"
                             Visibility="{Binding DataContext.AuditLog, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource NullToVisibilityConverter}}" />

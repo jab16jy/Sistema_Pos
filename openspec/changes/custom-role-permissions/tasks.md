@@ -385,7 +385,7 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 10. Settings navigation investigation (non-blocking risk — do FIRST in this slice)
 
-- [ ] **10.1** Investigate how the `Settings` module is actually surfaced in the current WPF shell today.
+- [x] **10.1** Investigate how the `Settings` module is actually surfaced in the current WPF shell today.
       Design/exploration confirms `Settings` is NOT present in `MainShellViewModel`'s `FuncbarModules`,
       `AdminHubModules`, or `AdminHubExtraModules` collections as they exist pre-change — this is a
       pre-existing quirk, not introduced by this change. Read `MainShellViewModel.cs` and any Settings
@@ -398,7 +398,7 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 11. `MainShellViewModel` (design §9.1)
 
-- [ ] **11.1** Modify `src/POS.Presentation.Shared/ViewModels/MainShellViewModel.cs`: replace ctor's
+- [x] **11.1** Modify `src/POS.Presentation.Shared/ViewModels/MainShellViewModel.cs`: replace ctor's
       `UserRole role` param with `IReadOnlySet<string> permissions, string roleName` (design §9.1 exact
       signature: `(CashierViewModel cashier, GetDashboardSummaryUseCase? dashboard, IReadOnlySet<string>
       permissions, string roleName, string username)`); add the `ModuleViewKeys` static dictionary
@@ -408,7 +408,7 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
       `new HashSet<string>(PermissionKeys.All)` (matches old Administrator-default behavior); replace the
       enum-switch display-name logic with the passed `roleName` string. Wire `Settings.View` onto
       whatever entry point task 10.1 identified.
-- [ ] **11.2** Test updates: `POS.Presentation.Shared.Tests` — the existing hub-module-count assertions
+- [x] **11.2** Test updates: `POS.Presentation.Shared.Tests` — the existing hub-module-count assertions
       (flagged in design §9.1 as testing a "7-module hub contract") are updated to construct the VM with
       a permission set instead of `UserRole`; admin (full catalog set) still yields the same module count
       as before (regression guard — full-permission Administrator must see everything a plain
@@ -422,36 +422,36 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
 
 ### 12. `InvoicesViewModel` (design §9.2)
 
-- [ ] **12.1** Modify `src/POS.Presentation.Shared/ViewModels/InvoicesViewModel.cs`: remove
+- [x] **12.1** Modify `src/POS.Presentation.Shared/ViewModels/InvoicesViewModel.cs`: remove
       `CurrentUserRole`/`IsAdministrator`, add `CanCancel => _session.HasPermission(PermissionKeys.Invoices.Cancel)`
       (inject `ICurrentOperatorSession` if not already present); `CancelSaleAsync`'s `CanExecute` uses
       `CanCancel`.
-- [ ] **12.2** Modify `src/POS.Presentation/AppBootstrapper.cs` — remove the
+- [x] **12.2** Modify `src/POS.Presentation/AppBootstrapper.cs` — remove the
       `CurrentUserRole = session.Role` assignment (design §9.2, was line ~207); VM now reads the session
       directly via its injected dependency.
-- [ ] **12.3** Test: `POS.Presentation.Shared.Tests` — `CanCancel` is true when the session has
+- [x] **12.3** Test: `POS.Presentation.Shared.Tests` — `CanCancel` is true when the session has
       `Invoices.Cancel`, false otherwise; `CancelSaleAsync`'s `CanExecute` follows `CanCancel`.
 
 ### 13. `UserManagementViewModel` (design §9.3)
 
-- [ ] **13.1** Modify `src/POS.Presentation.Shared/ViewModels/UserManagementViewModel.cs`: replace
+- [x] **13.1** Modify `src/POS.Presentation.Shared/ViewModels/UserManagementViewModel.cs`: replace
       `IsAdmin` with `CanCreate`/`CanEdit`/`CanDeactivate` per-command permission checks against
       `Users.Create`/`Users.Edit`/`Users.Deactivate`; command `CanExecute` predicates updated
       accordingly; replace the `EnsureAdmin()` helper with permission-keyed variants.
-- [ ] **13.2** Modify `AvailableRoles` (currently a hardcoded `[Cashier, Administrator]` list at line ~49):
+- [x] **13.2** Modify `AvailableRoles` (currently a hardcoded `[Cashier, Administrator]` list at line ~49):
       change to `ObservableCollection<RoleSummary>` loaded in `LoadAsync` via the injected
       `GetAllRolesUseCase` (active roles only); `NewRole`/`EditRole` fields become `Guid` (`RoleId`)
       instead of `UserRole`.
-- [ ] **13.3** Update `CreateUserUseCase`/`UpdateUserUseCase` call sites in this VM to pass `RoleId`
+- [x] **13.3** Update `CreateUserUseCase`/`UpdateUserUseCase` call sites in this VM to pass `RoleId`
       (Guid) instead of `UserRole`.
-- [ ] **13.4** Test: `POS.Presentation.Shared.Tests` — command `CanExecute` predicates follow the
+- [x] **13.4** Test: `POS.Presentation.Shared.Tests` — command `CanExecute` predicates follow the
       `Users.*` permission checks (a session with only `Users.Create` can create but not edit/deactivate,
       etc.); `AvailableRoles` reflects the live `GetAllRolesUseCase` result (mock/fake the use case,
       assert the VM's collection matches).
 
 ### 14. New `RolesManagementViewModel` + view (design §9.4) — new module, mirrors `UserManagementViewModel`
 
-- [ ] **14.1** Create `src/POS.Presentation.Shared/ViewModels/RolesManagementViewModel.cs` per design
+- [x] **14.1** Create `src/POS.Presentation.Shared/ViewModels/RolesManagementViewModel.cs` per design
       §9.4: inject `GetAllRolesUseCase, CreateRoleUseCase, UpdateRoleUseCase, DeactivateRoleUseCase,
       IRoleRepository, ICurrentOperatorSession`; `Roles` (`ObservableCollection<RoleSummary>`),
       `SelectedRole`; `PermissionOptionRow(string Key, string Module, bool IsGranted)` collection built
@@ -462,18 +462,18 @@ maintainer for `size:exception`" — the same principle applies to an atomic typ
       of the use-case-side check for responsive `CanExecute`/error messaging], deactivate→
       `Roles.Deactivate`, load→`Roles.View`); disable permission toggles for the Administrator row
       (bypass, not editable); disable Deactivate for both system roles; surface a message on denial.
-- [ ] **14.2** Create `src/POS.Presentation.Shared/Views/RolesManagementView.xaml` (+ code-behind if the
+- [x] **14.2** Create `src/POS.Presentation.Shared/Views/RolesManagementView.xaml` (+ code-behind if the
       project's convention uses one, matching `UserManagementView.xaml`'s pattern) — roles list on the
       left, edit/permission-assignment panel on the right with a grouped, toggleable permission list.
       Mirror `UserManagementView.xaml`'s DataTemplate/ItemsControl structure; this is MVVM wiring, not
       pixel-level design.
-- [ ] **14.3** Wire the new module into the shell: add a `"roles"` `ModuleNavigationItem` to
+- [x] **14.3** Wire the new module into the shell: add a `"roles"` `ModuleNavigationItem` to
       `MainShellViewModel.allModules`/admin hub set (if not already fully covered by task 11.1's
       `ModuleViewKeys` addition — this task is the remaining ctor/property wiring: a `RolesManagement`
       init property and an `IsRolesSelected` toggle paralleling `IsUsersSelected`); add
       `RolesManagementViewModel` construction to wherever `UserManagementViewModel` is composed (DI/
       composition root in the Presentation project).
-- [ ] **14.4** Test: `POS.Presentation.Shared.Tests` — `RolesManagementViewModel`: grant toggles
+- [x] **14.4** Test: `POS.Presentation.Shared.Tests` — `RolesManagementViewModel`: grant toggles
       correctly load the selected role's current grants and correctly save a modified set; the
       Administrator row's toggles are disabled; both system roles have Deactivate disabled; command
       gating follows the `Roles.*` keys (a session with only `Roles.View` cannot execute create/save/

@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows.Input;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Auth;
+using POS.Application.UseCases.Roles;
 using POS.Domain.Authorization;
 using POS.Presentation.Shared.Commands;
 
@@ -13,6 +14,7 @@ public sealed class UserManagementViewModel : ViewModelBase
     private readonly CreateUserUseCase _createUser;
     private readonly UpdateUserUseCase _updateUser;
     private readonly DeactivateUserUseCase _deactivateUser;
+    private readonly GetAllRolesUseCase _getAllRoles;
     private readonly ICurrentOperatorSession _session;
 
     private UserSummary? _selectedUser;
@@ -30,23 +32,25 @@ public sealed class UserManagementViewModel : ViewModelBase
         CreateUserUseCase createUser,
         UpdateUserUseCase updateUser,
         DeactivateUserUseCase deactivateUser,
+        GetAllRolesUseCase getAllRoles,
         ICurrentOperatorSession session)
     {
         _getAllUsers = getAllUsers;
         _createUser = createUser;
         _updateUser = updateUser;
         _deactivateUser = deactivateUser;
+        _getAllRoles = getAllRoles;
         _session = session;
 
         LoadUsersCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => SetUnexpectedError($"Error al cargar usuarios: {ex.Message}")));
-        CreateUserCommand = new RelayCommand(_ => RunSafe(CreateAsync(), ex => SetUnexpectedError($"Error al crear usuario: {ex.Message}")), _ => IsAdmin);
-        SaveEditCommand = new RelayCommand(_ => RunSafe(SaveEditAsync(), ex => SetUnexpectedError($"Error al actualizar usuario: {ex.Message}")), _ => IsAdmin && SelectedUser is not null);
-        DeactivateCommand = new RelayCommand(_ => RunSafe(DeactivateAsync(), ex => SetUnexpectedError($"Error al desactivar usuario: {ex.Message}")), _ => IsAdmin && SelectedUser is not null);
+        CreateUserCommand = new RelayCommand(_ => RunSafe(CreateAsync(), ex => SetUnexpectedError($"Error al crear usuario: {ex.Message}")), _ => CanCreate);
+        SaveEditCommand = new RelayCommand(_ => RunSafe(SaveEditAsync(), ex => SetUnexpectedError($"Error al actualizar usuario: {ex.Message}")), _ => CanEdit && SelectedUser is not null);
+        DeactivateCommand = new RelayCommand(_ => RunSafe(DeactivateAsync(), ex => SetUnexpectedError($"Error al desactivar usuario: {ex.Message}")), _ => CanDeactivate && SelectedUser is not null);
     }
 
     public ObservableCollection<UserSummary> Users { get; } = new();
 
-    public IReadOnlyList<Guid> AvailableRoles { get; } = [RoleConstants.CashierRoleId, RoleConstants.AdministratorRoleId];
+    public ObservableCollection<RoleSummary> AvailableRoles { get; } = new();
 
     public UserSummary? SelectedUser
     {
@@ -111,7 +115,9 @@ public sealed class UserManagementViewModel : ViewModelBase
         private set => SetProperty(ref _isLoading, value);
     }
 
-    public bool IsAdmin => _session.IsAuthenticated && RoleConstants.IsSystemAdministrator(_session.RoleId);
+    public bool CanCreate => _session.HasPermission(PermissionKeys.Users.Create);
+    public bool CanEdit => _session.HasPermission(PermissionKeys.Users.Edit);
+    public bool CanDeactivate => _session.HasPermission(PermissionKeys.Users.Deactivate);
 
     public ICommand LoadUsersCommand { get; }
     public ICommand CreateUserCommand { get; }
@@ -126,9 +132,16 @@ public sealed class UserManagementViewModel : ViewModelBase
         try
         {
             var list = await _getAllUsers.ExecuteAsync();
+            var roles = await _getAllRoles.ExecuteAsync(_session.OperatorId);
             Users.Clear();
             foreach (var u in list)
                 Users.Add(u);
+            AvailableRoles.Clear();
+            foreach (var role in roles.Where(role => role.IsActive))
+                AvailableRoles.Add(role);
+
+            if (AvailableRoles.All(role => role.Id != NewRole))
+                NewRole = AvailableRoles.FirstOrDefault()?.Id ?? Guid.Empty;
         }
         catch (Exception ex)
         {
@@ -142,21 +155,21 @@ public sealed class UserManagementViewModel : ViewModelBase
     }
 
     // Mirror the use-case authorization at the UI boundary so the desktop user gets immediate feedback.
-    private bool EnsureAdmin()
+    private bool EnsurePermission(bool allowed, string message)
     {
-        if (IsAdmin)
+        if (allowed)
         {
             return true;
         }
 
         HasError = true;
-        StatusMessage = "Solo un administrador puede gestionar usuarios y permisos.";
+        StatusMessage = message;
         return false;
     }
 
     private async Task CreateAsync()
     {
-        if (!EnsureAdmin()) return;
+        if (!EnsurePermission(CanCreate, "No tienes permiso para crear usuarios.")) return;
 
         try
         {
@@ -171,7 +184,7 @@ public sealed class UserManagementViewModel : ViewModelBase
             }
             NewUsername = string.Empty;
             NewPassword = string.Empty;
-            NewRole = RoleConstants.CashierRoleId;
+            NewRole = AvailableRoles.FirstOrDefault()?.Id ?? Guid.Empty;
             StatusMessage = "Usuario creado correctamente.";
             await LoadAsync();
         }
@@ -183,7 +196,7 @@ public sealed class UserManagementViewModel : ViewModelBase
 
     private async Task SaveEditAsync()
     {
-        if (!EnsureAdmin()) return;
+        if (!EnsurePermission(CanEdit, "No tienes permiso para actualizar usuarios.")) return;
         if (SelectedUser is null) return;
 
         try
@@ -209,7 +222,7 @@ public sealed class UserManagementViewModel : ViewModelBase
 
     private async Task DeactivateAsync()
     {
-        if (!EnsureAdmin()) return;
+        if (!EnsurePermission(CanDeactivate, "No tienes permiso para desactivar usuarios.")) return;
         if (SelectedUser is null) return;
 
         try

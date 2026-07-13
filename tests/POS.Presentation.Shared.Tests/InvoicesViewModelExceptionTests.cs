@@ -22,7 +22,8 @@ public sealed class InvoicesViewModelExceptionTests
                 new EmptyInventoryRepository(),
                 new EmptySaleReturnRepository(),
                 new NoOpUnitOfWork(),
-                new EmptyUserRepository()));
+                new EmptyUserRepository()),
+            new FakeSession());
 
         viewModel.LoadCommand.Execute(null);
         await Task.Delay(50, TestContext.Current.CancellationToken);
@@ -102,5 +103,16 @@ public sealed class InvoicesViewModelExceptionTests
         public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
         public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
         public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class FakeSession : ICurrentOperatorSession
+    {
+        public Guid OperatorId => Guid.NewGuid();
+        public string Username => "operator";
+        public Guid RoleId => Guid.NewGuid();
+        public string RoleName => "Custom";
+        public IReadOnlySet<string> Permissions => new HashSet<string>();
+        public bool IsAuthenticated => true;
+        public bool HasPermission(string permissionKey) => false;
     }
 }

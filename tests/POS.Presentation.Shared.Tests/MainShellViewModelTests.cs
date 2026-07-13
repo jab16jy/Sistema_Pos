@@ -115,12 +115,12 @@ public sealed class MainShellViewModelTests
     }
 
     [Fact]
-    public void CashierRole_RestrictsFuncbarToOperationalModulesAndEmptiesAdminHub()
+    public void CashierPermissions_RestrictVisibleSurfaceToOperationalModulesAndEmptyAdminHub()
     {
         var viewModel = new MainShellViewModel(
             new CashierViewModel(new PrototypeProductLookupService()),
             null,
-            POS.Domain.Authorization.RoleConstants.CashierRoleId,
+            POS.Domain.Authorization.PermissionKeys.CashierDefaults,
             POS.Domain.Authorization.RoleConstants.CashierRoleName,
             "cajero1");
 
@@ -132,12 +132,12 @@ public sealed class MainShellViewModelTests
     }
 
     [Fact]
-    public void CashierRole_SelectingTurnos_ResolvesFuncbarWithoutThrowing()
+    public void CashierPermissions_SelectingTurnos_ResolvesFuncbarWithoutThrowing()
     {
         var viewModel = new MainShellViewModel(
             new CashierViewModel(new PrototypeProductLookupService()),
             null,
-            POS.Domain.Authorization.RoleConstants.CashierRoleId,
+            POS.Domain.Authorization.PermissionKeys.CashierDefaults,
             POS.Domain.Authorization.RoleConstants.CashierRoleName,
             "cajero1");
 
@@ -145,6 +145,27 @@ public sealed class MainShellViewModelTests
 
         Assert.True(viewModel.IsShiftsSelected);
         Assert.Equal("shifts", viewModel.CurrentFuncbarModule.Key);
+    }
+
+    [Fact]
+    public void CustomRoleWithAdminViewPermission_KeepsOperationalFuncbarAndHidesUnauthorizedShift()
+    {
+        var permissions = new HashSet<string>
+        {
+            POS.Domain.Authorization.PermissionKeys.Products.View
+        };
+        var viewModel = new MainShellViewModel(
+            new CashierViewModel(new PrototypeProductLookupService()),
+            null,
+            permissions,
+            "Custom",
+            "operator");
+
+        Assert.Equal(["cashier", "customers", "quotes", "invoices", "admin"], viewModel.FuncbarModules.Select(module => module.Key));
+        Assert.Equal(["products"], viewModel.AdminHubModules.Select(module => module.Key));
+        Assert.Empty(viewModel.AdminHubExtraModules);
+        Assert.DoesNotContain(viewModel.FuncbarModules, module => module.Key == "shifts");
+        Assert.DoesNotContain(viewModel.AdminHubModules, module => module.Key == "shifts");
     }
 
     [Fact]

@@ -56,7 +56,7 @@ public sealed class InvoicesViewModel : ViewModelBase
     private string _message = "Busca facturas por fecha, cliente o número.";
     private int _currentPage = 1;
     private bool _hasMorePages;
-    private Guid _currentRoleId;
+    private readonly ICurrentOperatorSession _session;
 
     public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
 
@@ -64,6 +64,7 @@ public sealed class InvoicesViewModel : ViewModelBase
         QuerySalesHistoryUseCase querySalesHistory,
         ReprintReceiptUseCase reprintReceipt,
         ProcessReturnUseCase processReturn,
+        ICurrentOperatorSession session,
         SendDocumentUseCase? sendDocument = null,
         IPdfService? pdfService = null,
         CancelSaleUseCase? cancelSale = null,
@@ -72,6 +73,7 @@ public sealed class InvoicesViewModel : ViewModelBase
         _querySalesHistory = querySalesHistory;
         _reprintReceipt = reprintReceipt;
         _processReturn = processReturn;
+        _session = session;
         _getInvoiceDetail = getInvoiceDetail;
         _sendDocument = sendDocument;
         _pdfService = pdfService;
@@ -279,20 +281,7 @@ public sealed class InvoicesViewModel : ViewModelBase
 
     public Guid OperatorUserId { get; set; }
 
-    public Guid CurrentRoleId
-    {
-        get => _currentRoleId;
-        set
-        {
-            if (SetProperty(ref _currentRoleId, value))
-            {
-                OnPropertyChanged(nameof(IsAdministrator));
-                RaiseSelectionDependentCommands();
-            }
-        }
-    }
-
-    public bool IsAdministrator => RoleConstants.IsSystemAdministrator(CurrentRoleId);
+    public bool CanCancel => _session.HasPermission(PermissionKeys.Invoices.Cancel);
 
     public Task LoadFirstPageAsync(CancellationToken cancellationToken = default)
     {
@@ -521,9 +510,9 @@ public sealed class InvoicesViewModel : ViewModelBase
             return;
         }
 
-        if (!IsAdministrator)
+        if (!CanCancel)
         {
-            Message = "Solo un administrador puede anular facturas.";
+            Message = "No tienes permiso para anular facturas.";
             return;
         }
 
@@ -556,7 +545,7 @@ public sealed class InvoicesViewModel : ViewModelBase
         }
         catch (UnauthorizedActionException)
         {
-            Message = "Solo un administrador puede anular facturas.";
+            Message = "No tienes permiso para anular facturas.";
         }
         catch (ArgumentException ex)
         {
@@ -654,8 +643,7 @@ public sealed class InvoicesViewModel : ViewModelBase
     }
 
     private bool CanCancelSelectedInvoice() =>
-        _cancelSale is not null &&
-        IsAdministrator &&
+        CanCancel &&
         SelectedInvoice is not null &&
         SelectedInvoice.Status == SaleStatus.Completed &&
         !string.IsNullOrWhiteSpace(ReturnReason);

@@ -14,6 +14,7 @@ using POS.Application.UseCases.Products;
 using POS.Application.UseCases.Purchases;
 using POS.Application.UseCases.Quotes;
 using POS.Application.UseCases.Reporting;
+using POS.Application.UseCases.Roles;
 using POS.Application.UseCases.Sales;
 using POS.Application.UseCases.Settings;
 using POS.Application.UseCases.Shifts;
@@ -39,7 +40,6 @@ internal static class AppBootstrapper
     internal static MainShellViewModel BuildMainShellViewModel(IServiceProvider sp)
     {
         var session = sp.GetRequiredService<ICurrentOperatorSession>();
-        var roleId = session.RoleId;
         var roleName = session.RoleName;
         var username = session.Username;
         List<string> moduleWarnings = [];
@@ -199,14 +199,12 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<QuerySalesHistoryUseCase>(),
                 sp.GetRequiredService<ReprintReceiptUseCase>(),
                 sp.GetRequiredService<ProcessReturnUseCase>(),
+                session,
                 TryResolveOptional<POS.Application.UseCases.Communication.SendDocumentUseCase>(sp),
                 TryResolveOptional<POS.Application.Interfaces.IPdfService>(sp),
                 TryResolveOptional<POS.Application.UseCases.Invoices.CancelSaleUseCase>(sp),
                 TryResolveOptional<GetInvoiceDetailUseCase>(sp))
-            {
-                OperatorUserId = cashier.CashierUserId,
-                CurrentRoleId = session.RoleId
-            },
+            { OperatorUserId = cashier.CashierUserId },
             moduleWarnings);
 
         SettingsViewModel? settings = TryCreateOptionalModule(
@@ -248,6 +246,18 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<CreateUserUseCase>(),
                 sp.GetRequiredService<UpdateUserUseCase>(),
                 sp.GetRequiredService<DeactivateUserUseCase>(),
+                sp.GetRequiredService<GetAllRolesUseCase>(),
+                session),
+            moduleWarnings);
+
+        RolesManagementViewModel? rolesManagement = TryCreateOptionalModule(
+            "Roles",
+            () => new RolesManagementViewModel(
+                sp.GetRequiredService<GetAllRolesUseCase>(),
+                sp.GetRequiredService<CreateRoleUseCase>(),
+                sp.GetRequiredService<UpdateRoleUseCase>(),
+                sp.GetRequiredService<DeactivateRoleUseCase>(),
+                sp.GetRequiredService<POS.Domain.Interfaces.IRoleRepository>(),
                 session),
             moduleWarnings);
 
@@ -265,7 +275,7 @@ internal static class AppBootstrapper
             () => new AuditLogViewModel(sp.GetRequiredService<GetAuditLogsUseCase>(), session),
             moduleWarnings);
 
-        var shellViewModel = new MainShellViewModel(cashier, dashboardUseCase, roleId, roleName, username)
+        var shellViewModel = new MainShellViewModel(cashier, dashboardUseCase, session.Permissions, roleName, username)
         {
             Quote = quote,
             QuoteHistory = quoteHistory,
@@ -279,6 +289,7 @@ internal static class AppBootstrapper
             Backup = backup,
             Loyalty = loyalty,
             UserManagement = userManagement,
+            RolesManagement = rolesManagement,
             Shifts = shifts,
             AuditLog = auditLog
         };

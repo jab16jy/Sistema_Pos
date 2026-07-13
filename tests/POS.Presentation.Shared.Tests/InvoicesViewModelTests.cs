@@ -91,6 +91,7 @@ public sealed class InvoicesViewModelTests
                 new EmptySaleReturnRepository(),
                 new NoOpUnitOfWork(),
                 new EmptyUserRepository()),
+            new FakeSession(),
             pdfService: pdfService);
 
         await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
@@ -122,7 +123,8 @@ public sealed class InvoicesViewModelTests
                 new EmptyInventoryRepository(),
                 new EmptySaleReturnRepository(),
                 new NoOpUnitOfWork(),
-                new EmptyUserRepository()));
+                new EmptyUserRepository()),
+            new FakeSession());
 
         await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
 
@@ -175,10 +177,10 @@ public sealed class InvoicesViewModelTests
                 new EmptySaleReturnRepository(),
                 new NoOpUnitOfWork(),
                 new EmptyUserRepository()),
+            new FakeSession(new HashSet<string> { POS.Domain.Authorization.PermissionKeys.Invoices.Cancel }),
             cancelSale: cancelSale)
         {
-            OperatorUserId = adminUser.Id,
-            CurrentRoleId = POS.Domain.Authorization.RoleConstants.AdministratorRoleId
+            OperatorUserId = adminUser.Id
         };
 
         await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
@@ -212,10 +214,8 @@ public sealed class InvoicesViewModelTests
                 new EmptyInventoryRepository(),
                 new EmptySaleReturnRepository(),
                 new NoOpUnitOfWork(),
-                new EmptyUserRepository()))
-        {
-            CurrentRoleId = POS.Domain.Authorization.RoleConstants.CashierRoleId
-        };
+                new EmptyUserRepository()),
+            new FakeSession());
 
         await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
         viewModel.SelectedInvoice = viewModel.FilteredInvoices.Single();
@@ -223,11 +223,33 @@ public sealed class InvoicesViewModelTests
 
         await viewModel.CancelSaleAsync(TestContext.Current.CancellationToken);
 
-        Assert.Contains("Solo un administrador", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("permiso", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task CancelSaleCommand_FollowsInvoicesCancelPermission()
+    {
+        var history = new StaticSalesHistoryQueryService(new SaleHistoryResult(
+            Guid.NewGuid(), "FAC-PERM", null, null, SaleStatus.Completed, DateTimeOffset.Now, 1_000m));
+        var allowed = CreateViewModel(history, new FakeSession(new HashSet<string> { POS.Domain.Authorization.PermissionKeys.Invoices.Cancel }));
+        var denied = CreateViewModel(history, new FakeSession());
+
+        await allowed.LoadFirstPageAsync(TestContext.Current.CancellationToken);
+        await denied.LoadFirstPageAsync(TestContext.Current.CancellationToken);
+        allowed.SelectedInvoice = allowed.FilteredInvoices.Single();
+        denied.SelectedInvoice = denied.FilteredInvoices.Single();
+        allowed.ReturnReason = "Otro";
+        denied.ReturnReason = "Otro";
+
+        Assert.True(allowed.CanCancel);
+        Assert.True(allowed.CancelSaleCommand.CanExecute(null));
+        Assert.False(denied.CanCancel);
+        Assert.False(denied.CancelSaleCommand.CanExecute(null));
     }
 
     private static InvoicesViewModel CreateViewModel(
         ISalesHistoryQueryService history,
+        ICurrentOperatorSession? session = null,
         GetInvoiceDetailUseCase? getInvoiceDetail = null)
         => new(
             new QuerySalesHistoryUseCase(history),
@@ -239,6 +261,7 @@ public sealed class InvoicesViewModelTests
                 new EmptySaleReturnRepository(),
                 new NoOpUnitOfWork(),
                 new EmptyUserRepository()),
+            session ?? new FakeSession(),
             getInvoiceDetail: getInvoiceDetail);
 
     private static Sale CreateCompletedSale(Product product)
@@ -451,5 +474,16 @@ public sealed class InvoicesViewModelTests
     private sealed class NoOpUnitOfWork : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
+    }
+
+    private sealed class FakeSession(IReadOnlySet<string>? permissions = null) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = Guid.NewGuid();
+        public string Username => "operator";
+        public Guid RoleId => Guid.NewGuid();
+        public string RoleName => "Custom";
+        public IReadOnlySet<string> Permissions { get; } = permissions ?? new HashSet<string>();
+        public bool IsAuthenticated => true;
+        public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
     }
 }
