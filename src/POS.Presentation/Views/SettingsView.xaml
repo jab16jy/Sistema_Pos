@@ -77,9 +77,11 @@
                   <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                      <Button Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="0,0,8,8">
-                        <StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /></StackPanel>
-                      </Button>
+                      <controls:QuickLink TitleText="{Binding Title}" Subtitle="{Binding Description}"
+                                          IconKind="{Binding Key, Converter={StaticResource ModuleKeyToIconConverter}}"
+                                          Margin="0,0,8,8"
+                                          Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          CommandParameter="{Binding}" />
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -96,9 +98,11 @@
                   <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                      <Button Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" Margin="0,0,8,8">
-                        <StackPanel><TextBlock Text="{Binding Title}" FontWeight="SemiBold" /><TextBlock Text="{Binding Description}" Style="{StaticResource MutedText}" TextWrapping="Wrap" /></StackPanel>
-                      </Button>
+                      <controls:QuickLink TitleText="{Binding Title}" Subtitle="{Binding Description}"
+                                          IconKind="{Binding Key, Converter={StaticResource ModuleKeyToIconConverter}}"
+                                          Margin="0,0,8,8"
+                                          Command="{Binding DataContext.SelectModuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                          CommandParameter="{Binding}" />
                     </DataTemplate>
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>

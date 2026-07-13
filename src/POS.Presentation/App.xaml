@@ -25,6 +25,7 @@
       <converters:InitialsConverter x:Key="InitialsConverter" />
       <converters:StockBarWidthConverter x:Key="StockBarWidthConverter" />
       <converters:PercentToWidthConverter x:Key="PercentToWidthConverter" />
+      <converters:ModuleKeyToIconConverter x:Key="ModuleKeyToIconConverter" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>
