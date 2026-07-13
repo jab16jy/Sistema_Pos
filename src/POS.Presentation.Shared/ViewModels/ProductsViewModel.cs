@@ -195,13 +195,13 @@ public sealed class ProductsViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Stock is master data only in Productos: it can be entered as an initial balance when
-    /// creating a product, but never edited afterwards. Existing-product stock changes go through
-    /// the Inventario module (adjustments) or the Compras/Ventas flows so every change is traceable.
+    /// Stock is never editable from Productos, new or existing: it always starts at zero and every
+    /// change goes through the Inventario module (adjustments) or the Compras/Ventas flows so saldo
+    /// e historial stay traceable. Only MinimumStock is master data managed here.
     /// </summary>
-    public bool IsStockEditable => _selectedProduct is null;
+    public bool IsStockEditable => false;
 
-    public string StockFieldLabel => _selectedProduct is null ? "Existencia inicial" : "Stock actual";
+    public string StockFieldLabel => "Stock actual";
 
     private async Task LoadSupplierRelationshipsAsync(Guid productId, CancellationToken cancellationToken = default)
     {
@@ -497,14 +497,13 @@ public sealed class ProductsViewModel : ViewModelBase
             Guid savedProductId;
             if (SelectedProduct is null)
             {
-                // On creation the stock field is an explicit initial balance; the use case records it
-                // as an audited InventoryMovement instead of writing CurrentStock directly.
+                // New products always start at zero stock; balances are seeded from Inventario.
                 var request = new CreateProductRequest(
                     Name,
                     CategoryId,
                     CostPrice,
                     SalePrice,
-                    CurrentStock,
+                    0m,
                     MinimumStock,
                     Description,
                     Barcode,
