@@ -133,7 +133,7 @@ public sealed class Sale
         .Where(payment => payment.Method == PaymentMethod.LoyaltyPoints)
         .Sum(payment => payment.Amount.Amount));
 
-    public Money EffectiveEarnableTotal() => new(Math.Max(0m, Total().Amount - LoyaltyPointsTenderTotal().Amount));
+    public Money EffectiveEarnableTotal() => new(Math.Max(0m, Total().Amount - LoyaltyPointsTenderTotal().Amount - DeferredBalance().Amount));
 
     public Money TaxTotal() => new(_items.Sum(item => item.TaxAmount().Amount));
 

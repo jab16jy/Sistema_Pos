@@ -1,5 +1,7 @@
 using POS.Application.Interfaces;
 using POS.Application.Common;
+using POS.Application.DTOs.Loyalty;
+using POS.Application.UseCases.Loyalty;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 using POS.Domain.Enums;
@@ -11,16 +13,20 @@ namespace POS.Application.UseCases.Receivables;
 /// Applies a partial or full payment toward an open receivable balance.
 /// Spec: reject overpayment (payment > outstanding balance).
 /// Spec: reject payment of zero or negative amounts.
+/// Awards the loyalty points corresponding to the settled amount, since points on a deferred
+/// balance are withheld at sale time until the customer actually pays it off.
 /// </summary>
 public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCase
 {
     private readonly IReceivableRepository _receivables;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
 
-    public ApplyReceivablePaymentUseCase(IReceivableRepository receivables, IUnitOfWork unitOfWork)
+    public ApplyReceivablePaymentUseCase(IReceivableRepository receivables, IUnitOfWork unitOfWork, AccumulateLoyaltyPointsUseCase? accumulatePoints = null)
     {
         _receivables = receivables;
         _unitOfWork = unitOfWork;
+        _accumulatePoints = accumulatePoints;
     }
 
     public async Task ExecuteAsync(Guid receivableId, decimal paymentAmount, CancellationToken cancellationToken = default)
@@ -52,6 +58,14 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
         receivable.ApplyPayment(new Money(paymentAmount), paymentMethod, bankOrPlatform);
 
         await _receivables.UpdateAsync(receivable, cancellationToken);
+
+        if (_accumulatePoints is not null)
+        {
+            await _accumulatePoints.RecordForSaleAsync(
+                new EarnPointsRequest(receivable.CustomerId, receivable.SaleId, paymentAmount),
+                cancellationToken).ConfigureAwait(false);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
@@ -83,11 +97,19 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
 
             foreach (Receivable receivable in receivables)
             {
+                decimal settledAmount = receivable.OutstandingBalance.Amount;
                 receivable.ApplyPayment(
                     receivable.OutstandingBalance,
                     paymentMethod,
                     bankOrPlatform);
                 await _receivables.UpdateAsync(receivable, transactionCancellationToken).ConfigureAwait(false);
+
+                if (_accumulatePoints is not null)
+                {
+                    await _accumulatePoints.RecordForSaleAsync(
+                        new EarnPointsRequest(receivable.CustomerId, receivable.SaleId, settledAmount),
+                        transactionCancellationToken).ConfigureAwait(false);
+                }
             }
 
             await _unitOfWork.SaveChangesAsync(transactionCancellationToken).ConfigureAwait(false);

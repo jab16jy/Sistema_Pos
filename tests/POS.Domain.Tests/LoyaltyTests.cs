@@ -133,6 +133,22 @@ public sealed class LoyaltyTests
     }
 
     [Fact]
+    public void Sale_EffectiveEarnableTotal_ExcludesDeferredBalance()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(10m), new StockQuantity(1m));
+        var sale = new Sale(Guid.NewGuid(), Guid.NewGuid());
+        sale.AddItem(product, new Quantity(10m), new Money(0m));
+
+        // Collected 6000, deferred 4000 = total 10000. Points must only accrue on the 6000 collected now.
+        sale.SetSettlementPlan(new SaleSettlementPlan(6_000m, PaymentMethod.Cash, 4_000m));
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(6_000m), new Money(6_000m)));
+        sale.Complete();
+
+        Assert.Equal(4_000m, sale.DeferredBalance().Amount);
+        Assert.Equal(6_000m, sale.EffectiveEarnableTotal().Amount);
+    }
+
+    [Fact]
     public void LoyaltyTier_Update_ChangesThresholdAndBenefits()
     {
         var tier = new LoyaltyTier("Bronce", 0, 0, 1m);
