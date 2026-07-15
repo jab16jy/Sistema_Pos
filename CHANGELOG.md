@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.15.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.14.2...v1.15.0) (2026-07-15)
+
+
+### Features
+
+* **cashier:** add cancel held sale with stock restoration ([e560e57](https://github.com/jab16jy/Sistema_Pos/commit/e560e57ba6c888fb826b6a9a0ae1d5fd7068edbd))
+* **cashier:** complete hold/resume, admin discounts, cancel/shortcuts, fix loyalty race ([f2cc2f3](https://github.com/jab16jy/Sistema_Pos/commit/f2cc2f3f60e7ac0d3d41c1d8a0a94a70f7d11406))
+
 ## [1.14.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.14.1...v1.14.2) (2026-07-15)
 
 
