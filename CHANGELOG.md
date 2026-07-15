@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.14.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.14.1...v1.14.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* **inventory:** correct low-stock rule and allow backdated shift openings ([b246f22](https://github.com/jab16jy/Sistema_Pos/commit/b246f220e49180d85c2096cc7198832873d7455e))
+* **purchases:** manual invoice number, supplier creation flow, and consistent preview UI ([1da81c8](https://github.com/jab16jy/Sistema_Pos/commit/1da81c86b691238a0677260cd2d7964be68a80f6))
+
 ## [1.14.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.14.0...v1.14.1) (2026-07-13)
 
 
