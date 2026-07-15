@@ -20,6 +20,11 @@ public sealed record ShiftSummary(
     public decimal ExpectedCash => OpeningCash + CashPayments;
 }
 
-public sealed record StartShiftRequest(Guid CashierUserId, string CashierUsername, decimal OpeningCash, string? Notes);
+public sealed record StartShiftRequest(
+    Guid CashierUserId,
+    string CashierUsername,
+    decimal OpeningCash,
+    string? Notes,
+    DateTimeOffset? OpenedAt = null);
 
 public sealed record CloseShiftRequest(Guid ShiftId, decimal ClosingCash, string? Notes);

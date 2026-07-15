@@ -35,6 +35,38 @@ public sealed class ProductsViewModelTests
     }
 
     [Fact]
+    public void ProductSearchResult_UsesLowStockSemanticsForEqualityAndZero()
+    {
+        Guid categoryId = Guid.NewGuid();
+        var atMinimum = new ProductSearchResult(
+            Guid.NewGuid(), "At minimum", categoryId, "Sin categoría", null, 25_000m, 5m, 5m, 19m, null, null, true);
+        var outOfStock = new ProductSearchResult(
+            Guid.NewGuid(), "Empty", categoryId, "Sin categoría", null, 25_000m, 0m, 5m, 19m, null, null, true);
+
+        Assert.True(atMinimum.IsLowStock);
+        Assert.False(atMinimum.IsOutOfStock);
+        Assert.False(outOfStock.IsLowStock);
+        Assert.True(outOfStock.IsOutOfStock);
+    }
+
+    [Fact]
+    public async Task SelectingProductAtMinimum_ShowsLowStockInFormAndPreview()
+    {
+        Category category = new("Sin categoría");
+        var product = new ProductSearchResult(
+            Guid.NewGuid(), "At minimum", category.Id, category.Name, null, 25_000m, 5m, 5m, 19m, null, null, true);
+        var viewModel = CreateViewModel(new StubProductCatalogQueryService([product]), [category]);
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedProduct = Assert.Single(viewModel.Products);
+
+        Assert.Equal("Stock bajo", viewModel.FormStatusChipLabel);
+        Assert.Equal("warning", viewModel.FormStatusChipKind);
+        Assert.Equal("Stock bajo", viewModel.StockStatusLabel);
+        Assert.Equal("warning", viewModel.StockStatusKind);
+    }
+
+    [Fact]
     public async Task SelectingImportedProduct_PreservesNullCostPrice()
     {
         Category defaultCategory = new("Sin categoría");

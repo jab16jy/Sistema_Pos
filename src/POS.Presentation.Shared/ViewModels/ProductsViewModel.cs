@@ -225,7 +225,7 @@ public sealed class ProductsViewModel : ViewModelBase
         {
             if (_selectedProduct is null) return string.Empty;
             if (_selectedProduct.CurrentStock == 0) return "Sin stock";
-            if (_selectedProduct.CurrentStock < _selectedProduct.MinimumStock) return "Stock bajo";
+            if (_selectedProduct.IsLowStock) return "Stock bajo";
             return "En stock";
         }
     }
@@ -236,7 +236,7 @@ public sealed class ProductsViewModel : ViewModelBase
         {
             if (_selectedProduct is null) return "neutral";
             if (_selectedProduct.CurrentStock == 0) return "error";
-            if (_selectedProduct.CurrentStock < _selectedProduct.MinimumStock) return "warning";
+            if (_selectedProduct.IsLowStock) return "warning";
             return "success";
         }
     }
@@ -426,7 +426,7 @@ public sealed class ProductsViewModel : ViewModelBase
         get
         {
             if (_currentStock == 0) return "Sin stock";
-            if (_currentStock < _minimumStock) return "Stock bajo";
+            if (_minimumStock > 0m && _currentStock > 0m && _currentStock <= _minimumStock) return "Stock bajo";
             return "En stock";
         }
     }
@@ -436,7 +436,7 @@ public sealed class ProductsViewModel : ViewModelBase
         get
         {
             if (_currentStock == 0) return "error";
-            if (_currentStock < _minimumStock) return "warning";
+            if (_minimumStock > 0m && _currentStock > 0m && _currentStock <= _minimumStock) return "warning";
             return "success";
         }
     }

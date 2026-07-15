@@ -73,7 +73,7 @@ public sealed class InventoryViewModel : ViewModelBase
 
     public int TotalSkus => StockLevels.Count;
 
-    public int LowStockCount => StockLevels.Count(s => s.CurrentStock > 0 && s.CurrentStock < s.MinimumStock);
+    public int LowStockCount => StockLevels.Count(s => s.IsLowStock);
 
     public int OutOfStockCount => StockLevels.Count(s => s.CurrentStock == 0);
 
@@ -120,8 +120,8 @@ public sealed class InventoryViewModel : ViewModelBase
             {
                 query = _statusFilter switch
                 {
-                    "ok" => query.Where(s => s.CurrentStock >= s.MinimumStock && s.CurrentStock > 0),
-                    "low" => query.Where(s => s.CurrentStock > 0 && s.CurrentStock < s.MinimumStock),
+                    "ok" => query.Where(s => s.CurrentStock > 0 && !s.IsLowStock),
+                    "low" => query.Where(s => s.IsLowStock),
                     "out" => query.Where(s => s.CurrentStock == 0),
                     _ => query
                 };

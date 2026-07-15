@@ -34,4 +34,26 @@ public sealed class ProductTests
 
         Assert.True(product.IsLowStock());
     }
+
+    [Fact]
+    public void IsLowStock_WhenStockIsZeroOrMinimumIsZero_ReturnsFalse()
+    {
+        var outOfStock = new Product(
+            "Out of stock",
+            Guid.NewGuid(),
+            new Money(2_000m),
+            new Money(2_500m),
+            new StockQuantity(0m),
+            new StockQuantity(5m));
+        var noMinimum = new Product(
+            "No minimum",
+            Guid.NewGuid(),
+            new Money(2_000m),
+            new Money(2_500m),
+            new StockQuantity(5m),
+            new StockQuantity(0m));
+
+        Assert.False(outOfStock.IsLowStock());
+        Assert.False(noMinimum.IsLowStock());
+    }
 }

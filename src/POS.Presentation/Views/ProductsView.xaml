@@ -121,8 +121,11 @@
                         <Style TargetType="Border">
                           <Setter Property="Background" Value="{StaticResource BrushSuccessContainer}" />
                           <Style.Triggers>
-                            <DataTrigger Binding="{Binding CurrentStock}" Value="0">
+                            <DataTrigger Binding="{Binding IsOutOfStock}" Value="True">
                               <Setter Property="Background" Value="{StaticResource BrushDangerSoft}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsLowStock}" Value="True">
+                              <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
                             </DataTrigger>
                           </Style.Triggers>
                         </Style>
@@ -133,9 +136,13 @@
                             <Setter Property="Text" Value="En stock" />
                             <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
                             <Style.Triggers>
-                              <DataTrigger Binding="{Binding CurrentStock}" Value="0">
+                              <DataTrigger Binding="{Binding IsOutOfStock}" Value="True">
                                 <Setter Property="Text" Value="Sin stock" />
                                 <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                              </DataTrigger>
+                              <DataTrigger Binding="{Binding IsLowStock}" Value="True">
+                                <Setter Property="Text" Value="Stock bajo" />
+                                <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
                               </DataTrigger>
                             </Style.Triggers>
                           </Style>

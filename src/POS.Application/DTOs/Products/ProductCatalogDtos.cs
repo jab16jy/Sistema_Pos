@@ -47,4 +47,9 @@ public sealed record ProductSearchResult(
     string? Barcode,
     bool IsActive,
     int? UnitsPerBox = null,
-    decimal? BoxPrice = null);
+    decimal? BoxPrice = null)
+{
+    public bool IsOutOfStock => CurrentStock <= 0m;
+
+    public bool IsLowStock => MinimumStock > 0m && CurrentStock > 0m && CurrentStock <= MinimumStock;
+}

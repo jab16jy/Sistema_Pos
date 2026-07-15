@@ -25,6 +25,8 @@ public sealed class InventoryRepository : IInventoryRepository
                 product.Barcode,
                 product.CurrentStock,
                 product.MinimumStock,
+                product.MinimumStock > 0m &&
+                product.CurrentStock > 0m &&
                 product.CurrentStock <= product.MinimumStock))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

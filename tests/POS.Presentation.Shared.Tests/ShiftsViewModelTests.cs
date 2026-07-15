@@ -91,6 +91,56 @@ public sealed class ShiftsViewModelTests
     }
 
     [Fact]
+    public void StartShiftCommand_WithInvalidOpeningTime_ShowsFormatMessage()
+    {
+        var repository = new CapturingShiftRepository();
+        var viewModel = new ShiftsViewModel(
+            new StartShiftUseCase(repository, new NoOpUnitOfWork()),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
+            new GetShiftsUseCase(repository),
+            new GetShiftSalesSummaryUseCase(new SummarySaleRepository(ShiftSalesSummaryData.Empty)),
+            new StubOperatorSession())
+        {
+            OpeningTime = "9:5"
+        };
+
+        viewModel.StartShiftCommand.Execute(null);
+
+        Assert.Contains("HH:mm", viewModel.Message, StringComparison.Ordinal);
+        Assert.Null(repository.AddedShift);
+    }
+
+    [Fact]
+    public async Task StartShiftCommand_WithSelectedDateAndTime_PassesLocalTimestampToCreatedShift()
+    {
+        var repository = new CapturingShiftRepository();
+        var viewModel = new ShiftsViewModel(
+            new StartShiftUseCase(repository, new NoOpUnitOfWork()),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
+            new GetShiftsUseCase(repository),
+            new GetShiftSalesSummaryUseCase(new SummarySaleRepository(ShiftSalesSummaryData.Empty)),
+            new StubOperatorSession());
+        var selectedDate = new DateTime(2020, 5, 6);
+        viewModel.OpeningDate = selectedDate;
+        viewModel.OpeningTime = "09:17";
+
+        viewModel.StartShiftCommand.Execute(null);
+        for (var attempt = 0; attempt < 20 && repository.AddedShift is null; attempt++)
+        {
+            await Task.Delay(10, TestContext.Current.CancellationToken);
+        }
+
+        Assert.NotNull(repository.AddedShift);
+        var localDateTime = DateTime.SpecifyKind(
+            selectedDate.AddHours(9).AddMinutes(17),
+            DateTimeKind.Unspecified);
+        var expected = new DateTimeOffset(
+            localDateTime,
+            TimeZoneInfo.Local.GetUtcOffset(localDateTime)).ToUniversalTime();
+        Assert.Equal(expected, repository.AddedShift!.OpenedAt);
+    }
+
+    [Fact]
     public void ToShiftRow_WithClosingSummary_UsesExpectedCashForReconciliation()
     {
         var summary = new ShiftSummary(
@@ -114,6 +164,26 @@ public sealed class ShiftsViewModelTests
         Assert.Equal("Digital: $1.400", row.DigitalPaymentsFormatted);
         Assert.Equal("$2.900", row.ExpectedCashFormatted);
         Assert.Equal("Cuadra", row.DifferenceLabel);
+    }
+
+    private sealed class CapturingShiftRepository : ICashierShiftRepository
+    {
+        public CashierShift? AddedShift { get; private set; }
+
+        public Task<CashierShift?> GetOpenShiftAsync(Guid cashierUserId, CancellationToken cancellationToken = default)
+            => Task.FromResult<CashierShift?>(null);
+
+        public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<CashierShift?>(AddedShift);
+
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<CashierShift>>(AddedShift is { } shift ? [shift] : []);
+
+        public Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default)
+        {
+            AddedShift = shift;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class SingleShiftRepository : ICashierShiftRepository

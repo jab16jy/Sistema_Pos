@@ -307,7 +307,7 @@ public sealed class CashierViewModelTests
     public async Task SearchAsync_ExposesPresentationStockStatusForDropdown()
     {
         var viewModel = new CashierViewModel(
-            new StaticProductLookupService(new ProductLookupResult(Guid.NewGuid(), "Low stock item", "LOW-1", 1_500m, 4m, 5m)))
+            new StaticProductLookupService(new ProductLookupResult(Guid.NewGuid(), "Low stock item", "LOW-1", 1_500m, 5m, 5m)))
         {
             SearchText = "low"
         };
@@ -318,6 +318,22 @@ public sealed class CashierViewModelTests
         Assert.Equal("Stock bajo", result.StockStatusLabel);
         Assert.Equal("warning", result.StockStatusKind);
         Assert.Equal("$1.500", result.UnitPriceText);
+    }
+
+    [Fact]
+    public async Task SearchAsync_ExposesOutOfStockStatusWhenAvailableStockIsZero()
+    {
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(Guid.NewGuid(), "Empty item", "OUT-1", 1_500m, 0m, 5m)))
+        {
+            SearchText = "empty"
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+
+        var result = Assert.Single(viewModel.SearchResults);
+        Assert.Equal("Sin stock", result.StockStatusLabel);
+        Assert.Equal("error", result.StockStatusKind);
     }
 
     [Fact]

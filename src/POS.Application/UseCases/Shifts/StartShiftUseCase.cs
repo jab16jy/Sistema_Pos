@@ -18,12 +18,23 @@ public sealed class StartShiftUseCase
 
     public async Task<ShiftSummary> ExecuteAsync(StartShiftRequest request, CancellationToken ct = default)
     {
+        var openedAt = request.OpenedAt?.ToUniversalTime();
+        if (openedAt is not null && openedAt.Value > DateTimeOffset.UtcNow)
+        {
+            throw new InvalidOperationException("La fecha y hora de apertura no pueden estar en el futuro.");
+        }
+
         if (await _shifts.GetOpenShiftAsync(request.CashierUserId, ct).ConfigureAwait(false) is not null)
         {
             throw new InvalidOperationException("Este cajero ya tiene un turno abierto.");
         }
 
-        var shift = new CashierShift(request.CashierUserId, request.CashierUsername, new Money(request.OpeningCash), request.Notes);
+        var shift = new CashierShift(
+            request.CashierUserId,
+            request.CashierUsername,
+            new Money(request.OpeningCash),
+            request.Notes,
+            openedAt);
         await _shifts.AddAsync(shift, ct).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
         return ToSummary(shift);

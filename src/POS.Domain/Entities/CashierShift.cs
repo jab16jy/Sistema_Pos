@@ -10,7 +10,12 @@ public sealed class CashierShift
         CashierUsername = string.Empty;
     }
 
-    public CashierShift(Guid cashierUserId, string cashierUsername, Money openingCash, string? notes = null)
+    public CashierShift(
+        Guid cashierUserId,
+        string cashierUsername,
+        Money openingCash,
+        string? notes = null,
+        DateTimeOffset? openedAt = null)
     {
         Id = Guid.NewGuid();
         CashierUserId = cashierUserId;
@@ -18,7 +23,7 @@ public sealed class CashierShift
         OpeningCash = openingCash;
         Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
         Status = ShiftStatus.Open;
-        OpenedAt = DateTimeOffset.UtcNow;
+        OpenedAt = (openedAt ?? DateTimeOffset.UtcNow).ToUniversalTime();
     }
 
     public Guid Id { get; private set; }

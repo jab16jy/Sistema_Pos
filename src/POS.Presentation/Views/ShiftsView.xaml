@@ -250,6 +250,15 @@
                 <TextBox Text="{Binding SelectedCashierUsername, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          Margin="0,0,0,12" />
 
+                <TextBlock Text="Fecha de apertura" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                <DatePicker SelectedDate="{Binding OpeningDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            Margin="0,0,0,12" />
+
+                <TextBlock Text="Hora de apertura (HH:mm)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+                <TextBox Text="{Binding OpeningTime, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         MaxLength="5" ToolTip="Usa el formato HH:mm, por ejemplo 14:30"
+                         Margin="0,0,0,12" />
+
                 <TextBlock Text="Efectivo de base" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
                 <TextBox Text="{Binding OpeningCash, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                          Margin="0,0,0,12" />

@@ -142,7 +142,7 @@ public sealed class Product
             : new Money(unitCost);
     }
 
-    public bool IsLowStock() => CurrentStock <= MinimumStock;
+    public bool IsLowStock() => MinimumStock > 0m && CurrentStock > 0m && CurrentStock <= MinimumStock;
 
     public void Deactivate() => IsActive = false;
 

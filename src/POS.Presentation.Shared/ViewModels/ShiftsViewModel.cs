@@ -26,6 +26,8 @@ public sealed class ShiftsViewModel : ViewModelBase
     private string _notes = string.Empty;
     private string _message = "Carga los turnos o abre uno nuevo para el cajero actual.";
     private string _openNotes = string.Empty;
+    private DateTime? _openingDate;
+    private string _openingTime = string.Empty;
     private string _closeNotes = string.Empty;
     private string _selectedCashierUsername = string.Empty;
     private decimal _countedCash;
@@ -53,6 +55,9 @@ public sealed class ShiftsViewModel : ViewModelBase
         ApplyDateFilterCommand = new RelayCommand(_ => ApplyDateFilter());
 
         _selectedCashierUsername = session.Username;
+        var now = DateTime.Now;
+        _openingDate = now.Date;
+        _openingTime = now.ToString("HH:mm", CultureInfo.InvariantCulture);
     }
 
     public ObservableCollection<ShiftSummary> Shifts { get; } = [];
@@ -127,7 +132,7 @@ public sealed class ShiftsViewModel : ViewModelBase
         get
         {
             var active = Shifts.FirstOrDefault(s => s.Status == ShiftStatus.Open);
-            return active is not null ? active.OpenedAt.ToString("HH:mm") : "—";
+            return active is not null ? active.OpenedAt.ToLocalTime().ToString("HH:mm") : "—";
         }
     }
 
@@ -157,6 +162,18 @@ public sealed class ShiftsViewModel : ViewModelBase
     {
         get => _openNotes;
         set => SetProperty(ref _openNotes, value ?? string.Empty);
+    }
+
+    public DateTime? OpeningDate
+    {
+        get => _openingDate;
+        set => SetProperty(ref _openingDate, value);
+    }
+
+    public string OpeningTime
+    {
+        get => _openingTime;
+        set => SetProperty(ref _openingTime, value ?? string.Empty);
     }
 
     // ── Presentation-only: Close shift panel ──
@@ -318,8 +335,8 @@ public sealed class ShiftsViewModel : ViewModelBase
     {
         var statusLabel = s.Status == ShiftStatus.Open ? "Abierto" : "Cerrado";
         var statusChipKind = s.Status == ShiftStatus.Open ? "success" : "neutral";
-        var openedFormatted = s.OpenedAt.ToString("yyyy-MM-dd HH:mm");
-        var closedFormatted = s.ClosedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—";
+        var openedFormatted = s.OpenedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm");
+        var closedFormatted = s.ClosedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
         var openingFormatted = $"${s.OpeningCash.ToString("N0", ColombianCulture)}";
         var closingFormatted = s.ClosingCash.HasValue ? $"${s.ClosingCash.Value.ToString("N0", ColombianCulture)}" : "—";
         var salesTotalFormatted = s.HasClosingSummary ? $"${s.SalesTotal.ToString("N0", ColombianCulture)}" : "—";
@@ -416,9 +433,22 @@ public sealed class ShiftsViewModel : ViewModelBase
                 ? _session.Username
                 : SelectedCashierUsername;
 
-            await _startShift.ExecuteAsync(new StartShiftRequest(_session.OperatorId, cashierName, OpeningCash, OpenNotes));
+            if (!TryBuildOpeningTimestamp(out var openedAt))
+            {
+                return;
+            }
+
+            await _startShift.ExecuteAsync(new StartShiftRequest(
+                _session.OperatorId,
+                cashierName,
+                OpeningCash,
+                OpenNotes,
+                openedAt));
             OpeningCash = 0m;
             OpenNotes = string.Empty;
+            var now = DateTime.Now;
+            OpeningDate = now.Date;
+            OpeningTime = now.ToString("HH:mm", CultureInfo.InvariantCulture);
             Message = "Turno abierto exitosamente";
             await LoadAsync();
         }
@@ -430,6 +460,36 @@ public sealed class ShiftsViewModel : ViewModelBase
         {
             Message = $"Error al abrir turno: {ex.Message}";
         }
+    }
+
+    private bool TryBuildOpeningTimestamp(out DateTimeOffset openedAt)
+    {
+        openedAt = default;
+
+        if (!OpeningDate.HasValue)
+        {
+            Message = "La fecha de apertura es obligatoria.";
+            return false;
+        }
+
+        if (!TimeSpan.TryParseExact(
+                OpeningTime.Trim(),
+                "hh\\:mm",
+                CultureInfo.InvariantCulture,
+                out var openingTime)
+            || openingTime < TimeSpan.Zero
+            || openingTime >= TimeSpan.FromDays(1))
+        {
+            Message = "La hora de apertura debe tener el formato HH:mm (por ejemplo, 14:30).";
+            return false;
+        }
+
+        var localDateTime = DateTime.SpecifyKind(
+            OpeningDate.Value.Date.Add(openingTime),
+            DateTimeKind.Unspecified);
+        var localOffset = TimeZoneInfo.Local.GetUtcOffset(localDateTime);
+        openedAt = new DateTimeOffset(localDateTime, localOffset);
+        return true;
     }
 
     private async Task CloseAsync()
