@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.15.0...v1.16.0) (2026-07-15)
+
+
+### Features
+
+* **cashier:** improve payment validation and reporting ([a61f1c2](https://github.com/jab16jy/Sistema_Pos/commit/a61f1c24cd939f8f4c8e3b14b675f1f49b1a3f77))
+
 ## [1.15.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.14.2...v1.15.0) (2026-07-15)
 
 
