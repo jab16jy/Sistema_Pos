@@ -8,27 +8,32 @@ Defines receipt reprinting, sales history lookup, and return/refund processing.
 
 ### Requirement: Receipt reprint
 
-The system MUST allow reprinting receipts for completed sales.
+The system MUST allow reprinting receipts for completed, cancelled, and returned sales.
+(Previously: Only completed sales could be reprinted; cancelled ones were blocked.)
 
 #### Scenario: Reprint receipt by sale ID
 
 - GIVEN a completed sale with ID "abc-123"
 - WHEN the user requests a reprint
-- THEN the system MUST generate the same receipt content as the original
-- AND the receipt MUST be sent to the configured printer
+- THEN the system MUST print the original receipt content
 
 #### Scenario: Reprint receipt by invoice number
 
 - GIVEN a completed sale with invoice number "FAC-0001"
-- WHEN the user searches for "FAC-0001" and requests reprint
-- THEN the system MUST find the sale and generate the receipt
+- WHEN the user searches and reprints "FAC-0001"
+- THEN the system MUST find the sale and print the receipt
 
-#### Scenario: Cannot reprint cancelled sale
+#### Scenario: Reprint receipt for cancelled sale
 
 - GIVEN a sale with status "cancelled"
-- WHEN the user attempts to reprint
-- THEN the system MUST reject the operation
-- AND the system MUST display "Cannot reprint: sale was cancelled"
+- WHEN the user requests a reprint
+- THEN the system MUST print the receipt for the cancelled sale
+
+#### Scenario: Reprint receipt for returned sale
+
+- GIVEN a sale with status "returned"
+- WHEN the user requests a reprint
+- THEN the system MUST print the receipt for the returned sale
 
 ### Requirement: Sales history lookup
 
@@ -60,22 +65,28 @@ The system MUST provide searchable sales history with filtering.
 
 ### Requirement: Sale return processing
 
-The system MUST allow processing full returns for completed sales.
+The system MUST allow processing partial and full returns for completed sales. The sale status MUST remain "completed" if it is partially returned and MUST only change to "returned" when 100% of all item quantities have been returned.
+(Previously: Only full returns were allowed, changing sale status to "returned" immediately.)
 
 #### Scenario: Process full return
 
 - GIVEN a completed sale with 3 items
-- WHEN the user processes a full return
+- WHEN the user processes a 100% return
 - THEN the sale status MUST change to "returned"
-- AND stock MUST be restored for all 3 items
-- AND a return record MUST be created with the original sale reference
+- AND stock MUST be restored and a return record persisted
 
-#### Scenario: Cannot return already returned sale
+#### Scenario: Process partial return
+
+- GIVEN a completed sale with 2 items
+- WHEN the user processes a return for 1 unit of one item
+- THEN the sale status MUST remain "completed"
+- AND stock MUST be restored and a return record persisted
+
+#### Scenario: Cannot return fully returned sale
 
 - GIVEN a sale with status "returned"
-- WHEN the user attempts to return it again
-- THEN the system MUST reject the operation
-- AND the system MUST display "Sale already returned"
+- WHEN the user attempts to return it
+- THEN the system MUST reject with "Sale already returned"
 
 #### Scenario: Cannot return cancelled sale
 
@@ -85,61 +96,49 @@ The system MUST allow processing full returns for completed sales.
 
 #### Scenario: Return restores stock
 
-- GIVEN a completed sale that reduced product X stock from 20 to 17 (sold 3)
+- GIVEN a completed sale that reduced product X stock from 20 to 17
 - WHEN the sale is returned
 - THEN product X stock MUST increase from 17 to 20
 - AND a stock movement with type "RETURN" MUST be recorded
 
 ### Requirement: Item-level partial return (SaleReturn entity)
 
-The system MUST support item-level partial returns via a SaleReturn container entity that holds one or more SaleReturnItem records. A unique index on OriginalSaleId enforces one return event per sale.
+The system MUST support item-level partial returns via a SaleReturn container. Multiple partial returns are supported; a non-unique index on OriginalSaleId allows multiple return records per sale.
+(Previously: Unique database index on OriginalSaleId restricted returns to a single return event.)
 
-**Attributes required:**
-- `Id` (Guid)
-- `OriginalSaleId` (Guid, FK to Sale)
-- `ReturnDate` (DateTimeOffset)
-- `ProcessedByUserId` (Guid, FK to User)
-- `Reason` (string, required, max 500 chars)
-- `TotalRefundAmount` (decimal) — sum of all SaleReturnItem.RefundAmount values
-- `Items` (IReadOnlyList<SaleReturnItem>)
+**Attributes:** `Id` (Guid), `OriginalSaleId` (Guid), `ReturnDate` (DateTimeOffset), `ProcessedByUserId` (Guid), `Reason` (string), `TotalRefundAmount` (decimal), `Items` (IReadOnlyList<SaleReturnItem>).
 
-#### Scenario: Partial return of 2 out of 5 units of a single item
+#### Scenario: Partial return of 2 out of 5 units
 
-- GIVEN Sale S1 contains SaleItem: ProductX, Qty=5, UnitPrice=$10,000 COP
-- AND no SaleReturn exists for S1
-- WHEN an Administrator creates a SaleReturn for S1 with:
-  - SaleReturnItem: ProductX, QuantityReturned=2, UnitPrice=$10,000
-  - Reason="Producto dañado"
-- THEN a SaleReturn record is persisted with OriginalSaleId=S1, TotalRefundAmount=$20,000
-- AND a SaleReturnItem record is persisted with QuantityReturned=2, RefundAmount=$20,000
-- AND an InventoryMovement of type RETURN with Quantity=+2 for ProductX is persisted
-- AND all records are saved in the same database transaction
-- AND the stock of ProductX increases by 2
+- GIVEN Sale S1 has ProductX, Qty=5, Price=$10,000
+- WHEN an Admin creates a SaleReturn for 2 units
+- THEN a SaleReturn with TotalRefundAmount=$20,000 is persisted
+- AND a SaleReturnItem is persisted and ProductX stock increases by 2
 
 ### Requirement: SaleReturnItem records per-item return detail
 
-A SaleReturnItem entity MUST record per-item return detail including ProductId, QuantityReturned (>= 1 and <= original SaleItem quantity), UnitPrice from the original SaleItem, and RefundAmount = QuantityReturned × UnitPrice.
+A SaleReturnItem MUST record per-item detail including ProductId, QuantityReturned (>= 1 and <= remaining quantity), and RefundAmount = QuantityReturned × UnitPrice.
+(Previously: Validated quantity only against original sale qty instead of remaining qty, and blocked second return attempts.)
 
-#### Scenario: Return quantity exceeding original sale quantity is rejected
+#### Scenario: Return quantity exceeding remaining quantity is rejected
 
-- GIVEN Sale S1 contains SaleItem: ProductY, Qty=3, UnitPrice=$5,000 COP
-- WHEN an Administrator attempts a SaleReturn with SaleReturnItem: ProductY, QuantityReturned=4
-- THEN the Application layer returns a validation error: "La cantidad a devolver (4) supera la cantidad vendida (3) para ProductY"
-- AND no SaleReturn is persisted
+- GIVEN Sale S1 contains ProductY, Qty=3
+- AND a previous SaleReturn returned 1 unit of ProductY
+- WHEN an Admin attempts a SaleReturn for 3 units of ProductY
+- THEN the system MUST reject it as exceeding the remaining quantity
 
-#### Scenario: Second return attempt for the same sale is rejected
+#### Scenario: Multiple partial returns allowed
 
-- GIVEN Sale S1 already has a SaleReturn (SaleReturn_A)
-- WHEN an Administrator attempts to create a second SaleReturn for S1
-- THEN the Application layer returns an error: "Ya existe una devolución registrada para esta venta"
-- AND no new SaleReturn record is created
+- GIVEN Sale S1 contains ProductY, Qty=3
+- AND a previous SaleReturn returned 1 unit of ProductY
+- WHEN an Admin attempts to create a second SaleReturn for 1 unit of ProductY
+- THEN the second return is persisted and sale status remains Completed
 
 #### Scenario: Return with zero items is rejected
 
-- GIVEN Sale S1 with valid items
-- WHEN an Administrator submits a SaleReturn with an empty Items list
-- THEN the Application layer returns a validation error: "Debe incluir al menos un artículo en la devolución"
-- AND no SaleReturn is persisted
+- GIVEN Sale S1
+- WHEN an Admin submits a SaleReturn with empty items
+- THEN the system MUST reject it
 
 ### Requirement: Return restores inventory atomically
 

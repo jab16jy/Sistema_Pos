@@ -21,14 +21,11 @@ public sealed class ReprintReceiptUseCase
         Sale sale = await _sales.GetByIdAsync(saleId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("Sale was not found.");
 
-        if (sale.Status == SaleStatus.Cancelled)
+        if (sale.Status != SaleStatus.Completed &&
+            sale.Status != SaleStatus.Cancelled &&
+            sale.Status != SaleStatus.Returned)
         {
-            throw new InvalidOperationException("Cannot reprint: sale was cancelled");
-        }
-
-        if (sale.Status != SaleStatus.Completed)
-        {
-            throw new InvalidOperationException("Only completed sales can be reprinted.");
+            throw new InvalidOperationException("Only completed, cancelled, or returned sales can be reprinted.");
         }
 
         await _printService.PrintReceiptAsync(sale.Id, cancellationToken).ConfigureAwait(false);

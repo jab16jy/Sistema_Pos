@@ -1259,8 +1259,7 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OriginalSaleId")
-                        .IsUnique();
+                    b.HasIndex("OriginalSaleId");
 
                     b.ToTable("SALE_RETURNS", (string)null);
                 });

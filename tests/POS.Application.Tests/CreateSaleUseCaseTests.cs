@@ -308,4 +308,94 @@ public sealed class CreateSaleUseCaseTests
         public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>(Transactions.Take(maxCount).ToList());
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDiscountExceedsLimitAndNotQuoteConversion_Throws()
+    {
+        // GIVEN
+        var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var products = new InMemoryProductRepository(product);
+        var sales = new InMemorySaleRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        
+        var settings = new BusinessSettings(
+            "Test Business",
+            null, null, null, null, null, null, null, false, null, null, null, null, null,
+            "COP",
+            maximumCashierDiscountPercent: 20m);
+        var settingsRepo = new SettingsRepositoryFake(settings);
+        
+        var useCase = new CreateSaleUseCase(
+            products, 
+            sales, 
+            unitOfWork, 
+            receivables: null, 
+            accumulatePoints: null, 
+            redeemPoints: null, 
+            inventory: null, 
+            settings: settingsRepo);
+
+        var request = new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 250m, ManualDiscountPercent: 25m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 750m, 1_000m, null)]);
+
+        // WHEN & THEN
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
+        
+        Assert.Contains("exceeds the configured maximum of 20%", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDiscountExceedsLimitAndIsQuoteConversion_Succeeds()
+    {
+        // GIVEN
+        var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var products = new InMemoryProductRepository(product);
+        var sales = new InMemorySaleRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        
+        var settings = new BusinessSettings(
+            "Test Business",
+            null, null, null, null, null, null, null, false, null, null, null, null, null,
+            "COP",
+            maximumCashierDiscountPercent: 20m);
+        var settingsRepo = new SettingsRepositoryFake(settings);
+        
+        var useCase = new CreateSaleUseCase(
+            products, 
+            sales, 
+            unitOfWork, 
+            receivables: null, 
+            accumulatePoints: null, 
+            redeemPoints: null, 
+            inventory: null, 
+            settings: settingsRepo);
+
+        var request = new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 250m, ManualDiscountPercent: 25m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 750m, 1_000m, null)])
+        {
+            IsQuoteConversion = true
+        };
+
+        // WHEN
+        var result = await useCase.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        // THEN
+        Assert.NotNull(result);
+        Assert.Single(sales.Sales);
+    }
+
+    private sealed class SettingsRepositoryFake : ISettingsRepository
+    {
+        private readonly BusinessSettings _settings;
+        public SettingsRepositoryFake(BusinessSettings settings) => _settings = settings;
+        public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default) => Task.FromResult<BusinessSettings?>(_settings);
+        public Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
 }

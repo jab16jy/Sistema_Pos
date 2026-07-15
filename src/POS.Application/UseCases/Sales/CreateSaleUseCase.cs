@@ -72,10 +72,13 @@ public sealed class CreateSaleUseCase
             throw new InvalidOperationException("Add at least one product before completing the sale.");
         }
 
-        decimal maximumDiscount = await CashierDiscountPolicy
-            .GetMaximumAsync(_settings, cancellationToken)
-            .ConfigureAwait(false);
-        CashierDiscountPolicy.Validate(request.Items, maximumDiscount);
+        if (!request.IsQuoteConversion)
+        {
+            decimal maximumDiscount = await CashierDiscountPolicy
+                .GetMaximumAsync(_settings, cancellationToken)
+                .ConfigureAwait(false);
+            CashierDiscountPolicy.Validate(request.Items, maximumDiscount);
+        }
 
         // Validate payment platforms before building the sale
         if (request.Payments is not null)

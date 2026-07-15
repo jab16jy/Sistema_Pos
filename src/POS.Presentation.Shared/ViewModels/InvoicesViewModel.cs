@@ -81,7 +81,7 @@ public sealed class InvoicesViewModel : ViewModelBase
         _cancelSale = cancelSale;
 
         LoadCommand = new RelayCommand(_ => RunSafe(LoadFirstPageAsync(), ex => Message = $"Error al cargar facturas: {ex.Message}"));
-        ReprintCommand = new RelayCommand(_ => RunSafe(ReprintAsync(), ex => Message = $"Error al reimprimir factura: {ex.Message}"), _ => SelectedInvoice is not null && SelectedInvoice.Status == SaleStatus.Completed);
+        ReprintCommand = new RelayCommand(_ => RunSafe(ReprintAsync(), ex => Message = $"Error al reimprimir factura: {ex.Message}"), _ => SelectedInvoice is not null && (SelectedInvoice.Status == SaleStatus.Completed || SelectedInvoice.Status == SaleStatus.Cancelled || SelectedInvoice.Status == SaleStatus.Returned));
         ExportPdfCommand = new RelayCommand(_ => RunSafe(ExportPdfAsync(), ex => Message = $"Error al generar el PDF: {ex.Message}"), _ => SelectedInvoice is not null && _pdfService is not null);
         ProcessReturnCommand = new RelayCommand(_ => RunSafe(ProcessReturnAsync(), ex => Message = $"Error al procesar la devolución: {ex.Message}"), _ => SelectedInvoice is not null && SelectedInvoice.Status == SaleStatus.Completed && !string.IsNullOrWhiteSpace(ReturnReason));
         CancelSaleCommand = new RelayCommand(_ => RunSafe(CancelSaleAsync(), ex => Message = $"Error al anular la factura: {ex.Message}"), _ => CanCancelSelectedInvoice());

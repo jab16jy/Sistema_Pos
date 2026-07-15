@@ -25,4 +25,15 @@ public sealed class SaleReturnRepository : ISaleReturnRepository
             .Include(r => r.Items)
             .FirstOrDefaultAsync(saleReturn => saleReturn.OriginalSaleId == saleId, cancellationToken);
     }
+
+    public async Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
+    {
+        var list = await _dbContext.SaleReturns
+            .AsNoTracking()
+            .Include(r => r.Items)
+            .Where(saleReturn => saleReturn.OriginalSaleId == saleId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+        return list;
+    }
 }

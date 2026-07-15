@@ -36,7 +36,9 @@ public sealed class ConvertQuoteToSaleUseCase
         var quote = await _quotes.GetByIdAsync(request.QuoteId, ct)
             ?? throw new InvalidOperationException($"Cotización {request.QuoteId} no encontrada.");
 
-        if (quote.ExpiresAt.Date < DateTime.Today && quote.Status != QuoteStatus.Expired)
+        var colombianToday = DateTime.UtcNow.AddHours(-5).Date;
+        var quoteExpiresColombian = quote.ExpiresAt.AddHours(-5).Date;
+        if (quoteExpiresColombian < colombianToday && quote.Status != QuoteStatus.Expired)
         {
             quote.Expire();
         }
@@ -60,8 +62,8 @@ public sealed class ConvertQuoteToSaleUseCase
             i.UnitsPerPresentation)).ToList();
 
         CreateSaleRequest saleRequest = settlementPlan is not null
-            ? new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, settlementPlan)
-            : new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, request.Payments);
+            ? new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, settlementPlan) { IsQuoteConversion = true }
+            : new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, request.Payments) { IsQuoteConversion = true };
 
         CreateSaleResult? saleResult = null;
         await _unitOfWork.ExecuteInTransactionAsync(async transactionCt =>

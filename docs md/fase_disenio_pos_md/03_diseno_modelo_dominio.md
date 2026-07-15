@@ -8,6 +8,10 @@ Definir las entidades, value objects y reglas de negocio que representan el func
 
 ## Entidades principales
 
+> [!NOTE]
+> **Identificación y Unificación de Entidades:**
+> La entidad `Invoice` (Factura) no se implementa como una clase o entidad física independiente en el código del dominio. En su lugar, es un **estado lógico** de una venta (`Sale`) que ha sido completada de manera exitosa. Esto simplifica el modelo de dominio y evita redundancia.
+
 | Entidad | Propósito |
 |---|---|
 | `User` | Representa a los usuarios del sistema: administrador o cajero. |
@@ -22,7 +26,9 @@ Definir las entidades, value objects y reglas de negocio que representan el func
 | `PurchaseItem` | Representa los productos comprados. |
 | `InventoryMovement` | Registra entradas, salidas y ajustes de inventario. |
 | `CashClosing` | Registra el cierre de caja. |
-| `Invoice` | Representa la factura o recibo emitido. |
+| `Invoice` | Representa la factura o recibo emitido (estado lógico de una `Sale` completada, no es una entidad independiente). |
+| `SaleReturn` | Representa la devolución (parcial o total) de una venta. |
+| `SaleReturnItem` | Representa el detalle del producto devuelto (cantidad, precio). |
 | `LoyaltyTransaction` | Registra acumulación o redención de puntos. |
 | `SystemConfiguration` | Guarda datos del negocio, impuestos, moneda e impresora. |
 | `Quote` | Representa una cotización o propuesta comercial para un cliente. |
@@ -161,6 +167,40 @@ public class DocumentSendLog
     public DateTime SentAt { get; private set; }
     public bool Success { get; private set; }
     public string? ErrorMessage { get; private set; }        // Poblado únicamente en caso de fallo
+}
+```
+
+### SaleReturn (raíz de agregado)
+
+Representa el registro formal de una devolución (parcial o total) asociada a una venta previamente completada.
+
+```csharp
+public class SaleReturn
+{
+    public Guid Id { get; private set; }
+    public Guid SaleId { get; private set; }                  // Venta original a la cual pertenece la devolución
+    public string ReturnNumber { get; private set; }          // Consecutivo único de devolución (ej: DEV-YYYY-NNNN)
+    public Guid CashierId { get; private set; }               // Cajero que procesa la devolución (processing cashier)
+    public DateTime ReturnedAt { get; private set; }          // Fecha y hora del procesamiento de la devolución (timestamp)
+    public decimal TotalRefundAmount { get; private set; }    // Monto total reembolsado al cliente (refund amount)
+    public string Reason { get; private set; }                // Motivo de la devolución
+    public IReadOnlyCollection<SaleReturnItem> Items { get; private set; }
+}
+```
+
+### SaleReturnItem (entidad hija)
+
+Representa cada producto y cantidad que el cliente devuelve dentro de una transacción de devolución.
+
+```csharp
+public class SaleReturnItem
+{
+    public Guid Id { get; private set; }
+    public Guid SaleReturnId { get; private set; }
+    public Guid SaleItemId { get; private set; }              // Ítem original de la venta
+    public Guid ProductId { get; private set; }               // Producto devuelto
+    public decimal ReturnedQuantity { get; private set; }     // Cantidad devuelta (quantities returned)
+    public decimal RefundAmount { get; private set; }         // Monto reembolsado por este ítem (refund amount)
 }
 ```
 

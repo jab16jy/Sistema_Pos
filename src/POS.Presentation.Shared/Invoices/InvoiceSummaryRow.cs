@@ -32,7 +32,7 @@ public sealed record InvoiceSummaryRow(
         sale.Status,
         ResolveStatusLabel(sale.Status),
         sale.CreatedAt,
-        sale.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+        sale.CreatedAt.ToOffset(TimeSpan.FromHours(-5)).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
         string.IsNullOrWhiteSpace(sale.CashierName) ? "—" : sale.CashierName);
 
     public static InvoiceSummaryRow FromDetail(InvoiceDetailResult detail) => new(
@@ -44,7 +44,7 @@ public sealed record InvoiceSummaryRow(
         detail.Status,
         ResolveStatusLabel(detail.Status),
         detail.CreatedAt,
-        detail.CreatedAt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+        detail.CreatedAt.ToOffset(TimeSpan.FromHours(-5)).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture),
         string.IsNullOrWhiteSpace(detail.CashierName) ? "—" : detail.CashierName);
 
     private static string ResolveStatusLabel(SaleStatus status) => status switch

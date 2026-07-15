@@ -247,6 +247,35 @@ public sealed class InvoicesViewModelTests
         Assert.False(denied.CancelSaleCommand.CanExecute(null));
     }
 
+    [Fact]
+    public async Task SelectedInvoice_ReprintCommand_EnabledForCompletedCancelledAndReturned()
+    {
+        var completedId = Guid.NewGuid();
+        var cancelledId = Guid.NewGuid();
+        var returnedId = Guid.NewGuid();
+
+        var history = new StaticSalesHistoryQueryService(
+            new SaleHistoryResult(completedId, "FAC-001", null, null, SaleStatus.Completed, DateTimeOffset.Now, 1_000m),
+            new SaleHistoryResult(cancelledId, "FAC-002", null, null, SaleStatus.Cancelled, DateTimeOffset.Now, 2_000m),
+            new SaleHistoryResult(returnedId, "FAC-003", null, null, SaleStatus.Returned, DateTimeOffset.Now, 3_000m)
+        );
+
+        var viewModel = CreateViewModel(history);
+        await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
+
+        // Select Completed
+        viewModel.SelectedInvoice = viewModel.FilteredInvoices.Single(i => i.SaleId == completedId);
+        Assert.True(viewModel.ReprintCommand.CanExecute(null));
+
+        // Select Cancelled
+        viewModel.SelectedInvoice = viewModel.FilteredInvoices.Single(i => i.SaleId == cancelledId);
+        Assert.True(viewModel.ReprintCommand.CanExecute(null));
+
+        // Select Returned
+        viewModel.SelectedInvoice = viewModel.FilteredInvoices.Single(i => i.SaleId == returnedId);
+        Assert.True(viewModel.ReprintCommand.CanExecute(null));
+    }
+
     private static InvoicesViewModel CreateViewModel(
         ISalesHistoryQueryService history,
         ICurrentOperatorSession? session = null,
@@ -414,6 +443,8 @@ public sealed class InvoicesViewModelTests
         public Task AddAsync(SaleReturn saleReturn, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task<SaleReturn?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<SaleReturn?>(null);
+
+        public Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SaleReturn>>([]);
     }
 
     private sealed class EmptyUserRepository : IUserRepository

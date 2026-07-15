@@ -21,10 +21,10 @@ public sealed class GetCustomerPayableQuotesUseCase
         }
 
         IReadOnlyList<Domain.Entities.Quote> quotes = await _quotes.GetOpenByCustomerIdAsync(customerId, ct).ConfigureAwait(false);
-        DateTime now = DateTime.UtcNow;
+        var colombianToday = DateTime.UtcNow.AddHours(-5).Date;
 
         return quotes
-            .Where(q => (q.Status is QuoteStatus.Draft or QuoteStatus.Active) && q.ExpiresAt >= now)
+            .Where(q => (q.Status is QuoteStatus.Draft or QuoteStatus.Active) && q.ExpiresAt.AddHours(-5).Date >= colombianToday)
             .OrderByDescending(q => q.CreatedAt)
             .Select(q => new CustomerPayableQuote(
                 q.Id,

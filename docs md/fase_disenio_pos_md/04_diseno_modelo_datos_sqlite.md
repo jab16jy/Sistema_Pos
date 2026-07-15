@@ -46,16 +46,16 @@ Diseñar una base de datos local en SQLite que permita almacenar usuarios, produ
 
 ### SALES
 
+> [!NOTE]
+> **Campos de Totales Consolidados Dinámicos (Enfoque YAGNI/Ponytail):**
+> Para evitar inconsistencias de redondeo y redundancia de datos, los campos consolidados como `Subtotal`, `Discount`, `Tax` y `Total` no se almacenan físicamente en la tabla `SALES`. En su lugar, el sistema los calcula dinámicamente en memoria sumando la información detallada en `SALE_ITEMS` y aplicando los descuentos correspondientes a nivel de aplicación.
+
 | Campo | Tipo | Descripción |
 |---|---|---|
 | Id | GUID/INTEGER | Identificador de venta. |
 | InvoiceNumber | TEXT | Número de factura. |
 | CustomerId | FK NULL | Cliente asociado, si aplica. |
 | UserId | FK | Cajero que realizó la venta. |
-| Subtotal | DECIMAL | Valor antes de descuentos e impuestos. |
-| Discount | DECIMAL | Descuento aplicado. |
-| Tax | DECIMAL | Impuesto calculado. |
-| Total | DECIMAL | Total final. |
 | Status | TEXT | Completed, Cancelled, OnHold. |
 | CreatedAt | DATETIME | Fecha de venta. |
 
@@ -70,6 +70,32 @@ Diseñar una base de datos local en SQLite que permita almacenar usuarios, produ
 | UnitPrice | DECIMAL | Precio aplicado. |
 | Discount | DECIMAL | Descuento por ítem. |
 | Subtotal | DECIMAL | Resultado de cantidad × precio. |
+
+### SALE_RETURNS
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| Id | TEXT (UUID) | Clave primaria. |
+| OriginalSaleId | FK | Relación con la venta original (`SALES.Id`). |
+| ReturnNumber | TEXT | Número de devolución único auto-generado (ej: `DEV-YYYY-NNNN`). |
+| CashierId | FK | Cajero que procesó la devolución (`USERS.Id`). |
+| ReturnedAt | TEXT (ISO 8601) | Fecha y hora de procesamiento de la devolución. |
+| TotalRefundAmount | REAL | Monto total reembolsado. |
+| Reason | TEXT | Razón o motivo de la devolución. |
+
+* **Índice Recomendado:**
+  `idx_sale_returns_original_sale_id` en `OriginalSaleId` con propiedad `IsUnique(false)`. Esto optimiza la búsqueda de múltiples devoluciones parciales permitidas para una sola venta.
+
+### SALE_RETURN_ITEMS
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| Id | TEXT (UUID) | Clave primaria. |
+| SaleReturnId | FK | Relación con la devolución (`SALE_RETURNS.Id`). |
+| SaleItemId | FK | Relación con el ítem de la venta original (`SALE_ITEMS.Id`). |
+| ProductId | FK | Producto devuelto (`PRODUCTS.Id`). |
+| ReturnedQuantity | REAL | Cantidad devuelta de este ítem. |
+| RefundAmount | REAL | Monto de reembolso asignado a este ítem. |
 
 ### PAYMENTS
 
@@ -156,6 +182,9 @@ Customer 0..1 ─── * Quote
 Quote 1 ─── * QuoteItem
 Product 1 ─── * QuoteItem
 Quote 0..1 ─── 0..1 Sale      (converted_sale_id)
+Sale 1 ─── * SaleReturn       (original_sale_id, IsUnique(false))
+SaleReturn 1 ─── * SaleReturnItem
+SaleItem 1 ─── * SaleReturnItem
 ```
 
 ## Diseño didáctico desde la base de datos
@@ -163,7 +192,7 @@ Quote 0..1 ─── 0..1 Sale      (converted_sale_id)
 | Necesidad del usuario | Datos requeridos |
 |---|---|
 | Ver productos agotados | `Products.CurrentStock` y `Products.MinimumStock` |
-| Consultar ventas del día | `Sales.CreatedAt`, `Sales.Total`, `Payments.PaymentMethod` |
+| Consultar ventas del día | `Sales.CreatedAt`, `Payments.PaymentMethod`, suma de `Payments.Amount` o `SaleItems` |
 | Reimprimir factura | `Sales`, `SaleItems`, `Payments`, `Customer` |
 | Saber cuánto efectivo hay en caja | Pagos con método `Efectivo` |
 | Ver utilidad | `Products.CostPrice`, `SaleItems.UnitPrice`, `SaleItems.Quantity` |

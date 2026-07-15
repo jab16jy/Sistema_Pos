@@ -151,27 +151,35 @@ Administrador o Cajero autorizado.
 
 # Flujo 6 — Devolución o anulación
 
+> [!NOTE]
+> **Políticas de Devolución y Validación de Permisos:**
+> - **Estado de Devolución:** Una venta (`Sale`) solo cambia su estado a `Returned` cuando se ha completado una devolución del **100% de la cantidad** de todos los ítems de la venta. Las devoluciones parciales no cambian el estado principal de la venta a `Returned` (se mantiene en su estado original `Completed`).
+> - **Validación de Roles:** La anulación o devolución iniciada por el cajero se valida directamente en la sesión actual comprobando si su rol cuenta con el permiso `Invoices.Cancel`, evitando solicitar contraseñas en la interfaz del usuario.
+
 ## Actor
 
-Administrador.
+Administrador o Cajero autorizado (con permiso `Invoices.Cancel`).
 
 ## Pasos
 
 ```text
-1. El usuario busca la factura.
-2. Selecciona “Anular” o “Devolver producto”.
-3. El sistema solicita motivo.
-4. El sistema solicita contraseña de administrador.
-5. El sistema revierte inventario si corresponde.
-6. La factura cambia de estado.
-7. El sistema guarda trazabilidad.
+1. El usuario busca la venta (factura) en el historial de ventas.
+2. Selecciona “Registrar Devolución” (parcial o total) o “Anular Venta”.
+3. El sistema valida los permisos del rol en la sesión activa (requiere permiso `Invoices.Cancel`) en lugar de solicitar contraseña en la interfaz.
+4. Si el rol del usuario actual no cuenta con el permiso, se rechaza la operación y se muestra un mensaje didáctico.
+5. Si el permiso es válido, el usuario especifica la cantidad a devolver de cada ítem y escribe el motivo de la devolución.
+6. El sistema procesa la devolución de forma atómica:
+   a. Registra la transacción de devolución en SALE_RETURNS y SALE_RETURN_ITEMS.
+   b. Crea un movimiento de entrada al inventario (INVENTORY_MOVEMENTS) por la cantidad de productos devueltos.
+   c. Si la suma total acumulada de unidades devueltas es igual al 100% de la cantidad original de la venta, actualiza el estado de la venta a "Returned". De lo contrario, conserva su estado original.
+7. El sistema calcula y muestra el monto exacto a reembolsar, registrando la fecha (ReturnedAt) y el cajero procesador (CashierId).
 ```
 
 ## Reglas de facilidad de uso
 
-- Explicar claramente la consecuencia antes de confirmar.
-- Mostrar productos que volverán al inventario.
-- Evitar botones ambiguos como “OK”; usar “Confirmar devolución”.
+- **Claridad de Impacto:** Explicar claramente la consecuencia antes de confirmar (por ejemplo: "Se reembolsarán $20.000 y se reingresarán 2 unidades al inventario").
+- **Visualización de Stock:** Mostrar explícitamente los productos que volverán al inventario y sus cantidades.
+- **Acciones Claras:** Evitar botones ambiguos como “OK” o “Cancelar”; usar “Confirmar devolución” o “Cancelar operación”.
 
 ---
 

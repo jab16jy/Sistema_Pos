@@ -40,13 +40,24 @@ public sealed class InvoiceUseCaseTests
     }
 
     [Fact]
-    public async Task ReprintReceiptAsync_WithReturnedSale_RejectsPrint()
+    public async Task ReprintReceiptAsync_WithReturnedOrCancelledSale_Succeeds()
     {
-        var sale = CreateCompletedSale(CreateProduct());
-        sale.MarkReturned();
-        var useCase = new ReprintReceiptUseCase(new InMemorySaleRepository(sale), new StubPrintService());
+        var product = CreateProduct();
+        var saleReturned = CreateCompletedSale(product);
+        saleReturned.MarkReturned();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(sale.Id, TestContext.Current.CancellationToken));
+        var saleCancelled = CreateCompletedSale(product);
+        saleCancelled.MarkCancelled();
+
+        var printer = new StubPrintService();
+        var useCase = new ReprintReceiptUseCase(new InMemorySaleRepository(saleReturned), printer);
+
+        await useCase.ExecuteAsync(saleReturned.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(saleReturned.Id, printer.PrintedSaleId);
+
+        var useCase2 = new ReprintReceiptUseCase(new InMemorySaleRepository(saleCancelled), printer);
+        await useCase2.ExecuteAsync(saleCancelled.Id, TestContext.Current.CancellationToken);
+        Assert.Equal(saleCancelled.Id, printer.PrintedSaleId);
     }
 
     [Fact]
@@ -186,28 +197,41 @@ public sealed class InvoiceUseCaseTests
     }
 
     [Fact]
-    public async Task ProcessReturnAsync_SecondReturn_RejectedByOneReturnPerSaleGuard()
+    public async Task ProcessReturnAsync_MultipleReturns_AllowedUpToOriginalQuantity()
     {
-        var product = CreateProduct();
+        var product = CreateProduct(); // qty: 2
         var sale = CreateCompletedSale(product);
+        var saleItemId = sale.Items.Single().Id;
         var returns = new InMemorySaleReturnRepository();
         var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+        var inventory = new InMemoryInventoryRepository();
+        var uow = new CountingUnitOfWork();
+
         var useCase = new ProcessReturnUseCase(
             new InMemorySaleRepository(sale),
             new InMemoryProductRepository(product),
-            new InMemoryInventoryRepository(),
+            inventory,
             returns,
-            new CountingUnitOfWork(),
+            uow,
             new InMemoryUserRepository(adminUser));
 
-        // First return succeeds
+        // First return returns 1 unit
         await useCase.ExecuteAsync(
-            new ProcessReturnRequest(sale.Id, adminUser.Id, "First return"),
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "First return", [new ReturnLineRequest(saleItemId, 1, 1_500m)]),
             TestContext.Current.CancellationToken);
 
-        // Second return on same sale is rejected
+        Assert.Equal(SaleStatus.Completed, sale.Status);
+
+        // Second return returns remaining 1 unit
+        await useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Second return", [new ReturnLineRequest(saleItemId, 1, 1_500m)]),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(SaleStatus.Returned, sale.Status);
+
+        // Third return attempts to return 1 more, but remaining quantity is 0 (and status is now Returned)
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
-            new ProcessReturnRequest(sale.Id, adminUser.Id, "Second return"),
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Third return", [new ReturnLineRequest(saleItemId, 1, 1_500m)]),
             TestContext.Current.CancellationToken));
     }
 
@@ -489,6 +513,12 @@ public sealed class InvoiceUseCaseTests
 
         public Task<SaleReturn?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
             => Task.FromResult(_returns.SingleOrDefault(saleReturn => saleReturn.OriginalSaleId == saleId));
+
+        public Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
+        {
+            var list = _returns.Where(saleReturn => saleReturn.OriginalSaleId == saleId).ToList();
+            return Task.FromResult<IReadOnlyList<SaleReturn>>(list);
+        }
     }
 
     private sealed class CountingUnitOfWork : IUnitOfWork

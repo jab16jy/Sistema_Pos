@@ -60,68 +60,82 @@ public sealed class ProcessReturnUseCase
         Sale sale = await _sales.GetByIdAsync(request.SaleId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("Sale was not found.");
 
-        if (await _saleReturns.GetBySaleIdAsync(sale.Id, cancellationToken).ConfigureAwait(false) is not null)
+        if (sale.Status == SaleStatus.Returned)
         {
             throw new InvalidOperationException("Sale already returned.");
         }
 
-        bool isPartialReturn = request.Items is { Count: > 0 };
-        if (isPartialReturn)
-            ValidatePartialReturnItems(sale, request.Items!);
-
-        sale.MarkReturned();
-
-        var saleReturn = new SaleReturn(sale.Id, request.ProcessedByUserId, request.Reason);
-
-        if (isPartialReturn)
+        if (sale.Status == SaleStatus.Cancelled)
         {
-            // Partial return — validate and process only the listed items
-            await ProcessPartialReturnAsync(request, sale, saleReturn, cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException("Cannot return a cancelled sale.");
+        }
+
+        // Fetch past returns
+        var pastReturns = await _saleReturns.GetAllBySaleIdAsync(sale.Id, cancellationToken).ConfigureAwait(false);
+        var pastReturnedQtyByProduct = pastReturns
+            .SelectMany(r => r.Items)
+            .GroupBy(i => i.ProductId)
+            .ToDictionary(g => g.Key, g => g.Sum(i => i.QuantityReturned));
+
+        // Unify return lines
+        List<ReturnLineRequest> returnLines;
+        if (request.Items is not null)
+        {
+            if (request.Items.Count == 0)
+            {
+                throw new InvalidOperationException("Return request must contain at least one item.");
+            }
+            returnLines = request.Items.ToList();
         }
         else
         {
-            // Full return — restore all items
-            await ProcessFullReturnAsync(request, sale, saleReturn, cancellationToken).ConfigureAwait(false);
-        }
-
-        if (_compensateLoyalty is not null)
-        {
-            if (isPartialReturn)
+            returnLines = [];
+            foreach (var saleItem in sale.Items)
             {
-                var returnedLines = request.Items!
-                    .Select(line => new CompensateSaleLoyaltyUseCase.PartialReturnLine(line.SaleItemId, line.QuantityReturned))
-                    .ToList();
-                await _compensateLoyalty.CompensatePartialAsync(sale, returnedLines, $"Sale return: {request.Reason}", cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await _compensateLoyalty.CompensateFullAsync(sale, $"Sale return: {request.Reason}", cancellationToken).ConfigureAwait(false);
+                int pastReturnedQty = pastReturnedQtyByProduct.TryGetValue(saleItem.ProductId, out int q) ? q : 0;
+                int remainingQty = (int)saleItem.Quantity - pastReturnedQty;
+                if (remainingQty > 0)
+                {
+                    decimal refundAmt = Math.Round(remainingQty * (saleItem.Subtotal().Amount / saleItem.Quantity), 2, MidpointRounding.AwayFromZero);
+                    returnLines.Add(new ReturnLineRequest(saleItem.Id, remainingQty, refundAmt));
+                }
             }
         }
 
-        await _saleReturns.AddAsync(saleReturn, cancellationToken).ConfigureAwait(false);
-        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-
-        return saleReturn.Id;
-    }
-
-    private async Task ProcessPartialReturnAsync(
-        ProcessReturnRequest request,
-        Sale sale,
-        SaleReturn saleReturn,
-        CancellationToken cancellationToken)
-    {
-        foreach (var line in request.Items!)
+        if (returnLines.Count == 0)
         {
+            throw new InvalidOperationException("No items available to return.");
+        }
+
+        // Validate all return lines
+        HashSet<Guid> returnedItemIds = [];
+        foreach (var line in returnLines)
+        {
+            if (!returnedItemIds.Add(line.SaleItemId))
+            {
+                throw new InvalidOperationException($"Sale item '{line.SaleItemId}' appears more than once in the return.");
+            }
+
             var saleItem = sale.Items.FirstOrDefault(i => i.Id == line.SaleItemId)
                 ?? throw new InvalidOperationException($"Sale item '{line.SaleItemId}' was not found in sale '{sale.Id}'.");
 
-            if (line.QuantityReturned <= 0 || line.QuantityReturned > (int)saleItem.Quantity)
+            int pastReturnedQty = pastReturnedQtyByProduct.TryGetValue(saleItem.ProductId, out int q) ? q : 0;
+            int remainingQty = (int)saleItem.Quantity - pastReturnedQty;
+
+            if (line.QuantityReturned <= 0 || line.QuantityReturned > remainingQty)
             {
                 throw new InvalidOperationException(
-                    $"Quantity returned ({line.QuantityReturned}) for item '{saleItem.ProductName}' must be in [1, {(int)saleItem.Quantity}].");
+                    $"Quantity returned ({line.QuantityReturned}) for item '{saleItem.ProductName}' must be in [1, {remainingQty}].");
             }
+        }
 
+        // Create SaleReturn container
+        var saleReturn = new SaleReturn(sale.Id, request.ProcessedByUserId, request.Reason);
+
+        // Process inventory & add items to saleReturn
+        foreach (var line in returnLines)
+        {
+            var saleItem = sale.Items.First(i => i.Id == line.SaleItemId);
             Product product = await _products.GetByIdAsync(saleItem.ProductId, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException($"Product '{saleItem.ProductId}' was not found.");
 
@@ -144,56 +158,39 @@ public sealed class ProcessReturnUseCase
 
             saleReturn.AddItem(returnItem);
         }
-    }
 
-    private async Task ProcessFullReturnAsync(
-        ProcessReturnRequest request,
-        Sale sale,
-        SaleReturn saleReturn,
-        CancellationToken cancellationToken)
-    {
-        foreach (SaleItem item in sale.Items)
+        // Check if 100% of all item quantities have been returned in total
+        bool allItemsReturned = true;
+        foreach (var saleItem in sale.Items)
         {
-            Product product = await _products.GetByIdAsync(item.ProductId, cancellationToken).ConfigureAwait(false)
-                ?? throw new InvalidOperationException($"Product '{item.ProductId}' was not found.");
+            int pastReturnedQty = pastReturnedQtyByProduct.TryGetValue(saleItem.ProductId, out int q) ? q : 0;
+            var currentLine = returnLines.FirstOrDefault(l => l.SaleItemId == saleItem.Id);
+            int currentReturnedQty = currentLine?.QuantityReturned ?? 0;
 
-            var quantity = new Quantity(item.Quantity * item.UnitsPerPresentation);
-            if (product.TracksInventory)
+            int remainingQty = (int)saleItem.Quantity - (pastReturnedQty + currentReturnedQty);
+            if (remainingQty > 0)
             {
-                product.IncreaseStock(quantity);
-                await _inventory.AddMovementAsync(
-                    new InventoryMovement(product.Id, InventoryMovementType.Return, quantity, "Full sale return", request.ProcessedByUserId, sale.Id),
-                    cancellationToken).ConfigureAwait(false);
-            }
-
-            var returnItem = new SaleReturnItem(
-                saleReturn.Id,
-                item.ProductId,
-                item.ProductName,
-                (int)item.Quantity,
-                item.UnitPrice,
-                item.Subtotal());
-
-            saleReturn.AddItem(returnItem);
-        }
-    }
-
-    private static void ValidatePartialReturnItems(Sale sale, IReadOnlyList<ReturnLineRequest> lines)
-    {
-        HashSet<Guid> returnedItemIds = [];
-        foreach (ReturnLineRequest line in lines)
-        {
-            if (!returnedItemIds.Add(line.SaleItemId))
-                throw new InvalidOperationException($"Sale item '{line.SaleItemId}' appears more than once in the partial return.");
-
-            SaleItem saleItem = sale.Items.FirstOrDefault(item => item.Id == line.SaleItemId)
-                ?? throw new InvalidOperationException($"Sale item '{line.SaleItemId}' was not found in sale '{sale.Id}'.");
-
-            if (line.QuantityReturned <= 0 || line.QuantityReturned > (int)saleItem.Quantity)
-            {
-                throw new InvalidOperationException(
-                    $"Quantity returned ({line.QuantityReturned}) for item '{saleItem.ProductName}' must be in [1, {(int)saleItem.Quantity}].");
+                allItemsReturned = false;
             }
         }
+
+        if (allItemsReturned)
+        {
+            sale.MarkReturned();
+        }
+
+        // Stage loyalty compensation
+        if (_compensateLoyalty is not null)
+        {
+            var loyaltyLines = returnLines
+                .Select(line => new CompensateSaleLoyaltyUseCase.PartialReturnLine(line.SaleItemId, line.QuantityReturned))
+                .ToList();
+            await _compensateLoyalty.CompensatePartialAsync(sale, loyaltyLines, $"Sale return: {request.Reason}", cancellationToken).ConfigureAwait(false);
+        }
+
+        await _saleReturns.AddAsync(saleReturn, cancellationToken).ConfigureAwait(false);
+        await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return saleReturn.Id;
     }
 }

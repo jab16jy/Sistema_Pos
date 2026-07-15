@@ -14,7 +14,7 @@ internal sealed class SaleReturnConfiguration : IEntityTypeConfiguration<SaleRet
         builder.Property(saleReturn => saleReturn.OriginalSaleId).HasConversion<string>();
         builder.Property(saleReturn => saleReturn.ProcessedByUserId).HasConversion<string>();
         builder.Property(saleReturn => saleReturn.Reason).IsRequired().HasMaxLength(500);
-        builder.HasIndex(saleReturn => saleReturn.OriginalSaleId).IsUnique();
+        builder.HasIndex(saleReturn => saleReturn.OriginalSaleId).IsUnique(false);
 
         builder.HasMany(r => r.Items)
                .WithOne()

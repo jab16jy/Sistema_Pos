@@ -53,14 +53,20 @@ public Money Subtotal() =>
 
 ## Reglas de negocio
 
+> [!NOTE]
+> **Consideraciones de Fecha y Descuentos en Conversión:**
+> - **Zona Horaria Local (es-CO, UTC-5):** Los cálculos de vigencia y fechas de expiración (`ExpiresAt`) se realizan con base en la hora local colombiana (es-CO, UTC-5) para evitar desajustes debido a diferencias horarias de servidores.
+> - **Omisión de Políticas de Descuento del Cajero:** Durante la conversión de una cotización a venta (`IsQuoteConversion = true`), se omiten las restricciones de la política de descuentos habitual del cajero en caja general. Esto asegura que se respeten los acuerdos de precio pre-aprobados y pactados formalmente en la cotización original.
+
 | Regla | Descripción |
 |---|---|
 | Sin afectación de inventario | La creación, modificación o eliminación de una cotización no descuenta ni reserva stock en ningún momento. |
 | Numeración consecutiva | El número `COT-YYYY-NNNN` se genera automáticamente al confirmar la cotización. No es editable por el usuario. |
-| Cálculo de vencimiento | `ExpiresAt = CreatedAt + ValidityDays`. El sistema marca automáticamente la cotización como `Expired` cuando la fecha actual supera `ExpiresAt`. |
+| Cálculo de vencimiento | `ExpiresAt = CreatedAt + ValidityDays`. Calculado en zona horaria local de Colombia (es-CO, UTC-5). El sistema marca automáticamente la cotización como `Expired` cuando la fecha actual local supera `ExpiresAt`. |
 | Bloqueo tras conversión | Una cotización en estado `Converted` no puede ser modificada ni cancelada. Cualquier ajuste debe hacerse sobre la venta generada. |
 | Precio e instantánea | `ProductName` y `UnitPrice` en `QuoteItem` se fijan al momento de crear el ítem y no se actualizan si el catálogo cambia posteriormente. |
 | Conversión condicionada | Solo se puede convertir una cotización en estado `Active` o `Draft`. El estado `Expired` y `Converted` bloquean la conversión. |
+| Omisión de límites de descuento | Al convertir a venta (`IsQuoteConversion = true`), se omiten las políticas de límites de descuento del cajero para honrar el acuerdo previamente pactado en la cotización. |
 
 ---
 
@@ -87,12 +93,14 @@ public Money Subtotal() =>
 2. El sistema verifica el estado (debe ser Active o Draft).
 3. El sistema verifica disponibilidad de stock por cada ítem.
 4. Si hay insuficiencia de stock, el sistema informa qué productos no pueden despacharse.
-5. El vendedor selecciona el método de pago.
-6. El vendedor confirma la conversión.
-7. El sistema crea el registro de venta con los ítems de la cotización.
-8. El sistema descuenta el inventario.
-9. El sistema actualiza el estado de la cotización a Converted y registra converted_sale_id.
-10. El sistema ofrece imprimir la factura.
+5. El sistema evalúa la expiración utilizando la hora local colombiana (es-CO, UTC-5).
+6. Al procesar la conversión, el sistema activa la bandera `IsQuoteConversion = true` para omitir la validación de límites de descuento del cajero, respetando los precios pre-aprobados.
+7. El vendedor selecciona el método de pago.
+8. El vendedor confirma la conversión.
+9. El sistema crea el registro de venta con los ítems y precios de la cotización.
+10. El sistema descuenta el inventario.
+11. El sistema actualiza el estado de la cotización a Converted y registra converted_sale_id.
+12. El sistema ofrece imprimir la factura.
 ```
 
 ### Flujo de consulta del historial
@@ -189,7 +197,11 @@ public sealed class ConvertQuoteToSaleUseCase
     // Dependencias: IQuoteRepository, ISaleRepository, IProductRepository
     // Entrada: ConvertQuoteRequest (quoteId, paymentMethod)
     // Salida: SaleDto
-    // Reglas: verifica estado, verifica stock, crea Sale, actualiza Quote.Status = Converted
+    // Reglas: 
+    //   - Verifica estado y evalúa expiración en la zona horaria local de Colombia (es-CO, UTC-5).
+    //   - Verifica disponibilidad de stock para cada ítem.
+    //   - Crea la venta omitiendo políticas restrictivas de descuento del cajero (IsQuoteConversion = true).
+    //   - Actualiza el estado de la cotización a Converted y registra converted_sale_id.
 }
 ```
 

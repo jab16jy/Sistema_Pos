@@ -56,6 +56,9 @@ public sealed record CreateSaleRequest
     /// atomically with the sale by CreateSaleUseCase.
     /// </summary>
     public int RedeemLoyaltyPoints { get; init; }
+
+    /// <summary>Gets a value indicating whether this sale is created from a quote conversion.</summary>
+    public bool IsQuoteConversion { get; init; } = false;
 }
 
 public sealed record CreateSaleItemRequest(

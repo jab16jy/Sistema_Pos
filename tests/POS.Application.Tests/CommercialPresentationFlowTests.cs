@@ -263,6 +263,9 @@ public sealed class CommercialPresentationFlowTests
 
         public Task<SaleReturn?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) =>
             Task.FromResult(Returns.SingleOrDefault(saleReturn => saleReturn.OriginalSaleId == saleId));
+
+        public Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<SaleReturn>>(Returns.Where(saleReturn => saleReturn.OriginalSaleId == saleId).ToList());
     }
 
     private sealed class SingleUserRepository(User user) : IUserRepository
