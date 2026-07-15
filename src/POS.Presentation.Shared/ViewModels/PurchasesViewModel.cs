@@ -42,6 +42,8 @@ public sealed class PurchasesViewModel : ViewModelBase
     private decimal _catalogCost;
     private bool _catalogIsActive = true;
     private string _activeTab = "New";
+    private string _supplierPanelSection = "Profile";
+    private bool _isSupplierFormActive;
     private DateTime? _historyFrom = DateTime.Today.AddMonths(-1);
     private DateTime? _historyTo = DateTime.Today;
     private string _historyInvoiceFilter = string.Empty;
@@ -135,6 +137,8 @@ public sealed class PurchasesViewModel : ViewModelBase
         {
             if (!SetProperty(ref _selectedSupplier, value)) return;
             if (value is null) return;
+            SupplierPanelSection = "Profile";
+            IsSupplierFormActive = true;
             EditingSupplierId = value.Id;
             SupplierName = value.Name;
             SupplierTaxId = value.TaxId;
@@ -186,6 +190,9 @@ public sealed class PurchasesViewModel : ViewModelBase
         private set { if (SetProperty(ref _editingSupplierId, value)) { OnPropertyChanged(nameof(IsEditingSupplier)); _deleteSupplierCommand.RaiseCanExecuteChanged(); } }
     }
     public bool IsEditingSupplier => EditingSupplierId is not null;
+
+    /// <summary>True once the supplier panel has a form to show — either an existing supplier is being edited or "+ Nuevo proveedor" started a blank one. Gates the empty-state placeholder vs. the panel content.</summary>
+    public bool IsSupplierFormActive { get => _isSupplierFormActive; private set => SetProperty(ref _isSupplierFormActive, value); }
     public string SupplierName { get => _supplierName; set => SetProperty(ref _supplierName, value); }
     public string SupplierTaxId { get => _supplierTaxId; set => SetProperty(ref _supplierTaxId, value); }
     public string SupplierPhone { get => _supplierPhone; set => SetProperty(ref _supplierPhone, value); }
@@ -251,6 +258,32 @@ public sealed class PurchasesViewModel : ViewModelBase
                 ActiveTab = "History";
             }
         }
+    }
+
+    /// <summary>Which section of the selected supplier's panel is showing: "Profile" or "Catalog". Keeps the panel from being one long scroll.</summary>
+    public string SupplierPanelSection
+    {
+        get => _supplierPanelSection;
+        set
+        {
+            if (SetProperty(ref _supplierPanelSection, value))
+            {
+                OnPropertyChanged(nameof(IsSupplierProfileSectionActive));
+                OnPropertyChanged(nameof(IsSupplierCatalogSectionActive));
+            }
+        }
+    }
+
+    public bool IsSupplierProfileSectionActive
+    {
+        get => SupplierPanelSection == "Profile";
+        set { if (value) SupplierPanelSection = "Profile"; }
+    }
+
+    public bool IsSupplierCatalogSectionActive
+    {
+        get => SupplierPanelSection == "Catalog";
+        set { if (value) SupplierPanelSection = "Catalog"; }
     }
 
     public DateTime? HistoryFrom { get => _historyFrom; set => SetProperty(ref _historyFrom, value); }
@@ -424,6 +457,8 @@ public sealed class PurchasesViewModel : ViewModelBase
     private void NewSupplier()
     {
         SelectedSupplier = null; EditingSupplierId = null; SupplierName = SupplierTaxId = SupplierPhone = SupplierEmail = string.Empty; IsSupplierActive = true;
+        SupplierPanelSection = "Profile";
+        IsSupplierFormActive = true;
         SupplierCatalogItems.Clear();
         Message = "Nuevo proveedor. Completa nombre y NIT para guardar.";
         ActiveTab = "Suppliers";

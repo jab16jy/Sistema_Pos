@@ -258,6 +258,23 @@
     <Setter Property="BorderBrush" Value="{StaticResource BrushDanger}" />
   </Style>
 
+  <!-- ===== Shared preview-panel building blocks =====
+       Any "select a row, see the full detail" panel (Facturas, Historial de compras, ...)
+       uses these so every preview in the app shares one visual language instead of each
+       screen inventing its own card/row chrome. -->
+  <Style x:Key="PreviewSectionCard" TargetType="Border">
+    <Setter Property="Background" Value="{StaticResource BrushSurfaceContainer}" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="12" />
+    <Setter Property="Margin" Value="0,0,0,10" />
+  </Style>
+
+  <Style x:Key="PreviewLineItemBorder" TargetType="Border">
+    <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="0,6" />
+  </Style>
+
   <Style x:Key="SubtabItemStyle" TargetType="RadioButton">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderBrush" Value="Transparent" />

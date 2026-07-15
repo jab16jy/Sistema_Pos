@@ -543,8 +543,8 @@
                       </Grid.ColumnDefinitions>
 
                       <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,8,12">
-                        <TextBlock Text="Factura *" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
-                        <TextBox Text="{Binding PurchaseInvoiceNumber, UpdateSourceTrigger=PropertyChanged}" Tag="FAC-00123"/>
+                        <TextBlock Text="Factura (opcional)" Style="{StaticResource TextCaption}" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding PurchaseInvoiceNumber, UpdateSourceTrigger=PropertyChanged}" Tag="FAC-00123 (vacío = referencia automática)"/>
                       </StackPanel>
 
                       <StackPanel Grid.Row="0" Grid.Column="1" Margin="8,0,0,12">
@@ -632,7 +632,7 @@
       <!-- TAB 2: Proveedores y Catálogo -->
       <Grid Visibility="{Binding IsSuppliersSubtabActive, Converter={StaticResource BoolToVisibilityConverter}}">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="280"/>
+          <ColumnDefinition Width="320"/>
           <ColumnDefinition Width="12"/>
           <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
@@ -652,7 +652,10 @@
               <TextBlock Text="Selecciona para editar o configurar catálogo." Style="{StaticResource MutedText}" FontSize="12"/>
             </StackPanel>
 
-            <TextBox Grid.Row="1" Text="{Binding SupplierSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar proveedor..." Margin="0,0,0,12"/>
+            <Grid Grid.Row="1" Margin="0,0,0,12">
+              <TextBox Text="{Binding SupplierSearchText, UpdateSourceTrigger=PropertyChanged}" Tag="Buscar proveedor..." Padding="34,8,12,8"/>
+              <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" Foreground="{StaticResource BrushMuted}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0" IsHitTestVisible="False"/>
+            </Grid>
 
             <Border Grid.Row="2" BorderThickness="1" BorderBrush="{StaticResource BrushBorder}" CornerRadius="4" Background="White" Margin="0,0,0,12">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -684,13 +687,35 @@
           </Grid>
         </Border>
 
-        <!-- Right: Profile & Catalog Config -->
-        <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
-          <StackPanel>
-            <!-- Profile Card -->
-            <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+        <!-- Right: empty state, or Profile & Catalog Config split into sub-sections -->
+        <Grid Grid.Column="2">
+          <!-- Empty state: no supplier selected yet -->
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="280"
+                      Visibility="{Binding IsSupplierFormActive, Converter={StaticResource BooleanNegationToVisibilityConverter}}">
+            <materialDesign:PackIcon Kind="Storefront" Width="48" Height="48" Foreground="{StaticResource BrushMuted}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+            <TextBlock Text="Selecciona un proveedor de la lista o crea uno nuevo" Style="{StaticResource MutedText}" TextWrapping="Wrap" TextAlignment="Center"/>
+          </StackPanel>
+
+          <Grid Visibility="{Binding IsSupplierFormActive, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Sub-navigation: mismo patrón visual que las pestañas principales de Compras -->
+            <Border Grid.Row="0" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Margin="0,0,0,16">
+              <StackPanel Orientation="Horizontal">
+                <RadioButton Content="Perfil" GroupName="SupplierPanelSections" Style="{StaticResource SubtabItemStyle}" IsChecked="{Binding IsSupplierProfileSectionActive, Mode=TwoWay}"/>
+                <RadioButton Content="Catálogo de abastecimiento" GroupName="SupplierPanelSections" Style="{StaticResource SubtabItemStyle}" IsChecked="{Binding IsSupplierCatalogSectionActive, Mode=TwoWay}" Margin="12,0,0,0"/>
+              </StackPanel>
+            </Border>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
               <StackPanel>
-                <TextBlock Text="Perfil de proveedor" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,12"/>
+                <!-- Profile Card -->
+                <Border Style="{StaticResource Card}" Visibility="{Binding IsSupplierProfileSectionActive, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <StackPanel>
+                    <TextBlock Text="Perfil de proveedor" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,12"/>
 
                 <Grid>
                   <Grid.RowDefinitions>
@@ -736,8 +761,8 @@
               </StackPanel>
             </Border>
 
-            <!-- Catalog Card -->
-            <Border Style="{StaticResource Card}" Visibility="{Binding IsEditingSupplier, Converter={StaticResource BoolToVisibilityConverter}}" Margin="0,0,0,16">
+                <!-- Catalog Card -->
+                <Border Style="{StaticResource Card}" Visibility="{Binding IsSupplierCatalogSectionActive, Converter={StaticResource BoolToVisibilityConverter}}">
               <StackPanel>
                 <TextBlock Text="Catálogo de abastecimiento" Style="{StaticResource TextH2}" FontWeight="Bold" Margin="0,0,0,4"/>
                 <TextBlock Text="Productos que este proveedor puede surtir, con su costo y unidad de compra." Style="{StaticResource MutedText}" FontSize="12" Margin="0,0,0,12"/>
@@ -892,9 +917,11 @@
                   </DataGrid.Columns>
                 </DataGrid>
               </StackPanel>
-            </Border>
-          </StackPanel>
-        </ScrollViewer>
+                </Border>
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </Grid>
       </Grid>
 
       <!-- TAB 3: Historial -->
@@ -996,93 +1023,126 @@
 
           <Border Grid.Column="2" Style="{StaticResource Card}" Visibility="{Binding IsPurchaseDetailOpen, Converter={StaticResource BoolToVisibilityConverter}}">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
-              <StackPanel>
-                <DockPanel Margin="0,0,0,12">
+              <StackPanel Margin="14">
+                <!-- Header: mismo patrón de ícono + título que "Factura seleccionada" en Facturas -->
+                <DockPanel Margin="0,0,0,10">
                   <Button Content="Cerrar" Command="{Binding ClosePurchaseDetailCommand}" Style="{StaticResource GhostButton}" DockPanel.Dock="Right"/>
-                  <StackPanel>
-                    <TextBlock Text="Detalle de compra" Style="{StaticResource TextH2}" FontWeight="Bold"/>
-                    <TextBlock Text="Comprobante y productos recibidos" Style="{StaticResource MutedText}" FontSize="12"/>
+                  <StackPanel Orientation="Horizontal">
+                    <materialDesign:PackIcon Kind="ClipboardCheck" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Compra seleccionada" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
                   </StackPanel>
                 </DockPanel>
 
-                <Grid Margin="0,0,0,12">
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                  </Grid.RowDefinitions>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  <StackPanel Grid.Column="0" Margin="0,0,8,10">
-                    <TextBlock Text="Proveedor" Style="{StaticResource TextCaption}"/>
-                    <TextBlock Text="{Binding SelectedHistoryPurchase.SupplierName}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <!-- Resumen destacado: mismo patrón que N° factura + Total/Fecha en Facturas -->
+                <Border Style="{StaticResource PreviewSectionCard}">
+                  <StackPanel>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.InvoiceNumber, TargetNullValue=Sin factura}" FontSize="14" FontWeight="Bold" FontFamily="Consolas"/>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.SupplierName}" Style="{StaticResource MutedText}" FontSize="12" Margin="0,2,0,0"/>
+                    <Grid Margin="0,10,0,0">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <StackPanel>
+                        <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11"/>
+                        <TextBlock Text="{Binding SelectedHistoryPurchase.Total, StringFormat=C2}" Style="{StaticResource TextH2}" FontWeight="Bold" FontFamily="Consolas" Foreground="{StaticResource BrushPrimary}"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="Fecha" Style="{StaticResource MutedText}" FontSize="11"/>
+                        <TextBlock Text="{Binding SelectedHistoryPurchase.EffectiveDate}" Style="{StaticResource TextBody}" FontFamily="Consolas"/>
+                      </StackPanel>
+                    </Grid>
                   </StackPanel>
-                  <StackPanel Grid.Column="1" Margin="8,0,0,10">
-                    <TextBlock Text="Fecha" Style="{StaticResource TextCaption}"/>
-                    <TextBlock Text="{Binding SelectedHistoryPurchase.EffectiveDate}" FontWeight="SemiBold"/>
-                  </StackPanel>
-                  <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,8,10">
-                    <TextBlock Text="Factura" Style="{StaticResource TextCaption}"/>
-                    <TextBlock Text="{Binding SelectedHistoryPurchase.InvoiceNumber}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                  </StackPanel>
-                  <StackPanel Grid.Row="1" Grid.Column="1" Margin="8,0,0,10">
-                    <TextBlock Text="Referencia" Style="{StaticResource TextCaption}"/>
-                    <TextBlock Text="{Binding SelectedHistoryPurchase.Id}" FontSize="11" TextWrapping="Wrap"/>
-                  </StackPanel>
-                  <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,8,10">
-                    <TextBlock Text="Pago" Style="{StaticResource TextCaption}"/>
-                    <TextBlock Text="{Binding SelectedHistoryPurchase.PaymentMethod}" FontWeight="SemiBold"/>
-                  </StackPanel>
-                  <StackPanel Grid.Row="2" Grid.Column="1" Margin="8,0,0,10">
-                    <TextBlock Text="Plazo" Style="{StaticResource TextCaption}"/>
-                    <TextBlock Text="{Binding SelectedHistoryPurchase.PaymentTerms}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                  </StackPanel>
-                </Grid>
-
-                <StackPanel Margin="0,0,0,12">
-                  <TextBlock Text="Observaciones" Style="{StaticResource TextCaption}"/>
-                  <TextBlock Text="{Binding SelectedHistoryPurchase.Observations}" TextWrapping="Wrap"/>
-                </StackPanel>
-
-                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="10" Margin="0,0,0,12">
-                  <Grid>
-                    <Grid.RowDefinitions>
-                      <RowDefinition Height="Auto"/>
-                      <RowDefinition Height="Auto"/>
-                      <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
-                    <DockPanel Grid.Row="0"><TextBlock Text="Subtotal"/><TextBlock Text="{Binding SelectedHistoryPurchase.Subtotal, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right"/></DockPanel>
-                    <DockPanel Grid.Row="1" Margin="0,6,0,0"><TextBlock Text="IVA"/><TextBlock Text="{Binding SelectedHistoryPurchase.VatAmount, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right"/></DockPanel>
-                    <DockPanel Grid.Row="2" Margin="0,8,0,0"><TextBlock Text="Total" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}"/><TextBlock Text="{Binding SelectedHistoryPurchase.Total, StringFormat=C2}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" DockPanel.Dock="Right"/></DockPanel>
-                  </Grid>
                 </Border>
 
-                <TextBlock Text="Productos recibidos" Style="{StaticResource TextH3}" FontWeight="Bold" Margin="0,0,0,8"/>
-                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,8">
-                  <Border.Style>
-                    <Style TargetType="Border">
-                      <Setter Property="Visibility" Value="Collapsed"/>
-                      <Style.Triggers>
-                        <DataTrigger Binding="{Binding SelectedHistoryPurchase.Items.Count}" Value="0">
-                          <Setter Property="Visibility" Value="Visible"/>
-                        </DataTrigger>
-                      </Style.Triggers>
-                    </Style>
-                  </Border.Style>
-                  <TextBlock Text="Esta compra no tiene líneas de detalle registradas." TextWrapping="Wrap"/>
+                <!-- Proveedor / pago / referencia: mismo patrón que Estado/Trabajador en Facturas -->
+                <Border Style="{StaticResource PreviewSectionCard}">
+                  <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                      </Grid.ColumnDefinitions>
+                      <StackPanel>
+                        <TextBlock Text="Pago" Style="{StaticResource MutedText}" FontSize="11"/>
+                        <TextBlock Text="{Binding SelectedHistoryPurchase.PaymentMethod}" FontWeight="SemiBold"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1">
+                        <TextBlock Text="Plazo" Style="{StaticResource MutedText}" FontSize="11"/>
+                        <TextBlock Text="{Binding SelectedHistoryPurchase.PaymentTerms}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </Grid>
+                    <StackPanel>
+                      <TextBlock Text="Referencia" Style="{StaticResource MutedText}" FontSize="11"/>
+                      <TextBlock Text="{Binding SelectedHistoryPurchase.Id}" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </StackPanel>
                 </Border>
-                <DataGrid ItemsSource="{Binding SelectedHistoryPurchase.Items}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" MinHeight="180" MaxHeight="360" ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                  <DataGrid.Columns>
-                    <DataGridTextColumn Header="Producto" Binding="{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}" Width="200"/>
-                    <DataGridTextColumn Header="Unidad" Binding="{Binding PurchaseUnitName}" Width="110"/>
-                    <DataGridTextColumn Header="Cantidad" Binding="{Binding Quantity}" Width="70"/>
-                    <DataGridTextColumn Header="Recibidas" Binding="{Binding InventoryUnitsReceived}" Width="85"/>
-                    <DataGridTextColumn Header="Costo" Binding="{Binding PurchaseUnitCost, StringFormat=C2}" Width="90"/>
-                    <DataGridTextColumn Header="Subtotal" Binding="{Binding Subtotal, StringFormat=C2}" Width="95"/>
-                  </DataGrid.Columns>
-                </DataGrid>
+
+                <Border Style="{StaticResource PreviewSectionCard}">
+                  <StackPanel>
+                    <TextBlock Text="Observaciones" Style="{StaticResource MutedText}" FontSize="11"/>
+                    <TextBlock Text="{Binding SelectedHistoryPurchase.Observations}" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </Border>
+
+                <!-- Totales -->
+                <Border Style="{StaticResource PreviewSectionCard}">
+                  <StackPanel>
+                    <DockPanel><TextBlock Text="Subtotal"/><TextBlock Text="{Binding SelectedHistoryPurchase.Subtotal, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right"/></DockPanel>
+                    <DockPanel Margin="0,6,0,0"><TextBlock Text="IVA"/><TextBlock Text="{Binding SelectedHistoryPurchase.VatAmount, StringFormat=C2}" FontWeight="SemiBold" DockPanel.Dock="Right"/></DockPanel>
+                    <DockPanel Margin="0,8,0,0"><TextBlock Text="Total" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}"/><TextBlock Text="{Binding SelectedHistoryPurchase.Total, StringFormat=C2}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" DockPanel.Dock="Right"/></DockPanel>
+                  </StackPanel>
+                </Border>
+
+                <!-- Productos recibidos: mismo patrón de fila (ItemsControl + PreviewLineItemBorder) que Productos/Pagos en Facturas -->
+                <Border Style="{StaticResource PreviewSectionCard}">
+                  <StackPanel>
+                    <TextBlock Text="Productos recibidos" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock Text="Esta compra no tiene líneas de detalle registradas." FontSize="12" TextWrapping="Wrap">
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}">
+                          <Setter Property="Visibility" Value="Collapsed"/>
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding SelectedHistoryPurchase.Items.Count}" Value="0">
+                              <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
+                    <ItemsControl ItemsSource="{Binding SelectedHistoryPurchase.Items}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Style="{StaticResource PreviewLineItemBorder}">
+                            <Grid>
+                              <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                              </Grid.RowDefinitions>
+                              <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                              </Grid.ColumnDefinitions>
+                              <TextBlock Text="{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}" FontWeight="Medium" TextWrapping="Wrap"/>
+                              <TextBlock Grid.Column="1" Text="{Binding Subtotal, StringFormat={}{0:C2}}" FontWeight="Bold" FontFamily="Consolas" Margin="8,0,0,0"/>
+                              <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource MutedText}" FontSize="11">
+                                <TextBlock.Text>
+                                  <MultiBinding StringFormat="{}{0:N0} {1} x {2:C2} · {3:N2} recibidas">
+                                    <Binding Path="Quantity"/>
+                                    <Binding Path="PurchaseUnitName"/>
+                                    <Binding Path="PurchaseUnitCost"/>
+                                    <Binding Path="InventoryUnitsReceived"/>
+                                  </MultiBinding>
+                                </TextBlock.Text>
+                              </TextBlock>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
               </StackPanel>
             </ScrollViewer>
           </Border>

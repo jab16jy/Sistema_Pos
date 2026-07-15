@@ -263,13 +263,14 @@ public sealed class NewPurchaseViewModelTests
         viewModel.AddSelectedCatalogItem();
         viewModel.GoToStepCommand.Execute("3");
         viewModel.VatRate = 19m;
+        viewModel.PurchaseInvoiceNumber = " FAC-00123 ";
 
         await viewModel.ConfirmPurchaseAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(purchaseUseCase.LastRequest);
         Assert.Equal(supplierId, purchaseUseCase.LastRequest!.SupplierId);
         Assert.Equal(operatorId, purchaseUseCase.LastRequest.UserId);
-        Assert.Null(purchaseUseCase.LastRequest.InvoiceNumber);
+        Assert.Equal("FAC-00123", purchaseUseCase.LastRequest.InvoiceNumber);
         Assert.Equal(19m, purchaseUseCase.LastRequest.VatRate);
         RegisterPurchaseItemRequest item = Assert.Single(purchaseUseCase.LastRequest.Items);
         Assert.Equal(2m, item.Quantity);
@@ -277,6 +278,7 @@ public sealed class NewPurchaseViewModelTests
 
         Assert.Empty(viewModel.Items);
         Assert.Equal("CMP-20260711-test", viewModel.LastGeneratedInvoiceNumber);
+        Assert.Equal(string.Empty, viewModel.PurchaseInvoiceNumber);
         Assert.Equal(1, viewModel.CurrentStep);
         Assert.Contains("CMP-20260711-test", viewModel.Message, StringComparison.Ordinal);
     }
@@ -306,6 +308,7 @@ public sealed class NewPurchaseViewModelTests
         viewModel.SelectedCatalogItem = viewModel.CatalogSuggestions.Single();
         viewModel.AddSelectedCatalogItem();
         viewModel.GoToStepCommand.Execute("2");
+        viewModel.PurchaseInvoiceNumber = "FAC-9999";
 
         viewModel.ChangeSupplierCommand.Execute(null);
 
@@ -315,6 +318,7 @@ public sealed class NewPurchaseViewModelTests
         Assert.Empty(viewModel.CatalogSuggestions);
         Assert.Equal(1, viewModel.CurrentStep);
         Assert.False(viewModel.ChangeSupplierCommand.CanExecute(null));
+        Assert.Equal(string.Empty, viewModel.PurchaseInvoiceNumber);
     }
 
     private static async Task<NewPurchaseViewModel> CreateLoadedViewModel(IReadOnlyList<SupplierCatalogItemResult> catalogItems, Guid supplierId)

@@ -94,6 +94,7 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     private decimal _draftCostOverride;
     private bool _useDraftCostOverride;
     private string _lastGeneratedInvoiceNumber = string.Empty;
+    private string _purchaseInvoiceNumber = string.Empty;
     private DateTime? _purchaseDate = DateTime.Today;
     private string _paymentMethod = "Contado";
     private string _paymentTerms = string.Empty;
@@ -295,6 +296,13 @@ public sealed class NewPurchaseViewModel : ViewModelBase
 
     // --- Step 3: review header ---
 
+    /// <summary>Manual invoice number the operator types in from the supplier's paper invoice, if any. Left blank, the system generates a reference instead.</summary>
+    public string PurchaseInvoiceNumber
+    {
+        get => _purchaseInvoiceNumber;
+        set { if (SetProperty(ref _purchaseInvoiceNumber, value)) RefreshFlowState(); }
+    }
+
     public DateTime? PurchaseDate
     {
         get => _purchaseDate;
@@ -373,7 +381,7 @@ public sealed class NewPurchaseViewModel : ViewModelBase
             SelectedSupplier!.Id,
             operatorId,
             DateOnly.FromDateTime(PurchaseDate!.Value),
-            null,
+            Normalize(PurchaseInvoiceNumber),
             Normalize(PaymentTerms),
             PaymentMethod,
             Normalize(Observations),
@@ -383,6 +391,7 @@ public sealed class NewPurchaseViewModel : ViewModelBase
 
         Items.Clear();
         LastGeneratedInvoiceNumber = result.InvoiceNumber ?? string.Empty;
+        PurchaseInvoiceNumber = string.Empty;
         PurchaseDate = DateTime.Today;
         PaymentMethod = "Contado";
         PaymentTerms = string.Empty;
@@ -398,6 +407,7 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     private void ChangeSupplier()
     {
         SelectedSupplier = null;
+        PurchaseInvoiceNumber = string.Empty;
         CurrentStep = 1;
         Message = "Selecciona un proveedor activo para iniciar la compra.";
     }

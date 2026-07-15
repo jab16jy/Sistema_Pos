@@ -248,7 +248,7 @@
                 <TextBlock Text="Factura seleccionada" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
               </StackPanel>
 
-              <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+              <Border Style="{StaticResource PreviewSectionCard}">
                 <StackPanel>
                   <TextBlock FontSize="14" FontWeight="Bold" FontFamily="Consolas">
                     <TextBlock.Style>
@@ -291,10 +291,7 @@
                 </StackPanel>
               </Border>
 
-              <Border Background="{StaticResource BrushSurfaceContainer}"
-                      CornerRadius="6"
-                      Padding="12"
-                      Margin="0,0,0,10"
+              <Border Style="{StaticResource PreviewSectionCard}"
                       Visibility="{Binding IsInvoiceDetailLoading, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel Orientation="Horizontal">
                   <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
@@ -303,7 +300,7 @@
               </Border>
 
               <StackPanel Visibility="{Binding HasSelectedInvoiceDetail, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                <Border Style="{StaticResource PreviewSectionCard}">
                   <StackPanel>
                     <Grid>
                       <Grid.ColumnDefinitions>
@@ -322,13 +319,13 @@
                   </StackPanel>
                 </Border>
 
-                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                <Border Style="{StaticResource PreviewSectionCard}">
                   <StackPanel>
                     <TextBlock Text="Productos" FontWeight="SemiBold" Margin="0,0,0,8" />
                     <ItemsControl ItemsSource="{Binding SelectedInvoiceDetail.Items}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                          <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,6">
+                          <Border Style="{StaticResource PreviewLineItemBorder}">
                             <Grid>
                               <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
@@ -411,13 +408,13 @@
                   </StackPanel>
                 </Border>
 
-                <Border Background="{StaticResource BrushSurfaceContainer}" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                <Border Style="{StaticResource PreviewSectionCard}">
                   <StackPanel>
                     <TextBlock Text="Pagos" FontWeight="SemiBold" Margin="0,0,0,8" />
                     <ItemsControl ItemsSource="{Binding SelectedInvoiceDetail.Payments}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                          <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1" Padding="0,6">
+                          <Border Style="{StaticResource PreviewLineItemBorder}">
                             <Grid>
                               <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />

@@ -45,6 +45,25 @@ public sealed class PurchasesViewModelTests
     }
 
     [Fact]
+    public async Task NewSupplierCommand_ActivatesSupplierFormFromEmptyState()
+    {
+        var suppliers = new StaticSupplierLookupQueryService([
+            new SupplierSearchResult(Guid.NewGuid(), "Acme Foods", "900123", null, null, true)
+        ]);
+        var viewModel = CreateViewModel(suppliers);
+        Assert.False(viewModel.IsSupplierFormActive);
+
+        viewModel.NewSupplierCommand.Execute(null);
+
+        Assert.True(viewModel.IsSupplierFormActive);
+        Assert.False(viewModel.IsEditingSupplier);
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedSupplier = Assert.Single(viewModel.Suppliers);
+        Assert.True(viewModel.IsSupplierFormActive);
+    }
+
+    [Fact]
     public async Task SelectedSupplier_SaveAndCancel_UsesEditingIdentityWithoutCreatingDuplicate()
     {
         var repository = new InMemorySupplierRepository();
@@ -271,8 +290,8 @@ public sealed class PurchasesViewModelTests
         Assert.Contains("Factura", viewSource, StringComparison.Ordinal);
         Assert.Contains("Total", viewSource, StringComparison.Ordinal);
         Assert.Contains("ItemsSource=\"{Binding SelectedHistoryPurchase.Items}\"", viewSource, StringComparison.Ordinal);
-        Assert.Contains("Binding=\"{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}\"", viewSource, StringComparison.Ordinal);
-        Assert.Contains("Binding=\"{Binding InventoryUnitsReceived}\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Text=\"{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("<Binding Path=\"InventoryUnitsReceived\"/>", viewSource, StringComparison.Ordinal);
         Assert.Contains("Producto sin nombre (registro histórico)", viewSource, StringComparison.Ordinal);
         Assert.Contains("Esta compra no tiene líneas de detalle registradas.", viewSource, StringComparison.Ordinal);
         Assert.Contains("Binding=\"{Binding SelectedHistoryPurchase.Items.Count}\" Value=\"0\"", viewSource, StringComparison.Ordinal);
@@ -281,8 +300,9 @@ public sealed class PurchasesViewModelTests
         Assert.True(
             viewSource.IndexOf("Header=\"Acción\"", StringComparison.Ordinal) <
             viewSource.IndexOf("Header=\"Proveedor\"", StringComparison.Ordinal));
-        Assert.Contains("ItemsSource=\"{Binding SelectedHistoryPurchase.Items}\" AutoGenerateColumns=\"False\" IsReadOnly=\"True\" CanUserAddRows=\"False\" HeadersVisibility=\"Column\" MinHeight=\"180\" MaxHeight=\"360\" ScrollViewer.HorizontalScrollBarVisibility=\"Auto\" ScrollViewer.VerticalScrollBarVisibility=\"Auto\"", viewSource, StringComparison.Ordinal);
-        Assert.Contains("Header=\"Producto\" Binding=\"{Binding ProductName, TargetNullValue=Producto sin nombre (registro histórico)}\" Width=\"200\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("<ItemsControl ItemsSource=\"{Binding SelectedHistoryPurchase.Items}\">", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Style=\"{StaticResource PreviewLineItemBorder}\"", viewSource, StringComparison.Ordinal);
+        Assert.Contains("Style=\"{StaticResource PreviewSectionCard}\"", viewSource, StringComparison.Ordinal);
         Assert.DoesNotContain("<ColumnDefinition Width=\"390\"/>", viewSource, StringComparison.Ordinal);
         Assert.DoesNotContain("AGREGADO A LA COMPRA", viewSource, StringComparison.Ordinal);
         Assert.Contains("CatalogAddButton_OnClick", viewSource, StringComparison.Ordinal);
