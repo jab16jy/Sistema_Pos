@@ -41,10 +41,10 @@ public sealed class QuoteExpirationTests
     {
         // GIVEN
         var customerId = Guid.NewGuid();
-        
+
         // Colombian today's date at 00:00:00 (represented in UTC, i.e., +5 hours)
         var colombianTodayUtc = DateTime.UtcNow.AddHours(-5).Date.AddHours(5);
-        
+
         var expiredQuote = new Quote("COT-EXP", "Customer", 5, customerId);
         SetQuoteExpiresAt(expiredQuote, colombianTodayUtc.AddDays(-1));
         SetQuoteStatus(expiredQuote, QuoteStatus.Active);
@@ -76,7 +76,7 @@ public sealed class QuoteExpirationTests
         // GIVEN
         var customerId = Guid.NewGuid();
         var colombianTodayUtc = DateTime.UtcNow.AddHours(-5).Date.AddHours(5);
-        
+
         var quote = new Quote("COT-TODAY", "Customer", 5, customerId);
         SetQuoteExpiresAt(quote, colombianTodayUtc);
         SetQuoteStatus(quote, QuoteStatus.Active);
@@ -112,7 +112,7 @@ public sealed class QuoteExpirationTests
         // GIVEN
         var customerId = Guid.NewGuid();
         var colombianTodayUtc = DateTime.UtcNow.AddHours(-5).Date.AddHours(5);
-        
+
         var quote = new Quote("COT-EXP", "Customer", 5, customerId);
         SetQuoteExpiresAt(quote, colombianTodayUtc.AddDays(-1));
         SetQuoteStatus(quote, QuoteStatus.Active);

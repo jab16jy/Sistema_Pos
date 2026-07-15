@@ -317,22 +317,22 @@ public sealed class CreateSaleUseCaseTests
         var products = new InMemoryProductRepository(product);
         var sales = new InMemorySaleRepository();
         var unitOfWork = new InMemoryUnitOfWork();
-        
+
         var settings = new BusinessSettings(
             "Test Business",
             null, null, null, null, null, null, null, false, null, null, null, null, null,
             "COP",
             maximumCashierDiscountPercent: 20m);
         var settingsRepo = new SettingsRepositoryFake(settings);
-        
+
         var useCase = new CreateSaleUseCase(
-            products, 
-            sales, 
-            unitOfWork, 
-            receivables: null, 
-            accumulatePoints: null, 
-            redeemPoints: null, 
-            inventory: null, 
+            products,
+            sales,
+            unitOfWork,
+            receivables: null,
+            accumulatePoints: null,
+            redeemPoints: null,
+            inventory: null,
             settings: settingsRepo);
 
         var request = new CreateSaleRequest(
@@ -344,7 +344,7 @@ public sealed class CreateSaleUseCaseTests
         // WHEN & THEN
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
-        
+
         Assert.Contains("exceeds the configured maximum of 20%", exception.Message);
     }
 
@@ -356,22 +356,22 @@ public sealed class CreateSaleUseCaseTests
         var products = new InMemoryProductRepository(product);
         var sales = new InMemorySaleRepository();
         var unitOfWork = new InMemoryUnitOfWork();
-        
+
         var settings = new BusinessSettings(
             "Test Business",
             null, null, null, null, null, null, null, false, null, null, null, null, null,
             "COP",
             maximumCashierDiscountPercent: 20m);
         var settingsRepo = new SettingsRepositoryFake(settings);
-        
+
         var useCase = new CreateSaleUseCase(
-            products, 
-            sales, 
-            unitOfWork, 
-            receivables: null, 
-            accumulatePoints: null, 
-            redeemPoints: null, 
-            inventory: null, 
+            products,
+            sales,
+            unitOfWork,
+            receivables: null,
+            accumulatePoints: null,
+            redeemPoints: null,
+            inventory: null,
             settings: settingsRepo);
 
         var request = new CreateSaleRequest(
