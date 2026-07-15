@@ -49,6 +49,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _appendReceivedAmountCommand;
     private readonly RelayCommand _backspaceReceivedAmountCommand;
     private readonly RelayCommand _setExactAmountCommand;
+    private readonly RelayCommand _setExactDeferredAmountCommand;
     private readonly RelayCommand _clearCartCommand;
     private readonly RelayCommand _editCartItemCommand;
     private readonly RelayCommand _removeCartItemCommand;
@@ -183,6 +184,7 @@ public sealed class CashierViewModel : ViewModelBase
         _appendReceivedAmountCommand = new RelayCommand(AppendReceivedAmount);
         _backspaceReceivedAmountCommand = new RelayCommand(_ => BackspaceReceivedAmount());
         _setExactAmountCommand = new RelayCommand(_ => SetExactReceivedAmount(), _ => TotalAmount > 0m);
+        _setExactDeferredAmountCommand = new RelayCommand(_ => SetExactDeferredAmount(), _ => NetPayable > ReceivedAmount);
         _clearCartCommand = new RelayCommand(_ => ClearCart(), _ => CartItems.Count > 0 && !IsResumedSale);
         _editCartItemCommand = new RelayCommand(EditCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
         _removeCartItemCommand = new RelayCommand(RemoveCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
@@ -200,6 +202,7 @@ public sealed class CashierViewModel : ViewModelBase
         AppendReceivedAmountCommand = _appendReceivedAmountCommand;
         BackspaceReceivedAmountCommand = _backspaceReceivedAmountCommand;
         SetExactAmountCommand = _setExactAmountCommand;
+        SetExactDeferredAmountCommand = _setExactDeferredAmountCommand;
         ClearCartCommand = _clearCartCommand;
         EditCartItemCommand = _editCartItemCommand;
         RemoveCartItemCommand = _removeCartItemCommand;
@@ -264,6 +267,8 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand BackspaceReceivedAmountCommand { get; }
 
     public ICommand SetExactAmountCommand { get; }
+
+    public ICommand SetExactDeferredAmountCommand { get; }
 
     public ICommand ClearCartCommand { get; }
 
@@ -1302,6 +1307,7 @@ public sealed class CashierViewModel : ViewModelBase
     {
         SelectedCustomer = null;
         CustomerId = null;
+        DeferredAmount = 0m;
         CustomerSearchText = string.Empty;
         CustomerSearchResults.Clear();
         SelectedCustomerSearchResult = null;
@@ -1920,6 +1926,8 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void RefreshPaymentPreview(bool updateMessage = true)
     {
+        _setExactDeferredAmountCommand.RaiseCanExecuteChanged();
+
         // Deferred balance requires an identified customer — block confirmation without one
         if (DeferredAmount > 0m && CustomerId is null)
         {
@@ -2059,6 +2067,11 @@ public sealed class CashierViewModel : ViewModelBase
     private void SetExactReceivedAmount()
     {
         ReceivedAmount = NetPayable;
+    }
+
+    private void SetExactDeferredAmount()
+    {
+        DeferredAmount = Math.Max(0m, NetPayable - ReceivedAmount);
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";
