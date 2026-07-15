@@ -681,6 +681,7 @@ public sealed class CustomersViewModel : ViewModelBase
     private void RaiseAbonarCanExecuteChanged()
     {
         OnPropertyChanged(nameof(CanAbonar));
+        OnPropertyChanged(nameof(CanPagarTodoSaldo));
         if (AbonarCommand is RelayCommand abonarCommand)
         {
             abonarCommand.RaiseCanExecuteChanged();

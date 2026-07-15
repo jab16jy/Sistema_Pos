@@ -227,6 +227,36 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public async Task CanPagarTodoSaldo_NotifiesChangeWhenOutstandingBalanceLoads()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var store = new FakeReceivablesStore(customer.Id, receivableOutstanding: 42_000m);
+
+        var viewModel = new CustomersViewModel(
+            new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()),
+            new GetCustomerHistoryUseCase(store),
+            new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)),
+            getLoyaltyBalance: null,
+            receivableQuery: store,
+            applyPayment: store);
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        var notifiedProperties = new List<string>();
+        viewModel.PropertyChanged += (_, e) => notifiedProperties.Add(e.PropertyName ?? string.Empty);
+
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+        await viewModel.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        // The XAML button binds IsEnabled directly to CanPagarTodoSaldo (not via ICommand), so WPF only
+        // re-evaluates it when PropertyChanged fires for this exact name — without it, the button stays
+        // disabled forever after the initial render, even once a balance is loaded.
+        Assert.Contains(nameof(CustomersViewModel.CanPagarTodoSaldo), notifiedProperties);
+        Assert.True(viewModel.CanPagarTodoSaldo);
+    }
+
+    [Fact]
     public async Task AbonarAsync_WhenOverpaying_SurfacesDomainMessageAndKeepsBalance()
     {
         var repository = new InMemoryCustomerRepository();
