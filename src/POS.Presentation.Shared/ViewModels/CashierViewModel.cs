@@ -40,6 +40,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly GetHeldSalesUseCase? _getHeldSalesUseCase;
     private readonly ResumeHeldSaleUseCase? _resumeHeldSaleUseCase;
     private readonly CompleteHeldSaleUseCase? _completeHeldSaleUseCase;
+    private readonly CancelHeldSaleUseCase? _cancelHeldSaleUseCase;
     private readonly RelayCommand _printReceiptYesCommand;
     private readonly RelayCommand _printReceiptNoCommand;
     private Guid? _pendingPrintSaleId;
@@ -141,7 +142,8 @@ public sealed class CashierViewModel : ViewModelBase
         HoldSaleUseCase? holdSaleUseCase = null,
         GetHeldSalesUseCase? getHeldSalesUseCase = null,
         ResumeHeldSaleUseCase? resumeHeldSaleUseCase = null,
-        CompleteHeldSaleUseCase? completeHeldSaleUseCase = null)
+        CompleteHeldSaleUseCase? completeHeldSaleUseCase = null,
+        CancelHeldSaleUseCase? cancelHeldSaleUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _findProductByBarcodeUseCase = findProductByBarcodeUseCase ?? new FindProductByBarcodeUseCase(_productLookupService);
@@ -157,6 +159,7 @@ public sealed class CashierViewModel : ViewModelBase
         _getHeldSalesUseCase = getHeldSalesUseCase;
         _resumeHeldSaleUseCase = resumeHeldSaleUseCase;
         _completeHeldSaleUseCase = completeHeldSaleUseCase;
+        _cancelHeldSaleUseCase = cancelHeldSaleUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -217,6 +220,7 @@ public sealed class CashierViewModel : ViewModelBase
         LoadCustomerQuoteCommand = _loadCustomerQuoteCommand;
         ClearLoadedQuoteCommand = _clearLoadedQuoteCommand;
         ResumeHeldSaleCommand = _resumeHeldSaleCommand;
+        CancelHeldSaleCommand = new RelayCommand(parameter => RunSafe(CancelHeldSaleAsync(parameter), ex => Message = $"Error al cancelar la venta en espera: {ex.Message}"), parameter => parameter is HeldSaleSummary);
     }
 
     public event Action? SaleCompleted;
@@ -274,6 +278,7 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand ConfirmSaleCommand { get; }
 
     public ICommand ResumeHeldSaleCommand { get; }
+    public ICommand CancelHeldSaleCommand { get; }
 
     public ICommand SearchCustomerCommand { get; }
 
@@ -1572,6 +1577,29 @@ public sealed class CashierViewModel : ViewModelBase
         RefreshTotals(updateMessage: false);
         await LoadHeldSalesAsync(cancellationToken).ConfigureAwait(true);
         Message = $"Venta {resumed.InvoiceNumber} retomada. Las líneas reservadas no se pueden editar.";
+    }
+
+    public async Task CancelHeldSaleAsync(object? parameter, CancellationToken cancellationToken = default)
+    {
+        if (parameter is not HeldSaleSummary heldSale || _cancelHeldSaleUseCase is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _cancelHeldSaleUseCase.ExecuteAsync(heldSale.SaleId, CashierUserId, cancellationToken).ConfigureAwait(true);
+            Message = $"Venta {heldSale.InvoiceNumber} cancelada. El stock ha sido restaurado.";
+            await LoadHeldSalesAsync(cancellationToken).ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            Message = ex.Message;
+        }
     }
 
     private async Task CompleteHeldSaleAsync(Guid saleId, CancellationToken cancellationToken)

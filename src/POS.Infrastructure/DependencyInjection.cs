@@ -145,6 +145,7 @@ public static class DependencyInjection
         services.AddScoped<GetHeldSalesUseCase>();
         services.AddScoped<ResumeHeldSaleUseCase>();
         services.AddScoped<CompleteHeldSaleUseCase>();
+        services.AddScoped<CancelHeldSaleUseCase>();
         services.AddScoped<PreviewPaymentUseCase>();
         services.AddScoped<GetDashboardSummaryUseCase>();
         services.AddScoped<SendDocumentUseCase>();

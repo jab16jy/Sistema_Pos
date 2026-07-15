@@ -62,7 +62,8 @@ internal static class AppBootstrapper
                  sp.GetRequiredService<HoldSaleUseCase>(),
                  sp.GetRequiredService<GetHeldSalesUseCase>(),
                  sp.GetRequiredService<ResumeHeldSaleUseCase>(),
-                 sp.GetRequiredService<CompleteHeldSaleUseCase>()),
+                 sp.GetRequiredService<CompleteHeldSaleUseCase>(),
+                 sp.GetRequiredService<CancelHeldSaleUseCase>()),
             () => new CashierViewModel(productLookup),
             moduleWarnings);
 

@@ -132,6 +132,33 @@ public sealed class CashierHoldDiscountUseCaseTests
         Assert.Equal(35m, settings.Stored!.MaximumCashierDiscountPercent);
     }
 
+    [Fact]
+    public async Task CancelHeldSale_RestoresStockAndMarksCancelled()
+    {
+        var product = Product();
+        var sales = new SaleRepositoryFake();
+        var unitOfWork = new UnitOfWorkFake();
+        var inventory = new InventoryRepositoryFake();
+        var settings = new SettingsRepositoryFake(Settings(maximumDiscount: 20m));
+        Guid cashierId = Guid.NewGuid();
+
+        var hold = new HoldSaleUseCase(new ProductRepositoryFake(product), sales, unitOfWork, inventory, settings);
+        HeldSaleSummary held = await hold.ExecuteAsync(
+            new HoldSaleRequest(cashierId, null, [new CreateSaleItemRequest(product.Id, 1m, 0m)]),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(9m, product.CurrentStock);
+        Assert.Single(inventory.Movements);
+
+        var cancel = new CancelHeldSaleUseCase(sales, new ProductRepositoryFake(product), unitOfWork, inventory);
+        await cancel.ExecuteAsync(held.SaleId, cashierId, TestContext.Current.CancellationToken);
+
+        Assert.Equal(10m, product.CurrentStock);
+        Assert.Equal(SaleStatus.Cancelled, sales.Sales.Single().Status);
+        Assert.Equal(2, inventory.Movements.Count);
+        Assert.Equal(InventoryMovementType.Return, inventory.Movements.Last().Type);
+    }
+
     private static Product Product() => new(
         "Coffee", Guid.NewGuid(), new Money(2_000m), new Money(3_000m), new StockQuantity(10m), new StockQuantity(1m));
 

@@ -500,11 +500,17 @@
                         </TextBlock>
                       </StackPanel>
                       <Button Grid.Column="1"
-                              Content="Retomar"
-                              Style="{StaticResource GhostButton}"
-                              Command="{Binding DataContext.ResumeHeldSaleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                              CommandParameter="{Binding}"
-                              Padding="6,4" />
+                               Content="Retomar"
+                               Style="{StaticResource GhostButton}"
+                               Command="{Binding DataContext.ResumeHeldSaleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               CommandParameter="{Binding}"
+                               Padding="6,4" />
+                      <Button Grid.Column="2"
+                               Content="Cancelar"
+                               Style="{StaticResource GhostButton}"
+                               Command="{Binding DataContext.CancelHeldSaleCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                               CommandParameter="{Binding}"
+                               Padding="6,4" />
                     </Grid>
                   </DataTemplate>
                 </ListBox.ItemTemplate>

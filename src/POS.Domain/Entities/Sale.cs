@@ -200,9 +200,10 @@ public sealed class Sale
             throw new InvalidOperationException("Cannot cancel a returned sale.");
         }
 
-        if (Status != SaleStatus.Completed)
+        // ponytail: held sales can also be abandoned (stock restored by caller).
+        if (Status != SaleStatus.Completed && Status != SaleStatus.OnHold)
         {
-            throw new InvalidOperationException("Only completed sales can be cancelled.");
+            throw new InvalidOperationException("Only completed or held sales can be cancelled.");
         }
 
         Status = SaleStatus.Cancelled;
