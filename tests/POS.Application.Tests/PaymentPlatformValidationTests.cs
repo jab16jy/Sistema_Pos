@@ -17,7 +17,7 @@ public sealed class PaymentPlatformValidationTests
     [InlineData("Nequi", true)]
     [InlineData("Bancolombia", true)]
     [InlineData("Daviplata", true)]
-    [InlineData("Efectivo", true)]
+    [InlineData("Efectivo", false)]
     [InlineData("nequi", true)]           // case-insensitive
     [InlineData("BANCOLOMBIA", true)]
     [InlineData("Unknown", false)]
@@ -29,9 +29,9 @@ public sealed class PaymentPlatformValidationTests
     }
 
     [Fact]
-    public void All_ContainsFourPlatforms()
+    public void All_ContainsThreeTransferPlatforms()
     {
-        Assert.Equal(4, PaymentPlatforms.All.Count);
+        Assert.Equal(3, PaymentPlatforms.All.Count);
     }
 
     // --- CreateSaleUseCase platform validation ---

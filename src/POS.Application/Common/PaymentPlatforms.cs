@@ -12,8 +12,7 @@ public static class PaymentPlatforms
     [
         "Nequi",
         "Bancolombia",
-        "Daviplata",
-        "Efectivo"
+        "Daviplata"
     ];
 
     /// <summary>

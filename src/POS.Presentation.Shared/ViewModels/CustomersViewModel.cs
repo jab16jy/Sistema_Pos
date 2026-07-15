@@ -10,6 +10,7 @@ using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Loyalty;
 using POS.Application.Common;
 using POS.Domain.Enums;
+using POS.Domain.Exceptions;
 using POS.Presentation.Shared.Commands;
 using POS.Presentation.Shared.Cashier;
 
@@ -25,9 +26,12 @@ public sealed class CustomersViewModel : ViewModelBase
     private readonly GetLoyaltyBalanceUseCase? _getLoyaltyBalance;
     private readonly IReceivableQueryService? _receivableQuery;
     private readonly IApplyReceivablePaymentUseCase? _applyPayment;
+    private bool _isReloading;
+    private CancellationTokenSource? _customerLoadingCts;
     private CustomerSearchResult? _selectedCustomer;
     private ReceivableSummary? _selectedReceivable;
     private decimal _abonoAmount;
+    private string _abonoAmountText = string.Empty;
     private PaymentMethodOption _selectedSettlementPaymentMethod;
     private string _selectedSettlementBankOrPlatform = string.Empty;
     private string _searchText = string.Empty;
@@ -78,6 +82,7 @@ public sealed class CustomersViewModel : ViewModelBase
 
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar clientes: {ex.Message}"));
         AbonarCommand = new RelayCommand(_ => RunSafe(AbonarAsync(), ex => Message = $"Error al registrar abono: {ex.Message}"), _ => CanAbonar);
+        PagarTodoSaldoCommand = new RelayCommand(_ => RunSafe(PagarTodoSaldoAsync(), ex => Message = $"Error al pagar el saldo total: {ex.Message}"), _ => CanPagarTodoSaldo);
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar cliente: {ex.Message}"));
         DeleteCommand = new RelayCommand(_ => RunSafe(DeleteAsync(), ex => Message = $"Error al eliminar cliente: {ex.Message}"), _ => SelectedCustomer is not null);
         NewCommand = new RelayCommand(_ => ClearForm());
@@ -153,6 +158,8 @@ public sealed class CustomersViewModel : ViewModelBase
 
     public ICommand AbonarCommand { get; }
 
+    public ICommand PagarTodoSaldoCommand { get; }
+
     /// <summary>Receivable the payment will be applied to. Defaults to the newest open one when history loads.</summary>
     public ReceivableSummary? SelectedReceivable
     {
@@ -174,8 +181,29 @@ public sealed class CustomersViewModel : ViewModelBase
         {
             if (SetProperty(ref _abonoAmount, value))
             {
+                _abonoAmountText = value == 0m
+                    ? string.Empty
+                    : value.ToString("N0", ColombianCulture);
+                OnPropertyChanged(nameof(AbonoAmountText));
                 RaiseAbonarCanExecuteChanged();
             }
+        }
+    }
+
+    public string AbonoAmountText
+    {
+        get => _abonoAmountText;
+        set
+        {
+            if (!SetProperty(ref _abonoAmountText, value))
+            {
+                return;
+            }
+
+            decimal parsedAmount = TryParseAbonoAmount(value, out decimal amount) ? amount : 0m;
+            SetProperty(ref _abonoAmount, parsedAmount, nameof(AbonoAmount));
+
+            RaiseAbonarCanExecuteChanged();
         }
     }
 
@@ -186,13 +214,30 @@ public sealed class CustomersViewModel : ViewModelBase
         AbonoAmount > 0m &&
         (!IsSettlementTransfer || PaymentPlatforms.IsValid(SelectedSettlementBankOrPlatform));
 
+    public bool CanPagarTodoSaldo =>
+        _applyPayment is not null &&
+        SelectedCustomer is not null &&
+        OutstandingBalance > 0m &&
+        (!IsSettlementTransfer || PaymentPlatforms.IsValid(SelectedSettlementBankOrPlatform));
+
     public CustomerSearchResult? SelectedCustomer
     {
         get => _selectedCustomer;
         set
         {
+            if (_isReloading && value is null)
+            {
+                return; // Ignore selection clearing during collection reload
+            }
+
             if (SetProperty(ref _selectedCustomer, value))
             {
+                // Cancel ongoing loyalty/history loads
+                _customerLoadingCts?.Cancel();
+                _customerLoadingCts?.Dispose();
+                _customerLoadingCts = new CancellationTokenSource();
+                var token = _customerLoadingCts.Token;
+
                 if (value is not null)
                 {
                     FullName = value.FullName;
@@ -201,8 +246,9 @@ public sealed class CustomersViewModel : ViewModelBase
                     Email = value.Email;
                     Address = value.Address;
                     IsActive = value.IsActive;
-                    RunSafe(LoadLoyaltyPointsAsync(value.Id), _ => LoyaltyPoints = 0);
-                    RunSafe(OpenHistoryAsync(), ex => Message = $"Error al cargar historial: {ex.Message}");
+
+                    // OpenHistoryAsync will internally load loyalty points too, so we only trigger OpenHistoryAsync
+                    RunSafe(OpenHistoryAsync(token), ex => Message = $"Error al cargar historial: {ex.Message}");
                 }
                 else
                 {
@@ -226,6 +272,7 @@ public sealed class CustomersViewModel : ViewModelBase
                 }
 
                 OnPropertyChanged(nameof(HasSelectedCustomer));
+                RaiseAbonarCanExecuteChanged();
             }
         }
     }
@@ -385,6 +432,7 @@ public sealed class CustomersViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(OutstandingBalanceFormatted));
                 OnPropertyChanged(nameof(HasOutstandingBalance));
+                RaiseAbonarCanExecuteChanged();
             }
         }
     }
@@ -395,20 +443,16 @@ public sealed class CustomersViewModel : ViewModelBase
 
     public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
+        Guid? previouslySelectedId = SelectedCustomer?.Id;
         try
         {
+            _isReloading = true;
             var results = await _searchCustomers.ExecuteAsync(new CustomerSearchRequest(SearchText, IncludeInactive), cancellationToken).ConfigureAwait(true);
             Customers.Clear();
             foreach (var customer in results)
             {
                 Customers.Add(customer);
             }
-
-            Message = Customers.Count == 0
-                ? "No encontramos clientes con ese filtro. Puedes registrar uno nuevo."
-                : IncludeInactive
-                    ? "Selecciona un cliente activo o inactivo para actualizarlo o reactivarlo."
-                    : "Selecciona un cliente para ver su historial o actualizar sus datos.";
         }
         catch (OperationCanceledException)
         {
@@ -417,6 +461,26 @@ public sealed class CustomersViewModel : ViewModelBase
         {
             Message = $"Error al cargar clientes: {ex.Message}";
         }
+        finally
+        {
+            _isReloading = false;
+        }
+
+        // Now that reloading is done, restore or clear selection
+        if (previouslySelectedId.HasValue)
+        {
+            SelectedCustomer = Customers.FirstOrDefault(c => c.Id == previouslySelectedId.Value);
+        }
+        else
+        {
+            SelectedCustomer = null;
+        }
+
+        Message = Customers.Count == 0
+            ? "No encontramos clientes con ese filtro. Puedes registrar uno nuevo."
+            : IncludeInactive
+                ? "Selecciona un cliente activo o inactivo para actualizarlo o reactivarlo."
+                : "Selecciona un cliente para ver su historial o actualizar sus datos.";
     }
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)
@@ -481,6 +545,8 @@ public sealed class CustomersViewModel : ViewModelBase
         {
             Guid customerId = SelectedCustomer.Id;
             CustomerHistoryResult history = await _getHistory.ExecuteAsync(customerId, cancellationToken).ConfigureAwait(true);
+            if (SelectedCustomer?.Id != customerId) return;
+
             OutstandingBalance = history.OutstandingBalance;
             HistoryEntries.Clear();
             foreach (CustomerHistoryEntry entry in history.Entries)
@@ -489,7 +555,10 @@ public sealed class CustomersViewModel : ViewModelBase
             }
 
             await LoadOpenReceivablesAsync(customerId, cancellationToken).ConfigureAwait(true);
+            if (SelectedCustomer?.Id != customerId) return;
+
             await LoadLoyaltyPointsAsync(customerId, cancellationToken).ConfigureAwait(true);
+            if (SelectedCustomer?.Id != customerId) return;
 
             Message = HistoryEntries.Count == 0
                 ? "Este cliente aún no tiene ventas o movimientos registrados."
@@ -528,9 +597,43 @@ public sealed class CustomersViewModel : ViewModelBase
             await OpenHistoryAsync(cancellationToken).ConfigureAwait(true); // refresh SALDO + open receivables first
             Message = $"Abono de ${abonado.ToString("N0", ColombianCulture)} registrado.";
         }
+        catch (ConcurrencyConflictException)
+        {
+            await OpenHistoryAsync(cancellationToken).ConfigureAwait(true);
+            Message = "El saldo fue actualizado por otra operación. Se recargó el saldo; verifica el nuevo valor e inténtalo nuevamente.";
+        }
         catch (InvalidOperationException ex)
         {
             // Overpayment or receivable-not-found: surface the clear domain message as-is.
+            Message = ex.Message;
+        }
+    }
+
+    public async Task PagarTodoSaldoAsync(CancellationToken cancellationToken = default)
+    {
+        if (_applyPayment is null || SelectedCustomer is null || OutstandingBalance <= 0m)
+        {
+            return;
+        }
+
+        try
+        {
+            decimal abonado = await _applyPayment.ExecuteAllAsync(
+                SelectedCustomer.Id,
+                SelectedSettlementPaymentMethod.Method,
+                string.IsNullOrWhiteSpace(SelectedSettlementBankOrPlatform) ? null : SelectedSettlementBankOrPlatform,
+                cancellationToken).ConfigureAwait(true);
+            AbonoAmount = 0m;
+            await OpenHistoryAsync(cancellationToken).ConfigureAwait(true);
+            Message = $"Saldo total de ${abonado.ToString("N0", ColombianCulture)} registrado.";
+        }
+        catch (ConcurrencyConflictException)
+        {
+            await OpenHistoryAsync(cancellationToken).ConfigureAwait(true);
+            Message = "El saldo fue actualizado por otra operación. Se recargó el saldo; verifica el nuevo valor e inténtalo nuevamente.";
+        }
+        catch (InvalidOperationException ex)
+        {
             Message = ex.Message;
         }
     }
@@ -565,6 +668,8 @@ public sealed class CustomersViewModel : ViewModelBase
         }
 
         var open = await _receivableQuery.GetOpenReceivablesAsync(customerId, 1, 100, cancellationToken).ConfigureAwait(true);
+        if (SelectedCustomer?.Id != customerId) return;
+
         foreach (ReceivableSummary receivable in open)
         {
             OpenReceivables.Add(receivable);
@@ -580,6 +685,19 @@ public sealed class CustomersViewModel : ViewModelBase
         {
             abonarCommand.RaiseCanExecuteChanged();
         }
+
+        if (PagarTodoSaldoCommand is RelayCommand pagarTodoSaldoCommand)
+        {
+            pagarTodoSaldoCommand.RaiseCanExecuteChanged();
+        }
+    }
+
+    private static bool TryParseAbonoAmount(string? input, out decimal amount)
+    {
+        amount = 0m;
+        return !string.IsNullOrWhiteSpace(input)
+            && decimal.TryParse(input.Trim(), NumberStyles.Number, ColombianCulture, out amount)
+            && amount > 0m;
     }
 
     private async Task LoadLoyaltyPointsAsync(Guid customerId, CancellationToken cancellationToken = default)
@@ -594,11 +712,15 @@ public sealed class CustomersViewModel : ViewModelBase
         try
         {
             var balance = await _getLoyaltyBalance.ExecuteAsync(customerId, recentTransactionCount: 1, cancellationToken).ConfigureAwait(true);
+            if (SelectedCustomer?.Id != customerId) return;
+
             LoyaltyPoints = balance?.Balance ?? 0;
             ApplyCurrentTier(balance?.CurrentTier);
         }
         catch (Exception ex)
         {
+            if (SelectedCustomer?.Id != customerId) return;
+
             // Show the failure instead of silently reporting 0 points — a swallowed DB error
             // here looks identical to "customer has no points" and hides real defects.
             LoyaltyPoints = 0;

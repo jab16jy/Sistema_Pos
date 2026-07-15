@@ -253,6 +253,34 @@ public sealed class CustomersViewModelTests
     }
 
     [Fact]
+    public async Task AbonarAsync_WhenAmountUsesColombianThousandsSeparator_CanPayFullBalance()
+    {
+        var repository = new InMemoryCustomerRepository();
+        var customer = new Customer("Ana Gomez", "123");
+        await repository.AddAsync(customer, TestContext.Current.CancellationToken);
+        var store = new FakeReceivablesStore(customer.Id, receivableOutstanding: 20_000m);
+
+        var viewModel = new CustomersViewModel(
+            new SaveCustomerUseCase(repository, new InMemoryUnitOfWork()),
+            new GetCustomerHistoryUseCase(store),
+            new SearchCustomersUseCase(new InMemoryCustomerLookupQueryService(repository)),
+            getLoyaltyBalance: null,
+            receivableQuery: store,
+            applyPayment: store);
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedCustomer = viewModel.Customers.Single();
+        await viewModel.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        viewModel.AbonoAmountText = "20.000";
+
+        Assert.Equal(20_000m, viewModel.AbonoAmount);
+        Assert.True(viewModel.CanAbonar);
+        await viewModel.AbonarAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0m, viewModel.OutstandingBalance);
+    }
+
+    [Fact]
     public async Task OpenHistoryAsync_WhenHistoryQueryFails_SetsRecoverableMessage()
     {
         var repository = new InMemoryCustomerRepository();
@@ -491,6 +519,17 @@ public sealed class CustomersViewModelTests
 
             _outstanding -= paymentAmount;
             return Task.CompletedTask;
+        }
+
+        public Task<decimal> ExecuteAllAsync(
+            Guid customerId,
+            POS.Domain.Enums.PaymentMethod paymentMethod,
+            string? bankOrPlatform,
+            CancellationToken cancellationToken = default)
+        {
+            decimal amount = _outstanding;
+            _outstanding = 0m;
+            return Task.FromResult(amount);
         }
     }
 

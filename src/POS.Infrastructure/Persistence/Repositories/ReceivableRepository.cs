@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 
@@ -25,6 +26,21 @@ public sealed class ReceivableRepository : IReceivableRepository
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Receivable>> GetOpenByCustomerIdAsync(
+        Guid customerId,
+        CancellationToken cancellationToken = default)
+    {
+        var receivables = await _dbContext.Receivables
+            .Include(r => r.Settlements)
+            .Where(r => r.CustomerId == customerId)
+            .ToListAsync(cancellationToken);
+
+        return receivables
+            .Where(r => !r.IsCancelled && r.OutstandingBalance.Amount > 0m)
+            .OrderBy(r => r.CreatedAt)
+            .ToList();
+    }
+
     public async Task<Receivable?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
     {
         return await _dbContext.Receivables
@@ -32,9 +48,24 @@ public sealed class ReceivableRepository : IReceivableRepository
             .FirstOrDefaultAsync(r => r.SaleId == saleId, cancellationToken);
     }
 
-    public Task UpdateAsync(Receivable receivable, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(Receivable receivable, CancellationToken cancellationToken = default)
     {
-        _dbContext.Receivables.Update(receivable);
-        return Task.CompletedTask;
+        if (_dbContext.Entry(receivable).State == EntityState.Detached)
+        {
+            _dbContext.Receivables.Update(receivable);
+        }
+
+        foreach (ReceivableSettlement settlement in receivable.Settlements)
+        {
+            EntityEntry settlementEntry = _dbContext.Entry(settlement);
+            if (settlementEntry.State == EntityState.Detached ||
+                !await _dbContext.ReceivableSettlements.AnyAsync(
+                    existing => existing.Id == settlement.Id,
+                    cancellationToken).ConfigureAwait(false))
+            {
+                settlementEntry.State = EntityState.Added;
+            }
+        }
+
     }
 }

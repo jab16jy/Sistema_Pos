@@ -1,5 +1,6 @@
 using POS.Application.Interfaces;
 using POS.Application.Common;
+using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
@@ -52,5 +53,46 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
 
         await _receivables.UpdateAsync(receivable, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<decimal> ExecuteAllAsync(
+        Guid customerId,
+        PaymentMethod paymentMethod,
+        string? bankOrPlatform,
+        CancellationToken cancellationToken = default)
+    {
+        if (customerId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Customer id is required.");
+        }
+
+        PaymentPlatforms.Validate(paymentMethod, bankOrPlatform);
+
+        decimal amountApplied = 0m;
+        await _unitOfWork.ExecuteInTransactionAsync(async transactionCancellationToken =>
+        {
+            IReadOnlyList<Receivable> receivables = await _receivables
+                .GetOpenByCustomerIdAsync(customerId, transactionCancellationToken)
+                .ConfigureAwait(false);
+
+            amountApplied = receivables.Sum(receivable => receivable.OutstandingBalance.Amount);
+            if (amountApplied <= 0m)
+            {
+                throw new InvalidOperationException("The customer has no outstanding balance.");
+            }
+
+            foreach (Receivable receivable in receivables)
+            {
+                receivable.ApplyPayment(
+                    receivable.OutstandingBalance,
+                    paymentMethod,
+                    bankOrPlatform);
+                await _receivables.UpdateAsync(receivable, transactionCancellationToken).ConfigureAwait(false);
+            }
+
+            await _unitOfWork.SaveChangesAsync(transactionCancellationToken).ConfigureAwait(false);
+        }, cancellationToken).ConfigureAwait(false);
+
+        return amountApplied;
     }
 }

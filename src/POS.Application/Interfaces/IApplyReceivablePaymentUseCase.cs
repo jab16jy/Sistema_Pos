@@ -17,4 +17,10 @@ public interface IApplyReceivablePaymentUseCase
         string? bankOrPlatform,
         CancellationToken cancellationToken = default)
         => ExecuteAsync(receivableId, paymentAmount, cancellationToken);
+
+    Task<decimal> ExecuteAllAsync(
+        Guid customerId,
+        PaymentMethod paymentMethod,
+        string? bankOrPlatform,
+        CancellationToken cancellationToken = default);
 }

@@ -57,7 +57,7 @@
                   Style="{StaticResource PrimaryButton}"
                   Margin="8,0,0,0"
                   Padding="10,0">
-            <materialDesign:PackIcon Kind="AccountPlus" Width="16" Height="16" />
+            <materialDesign:PackIcon Kind="Magnify" Width="16" Height="16" />
           </Button>
         </Grid>
 
@@ -420,11 +420,17 @@
               </Grid.ColumnDefinitions>
               <TextBox Grid.Column="0" VerticalContentAlignment="Center"
                        materialDesign:HintAssist.Hint="Monto del abono"
-                       Text="{Binding AbonoAmount, UpdateSourceTrigger=PropertyChanged, StringFormat=N0}" />
+                       Text="{Binding AbonoAmountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
               <Button Grid.Column="1" Content="Abonar" Margin="8,0,0,0"
                       Style="{StaticResource PrimaryButton}"
                       Command="{Binding AbonarCommand}" />
             </Grid>
+            <Button Content="Pagar todo el saldo de todas las facturas"
+                    Margin="0,8,0,0"
+                    Style="{StaticResource ClientesLinkButton}"
+                    HorizontalAlignment="Left"
+                    IsEnabled="{Binding CanPagarTodoSaldo}"
+                    Click="PagarTodoSaldoButton_OnClick" />
           </StackPanel>
         </Border>
 
