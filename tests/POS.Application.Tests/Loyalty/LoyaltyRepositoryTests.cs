@@ -11,6 +11,27 @@ namespace POS.Application.Tests.Loyalty;
 public sealed class LoyaltyRepositoryTests
 {
     [Fact]
+    public async Task GetOrCreateAccountAsync_IsIdempotentForTheSameCustomer()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        await using var db = new AppDbContext(options);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var customer = new Customer("Ana Gomez", "123");
+        db.Customers.Add(customer);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var repository = new LoyaltyRepository(db);
+        LoyaltyAccount first = await repository.GetOrCreateAccountAsync(customer.Id, TestContext.Current.CancellationToken);
+        LoyaltyAccount second = await repository.GetOrCreateAccountAsync(customer.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(1, await db.LoyaltyAccounts.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task UpdateRuleAsync_UpdatesDetachedRuleWhenSameRuleIsAlreadyTracked()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

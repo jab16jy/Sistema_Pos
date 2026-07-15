@@ -158,6 +158,16 @@ public sealed class Sale
         Status = SaleStatus.OnHold;
     }
 
+    public void Resume()
+    {
+        if (Status != SaleStatus.OnHold)
+        {
+            throw new InvalidOperationException("Only held sales can be resumed.");
+        }
+
+        Status = SaleStatus.Draft;
+    }
+
     public void MarkReturned()
     {
         if (Status == SaleStatus.Returned)

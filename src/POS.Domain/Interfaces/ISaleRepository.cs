@@ -7,6 +7,11 @@ public interface ISaleRepository
     Task AddAsync(Sale sale, CancellationToken cancellationToken = default);
     Task<Sale?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Sale>> GetOnHoldByCashierAsync(
+        Guid cashierUserId,
+        CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<Sale>>([]);
+
     Task<DashboardSummaryData> GetDashboardSummaryAsync(
         DateTimeOffset from,
         DateTimeOffset to,

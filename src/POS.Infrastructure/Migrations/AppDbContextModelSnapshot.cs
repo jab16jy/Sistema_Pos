@@ -107,6 +107,11 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal>("MaximumCashierDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(20m);
+
                     b.Property<string>("PrinterCommand")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");

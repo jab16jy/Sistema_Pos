@@ -357,9 +357,18 @@
             <TextBox Text="{Binding BusinessPhone, Mode=TwoWay}" Tag="301 5225337" Margin="0,0,0,8" />
             <TextBlock Text="Dirección" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
             <TextBox Text="{Binding BusinessAddress, Mode=TwoWay}" Tag="Cra 14 # 85-10 · Bogotá" AcceptsReturn="True" Height="70" Margin="0,0,0,8" />
-            <TextBlock Text="Moneda" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-            <TextBox Text="{Binding CurrencyCode, Mode=TwoWay}" Tag="COP" Margin="0,0,0,12" />
-            <StackPanel Orientation="Horizontal">
+             <TextBlock Text="Moneda" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+             <TextBox Text="{Binding CurrencyCode, Mode=TwoWay}" Tag="COP" Margin="0,0,0,12" />
+             <TextBlock Text="Máximo descuento manual de cajero (%)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+             <TextBox Text="{Binding MaximumCashierDiscountPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      Tag="20"
+                      Margin="0,0,0,4" />
+             <TextBlock Text="Aplica por línea y se valida nuevamente al guardar la venta. Rango permitido: 0–100%."
+                        Style="{StaticResource MutedText}"
+                        FontSize="10"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,12" />
+             <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Margin="0,0,8,0">
                 <StackPanel Orientation="Horizontal">
                   <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" Margin="0,0,4,0" />

@@ -64,8 +64,7 @@ public sealed class AccumulateLoyaltyPointsUseCase
 
         if (account is null)
         {
-            account = new LoyaltyAccount(request.CustomerId);
-            await _loyalty.AddAccountAsync(account, cancellationToken).ConfigureAwait(false);
+            account = await _loyalty.GetOrCreateAccountAsync(request.CustomerId, cancellationToken).ConfigureAwait(false);
         }
 
         var description = currentTier is not null && currentTier.PointsMultiplier != 1m

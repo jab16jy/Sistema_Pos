@@ -6,6 +6,7 @@ using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Settings;
 using POS.Domain.Authorization;
+using POS.Domain.Entities;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
@@ -34,6 +35,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private string? _backupDirectory;
     private ManualBackupMetadata? _lastSuccessfulBackup;
     private string _currencyCode = "COP";
+    private decimal _maximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent;
     private string _message = "Carga la configuración del negocio o realiza un backup.";
 
     private string _receiptTemplate = "80 mm térmico";
@@ -189,6 +191,12 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         get => _currencyCode;
         set => SetProperty(ref _currencyCode, value);
+    }
+
+    public decimal MaximumCashierDiscountPercent
+    {
+        get => _maximumCashierDiscountPercent;
+        set => SetProperty(ref _maximumCashierDiscountPercent, value);
     }
 
     public string Message
@@ -364,6 +372,7 @@ public sealed class SettingsViewModel : ViewModelBase
             }
             BackupDirectory = settings.BackupDirectory;
             CurrencyCode = settings.CurrencyCode;
+            MaximumCashierDiscountPercent = settings.MaximumCashierDiscountPercent;
             UpdateLastSuccessfulBackup(settings.LastSuccessfulBackup);
 
             Warnings.Clear();
@@ -524,7 +533,8 @@ public sealed class SettingsViewModel : ViewModelBase
             PrinterWorkingDirectory,
             PrinterPort,
             BackupDirectory,
-            CurrencyCode);
+            CurrencyCode,
+            MaximumCashierDiscountPercent);
 
         SettingsResult result = await _saveSettings.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 

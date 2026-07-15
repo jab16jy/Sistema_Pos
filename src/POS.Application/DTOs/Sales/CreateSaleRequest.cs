@@ -64,7 +64,8 @@ public sealed record CreateSaleItemRequest(
     decimal Discount,
     ProductPresentation Presentation = ProductPresentation.Unit,
     decimal? UnitPriceOverride = null,
-    int? UnitsPerPresentationOverride = null);
+    int? UnitsPerPresentationOverride = null,
+    decimal ManualDiscountPercent = 0m);
 
 public sealed record CreateSalePaymentRequest(
     PaymentMethod Method,

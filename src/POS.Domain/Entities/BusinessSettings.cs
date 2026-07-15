@@ -2,10 +2,13 @@ namespace POS.Domain.Entities;
 
 public sealed class BusinessSettings
 {
+    public const decimal DefaultMaximumCashierDiscountPercent = 20m;
+
     private BusinessSettings()
     {
         BusinessName = string.Empty;
         CurrencyCode = "COP";
+        MaximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent;
     }
 
     public BusinessSettings(
@@ -23,7 +26,8 @@ public sealed class BusinessSettings
         string? printerWorkingDirectory,
         string? printerPort,
         string? backupDirectory,
-        string currencyCode)
+        string currencyCode,
+        decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent)
     {
         Id = Guid.NewGuid();
         Apply(
@@ -41,7 +45,8 @@ public sealed class BusinessSettings
             printerWorkingDirectory,
             printerPort,
             backupDirectory,
-            currencyCode);
+            currencyCode,
+            maximumCashierDiscountPercent);
     }
 
     public Guid Id { get; private set; }
@@ -64,6 +69,7 @@ public sealed class BusinessSettings
     public string? LastBackupLocation { get; private set; }
     public string? LastBackupUsername { get; private set; }
     public string CurrencyCode { get; private set; } = "COP";
+    public decimal MaximumCashierDiscountPercent { get; private set; } = DefaultMaximumCashierDiscountPercent;
 
     public void Update(
         string businessName,
@@ -80,7 +86,8 @@ public sealed class BusinessSettings
         string? printerWorkingDirectory,
         string? printerPort,
         string? backupDirectory,
-        string currencyCode)
+        string currencyCode,
+        decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent)
     {
         Apply(
             businessName,
@@ -97,7 +104,8 @@ public sealed class BusinessSettings
             printerWorkingDirectory,
             printerPort,
             backupDirectory,
-            currencyCode);
+            currencyCode,
+            maximumCashierDiscountPercent);
     }
 
     public void RecordSuccessfulBackup(
@@ -137,7 +145,8 @@ public sealed class BusinessSettings
         string? printerWorkingDirectory,
         string? printerPort,
         string? backupDirectory,
-        string currencyCode)
+        string currencyCode,
+        decimal maximumCashierDiscountPercent)
     {
         if (string.IsNullOrWhiteSpace(businessName))
         {
@@ -160,6 +169,13 @@ public sealed class BusinessSettings
             throw new ArgumentException("SMTP port must be greater than zero when provided.", nameof(smtpPort));
         }
 
+        if (maximumCashierDiscountPercent < 0m || maximumCashierDiscountPercent > 100m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maximumCashierDiscountPercent),
+                "Maximum cashier discount must be between 0 and 100 percent.");
+        }
+
         BusinessName = businessName.Trim();
         BusinessAddress = TrimToNull(businessAddress);
         TaxId = TrimToNull(taxId);
@@ -175,6 +191,7 @@ public sealed class BusinessSettings
         PrinterPort = TrimToNull(printerPort);
         BackupDirectory = TrimToNull(backupDirectory);
         CurrencyCode = normalizedCurrency;
+        MaximumCashierDiscountPercent = maximumCashierDiscountPercent;
     }
 
     private static string? TrimToNull(string? value)

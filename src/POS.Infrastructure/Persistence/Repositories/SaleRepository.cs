@@ -27,6 +27,19 @@ public sealed class SaleRepository : ISaleRepository
             .FirstOrDefaultAsync(sale => sale.Id == id, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Sale>> GetOnHoldByCashierAsync(
+        Guid cashierUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Sales
+            .AsNoTracking()
+            .Include(sale => sale.Items)
+            .Where(sale => sale.CashierUserId == cashierUserId && sale.Status == SaleStatus.OnHold)
+            .OrderByDescending(sale => sale.CreatedAt)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
     public async Task<DashboardSummaryData> GetDashboardSummaryAsync(
         DateTimeOffset from,
         DateTimeOffset to,

@@ -16,6 +16,57 @@ public partial class CashierView : UserControl
         InitializeComponent();
     }
 
+    private async void CashierView_OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is CashierViewModel viewModel)
+        {
+            await viewModel.LoadHeldSalesAsync();
+        }
+    }
+
+    private void CashierView_OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (DataContext is not CashierViewModel viewModel)
+        {
+            return;
+        }
+
+        ICommand? command = e.Key switch
+        {
+            Key.F5 => viewModel.ConfirmSaleCommand,
+            Key.F6 => viewModel.AssociateCustomerCommand,
+            Key.F7 => viewModel.HoldSaleCommand,
+            _ => null
+        };
+
+        if (command is not null)
+        {
+            if (command.CanExecute(null))
+            {
+                command.Execute(null);
+            }
+
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Escape && viewModel.CanCancelCurrentSale)
+        {
+            e.Handled = true;
+            MessageBoxResult result = MessageBox.Show(
+                Window.GetWindow(this),
+                "¿Descartar la venta actual? Los productos del carrito se eliminarán.",
+                "Cancelar venta",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                viewModel.CancelCurrentSale();
+            }
+        }
+    }
+
     private void SearchTextBox_OnTextChanged(object sender, TextChangedEventArgs e)
     {
         _isSuggestionNavigated = false;

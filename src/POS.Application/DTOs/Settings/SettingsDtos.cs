@@ -1,3 +1,5 @@
+using POS.Domain.Entities;
+
 namespace POS.Application.DTOs.Settings;
 
 public sealed record SettingsResult(
@@ -18,7 +20,8 @@ public sealed record SettingsResult(
     string? BackupDirectory,
     string CurrencyCode,
     IReadOnlyList<SettingsWarning>? Warnings = null,
-    ManualBackupMetadata? LastSuccessfulBackup = null);
+    ManualBackupMetadata? LastSuccessfulBackup = null,
+    decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent);
 
 public sealed record SaveSettingsRequest(
     string BusinessName,
@@ -35,7 +38,8 @@ public sealed record SaveSettingsRequest(
     string? PrinterWorkingDirectory,
     string? PrinterPort,
     string? BackupDirectory,
-    string CurrencyCode);
+    string CurrencyCode,
+    decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent);
 
 public sealed record SettingsWarning(string Code, string Message);
 

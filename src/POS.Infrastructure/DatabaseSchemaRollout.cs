@@ -174,16 +174,8 @@ public static class DatabaseSchemaRollout
                 continue;
             }
 
-            LoyaltyAccount? account = await dbContext.LoyaltyAccounts
-                .FirstOrDefaultAsync(existing => existing.CustomerId == sale.CustomerId.Value, ct)
+            LoyaltyAccount account = await GetOrCreateLoyaltyAccountAsync(dbContext, sale.CustomerId.Value, ct)
                 .ConfigureAwait(false);
-
-            if (account is null)
-            {
-                account = new LoyaltyAccount(sale.CustomerId.Value);
-                dbContext.LoyaltyAccounts.Add(account);
-                await dbContext.SaveChangesAsync(ct).ConfigureAwait(false);
-            }
 
             dbContext.LoyaltyTransactions.Add(new LoyaltyTransaction(
                 account.Id,
@@ -194,5 +186,32 @@ public static class DatabaseSchemaRollout
         }
 
         await dbContext.SaveChangesAsync(ct).ConfigureAwait(false);
+    }
+
+    private static async Task<LoyaltyAccount> GetOrCreateLoyaltyAccountAsync(
+        AppDbContext dbContext,
+        Guid customerId,
+        CancellationToken ct)
+    {
+        LoyaltyAccount? existing = await dbContext.LoyaltyAccounts
+            .FirstOrDefaultAsync(account => account.CustomerId == customerId, ct)
+            .ConfigureAwait(false);
+
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        // SQLite enforces the one-account-per-customer invariant at the database boundary.
+        // INSERT OR IGNORE closes the check-then-insert race between startup and another writer.
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT OR IGNORE INTO "LOYALTY_ACCOUNTS" ("Id", "CustomerId", "IsActive", "CreatedAt")
+            VALUES ({Guid.NewGuid().ToString()}, {customerId.ToString()}, {true}, {DateTimeOffset.UtcNow});
+            """, ct).ConfigureAwait(false);
+
+        return await dbContext.LoyaltyAccounts
+            .FirstOrDefaultAsync(account => account.CustomerId == customerId, ct)
+            .ConfigureAwait(false)
+            ?? throw new InvalidOperationException("The loyalty account could not be created.");
     }
 }

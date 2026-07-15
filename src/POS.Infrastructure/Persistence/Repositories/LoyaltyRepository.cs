@@ -25,6 +25,24 @@ public sealed class LoyaltyRepository : ILoyaltyRepository
         await _dbContext.LoyaltyAccounts.AddAsync(account, cancellationToken).ConfigureAwait(false);
     }
 
+    public async Task<LoyaltyAccount> GetOrCreateAccountAsync(Guid customerId, CancellationToken cancellationToken = default)
+    {
+        LoyaltyAccount? existing = await GetAccountByCustomerIdAsync(customerId, cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        string accountId = Guid.NewGuid().ToString();
+        await _dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT OR IGNORE INTO "LOYALTY_ACCOUNTS" ("Id", "CustomerId", "IsActive", "CreatedAt")
+            VALUES ({accountId}, {customerId.ToString()}, {true}, {DateTimeOffset.UtcNow});
+            """, cancellationToken).ConfigureAwait(false);
+
+        return await GetAccountByCustomerIdAsync(customerId, cancellationToken).ConfigureAwait(false)
+            ?? throw new InvalidOperationException("The loyalty account could not be created.");
+    }
+
     public async Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default)
     {
         await _dbContext.LoyaltyTransactions.AddAsync(transaction, cancellationToken).ConfigureAwait(false);

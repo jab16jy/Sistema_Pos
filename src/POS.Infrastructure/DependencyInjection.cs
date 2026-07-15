@@ -141,6 +141,10 @@ public static class DependencyInjection
         services.AddScoped<GetQuoteHistoryUseCase>();
         services.AddScoped<GetQuoteDetailUseCase>();
         services.AddScoped<CreateSaleUseCase>();
+        services.AddScoped<HoldSaleUseCase>();
+        services.AddScoped<GetHeldSalesUseCase>();
+        services.AddScoped<ResumeHeldSaleUseCase>();
+        services.AddScoped<CompleteHeldSaleUseCase>();
         services.AddScoped<PreviewPaymentUseCase>();
         services.AddScoped<GetDashboardSummaryUseCase>();
         services.AddScoped<SendDocumentUseCase>();

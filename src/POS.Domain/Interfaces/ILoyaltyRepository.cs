@@ -10,6 +10,20 @@ public interface ILoyaltyRepository
     /// <summary>Persists a new loyalty account.</summary>
     Task AddAccountAsync(LoyaltyAccount account, CancellationToken cancellationToken = default);
 
+    /// <summary>Returns the customer's account, creating it atomically when missing.</summary>
+    async Task<LoyaltyAccount> GetOrCreateAccountAsync(Guid customerId, CancellationToken cancellationToken = default)
+    {
+        LoyaltyAccount? existing = await GetAccountByCustomerIdAsync(customerId, cancellationToken).ConfigureAwait(false);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var created = new LoyaltyAccount(customerId);
+        await AddAccountAsync(created, cancellationToken).ConfigureAwait(false);
+        return created;
+    }
+
     /// <summary>Persists a new loyalty transaction (earn or redeem).</summary>
     Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default);
 

@@ -52,7 +52,8 @@ public sealed class LoadSettingsUseCase
             ? null
             : new ManualBackupMetadata(
                 settings.LastBackupAtUtc.Value,
-                settings.LastBackupSizeBytes.Value,
-                settings.LastBackupLocation,
-                settings.LastBackupUsername));
+                    settings.LastBackupSizeBytes.Value,
+                    settings.LastBackupLocation,
+                    settings.LastBackupUsername),
+        settings.MaximumCashierDiscountPercent);
 }

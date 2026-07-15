@@ -36,6 +36,10 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly GetCustomerPayableQuotesUseCase? _getCustomerPayableQuotesUseCase;
     private readonly ConvertQuoteToSaleUseCase? _convertQuoteToSaleUseCase;
     private readonly GetLoyaltyBalanceUseCase? _getLoyaltyBalanceUseCase;
+    private readonly HoldSaleUseCase? _holdSaleUseCase;
+    private readonly GetHeldSalesUseCase? _getHeldSalesUseCase;
+    private readonly ResumeHeldSaleUseCase? _resumeHeldSaleUseCase;
+    private readonly CompleteHeldSaleUseCase? _completeHeldSaleUseCase;
     private readonly RelayCommand _printReceiptYesCommand;
     private readonly RelayCommand _printReceiptNoCommand;
     private Guid? _pendingPrintSaleId;
@@ -49,6 +53,7 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _associateCustomerCommand;
     private readonly RelayCommand _holdSaleCommand;
     private readonly RelayCommand _confirmPrototypeSaleCommand;
+    private readonly RelayCommand _resumeHeldSaleCommand;
     private readonly RelayCommand _clearCustomerCommand;
     private readonly RelayCommand _loadCustomerQuoteCommand;
     private readonly RelayCommand _clearLoadedQuoteCommand;
@@ -85,6 +90,7 @@ public sealed class CashierViewModel : ViewModelBase
     private decimal _customerMaxDiscount;
     private decimal _currentTierDiscountPercent;
     private decimal _currentTierPointsMultiplier = 1m;
+    private Guid? _resumedSaleId;
     private string? _currentTierName;
     private string? _currentTierColorHex;
     private POS.Domain.Enums.LoyaltyTierTextForeground _currentTierTextForeground = POS.Domain.Enums.LoyaltyTierTextForeground.White;
@@ -131,7 +137,11 @@ public sealed class CashierViewModel : ViewModelBase
         GetCustomerPayableQuotesUseCase? getCustomerPayableQuotesUseCase = null,
         ConvertQuoteToSaleUseCase? convertQuoteToSaleUseCase = null,
         FindProductByBarcodeUseCase? findProductByBarcodeUseCase = null,
-        GetLoyaltyBalanceUseCase? getLoyaltyBalanceUseCase = null)
+        GetLoyaltyBalanceUseCase? getLoyaltyBalanceUseCase = null,
+        HoldSaleUseCase? holdSaleUseCase = null,
+        GetHeldSalesUseCase? getHeldSalesUseCase = null,
+        ResumeHeldSaleUseCase? resumeHeldSaleUseCase = null,
+        CompleteHeldSaleUseCase? completeHeldSaleUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _findProductByBarcodeUseCase = findProductByBarcodeUseCase ?? new FindProductByBarcodeUseCase(_productLookupService);
@@ -143,6 +153,10 @@ public sealed class CashierViewModel : ViewModelBase
         _getCustomerPayableQuotesUseCase = getCustomerPayableQuotesUseCase;
         _convertQuoteToSaleUseCase = convertQuoteToSaleUseCase;
         _getLoyaltyBalanceUseCase = getLoyaltyBalanceUseCase;
+        _holdSaleUseCase = holdSaleUseCase;
+        _getHeldSalesUseCase = getHeldSalesUseCase;
+        _resumeHeldSaleUseCase = resumeHeldSaleUseCase;
+        _completeHeldSaleUseCase = completeHeldSaleUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -164,12 +178,13 @@ public sealed class CashierViewModel : ViewModelBase
         _appendReceivedAmountCommand = new RelayCommand(AppendReceivedAmount);
         _backspaceReceivedAmountCommand = new RelayCommand(_ => BackspaceReceivedAmount());
         _setExactAmountCommand = new RelayCommand(_ => SetExactReceivedAmount(), _ => TotalAmount > 0m);
-        _clearCartCommand = new RelayCommand(_ => ClearCart(), _ => CartItems.Count > 0);
-        _editCartItemCommand = new RelayCommand(EditCartItem, parameter => parameter is CashierCartItemViewModel);
-        _removeCartItemCommand = new RelayCommand(RemoveCartItem, parameter => parameter is CashierCartItemViewModel);
+        _clearCartCommand = new RelayCommand(_ => ClearCart(), _ => CartItems.Count > 0 && !IsResumedSale);
+        _editCartItemCommand = new RelayCommand(EditCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
+        _removeCartItemCommand = new RelayCommand(RemoveCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
         _associateCustomerCommand = new RelayCommand(_ => AssociateCustomer());
-        _holdSaleCommand = new RelayCommand(_ => HoldSale(), _ => HasCartItems);
+        _holdSaleCommand = new RelayCommand(_ => RunSafe(HoldSaleAsync(), ex => Message = $"Error al poner la venta en espera: {ex.Message}"), _ => CanHoldSale);
         _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale());
+        _resumeHeldSaleCommand = new RelayCommand(parameter => RunSafe(ResumeHeldSaleAsync(parameter), ex => Message = $"Error al retomar la venta: {ex.Message}"), parameter => parameter is HeldSaleSummary && !HasCartItems && !IsResumedSale);
         _loadCustomerQuoteCommand = new RelayCommand(parameter => RunSafe(LoadCustomerQuoteFromCommandAsync(parameter), ex => Message = $"Error al cargar la cotización: {ex.Message}"), _ => SelectedCustomerQuote is not null);
         _clearLoadedQuoteCommand = new RelayCommand(_ => ClearLoadedQuote(), _ => IsQuoteLoaded);
         _printReceiptYesCommand = new RelayCommand(_ => RunSafe(PrintPendingReceiptAsync(), ex => Message = $"Error al imprimir el recibo: {ex.Message}"), _ => IsAwaitingPrintChoice);
@@ -186,6 +201,7 @@ public sealed class CashierViewModel : ViewModelBase
         AssociateCustomerCommand = _associateCustomerCommand;
         HoldSaleCommand = _holdSaleCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
+        ConfirmSaleCommand = _confirmPrototypeSaleCommand;
         ApplyRedemptionCommand = new RelayCommand(_ => RunSafe(ApplyRedemptionAsync(), ex => Message = $"Error al aplicar puntos: {ex.Message}"));
         _cancelRedemptionCommand = new RelayCommand(_ => CancelRedemption(), _ => LoyaltyDiscount > 0m || LoyaltyPointsToRedeem > 0);
         CancelRedemptionCommand = _cancelRedemptionCommand;
@@ -200,6 +216,7 @@ public sealed class CashierViewModel : ViewModelBase
         CloseCustomerAssignmentCommand = new RelayCommand(_ => CloseCustomerAssignment());
         LoadCustomerQuoteCommand = _loadCustomerQuoteCommand;
         ClearLoadedQuoteCommand = _clearLoadedQuoteCommand;
+        ResumeHeldSaleCommand = _resumeHeldSaleCommand;
     }
 
     public event Action? SaleCompleted;
@@ -213,6 +230,8 @@ public sealed class CashierViewModel : ViewModelBase
     public ObservableCollection<CustomerSearchResult> CustomerSearchResults { get; }
 
     public ObservableCollection<CustomerPayableQuote> CustomerQuotes { get; }
+
+    public ObservableCollection<HeldSaleSummary> HeldSales { get; } = [];
 
     public CustomerSearchResult? SelectedCustomerSearchResult
     {
@@ -252,6 +271,10 @@ public sealed class CashierViewModel : ViewModelBase
 
     public ICommand ConfirmPrototypeSaleCommand { get; }
 
+    public ICommand ConfirmSaleCommand { get; }
+
+    public ICommand ResumeHeldSaleCommand { get; }
+
     public ICommand SearchCustomerCommand { get; }
 
     public ICommand SelectCustomerCommand { get; }
@@ -269,6 +292,14 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand ClearLoadedQuoteCommand { get; }
 
     public Guid CashierUserId { get; set; }
+
+    public bool IsResumedSale => _resumedSaleId.HasValue;
+
+    public bool CanEditCart => !IsResumedSale;
+
+    public bool CanCancelCurrentSale => HasCartItems && CanEditCart;
+
+    public bool CanHoldSale => HasCartItems && CanEditCart;
 
     public Guid? CustomerId
     {
@@ -983,6 +1014,12 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
+        if (_resumedSaleId is { } resumedSaleId)
+        {
+            await CompleteHeldSaleAsync(resumedSaleId, cancellationToken).ConfigureAwait(true);
+            return;
+        }
+
         if (_createSaleUseCase is null)
         {
             Message = "Venta validada en prototipo. Falta guardar por Application/SQLite en una parte posterior.";
@@ -1076,6 +1113,12 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
+        if (!CanEditCart)
+        {
+            Message = "Las líneas de una venta retomada están reservadas y no se pueden editar.";
+            return;
+        }
+
         Message = $"Ajusta la cantidad de {item.ProductName} directamente en la fila.";
     }
 
@@ -1083,6 +1126,12 @@ public sealed class CashierViewModel : ViewModelBase
     {
         if (parameter is not CashierCartItemViewModel item)
         {
+            return;
+        }
+
+        if (!CanEditCart)
+        {
+            Message = "Las líneas de una venta retomada están reservadas y no se pueden eliminar.";
             return;
         }
 
@@ -1403,9 +1452,185 @@ public sealed class CashierViewModel : ViewModelBase
         _clearLoadedQuoteCommand.RaiseCanExecuteChanged();
     }
 
-    private void HoldSale()
+    public async Task LoadHeldSalesAsync(CancellationToken cancellationToken = default)
     {
-        Message = "Venta en espera no disponible todavía. Requiere un caso de uso para guardar y recuperar ventas pendientes.";
+        if (_getHeldSalesUseCase is null || CashierUserId == Guid.Empty)
+        {
+            HeldSales.Clear();
+            return;
+        }
+
+        IReadOnlyList<HeldSaleSummary> heldSales = await _getHeldSalesUseCase
+            .ExecuteAsync(CashierUserId, cancellationToken)
+            .ConfigureAwait(true);
+
+        HeldSales.Clear();
+        foreach (HeldSaleSummary heldSale in heldSales)
+        {
+            HeldSales.Add(heldSale);
+        }
+
+        _resumeHeldSaleCommand.RaiseCanExecuteChanged();
+    }
+
+    public async Task HoldSaleAsync(CancellationToken cancellationToken = default)
+    {
+        if (_holdSaleUseCase is null)
+        {
+            Message = "Venta en espera no disponible todavía. Requiere un caso de uso para guardar y recuperar ventas pendientes.";
+            return;
+        }
+
+        if (CashierUserId == Guid.Empty)
+        {
+            Message = "No hay cajero autenticado para poner la venta en espera.";
+            return;
+        }
+
+        if (DeferredAmount > 0m)
+        {
+            Message = "Una venta a crédito no se puede poner en espera en este flujo.";
+            return;
+        }
+
+        if (HasLoyaltyDiscount)
+        {
+            Message = "Cancela el canje de puntos antes de poner la venta en espera.";
+            return;
+        }
+
+        try
+        {
+            HeldSaleSummary heldSale = await _holdSaleUseCase.ExecuteAsync(
+                new HoldSaleRequest(CashierUserId, CustomerId, BuildLineRequests()),
+                cancellationToken).ConfigureAwait(true);
+
+            ClearCart();
+            Message = $"Venta {heldSale.InvoiceNumber} guardada en espera.";
+            await LoadHeldSalesAsync(cancellationToken).ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (ArgumentException ex)
+        {
+            Message = ex.Message;
+        }
+    }
+
+    public async Task ResumeHeldSaleAsync(object? parameter, CancellationToken cancellationToken = default)
+    {
+        if (parameter is not HeldSaleSummary heldSale || _resumeHeldSaleUseCase is null)
+        {
+            return;
+        }
+
+        if (HasCartItems || IsResumedSale)
+        {
+            Message = "Finaliza o descarta la venta actual antes de retomar otra.";
+            return;
+        }
+
+        HeldSaleSummary resumed = await _resumeHeldSaleUseCase.ExecuteAsync(
+            new ResumeHeldSaleRequest(CashierUserId, heldSale.SaleId),
+            cancellationToken).ConfigureAwait(true);
+
+        ClearCustomerAssignment(resetReviewedFlag: true);
+        CartItems.Clear();
+        foreach (HeldSaleItem item in resumed.Items)
+        {
+            decimal gross = item.UnitPrice * item.Quantity;
+            decimal discountPercent = gross <= 0m
+                ? 0m
+                : decimal.Round(item.Discount / gross * 100m, 4, MidpointRounding.AwayFromZero);
+
+            CartItems.Add(new CashierCartItemViewModel(
+                item.ProductId,
+                item.ProductName,
+                CompactProductId(item.ProductId),
+                item.Quantity,
+                item.UnitPrice,
+                discountPercent,
+                item.Presentation,
+                item.UnitsPerPresentation));
+        }
+
+        _resumedSaleId = resumed.SaleId;
+        OnPropertyChanged(nameof(IsResumedSale));
+        OnPropertyChanged(nameof(CanEditCart));
+        OnPropertyChanged(nameof(CanCancelCurrentSale));
+        OnPropertyChanged(nameof(CanHoldSale));
+        ClearCustomerAssignment(resetReviewedFlag: true);
+        CustomerId = resumed.CustomerId;
+        _customerAssignmentReviewed = true;
+        if (SelectedPaymentMethod.Method == PaymentMethod.Cash)
+        {
+            ReceivedAmount = resumed.Total;
+        }
+
+        RefreshTotals(updateMessage: false);
+        await LoadHeldSalesAsync(cancellationToken).ConfigureAwait(true);
+        Message = $"Venta {resumed.InvoiceNumber} retomada. Las líneas reservadas no se pueden editar.";
+    }
+
+    private async Task CompleteHeldSaleAsync(Guid saleId, CancellationToken cancellationToken)
+    {
+        if (_completeHeldSaleUseCase is null)
+        {
+            Message = "Completar ventas retomadas no está disponible en este entorno.";
+            return;
+        }
+
+        try
+        {
+            CreateSaleResult result = await _completeHeldSaleUseCase.ExecuteAsync(
+                new CompleteHeldSaleRequest(
+                    CashierUserId,
+                    saleId,
+                    [new CreateSalePaymentRequest(
+                        SelectedPaymentMethod.Method,
+                        NetPayable,
+                        SelectedPaymentMethod.Method == PaymentMethod.Cash ? ReceivedAmount : null,
+                        string.IsNullOrWhiteSpace(BankOrPlatform) ? null : BankOrPlatform)]),
+                cancellationToken).ConfigureAwait(true);
+
+            _resumedSaleId = null;
+            OnPropertyChanged(nameof(IsResumedSale));
+            OnPropertyChanged(nameof(CanEditCart));
+            OnPropertyChanged(nameof(CanCancelCurrentSale));
+            OnPropertyChanged(nameof(CanHoldSale));
+            ClearCart();
+            Message = $"Venta guardada con factura {result.InvoiceNumber}.";
+            SaleCompleted?.Invoke();
+            await LoadHeldSalesAsync(cancellationToken).ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error al confirmar la venta retomada: {ex.Message}";
+        }
+    }
+
+    public void CancelCurrentSale()
+    {
+        if (IsResumedSale)
+        {
+            Message = "Una venta retomada ya está persistida; no se puede descartar desde Caja.";
+            return;
+        }
+
+        if (!HasCartItems)
+        {
+            Message = "No hay una venta actual para cancelar.";
+            return;
+        }
+
+        ClearCart();
+        Message = "Venta actual descartada. Puedes iniciar una nueva venta.";
     }
 
     public async Task ApplyRedemptionAsync(CancellationToken cancellationToken = default)
@@ -1470,14 +1695,7 @@ public sealed class CashierViewModel : ViewModelBase
         // CreateSaleItemRequest.Discount is absolute money (see ConvertQuoteToSaleUseCase, which
         // converts the same way) — CashierCartItemViewModel.Discount is a UI-facing percentage, so
         // it must be converted here, not passed through raw.
-        IReadOnlyCollection<CreateSaleItemRequest> items = CartItems
-            .Select(item =>
-            {
-                decimal effectiveDiscountPercent = CompoundDiscount(item.Discount, _currentTierDiscountPercent);
-                decimal discountMoney = decimal.Round(item.UnitPrice * item.Quantity * effectiveDiscountPercent / 100m, 2, MidpointRounding.AwayFromZero);
-                return new CreateSaleItemRequest(item.ProductId, item.Quantity, discountMoney, item.Presentation);
-            })
-            .ToArray();
+        IReadOnlyCollection<CreateSaleItemRequest> items = BuildLineRequests();
 
         // Use settlement plan when a deferred amount is set; otherwise use legacy full-payment path
         if (DeferredAmount > 0m)
@@ -1502,6 +1720,19 @@ public sealed class CashierViewModel : ViewModelBase
 
         int redeemPoints = LoyaltyDiscount > 0m ? LoyaltyPointsToRedeem : 0;
         return new CreateSaleRequest(CashierUserId, CustomerId, items, payments, redeemPoints);
+    }
+
+    private IReadOnlyCollection<CreateSaleItemRequest> BuildLineRequests()
+    {
+        return CartItems
+            .Select(item =>
+            {
+                decimal effectiveDiscountPercent = CompoundDiscount(item.Discount, _currentTierDiscountPercent);
+                decimal discountMoney = decimal.Round(item.UnitPrice * item.Quantity * effectiveDiscountPercent / 100m, 2, MidpointRounding.AwayFromZero);
+                return new CreateSaleItemRequest(item.ProductId, item.Quantity, discountMoney, item.Presentation,
+                    ManualDiscountPercent: item.Discount);
+            })
+            .ToArray();
     }
 
     /// <summary>
@@ -1611,6 +1842,10 @@ public sealed class CashierViewModel : ViewModelBase
         _clearCartCommand.RaiseCanExecuteChanged();
         _setExactAmountCommand.RaiseCanExecuteChanged();
         _holdSaleCommand.RaiseCanExecuteChanged();
+        _resumeHeldSaleCommand.RaiseCanExecuteChanged();
+        _clearCartCommand.RaiseCanExecuteChanged();
+        _editCartItemCommand.RaiseCanExecuteChanged();
+        _removeCartItemCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshPaymentPreview(bool updateMessage = true)

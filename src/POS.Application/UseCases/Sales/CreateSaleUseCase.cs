@@ -18,6 +18,7 @@ public sealed class CreateSaleUseCase
     private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
     private readonly RedeemLoyaltyPointsUseCase? _redeemPoints;
     private readonly IInventoryRepository? _inventory;
+    private readonly ISettingsRepository? _settings;
 
     /// <summary>Legacy constructor — no receivable support. Used by tests that don't need deferred balance.</summary>
     public CreateSaleUseCase(IProductRepository products, ISaleRepository sales, IUnitOfWork unitOfWork)
@@ -51,7 +52,8 @@ public sealed class CreateSaleUseCase
         IReceivableRepository? receivables,
         AccumulateLoyaltyPointsUseCase? accumulatePoints,
         RedeemLoyaltyPointsUseCase? redeemPoints,
-        IInventoryRepository? inventory = null)
+        IInventoryRepository? inventory = null,
+        ISettingsRepository? settings = null)
     {
         _products = products;
         _sales = sales;
@@ -60,6 +62,7 @@ public sealed class CreateSaleUseCase
         _accumulatePoints = accumulatePoints;
         _redeemPoints = redeemPoints;
         _inventory = inventory;
+        _settings = settings;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(CreateSaleRequest request, CancellationToken cancellationToken = default)
@@ -68,6 +71,11 @@ public sealed class CreateSaleUseCase
         {
             throw new InvalidOperationException("Add at least one product before completing the sale.");
         }
+
+        decimal maximumDiscount = await CashierDiscountPolicy
+            .GetMaximumAsync(_settings, cancellationToken)
+            .ConfigureAwait(false);
+        CashierDiscountPolicy.Validate(request.Items, maximumDiscount);
 
         // Validate payment platforms before building the sale
         if (request.Payments is not null)
