@@ -1,4 +1,7 @@
+using System.Data.Common;
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
@@ -48,28 +51,18 @@ public sealed class SaleRepository : ISaleRepository
         DateTimeOffset utcFrom = from.ToUniversalTime();
         DateTimeOffset utcTo = to.ToUniversalTime();
 
-        List<Sale> sales = await _dbContext.Sales
-            .Include(sale => sale.Items)
-            .Include(sale => sale.Payments)
-            .Where(sale => sale.CreatedAt >= utcFrom && sale.CreatedAt < utcTo && sale.Status == SaleStatus.Completed)
-            .ToListAsync(cancellationToken);
+        (decimal salesTotal, decimal cashInDrawer, decimal digitalPayments, int salesCount) =
+            await ReadSalesSummaryAsync(utcFrom, utcTo, cashierUserId: null, cancellationToken).ConfigureAwait(false);
 
         int lowStockCount = await _dbContext.Products
             .CountAsync(product => product.IsActive && product.MinimumStock > 0m && product.CurrentStock <= product.MinimumStock, cancellationToken);
-
-        decimal salesTotal = sales.Sum(sale => sale.Total().Amount);
-        decimal cashInDrawer = sales.Sum(sale => sale.CashInDrawer().Amount);
-        decimal digitalPayments = sales
-            .SelectMany(sale => sale.Payments)
-            .Where(payment => IsDigitalPayment(payment.Method))
-            .Sum(payment => payment.Amount.Amount);
 
         return new DashboardSummaryData(
             salesTotal,
             cashInDrawer,
             digitalPayments,
             lowStockCount,
-            sales.Count);
+            salesCount);
     }
 
     public async Task<ShiftSalesSummaryData> GetShiftSalesSummaryAsync(
@@ -88,24 +81,75 @@ public sealed class SaleRepository : ISaleRepository
         DateTimeOffset utcOpenedAt = openedAt.ToUniversalTime();
         DateTimeOffset utcClosedAt = closedAt.ToUniversalTime();
 
-        List<Sale> sales = await _dbContext.Sales
-            .Include(sale => sale.Items)
-            .Include(sale => sale.Payments)
-            .Where(sale => sale.CashierUserId == cashierUserId
-                && sale.CreatedAt >= utcOpenedAt
-                && sale.CreatedAt < utcClosedAt
-                && sale.Status == SaleStatus.Completed)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+        (decimal salesTotal, decimal cashPayments, decimal digitalPayments, _) =
+            await ReadSalesSummaryAsync(utcOpenedAt, utcClosedAt, cashierUserId, cancellationToken).ConfigureAwait(false);
 
-        return new ShiftSalesSummaryData(
-            sales.Sum(sale => sale.Total().Amount),
-            sales.Sum(sale => sale.CashInDrawer().Amount),
-            sales.SelectMany(sale => sale.Payments)
-                .Where(payment => IsDigitalPayment(payment.Method))
-                .Sum(payment => payment.Amount.Amount));
+        return new ShiftSalesSummaryData(salesTotal, cashPayments, digitalPayments);
     }
 
-    private static bool IsDigitalPayment(PaymentMethod method)
-        => method is PaymentMethod.DebitCard or PaymentMethod.CreditCard or PaymentMethod.Transfer;
+    private async Task<(decimal SalesTotal, decimal CashPayments, decimal DigitalPayments, int SalesCount)> ReadSalesSummaryAsync(
+        DateTimeOffset from,
+        DateTimeOffset to,
+        Guid? cashierUserId,
+        CancellationToken cancellationToken)
+    {
+        DbConnection connection = _dbContext.Database.GetDbConnection();
+        bool closeConnection = connection.State != System.Data.ConnectionState.Open;
+        if (closeConnection)
+        {
+            await _dbContext.Database.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await using DbCommand command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT
+                    COALESCE((SELECT SUM(ROUND(CAST(si.unit_price AS NUMERIC) * si."Quantity" - CAST(si.discount AS NUMERIC), 2))
+                              FROM SALE_ITEMS si
+                              INNER JOIN SALES s ON s."Id" = si."SaleId"
+                              WHERE s."Status" = 3 AND s."CreatedAt" >= $from AND s."CreatedAt" < $to
+                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0),
+                    COALESCE((SELECT SUM(CASE WHEN p."Method" = 1 THEN CAST(p.amount AS NUMERIC) ELSE 0 END)
+                              FROM PAYMENTS p
+                              INNER JOIN SALES s ON s."Id" = p."SaleId"
+                              WHERE s."Status" = 3 AND s."CreatedAt" >= $from AND s."CreatedAt" < $to
+                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0),
+                    COALESCE((SELECT SUM(CASE WHEN p."Method" IN (2, 3, 4) THEN CAST(p.amount AS NUMERIC) ELSE 0 END)
+                              FROM PAYMENTS p
+                              INNER JOIN SALES s ON s."Id" = p."SaleId"
+                              WHERE s."Status" = 3 AND s."CreatedAt" >= $from AND s."CreatedAt" < $to
+                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0),
+                    (SELECT COUNT(*) FROM SALES s
+                     WHERE s."Status" = 3 AND s."CreatedAt" >= $from AND s."CreatedAt" < $to
+                       AND ($cashier IS NULL OR s."CashierUserId" = $cashier));
+                """;
+            command.Parameters.Add(new SqliteParameter("$from", ToSqliteTimestamp(from)));
+            command.Parameters.Add(new SqliteParameter("$to", ToSqliteTimestamp(to)));
+            command.Parameters.Add(new SqliteParameter(
+                "$cashier",
+                cashierUserId is { } id ? id.ToString() : DBNull.Value));
+
+            await using DbDataReader reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+            return (
+                ToDecimal(reader.GetValue(0)),
+                ToDecimal(reader.GetValue(1)),
+                ToDecimal(reader.GetValue(2)),
+                Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture));
+        }
+        finally
+        {
+            if (closeConnection)
+            {
+                await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
+    private static string ToSqliteTimestamp(DateTimeOffset value)
+        => value.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss.fffffffzzz", CultureInfo.InvariantCulture);
+
+    private static decimal ToDecimal(object value)
+        => Convert.ToDecimal(value, CultureInfo.InvariantCulture);
 }

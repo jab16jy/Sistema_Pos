@@ -10,4 +10,5 @@ namespace POS.Domain.Entities;
 public sealed record SaleSettlementPlan(
     decimal CollectedAmount,
     PaymentMethod? CollectedMethod,
-    decimal DeferredBalanceAmount);
+    decimal DeferredBalanceAmount,
+    string? CollectedBankOrPlatform = null);

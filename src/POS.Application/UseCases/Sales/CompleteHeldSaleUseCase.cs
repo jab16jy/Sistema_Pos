@@ -44,13 +44,7 @@ public sealed class CompleteHeldSaleUseCase
 
         foreach (CreateSalePaymentRequest payment in request.Payments)
         {
-            if (!string.IsNullOrWhiteSpace(payment.BankOrPlatform)
-                && !PaymentPlatforms.IsValid(payment.BankOrPlatform))
-            {
-                throw new InvalidOperationException(
-                    $"Payment platform '{payment.BankOrPlatform}' is not accepted. " +
-                    $"Valid platforms: {string.Join(", ", PaymentPlatforms.All)}.");
-            }
+            PaymentPlatforms.Validate(payment.Method, payment.BankOrPlatform);
 
             sale.AddPayment(new Payment(
                 payment.Method,

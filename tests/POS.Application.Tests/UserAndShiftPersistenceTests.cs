@@ -119,6 +119,28 @@ public sealed class UserAndShiftPersistenceTests
     }
 
     [Fact]
+    public async Task CashierShiftRepository_GetRecentAsync_AppliesOrderAndLimitInDatabase()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var older = new CashierShift(Guid.NewGuid(), "older", new Money(10m), openedAt: DateTimeOffset.UtcNow.AddHours(-2));
+        var newest = new CashierShift(Guid.NewGuid(), "newest", new Money(10m), openedAt: DateTimeOffset.UtcNow);
+        var middle = new CashierShift(Guid.NewGuid(), "middle", new Money(10m), openedAt: DateTimeOffset.UtcNow.AddHours(-1));
+        await dbContext.CashierShifts.AddRangeAsync([older, newest, middle], TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var recent = await new CashierShiftRepository(dbContext).GetRecentAsync(2, TestContext.Current.CancellationToken);
+
+        Assert.Collection(
+            recent,
+            shift => Assert.Equal(newest.Id, shift.Id),
+            shift => Assert.Equal(middle.Id, shift.Id));
+    }
+
+    [Fact]
     public async Task AuditLogRepository_GetRecentAsync_WithSqlite_DoesNotOrderDateTimeOffsetInDatabase()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");

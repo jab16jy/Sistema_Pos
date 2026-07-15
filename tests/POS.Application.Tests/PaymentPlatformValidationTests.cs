@@ -93,6 +93,46 @@ public sealed class PaymentPlatformValidationTests
         Assert.NotEqual(Guid.Empty, result.SaleId);
     }
 
+    [Fact]
+    public async Task CreateSale_TransferWithoutPlatform_ThrowsBeforeSavingAnything()
+    {
+        var product = MakeProduct();
+        var sales = new InMemSaleRepo();
+        var useCase = new CreateSaleUseCase(
+            new InMemProductRepo(product), sales, new InMemUoW());
+
+        var request = new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_500m, null, null)]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
+
+        Assert.Empty(sales.Sales);
+    }
+
+    [Fact]
+    public async Task CreateSale_NonTransferWithPlatform_ThrowsBeforeSavingAnything()
+    {
+        var product = MakeProduct();
+        var sales = new InMemSaleRepo();
+        var useCase = new CreateSaleUseCase(
+            new InMemProductRepo(product), sales, new InMemUoW());
+
+        var request = new CreateSaleRequest(
+            Guid.NewGuid(),
+            null,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_500m, 1_500m, "Nequi")]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
+
+        Assert.Empty(sales.Sales);
+    }
+
     // --- Helpers ---
 
     private static Product MakeProduct() =>

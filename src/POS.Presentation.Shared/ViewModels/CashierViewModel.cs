@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Customers;
+using POS.Application.Common;
 using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Quotes;
@@ -165,7 +166,7 @@ public sealed class CashierViewModel : ViewModelBase
         {
             new(PaymentMethod.Cash, "Efectivo"),
             new(PaymentMethod.DebitCard, "Débito"),
-            new(PaymentMethod.CreditCard, "Crédito"),
+            new(PaymentMethod.CreditCard, "Tarjeta de crédito"),
             new(PaymentMethod.Transfer, "Transferencia")
         };
         _selectedPaymentMethod = PaymentMethods[0];
@@ -449,8 +450,18 @@ public sealed class CashierViewModel : ViewModelBase
     public string BankOrPlatform
     {
         get => _bankOrPlatform;
-        set => SetProperty(ref _bankOrPlatform, value ?? string.Empty);
+        set
+        {
+            if (SetProperty(ref _bankOrPlatform, value ?? string.Empty))
+            {
+                RefreshPaymentPreview();
+            }
+        }
     }
+
+    public IReadOnlyList<string> PaymentPlatformOptions => PaymentPlatforms.All;
+
+    public bool IsTransferPayment => SelectedPaymentMethod.Method == PaymentMethod.Transfer;
 
     public int LoyaltyPointsToRedeem
     {
@@ -618,6 +629,13 @@ public sealed class CashierViewModel : ViewModelBase
 
             if (SetProperty(ref _selectedPaymentMethod, value))
             {
+                if (value.Method != PaymentMethod.Transfer && !string.IsNullOrEmpty(_bankOrPlatform))
+                {
+                    _bankOrPlatform = string.Empty;
+                    OnPropertyChanged(nameof(BankOrPlatform));
+                }
+
+                OnPropertyChanged(nameof(IsTransferPayment));
                 RefreshPaymentPreview();
             }
         }
@@ -628,7 +646,7 @@ public sealed class CashierViewModel : ViewModelBase
         get => _receivedAmount;
         set
         {
-            decimal normalized = value < 0m ? 0m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+            decimal normalized = value < 0m ? 0m : decimal.Truncate(value);
             if (SetProperty(ref _receivedAmount, normalized))
             {
                 RefreshPaymentPreview();
@@ -646,7 +664,7 @@ public sealed class CashierViewModel : ViewModelBase
         get => _deferredAmount;
         set
         {
-            decimal normalized = value < 0m ? 0m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+            decimal normalized = value < 0m ? 0m : decimal.Truncate(value);
             if (SetProperty(ref _deferredAmount, normalized))
             {
                 RefreshPaymentPreview();
@@ -1730,8 +1748,11 @@ public sealed class CashierViewModel : ViewModelBase
         {
             var plan = new Domain.Entities.SaleSettlementPlan(
                 ReceivedAmount,
-                SelectedPaymentMethod.Method,
-                DeferredAmount);
+                ReceivedAmount > 0m ? SelectedPaymentMethod.Method : null,
+                DeferredAmount,
+                ReceivedAmount > 0m && SelectedPaymentMethod.Method == PaymentMethod.Transfer
+                    ? BankOrPlatform
+                    : null);
             return new CreateSaleRequest(CashierUserId, CustomerId, items, plan);
         }
 
@@ -1849,7 +1870,13 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     private SaleSettlementPlan BuildSettlementPlan()
-        => new(ReceivedAmount, SelectedPaymentMethod.Method, DeferredAmount);
+        => new(
+            ReceivedAmount,
+            ReceivedAmount > 0m ? SelectedPaymentMethod.Method : null,
+            DeferredAmount,
+            ReceivedAmount > 0m && SelectedPaymentMethod.Method == PaymentMethod.Transfer
+                ? BankOrPlatform
+                : null);
 
     private void RefreshTotals(bool updateMessage = true)
     {
@@ -1896,7 +1923,8 @@ public sealed class CashierViewModel : ViewModelBase
             NetPayable,
             SelectedPaymentMethod.Method,
             ReceivedAmount,
-            DeferredAmount));
+            DeferredAmount,
+            BankOrPlatform));
 
         ChangeAmount = preview.ChangeAmount;
         CanConfirm = preview.CanConfirm;

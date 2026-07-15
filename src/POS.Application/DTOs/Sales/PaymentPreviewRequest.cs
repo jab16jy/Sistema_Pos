@@ -6,4 +6,5 @@ public sealed record PaymentPreviewRequest(
     decimal TotalAmount,
     PaymentMethod PaymentMethod,
     decimal ReceivedAmount,
-    decimal DeferredAmount = 0m);
+    decimal DeferredAmount = 0m,
+    string? BankOrPlatform = null);

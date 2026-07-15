@@ -1,4 +1,5 @@
 using POS.Application.DTOs.Sales;
+using POS.Application.Common;
 using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 
@@ -21,6 +22,23 @@ public sealed class PreviewPaymentUseCase
         if (deferred.Amount > 0m)
         {
             var collected = request.ReceivedAmount;
+            if (collected > 0m)
+            {
+                try
+                {
+                    PaymentPlatforms.Validate(request.PaymentMethod, request.BankOrPlatform);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    return new PaymentPreviewResult(false, 0m, exception.Message);
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(request.BankOrPlatform))
+            {
+                return new PaymentPreviewResult(false, 0m,
+                    "A payment platform requires a collected payment method.");
+            }
+
             if (collected + deferred.Amount < total.Amount)
             {
                 return new PaymentPreviewResult(false, 0m,
@@ -30,6 +48,15 @@ public sealed class PreviewPaymentUseCase
             return new PaymentPreviewResult(true, 0m,
                 $"Venta con crédito: ${collected:N0} cobrado, ${deferred.Amount:N0} queda como saldo pendiente.",
                 DeferredBalance: deferred.Amount);
+        }
+
+        try
+        {
+            PaymentPlatforms.Validate(request.PaymentMethod, request.BankOrPlatform);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return new PaymentPreviewResult(false, 0m, exception.Message);
         }
 
         // Full-payment path (no deferred)

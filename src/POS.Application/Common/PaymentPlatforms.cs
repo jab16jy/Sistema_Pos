@@ -1,3 +1,5 @@
+using POS.Domain.Enums;
+
 namespace POS.Application.Common;
 
 /// <summary>
@@ -26,5 +28,32 @@ public static class PaymentPlatforms
         }
 
         return All.Any(p => string.Equals(p, platform, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static void Validate(PaymentMethod method, string? platform)
+    {
+        bool supplied = !string.IsNullOrWhiteSpace(platform);
+
+        if (method == PaymentMethod.Transfer)
+        {
+            if (!supplied)
+            {
+                throw new InvalidOperationException("A payment platform is required for transfers.");
+            }
+
+            if (!IsValid(platform))
+            {
+                throw new InvalidOperationException(
+                    $"Payment platform '{platform}' is not accepted. " +
+                    $"Valid platforms: {string.Join(", ", All)}.");
+            }
+
+            return;
+        }
+
+        if (supplied)
+        {
+            throw new InvalidOperationException("A payment platform is only valid for transfers.");
+        }
     }
 }

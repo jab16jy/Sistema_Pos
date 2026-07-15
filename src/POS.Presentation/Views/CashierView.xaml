@@ -772,17 +772,26 @@
           </Border>
 
           <TextBlock Text="Método de pago" Style="{StaticResource CashHint}" FontWeight="Medium" />
-          <ComboBox ItemsSource="{Binding PaymentMethods}"
-                    SelectedItem="{Binding SelectedPaymentMethod, Mode=TwoWay}"
-                    Margin="0,4,0,12">
+           <ComboBox ItemsSource="{Binding PaymentMethods}"
+                     SelectedItem="{Binding SelectedPaymentMethod, Mode=TwoWay}"
+                     Margin="0,4,0,12">
             <ComboBox.ItemTemplate>
               <DataTemplate>
                 <TextBlock Text="{Binding Label}" />
               </DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
+             </ComboBox.ItemTemplate>
+           </ComboBox>
 
-          <TextBlock Text="Monto recibido" Style="{StaticResource CashHint}" FontWeight="Medium" />
+           <StackPanel Visibility="{Binding IsTransferPayment, Converter={StaticResource BoolToVisibilityConverter}}"
+                       Margin="0,0,0,12">
+             <TextBlock Text="Plataforma de transferencia" Style="{StaticResource CashHint}" FontWeight="Medium" />
+             <ComboBox ItemsSource="{Binding PaymentPlatformOptions}"
+                       SelectedItem="{Binding BankOrPlatform, Mode=TwoWay}"
+                       Margin="0,4,0,0"
+                       Height="36" />
+           </StackPanel>
+
+           <TextBlock Text="Monto recibido" Style="{StaticResource CashHint}" FontWeight="Medium" />
           <xctk:DecimalUpDown Value="{Binding ReceivedAmount, Mode=TwoWay}"
                               Minimum="0"
                               Margin="0,4,0,12"
@@ -790,8 +799,21 @@
                               FontSize="15"
                               FormatString="N0"
                               PreviewTextInput="ReceivedAmount_PreviewTextInput"
-                              PreviewKeyDown="ReceivedAmount_PreviewKeyDown"
-                              DataObject.Pasting="ReceivedAmount_Pasting" />
+                               PreviewKeyDown="ReceivedAmount_PreviewKeyDown"
+                               DataObject.Pasting="ReceivedAmount_Pasting" />
+
+           <StackPanel Margin="0,0,0,12">
+             <TextBlock Text="Saldo diferido" Style="{StaticResource CashHint}" FontWeight="Medium" />
+             <TextBlock Text="Parte de la venta que queda pendiente para el cliente."
+                        Style="{StaticResource CashHint}"
+                        TextWrapping="Wrap"
+                        Margin="0,2,0,4" />
+             <xctk:DecimalUpDown Value="{Binding DeferredAmount, Mode=TwoWay}"
+                                 Minimum="0"
+                                 Height="36"
+                                 FontSize="15"
+                                 FormatString="N0" />
+           </StackPanel>
 
           <Grid Margin="0,0,0,12">
             <Grid.RowDefinitions>
@@ -823,9 +845,7 @@
             <Button Grid.Row="2" Grid.Column="0" Content="1" Style="{StaticResource KeypadButton}" Command="{Binding AppendReceivedAmountCommand}" CommandParameter="1" Margin="0,4,0,0" />
             <Button Grid.Row="2" Grid.Column="2" Content="2" Style="{StaticResource KeypadButton}" Command="{Binding AppendReceivedAmountCommand}" CommandParameter="2" Margin="0,4,0,0" />
             <Button Grid.Row="2" Grid.Column="4" Content="3" Style="{StaticResource KeypadButton}" Command="{Binding AppendReceivedAmountCommand}" CommandParameter="3" Margin="0,4,0,0" />
-            <Button Grid.Row="2" Grid.Column="6" Content="." Style="{StaticResource KeypadButton}" Command="{Binding AppendReceivedAmountCommand}" CommandParameter="." Margin="0,4,0,0" />
-
-            <Button Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5" Content="0" Style="{StaticResource KeypadButton}" Command="{Binding AppendReceivedAmountCommand}" CommandParameter="0" Margin="0,4,0,0" />
+             <Button Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="5" Content="0" Style="{StaticResource KeypadButton}" Command="{Binding AppendReceivedAmountCommand}" CommandParameter="0" Margin="0,4,0,0" />
             <Button Grid.Row="3" Grid.Column="6" Content="OK" Style="{StaticResource ActionKeypadButton}" Command="{Binding SetExactAmountCommand}" Margin="0,4,0,0" />
           </Grid>
 

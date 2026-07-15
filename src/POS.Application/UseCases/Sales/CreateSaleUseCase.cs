@@ -85,13 +85,7 @@ public sealed class CreateSaleUseCase
         {
             foreach (var payment in request.Payments)
             {
-                if (!string.IsNullOrWhiteSpace(payment.BankOrPlatform)
-                    && !PaymentPlatforms.IsValid(payment.BankOrPlatform))
-                {
-                    throw new InvalidOperationException(
-                        $"Payment platform '{payment.BankOrPlatform}' is not accepted. " +
-                        $"Valid platforms: {string.Join(", ", PaymentPlatforms.All)}.");
-                }
+                PaymentPlatforms.Validate(payment.Method, payment.BankOrPlatform);
             }
         }
 
@@ -162,6 +156,15 @@ public sealed class CreateSaleUseCase
                     "A customer must be identified to create a deferred balance.");
             }
 
+            if (plan.CollectedMethod is { } collectedMethod)
+            {
+                PaymentPlatforms.Validate(collectedMethod, plan.CollectedBankOrPlatform);
+            }
+            else if (!string.IsNullOrWhiteSpace(plan.CollectedBankOrPlatform))
+            {
+                throw new InvalidOperationException("A payment platform requires a collected payment method.");
+            }
+
             sale.SetSettlementPlan(plan);
 
             if (plan.CollectedAmount > 0m && plan.CollectedMethod is not null)
@@ -170,7 +173,7 @@ public sealed class CreateSaleUseCase
                     plan.CollectedMethod.Value,
                     new Money(plan.CollectedAmount),
                     plan.CollectedMethod == Domain.Enums.PaymentMethod.Cash ? new Money(plan.CollectedAmount) : null,
-                    null));
+                    plan.CollectedBankOrPlatform));
             }
         }
         else

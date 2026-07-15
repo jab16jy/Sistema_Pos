@@ -96,6 +96,11 @@ public sealed class SalePersistenceTests
             [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_400m, null, "Nequi")]),
             TestContext.Current.CancellationToken);
 
+        var heldSale = new Sale(Guid.NewGuid());
+        heldSale.Hold();
+        await dbContext.Sales.AddAsync(heldSale, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
         var summaryUseCase = new GetDashboardSummaryUseCase(new SaleRepository(dbContext));
 
         DashboardSummary summary = await summaryUseCase.ExecuteAsync(
@@ -140,6 +145,11 @@ public sealed class SalePersistenceTests
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_400m, 1_400m, null)]),
             TestContext.Current.CancellationToken);
+
+        var heldSale = new Sale(cashierId);
+        heldSale.Hold();
+        await dbContext.Sales.AddAsync(heldSale, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         ShiftSalesSummaryData summary = await sales.GetShiftSalesSummaryAsync(
             cashierId,
@@ -249,6 +259,36 @@ public sealed class SalePersistenceTests
         Assert.Equal(0, summary.LowStockCount);
     }
 
+    [Fact]
+    public async Task GetDashboardSummaryAsync_UsesExclusiveUtcUpperBound()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        Product product = await TestProductFactory.CreateAndPersistAsync(
+            dbContext, "Boundary product", new Money(1_000m), new Money(1_400m),
+            new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        CreateSaleResult result = await saleUseCase.ExecuteAsync(new CreateSaleRequest(
+            Guid.NewGuid(), null, [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_400m, 1_400m, null)]),
+            TestContext.Current.CancellationToken);
+
+        DateTimeOffset upperBound = DateTimeOffset.UtcNow.AddMinutes(1);
+        Sale persistedSale = await dbContext.Sales.SingleAsync(sale => sale.Id == result.SaleId, TestContext.Current.CancellationToken);
+        dbContext.Entry(persistedSale).Property(nameof(Sale.CreatedAt)).CurrentValue = upperBound;
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        DashboardSummary summary = await new GetDashboardSummaryUseCase(new SaleRepository(dbContext)).ExecuteAsync(
+            new DashboardSummaryRequest(upperBound.AddDays(-1), upperBound),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, summary.SalesCount);
+        Assert.Equal(0m, summary.SalesTotal);
+    }
+
     // --- RED: deferred balance / receivable persistence ---
 
     [Fact]
@@ -273,7 +313,7 @@ public sealed class SalePersistenceTests
             Guid.NewGuid(),
             customerId,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
-            new SaleSettlementPlan(200_000m, PaymentMethod.Cash, 150_000m));
+            new SaleSettlementPlan(200_000m, PaymentMethod.Transfer, 150_000m, "Nequi"));
 
         var result = await useCase.ExecuteAsync(request, TestContext.Current.CancellationToken);
 
@@ -283,6 +323,19 @@ public sealed class SalePersistenceTests
             .SingleAsync(r => r.SaleId == result.SaleId, TestContext.Current.CancellationToken);
         Assert.Equal(customerId, receivable.CustomerId);
         Assert.Equal(150_000m, receivable.OutstandingBalance.Amount);
+
+        Payment payment = await dbContext.Set<Payment>()
+            .SingleAsync(p => p.SaleId == result.SaleId, TestContext.Current.CancellationToken);
+        Assert.Equal(PaymentMethod.Transfer, payment.Method);
+        Assert.Equal("Nequi", payment.BankOrPlatform);
+
+        DashboardSummary summary = await new GetDashboardSummaryUseCase(new SaleRepository(dbContext)).ExecuteAsync(
+            new DashboardSummaryRequest(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1)),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(350_000m, summary.SalesTotal);
+        Assert.Equal(0m, summary.CashInDrawer);
+        Assert.Equal(200_000m, summary.DigitalPayments);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using POS.Application.DTOs.Customers;
+using POS.Application.Common;
 using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Quotes;
 using POS.Application.Interfaces;
@@ -19,6 +20,33 @@ namespace POS.Presentation.Shared.Tests;
 
 public sealed class CashierViewModelTests
 {
+    [Fact]
+    public void TransferPayment_ExposesCanonicalPlatformAndClearsItForOtherMethods()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService());
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Transfer);
+        Assert.True(viewModel.IsTransferPayment);
+        Assert.Equal(PaymentPlatforms.All, viewModel.PaymentPlatformOptions);
+
+        viewModel.BankOrPlatform = "Nequi";
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Cash);
+
+        Assert.False(viewModel.IsTransferPayment);
+        Assert.Equal(string.Empty, viewModel.BankOrPlatform);
+    }
+
+    [Fact]
+    public void ReceivedAmount_UsesWholeCopAndIgnoresDecimalKey()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService());
+
+        viewModel.ReceivedAmount = 12_345.67m;
+        viewModel.AppendReceivedAmountCommand.Execute(".");
+
+        Assert.Equal(12_345m, viewModel.ReceivedAmount);
+    }
+
     [Fact]
     public async Task ApplyRedemptionAsync_WithEmptyCart_BlocksRedemptionInsteadOfPreviewingPhantomDiscount()
     {

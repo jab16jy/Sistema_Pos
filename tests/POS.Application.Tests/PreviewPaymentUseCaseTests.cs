@@ -35,11 +35,31 @@ public sealed class PreviewPaymentUseCaseTests
     {
         var useCase = new PreviewPaymentUseCase();
 
-        var result = useCase.Execute(new PaymentPreviewRequest(7500m, PaymentMethod.Transfer, 0m));
+        var result = useCase.Execute(new PaymentPreviewRequest(7500m, PaymentMethod.Transfer, 0m, BankOrPlatform: "Nequi"));
 
         Assert.True(result.CanConfirm);
         Assert.Equal(0m, result.ChangeAmount);
         Assert.Contains("digital", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Execute_TransferWithoutPlatform_DisablesConfirmation()
+    {
+        var result = new PreviewPaymentUseCase().Execute(
+            new PaymentPreviewRequest(7_500m, PaymentMethod.Transfer, 0m));
+
+        Assert.False(result.CanConfirm);
+        Assert.Contains("platform", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Execute_NonTransferWithPlatform_DisablesConfirmation()
+    {
+        var result = new PreviewPaymentUseCase().Execute(
+            new PaymentPreviewRequest(7_500m, PaymentMethod.Cash, 7_500m, BankOrPlatform: "Nequi"));
+
+        Assert.False(result.CanConfirm);
+        Assert.Contains("only valid", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // --- RED: Settlement plan preview tests ---
@@ -56,6 +76,16 @@ public sealed class PreviewPaymentUseCaseTests
         Assert.Equal(0m, result.ChangeAmount); // no change when deferred covers remaining
         Assert.Equal(40_000m, result.DeferredBalance);
         Assert.Contains("crédito", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Execute_WithFullyDeferredBalance_DoesNotRequirePlatformWithoutCollectedPayment()
+    {
+        var result = new PreviewPaymentUseCase().Execute(
+            new PaymentPreviewRequest(100_000m, PaymentMethod.Transfer, 0m, 100_000m));
+
+        Assert.True(result.CanConfirm);
+        Assert.Equal(100_000m, result.DeferredBalance);
     }
 
     [Fact]
