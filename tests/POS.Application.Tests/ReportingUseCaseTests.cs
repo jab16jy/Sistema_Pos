@@ -86,10 +86,11 @@ public sealed class ReportingUseCaseTests
             [new CreateSalePaymentRequest(PaymentMethod.Transfer, 30_000m, null, "Nequi")]),
             TestContext.Current.CancellationToken);
 
-        // Receivable settlement: 20_000 cash via ReceivableSettlement in RECEIVABLE_SETTLEMENTS table
+        // Receivable settlements: 20_000 cash + 10_000 digital via RECEIVABLE_SETTLEMENTS
         var customerId = Guid.NewGuid();
         var receivable = new Receivable(customerId, Guid.NewGuid(), new Money(40_000m));
-        receivable.ApplyPayment(new Money(20_000m));
+        receivable.ApplyPayment(new Money(20_000m), PaymentMethod.Cash);
+        receivable.ApplyPayment(new Money(10_000m), PaymentMethod.Transfer, "Nequi");
         await dbContext.Receivables.AddAsync(receivable, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
@@ -109,8 +110,10 @@ public sealed class ReportingUseCaseTests
         Assert.Equal(80_000m, report.BilledSalesTotal);           // 50k + 30k
         Assert.Equal(50_000m, report.SaleCashCollected);          // cash sale only
         Assert.Equal(30_000m, report.SaleDigitalCollected);       // digital sale only
-        Assert.Equal(20_000m, report.ReceivableSettlementTotal);  // settlement paid
-        // Expected drawer cash = cash from sales + settlement cash (both physical)
+        Assert.Equal(30_000m, report.ReceivableSettlementTotal);  // settlements paid
+        Assert.Equal(20_000m, report.ReceivableSettlementCash);
+        Assert.Equal(10_000m, report.ReceivableSettlementDigital);
+        // Expected drawer cash includes only cash settlements.
         Assert.Equal(70_000m, report.ExpectedDrawerCash);         // 50k + 20k
     }
 

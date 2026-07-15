@@ -98,7 +98,22 @@ v => DateTimeOffset.Parse(v))
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         AddAuditEntries();
-        return base.SaveChangesAsync(cancellationToken);
+        return SaveChangesWithConcurrencyHandlingAsync(cancellationToken);
+    }
+
+    private async Task<int> SaveChangesWithConcurrencyHandlingAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(
+                "The receivable was changed by another operation. Reload the balance and try again.",
+                exception);
+        }
     }
 
     public async Task ExecuteInTransactionAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken = default)

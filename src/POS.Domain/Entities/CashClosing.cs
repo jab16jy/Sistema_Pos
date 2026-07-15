@@ -27,7 +27,8 @@ public sealed class CashClosing
         Money cashCollected,
         Money digitalCollected,
         Money receivableSettlementTotal,
-        Money countedCash)
+        Money countedCash,
+        Money? receivableSettlementCash = null)
     {
         Id = Guid.NewGuid();
         UserId = userId;
@@ -35,11 +36,12 @@ public sealed class CashClosing
         CashCollected = cashCollected;
         DigitalCollected = digitalCollected;
         ReceivableSettlementTotal = receivableSettlementTotal;
+        ReceivableSettlementCash = receivableSettlementCash ?? receivableSettlementTotal;
         CountedCash = countedCash;
         ClosedAt = DateTimeOffset.UtcNow;
 
         // Preserve legacy computed fields for backwards compatibility
-        ExpectedCash = new Money(cashCollected.Amount + receivableSettlementTotal.Amount);
+        ExpectedCash = new Money(cashCollected.Amount + ReceivableSettlementCash.Amount);
         DigitalPayments = digitalCollected;
     }
 
@@ -64,6 +66,7 @@ public sealed class CashClosing
 
     /// <summary>Receivable settlement amounts collected in the period.</summary>
     public Money ReceivableSettlementTotal { get; private set; }
+    public Money ReceivableSettlementCash { get; private set; }
 
     public DateTimeOffset ClosedAt { get; private set; }
 

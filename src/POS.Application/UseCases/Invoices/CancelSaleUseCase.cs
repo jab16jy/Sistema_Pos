@@ -18,6 +18,7 @@ public sealed class CancelSaleUseCase
     private readonly IUserRepository _users;
     private readonly IRoleRepository _roles;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IReceivableRepository? _receivables;
     private readonly CompensateSaleLoyaltyUseCase? _compensateLoyalty;
 
     public CancelSaleUseCase(
@@ -27,7 +28,8 @@ public sealed class CancelSaleUseCase
         IUserRepository users,
         IRoleRepository roles,
         IUnitOfWork unitOfWork,
-        CompensateSaleLoyaltyUseCase? compensateLoyalty = null)
+        CompensateSaleLoyaltyUseCase? compensateLoyalty = null,
+        IReceivableRepository? receivables = null)
     {
         _sales = sales;
         _products = products;
@@ -36,6 +38,7 @@ public sealed class CancelSaleUseCase
         _roles = roles;
         _unitOfWork = unitOfWork;
         _compensateLoyalty = compensateLoyalty;
+        _receivables = receivables;
     }
 
     public async Task ExecuteAsync(CancelSaleRequest request, CancellationToken cancellationToken = default)
@@ -62,6 +65,16 @@ public sealed class CancelSaleUseCase
             ?? throw new InvalidOperationException("Sale was not found.");
 
         sale.MarkCancelled();
+
+        if (_receivables is not null)
+        {
+            Receivable? receivable = await _receivables.GetBySaleIdAsync(sale.Id, cancellationToken).ConfigureAwait(false);
+            if (receivable is not null)
+            {
+                receivable.Cancel();
+                await _receivables.UpdateAsync(receivable, cancellationToken).ConfigureAwait(false);
+            }
+        }
 
         foreach (SaleItem item in sale.Items)
         {

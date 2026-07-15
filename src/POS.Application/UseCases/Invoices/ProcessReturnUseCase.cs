@@ -17,6 +17,7 @@ public sealed class ProcessReturnUseCase
     private readonly ISaleReturnRepository _saleReturns;
     private readonly IUserRepository _users;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IReceivableRepository? _receivables;
     private readonly CompensateSaleLoyaltyUseCase? _compensateLoyalty;
 
     public ProcessReturnUseCase(
@@ -26,7 +27,8 @@ public sealed class ProcessReturnUseCase
         ISaleReturnRepository saleReturns,
         IUnitOfWork unitOfWork,
         IUserRepository users,
-        CompensateSaleLoyaltyUseCase? compensateLoyalty = null)
+        CompensateSaleLoyaltyUseCase? compensateLoyalty = null,
+        IReceivableRepository? receivables = null)
     {
         _sales = sales;
         _products = products;
@@ -35,6 +37,7 @@ public sealed class ProcessReturnUseCase
         _unitOfWork = unitOfWork;
         _users = users;
         _compensateLoyalty = compensateLoyalty;
+        _receivables = receivables;
     }
 
     public async Task<Guid> ExecuteAsync(ProcessReturnRequest request, CancellationToken cancellationToken = default)
@@ -177,6 +180,24 @@ public sealed class ProcessReturnUseCase
         if (allItemsReturned)
         {
             sale.MarkReturned();
+        }
+
+        if (_receivables is not null)
+        {
+            Receivable? receivable = await _receivables.GetBySaleIdAsync(sale.Id, cancellationToken).ConfigureAwait(false);
+            if (receivable is not null)
+            {
+                if (allItemsReturned)
+                {
+                    receivable.Cancel();
+                }
+                else
+                {
+                    receivable.ReduceForReturn(new Money(returnLines.Sum(line => line.RefundAmount)));
+                }
+
+                await _receivables.UpdateAsync(receivable, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         // Stage loyalty compensation

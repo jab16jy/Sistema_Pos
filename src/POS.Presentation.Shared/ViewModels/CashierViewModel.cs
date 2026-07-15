@@ -89,6 +89,7 @@ public sealed class CashierViewModel : ViewModelBase
     private CustomerPayableQuote? _selectedCustomerQuote;
     private CustomerPayableQuote? _loadedQuote;
     private int? _customerLoyaltyBalance;
+    private int _minimumRedeemPoints;
     private decimal _customerMaxDiscount;
     private decimal _currentTierDiscountPercent;
     private decimal _currentTierPointsMultiplier = 1m;
@@ -369,8 +370,8 @@ public sealed class CashierViewModel : ViewModelBase
         }
     }
 
-    /// <summary>True when the assigned customer has loyalty info to display.</summary>
-    public bool HasCustomerLoyaltyInfo => _customerLoyaltyBalance.HasValue;
+    /// <summary>True when the assigned customer has enough points to reach the minimum redeemable threshold.</summary>
+    public bool HasCustomerLoyaltyInfo => _customerLoyaltyBalance is { } balance && balance >= _minimumRedeemPoints && _minimumRedeemPoints > 0;
 
     /// <summary>Human-readable summary of the assigned customer's loyalty points and their money value.</summary>
     public string CustomerLoyaltyInfo
@@ -1361,6 +1362,7 @@ public sealed class CashierViewModel : ViewModelBase
                 return;
             }
 
+            _minimumRedeemPoints = balance.MinimumRedeemPoints;
             CustomerLoyaltyBalance = balance.Balance;
             CustomerMaxDiscount = balance.RedemptionValuePerPoint > 0m
                 ? balance.Balance * balance.RedemptionValuePerPoint
@@ -1381,6 +1383,7 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void ClearCustomerLoyaltyInfo()
     {
+        _minimumRedeemPoints = 0;
         CustomerLoyaltyBalance = null;
         CustomerMaxDiscount = 0m;
         _currentTierDiscountPercent = 0m;
@@ -1630,15 +1633,27 @@ public sealed class CashierViewModel : ViewModelBase
 
         try
         {
-            CreateSaleResult result = await _completeHeldSaleUseCase.ExecuteAsync(
-                new CompleteHeldSaleRequest(
+            CompleteHeldSaleRequest request = DeferredAmount > 0m
+                ? new CompleteHeldSaleRequest(
+                    CashierUserId,
+                    saleId,
+                    [],
+                    new Domain.Entities.SaleSettlementPlan(
+                        ReceivedAmount,
+                        ReceivedAmount > 0m ? SelectedPaymentMethod.Method : null,
+                        DeferredAmount,
+                        ReceivedAmount > 0m && SelectedPaymentMethod.Method == PaymentMethod.Transfer ? BankOrPlatform : null))
+                : new CompleteHeldSaleRequest(
                     CashierUserId,
                     saleId,
                     [new CreateSalePaymentRequest(
                         SelectedPaymentMethod.Method,
                         NetPayable,
                         SelectedPaymentMethod.Method == PaymentMethod.Cash ? ReceivedAmount : null,
-                        string.IsNullOrWhiteSpace(BankOrPlatform) ? null : BankOrPlatform)]),
+                        string.IsNullOrWhiteSpace(BankOrPlatform) ? null : BankOrPlatform)]);
+
+            CreateSaleResult result = await _completeHeldSaleUseCase.ExecuteAsync(
+                request,
                 cancellationToken).ConfigureAwait(true);
 
             _resumedSaleId = null;

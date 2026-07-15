@@ -51,7 +51,7 @@ public sealed class SaleRepository : ISaleRepository
         DateTimeOffset utcFrom = from.ToUniversalTime();
         DateTimeOffset utcTo = to.ToUniversalTime();
 
-        (decimal salesTotal, decimal cashInDrawer, decimal digitalPayments, int salesCount) =
+        (decimal salesTotal, decimal cashInDrawer, decimal digitalPayments, int salesCount, _, _) =
             await ReadSalesSummaryAsync(utcFrom, utcTo, cashierUserId: null, cancellationToken).ConfigureAwait(false);
 
         int lowStockCount = await _dbContext.Products
@@ -81,13 +81,13 @@ public sealed class SaleRepository : ISaleRepository
         DateTimeOffset utcOpenedAt = openedAt.ToUniversalTime();
         DateTimeOffset utcClosedAt = closedAt.ToUniversalTime();
 
-        (decimal salesTotal, decimal cashPayments, decimal digitalPayments, _) =
+        (decimal salesTotal, decimal cashPayments, decimal digitalPayments, _, decimal settlementCash, decimal settlementDigital) =
             await ReadSalesSummaryAsync(utcOpenedAt, utcClosedAt, cashierUserId, cancellationToken).ConfigureAwait(false);
 
-        return new ShiftSalesSummaryData(salesTotal, cashPayments, digitalPayments);
+        return new ShiftSalesSummaryData(salesTotal, cashPayments, digitalPayments, settlementCash, settlementDigital);
     }
 
-    private async Task<(decimal SalesTotal, decimal CashPayments, decimal DigitalPayments, int SalesCount)> ReadSalesSummaryAsync(
+    private async Task<(decimal SalesTotal, decimal CashPayments, decimal DigitalPayments, int SalesCount, decimal SettlementCash, decimal SettlementDigital)> ReadSalesSummaryAsync(
         DateTimeOffset from,
         DateTimeOffset to,
         Guid? cashierUserId,
@@ -122,7 +122,19 @@ public sealed class SaleRepository : ISaleRepository
                                 AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0),
                     (SELECT COUNT(*) FROM SALES s
                      WHERE s."Status" = 3 AND s."CreatedAt" >= $from AND s."CreatedAt" < $to
-                       AND ($cashier IS NULL OR s."CashierUserId" = $cashier));
+                       AND ($cashier IS NULL OR s."CashierUserId" = $cashier)),
+                    COALESCE((SELECT SUM(CASE WHEN rs."Method" = 1 THEN CAST(rs.amount AS NUMERIC) ELSE 0 END)
+                              FROM RECEIVABLE_SETTLEMENTS rs
+                              INNER JOIN RECEIVABLES r ON r."Id" = rs."ReceivableId"
+                              INNER JOIN SALES s ON s."Id" = r."SaleId"
+                              WHERE s."Status" = 3 AND rs."AppliedAt" >= $from AND rs."AppliedAt" < $to
+                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0),
+                    COALESCE((SELECT SUM(CASE WHEN rs."Method" IN (2, 3, 4) THEN CAST(rs.amount AS NUMERIC) ELSE 0 END)
+                              FROM RECEIVABLE_SETTLEMENTS rs
+                              INNER JOIN RECEIVABLES r ON r."Id" = rs."ReceivableId"
+                              INNER JOIN SALES s ON s."Id" = r."SaleId"
+                              WHERE s."Status" = 3 AND rs."AppliedAt" >= $from AND rs."AppliedAt" < $to
+                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0);
                 """;
             command.Parameters.Add(new SqliteParameter("$from", ToSqliteTimestamp(from)));
             command.Parameters.Add(new SqliteParameter("$to", ToSqliteTimestamp(to)));
@@ -136,7 +148,9 @@ public sealed class SaleRepository : ISaleRepository
                 ToDecimal(reader.GetValue(0)),
                 ToDecimal(reader.GetValue(1)),
                 ToDecimal(reader.GetValue(2)),
-                Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture));
+                Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
+                ToDecimal(reader.GetValue(4)),
+                ToDecimal(reader.GetValue(5)));
         }
         finally
         {

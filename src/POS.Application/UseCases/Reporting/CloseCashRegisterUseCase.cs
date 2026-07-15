@@ -69,7 +69,8 @@ public sealed class CloseCashRegisterUseCase
             cashCollected,
             digitalCollected,
             settlementTotal,
-            countedCash);
+            countedCash,
+            new Money(totals.ReceivableSettlementCash));
 
         await _cashClosingRepository.AddAsync(closing, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -79,6 +80,7 @@ public sealed class CloseCashRegisterUseCase
             CashCollected: totals.SaleCashCollected,
             DigitalCollected: totals.SaleDigitalCollected,
             ReceivableSettlementTotal: totals.ReceivableSettlementTotal,
+            ReceivableSettlementCash: totals.ReceivableSettlementCash,
             ExpectedDrawerCash: totals.ExpectedDrawerCash,
             CountedCash: request.CountedCash.Value,
             Difference: request.CountedCash.Value - totals.ExpectedDrawerCash);

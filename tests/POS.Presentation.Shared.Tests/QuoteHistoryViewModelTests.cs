@@ -639,7 +639,7 @@ public sealed class QuoteHistoryViewModelTests
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
         // Full cash payment — no deferred amount
-        await vm.ConvertToSaleAsync(row, Guid.NewGuid(), new SaleSettlementPlan(20_000m, PaymentMethod.Cash, 0m), TestContext.Current.CancellationToken);
+        await vm.ConvertToSaleAsync(row, Guid.NewGuid(), new SaleSettlementPlan(2_000m, PaymentMethod.Cash, 0m), TestContext.Current.CancellationToken);
 
         Assert.Contains("POS-", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(receivables.Stored);

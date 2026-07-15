@@ -34,6 +34,8 @@ public sealed class CashierShift
     public Money SalesTotal { get; private set; }
     public Money CashPayments { get; private set; }
     public Money DigitalPayments { get; private set; }
+    public Money ReceivableSettlementCash { get; private set; }
+    public Money ReceivableSettlementDigital { get; private set; }
     public bool HasClosingSummary { get; private set; }
     public string? Notes { get; private set; }
     public ShiftStatus Status { get; private set; }
@@ -64,6 +66,8 @@ public sealed class CashierShift
         SalesTotal = summary.SalesTotal;
         CashPayments = summary.CashPayments;
         DigitalPayments = summary.DigitalPayments;
+        ReceivableSettlementCash = summary.ReceivableSettlementCash;
+        ReceivableSettlementDigital = summary.ReceivableSettlementDigital;
         HasClosingSummary = true;
         Notes = string.IsNullOrWhiteSpace(notes) ? Notes : notes.Trim();
         ClosedAt = closedAt.ToUniversalTime();

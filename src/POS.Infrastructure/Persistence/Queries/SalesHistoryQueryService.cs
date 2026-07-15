@@ -175,6 +175,22 @@ public sealed class SalesHistoryQueryService : ISalesHistoryQueryService
 
         decimal total = items.Sum(item => item.Subtotal);
 
+        var receivable = await _dbContext.Receivables
+            .AsNoTracking()
+            .Include(r => r.Settlements)
+            .SingleOrDefaultAsync(r => r.SaleId == saleId, cancellationToken)
+            .ConfigureAwait(false);
+
+        IReadOnlyList<InvoiceSettlementResult>? settlements = receivable?.Settlements
+            .OrderBy(settlement => settlement.AppliedAt)
+            .Select(settlement => new InvoiceSettlementResult(
+                settlement.Id,
+                settlement.Method,
+                settlement.Amount.Amount,
+                settlement.AppliedAt,
+                settlement.BankOrPlatform))
+            .ToList();
+
         return new InvoiceDetailResult(
             saleRow.Id,
             saleRow.InvoiceNumber,
@@ -185,6 +201,8 @@ public sealed class SalesHistoryQueryService : ISalesHistoryQueryService
             total,
             saleRow.CashierName,
             items,
-            payments);
+            payments,
+            receivable?.OutstandingBalance.Amount ?? 0m,
+            settlements);
     }
 }

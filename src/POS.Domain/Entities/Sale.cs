@@ -45,6 +45,26 @@ public sealed class Sale
         }
 
         _settlementPlan = plan ?? throw new ArgumentNullException(nameof(plan));
+
+        if (plan.CollectedAmount < 0m || plan.DeferredBalanceAmount < 0m)
+        {
+            throw new InvalidOperationException("Settlement amounts cannot be negative.");
+        }
+
+        if (plan.CollectedAmount > 0m && plan.CollectedMethod is null)
+        {
+            throw new InvalidOperationException("A collected payment requires a payment method.");
+        }
+
+        if (plan.CollectedAmount == 0m && plan.CollectedMethod is not null)
+        {
+            throw new InvalidOperationException("A payment method cannot be set without a collected amount.");
+        }
+
+        if (plan.CollectedMethod == PaymentMethod.LoyaltyPoints)
+        {
+            throw new InvalidOperationException("Loyalty points cannot be used in a deferred settlement plan.");
+        }
     }
 
     /// <summary>Returns the deferred balance from the settlement plan, or zero if no plan.</summary>
@@ -134,9 +154,9 @@ public sealed class Sale
         var deferred = DeferredBalance().Amount;
         var covered = TotalPaid().Amount + deferred;
 
-        if (covered < total)
+        if (covered != total)
         {
-            throw new InvalidOperationException("The received payment does not cover the sale total.");
+            throw new InvalidOperationException("The received payment and deferred balance must equal the sale total.");
         }
 
         // Spec: deferred balance without identified customer is rejected (orphan credit guard)

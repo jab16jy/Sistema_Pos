@@ -32,6 +32,14 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("digital_payments")
                .HasDefaultValue(Money.Zero);
+        builder.Property(s => s.ReceivableSettlementCash)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("receivable_settlement_cash")
+               .HasDefaultValue(Money.Zero);
+        builder.Property(s => s.ReceivableSettlementDigital)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("receivable_settlement_digital")
+               .HasDefaultValue(Money.Zero);
         builder.Property(s => s.HasClosingSummary)
                .HasColumnName("has_closing_summary")
                .HasDefaultValue(false);

@@ -24,13 +24,13 @@ public sealed class CustomerLookupQueryService : ICustomerLookupQueryService
 
         if (!string.IsNullOrWhiteSpace(request.SearchText))
         {
-            string normalized = request.SearchText.Trim();
+            string pattern = $"%{request.SearchText.Trim()}%";
             query = query.Where(customer =>
-                customer.FullName.Contains(normalized) ||
-                customer.Identification.Contains(normalized) ||
-                (customer.Phone != null && customer.Phone.Contains(normalized)) ||
-                (customer.Email != null && customer.Email.Contains(normalized)) ||
-                (customer.Address != null && customer.Address.Contains(normalized)));
+                EF.Functions.Like(customer.FullName, pattern) ||
+                EF.Functions.Like(customer.Identification, pattern) ||
+                (customer.Phone != null && EF.Functions.Like(customer.Phone, pattern)) ||
+                (customer.Email != null && EF.Functions.Like(customer.Email, pattern)) ||
+                (customer.Address != null && EF.Functions.Like(customer.Address, pattern)));
         }
 
         return await query

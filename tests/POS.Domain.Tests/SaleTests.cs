@@ -52,6 +52,17 @@ public sealed class SaleTests
     }
 
     [Fact]
+    public void Complete_WithSettlementPlan_WhenCollectedPlusDeferredExceedsTotal_Rejects()
+    {
+        var product = MakeProduct(10_000m, stock: 5m);
+        var sale = new Sale(Guid.NewGuid(), Guid.NewGuid());
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+        sale.SetSettlementPlan(new SaleSettlementPlan(8_000m, PaymentMethod.Cash, 5_000m));
+
+        Assert.Throws<InvalidOperationException>(() => sale.Complete());
+    }
+
+    [Fact]
     public void Complete_WithDeferredBalance_WhenNoCustomer_Throws()
     {
         var product = MakeProduct(10_000m, stock: 5m);

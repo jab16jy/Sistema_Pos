@@ -53,5 +53,7 @@ public sealed class StartShiftUseCase
         shift.HasClosingSummary,
         shift.SalesTotal.Amount,
         shift.CashPayments.Amount,
-        shift.DigitalPayments.Amount);
+        shift.DigitalPayments.Amount,
+        shift.ReceivableSettlementCash.Amount,
+        shift.ReceivableSettlementDigital.Amount);
 }

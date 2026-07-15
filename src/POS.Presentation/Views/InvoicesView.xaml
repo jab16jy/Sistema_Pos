@@ -466,6 +466,35 @@
                     </ItemsControl>
                   </StackPanel>
                 </Border>
+
+                <Border Style="{StaticResource PreviewSectionCard}"
+                        Visibility="{Binding HasReceivable, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <StackPanel>
+                    <TextBlock Text="Cuenta por cobrar" FontWeight="SemiBold" Margin="0,0,0,8" />
+                    <Grid Margin="0,0,0,8">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBlock Text="Saldo pendiente" Style="{StaticResource MutedText}" />
+                      <TextBlock Grid.Column="1" Text="{Binding ReceivableOutstandingBalance, StringFormat={}{0:C0}}" FontWeight="Bold" FontFamily="Consolas" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding SelectedInvoiceDetail.Settlements}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Grid Margin="0,2">
+                            <Grid.ColumnDefinitions>
+                              <ColumnDefinition Width="*" />
+                              <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{Binding Method}" Style="{StaticResource MutedText}" />
+                            <TextBlock Grid.Column="1" Text="{Binding Amount, StringFormat={}{0:C0}}" FontFamily="Consolas" />
+                          </Grid>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
               </StackPanel>
 
               <StackPanel Margin="0,0,0,4">

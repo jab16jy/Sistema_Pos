@@ -11,4 +11,5 @@ public sealed record CashClosingSummary(
     decimal ReceivableSettlementTotal,
     decimal ExpectedDrawerCash,
     decimal CountedCash,
-    decimal Difference);
+    decimal Difference,
+    decimal ReceivableSettlementCash = 0m);

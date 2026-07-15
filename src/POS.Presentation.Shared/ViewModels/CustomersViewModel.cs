@@ -8,7 +8,10 @@ using POS.Application.DTOs.Receivables;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Loyalty;
+using POS.Application.Common;
+using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
+using POS.Presentation.Shared.Cashier;
 
 namespace POS.Presentation.Shared.ViewModels;
 
@@ -25,6 +28,8 @@ public sealed class CustomersViewModel : ViewModelBase
     private CustomerSearchResult? _selectedCustomer;
     private ReceivableSummary? _selectedReceivable;
     private decimal _abonoAmount;
+    private PaymentMethodOption _selectedSettlementPaymentMethod;
+    private string _selectedSettlementBankOrPlatform = string.Empty;
     private string _searchText = string.Empty;
     private string _fullName = string.Empty;
     private string _identification = string.Empty;
@@ -59,6 +64,15 @@ public sealed class CustomersViewModel : ViewModelBase
         _receivableQuery = receivableQuery;
         _applyPayment = applyPayment;
 
+        SettlementPaymentMethods =
+        [
+            new(PaymentMethod.Cash, "Efectivo"),
+            new(PaymentMethod.DebitCard, "Débito"),
+            new(PaymentMethod.CreditCard, "Tarjeta de crédito"),
+            new(PaymentMethod.Transfer, "Transferencia")
+        ];
+        _selectedSettlementPaymentMethod = SettlementPaymentMethods[0];
+
         Customers.CollectionChanged += OnCustomersCollectionChanged;
         HistoryEntries.CollectionChanged += OnHistoryEntriesCollectionChanged;
 
@@ -84,6 +98,44 @@ public sealed class CustomersViewModel : ViewModelBase
 
     /// <summary>Open (unpaid) receivables for the selected customer — the user picks one to register a payment against.</summary>
     public ObservableCollection<ReceivableSummary> OpenReceivables { get; } = [];
+
+    public ObservableCollection<PaymentMethodOption> SettlementPaymentMethods { get; }
+
+    public IReadOnlyList<string> SettlementPaymentPlatforms { get; } = PaymentPlatforms.All;
+
+    public PaymentMethodOption SelectedSettlementPaymentMethod
+    {
+        get => _selectedSettlementPaymentMethod;
+        set
+        {
+            if (value is null || !SetProperty(ref _selectedSettlementPaymentMethod, value))
+            {
+                return;
+            }
+
+            if (value.Method != PaymentMethod.Transfer)
+            {
+                SelectedSettlementBankOrPlatform = string.Empty;
+            }
+
+            OnPropertyChanged(nameof(IsSettlementTransfer));
+            RaiseAbonarCanExecuteChanged();
+        }
+    }
+
+    public string SelectedSettlementBankOrPlatform
+    {
+        get => _selectedSettlementBankOrPlatform;
+        set
+        {
+            if (SetProperty(ref _selectedSettlementBankOrPlatform, value))
+            {
+                RaiseAbonarCanExecuteChanged();
+            }
+        }
+    }
+
+    public bool IsSettlementTransfer => SelectedSettlementPaymentMethod.Method == PaymentMethod.Transfer;
 
     public ICommand LoadCommand { get; }
 
@@ -128,7 +180,11 @@ public sealed class CustomersViewModel : ViewModelBase
     }
 
     /// <summary>True when payments can be registered — needs the use case wired, a target receivable, and a positive amount.</summary>
-    public bool CanAbonar => _applyPayment is not null && SelectedReceivable is not null && AbonoAmount > 0m;
+    public bool CanAbonar =>
+        _applyPayment is not null &&
+        SelectedReceivable is not null &&
+        AbonoAmount > 0m &&
+        (!IsSettlementTransfer || PaymentPlatforms.IsValid(SelectedSettlementBankOrPlatform));
 
     public CustomerSearchResult? SelectedCustomer
     {
@@ -312,12 +368,12 @@ public sealed class CustomersViewModel : ViewModelBase
         }
     }
 
-    /// <summary>Count of sale-type entries in the selected customer's history.</summary>
-    public int HistoryPurchaseCount => HistoryEntries.Count(entry => IsSaleKind(entry.Kind));
+    /// <summary>Count of completed sales in the selected customer's history.</summary>
+    public int HistoryPurchaseCount => HistoryEntries.Count(IsCompletedSale);
 
-    /// <summary>Formatted sum of sale-type entries in the selected customer's history.</summary>
+    /// <summary>Formatted sum of completed sales in the selected customer's history.</summary>
     public string HistoryTotalFormatted
-        => $"${HistoryEntries.Where(entry => IsSaleKind(entry.Kind)).Sum(entry => entry.Amount).ToString("N0", ColombianCulture)}";
+        => $"${HistoryEntries.Where(IsCompletedSale).Sum(entry => entry.Amount).ToString("N0", ColombianCulture)}";
 
     /// <summary>Current outstanding customer debt from receivables, independent from the historical movement list.</summary>
     public decimal OutstandingBalance
@@ -462,7 +518,12 @@ public sealed class CustomersViewModel : ViewModelBase
         try
         {
             decimal abonado = AbonoAmount;
-            await _applyPayment.ExecuteAsync(SelectedReceivable.ReceivableId, abonado, cancellationToken).ConfigureAwait(true);
+            await _applyPayment.ExecuteAsync(
+                SelectedReceivable.ReceivableId,
+                abonado,
+                SelectedSettlementPaymentMethod.Method,
+                string.IsNullOrWhiteSpace(SelectedSettlementBankOrPlatform) ? null : SelectedSettlementBankOrPlatform,
+                cancellationToken).ConfigureAwait(true);
             AbonoAmount = 0m;
             await OpenHistoryAsync(cancellationToken).ConfigureAwait(true); // refresh SALDO + open receivables first
             Message = $"Abono de ${abonado.ToString("N0", ColombianCulture)} registrado.";
@@ -547,6 +608,9 @@ public sealed class CustomersViewModel : ViewModelBase
     }
 
     private static bool IsSaleKind(string kind) => string.Equals(kind, "Sale", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsCompletedSale(CustomerHistoryEntry entry)
+        => IsSaleKind(entry.Kind) && string.Equals(entry.Status, "Completed", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsQuoteKind(string kind) => string.Equals(kind, "Quote", StringComparison.OrdinalIgnoreCase);
 

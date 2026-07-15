@@ -4,7 +4,9 @@ namespace POS.Domain.ValueObjects;
 public readonly record struct ShiftClosingSummary(
     Money SalesTotal,
     Money CashPayments,
-    Money DigitalPayments)
+    Money DigitalPayments,
+    Money ReceivableSettlementCash = default,
+    Money ReceivableSettlementDigital = default)
 {
     public static ShiftClosingSummary Empty => new(Money.Zero, Money.Zero, Money.Zero);
 }

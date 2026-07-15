@@ -1,4 +1,5 @@
 using POS.Domain.Enums;
+using POS.Domain.Entities;
 
 namespace POS.Application.DTOs.Sales;
 
@@ -30,4 +31,5 @@ public sealed record ResumeHeldSaleRequest(Guid CashierUserId, Guid SaleId);
 public sealed record CompleteHeldSaleRequest(
     Guid CashierUserId,
     Guid SaleId,
-    IReadOnlyCollection<CreateSalePaymentRequest> Payments);
+    IReadOnlyCollection<CreateSalePaymentRequest> Payments,
+    SaleSettlementPlan? SettlementPlan = null);

@@ -1,4 +1,5 @@
 using POS.Domain.ValueObjects;
+using POS.Domain.Enums;
 
 namespace POS.Domain.Entities;
 
@@ -35,7 +36,9 @@ public sealed class Receivable
     public Money OriginalBalance { get; private set; }
     public Money OutstandingBalance { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
-    public bool IsPaidOff => OutstandingBalance.Amount == 0m;
+    public bool IsCancelled { get; private set; }
+    public int Version { get; private set; }
+    public bool IsPaidOff => !IsCancelled && OutstandingBalance.Amount == 0m;
 
     public IReadOnlyCollection<ReceivableSettlement> Settlements => _settlements.AsReadOnly();
 
@@ -44,10 +47,23 @@ public sealed class Receivable
     /// Rejects overpayment per spec: payment > amount due throws.
     /// </summary>
     public void ApplyPayment(Money payment)
+        => ApplyPayment(payment, PaymentMethod.Cash);
+
+    public void ApplyPayment(Money payment, PaymentMethod method, string? bankOrPlatform = null)
     {
+        if (IsCancelled)
+        {
+            throw new InvalidOperationException("Cancelled receivables cannot receive payments.");
+        }
+
         if (payment.Amount <= 0m)
         {
             throw new InvalidOperationException("Payment amount must be greater than zero.");
+        }
+
+        if (method == PaymentMethod.LoyaltyPoints)
+        {
+            throw new InvalidOperationException("Loyalty points cannot be used to pay a receivable.");
         }
 
         if (payment.Amount > OutstandingBalance.Amount)
@@ -55,7 +71,33 @@ public sealed class Receivable
             throw new InvalidOperationException("Payment amount exceeds outstanding balance.");
         }
 
-        _settlements.Add(new ReceivableSettlement(Id, payment));
+        _settlements.Add(new ReceivableSettlement(Id, payment, method, bankOrPlatform));
         OutstandingBalance = OutstandingBalance - payment;
+        Version++;
+    }
+
+    public void Cancel()
+    {
+        if (IsCancelled)
+        {
+            return;
+        }
+
+        IsCancelled = true;
+        OutstandingBalance = Money.Zero;
+        Version++;
+    }
+
+    public void ReduceForReturn(Money refundAmount)
+    {
+        if (IsCancelled || refundAmount.Amount <= 0m)
+        {
+            return;
+        }
+
+        OutstandingBalance = refundAmount.Amount >= OutstandingBalance.Amount
+            ? Money.Zero
+            : OutstandingBalance - refundAmount;
+        Version++;
     }
 }

@@ -72,6 +72,11 @@ public sealed class CreateSaleUseCase
             throw new InvalidOperationException("Add at least one product before completing the sale.");
         }
 
+        if (request.SettlementPlan?.DeferredBalanceAmount > 0m && _receivables is null)
+        {
+            throw new InvalidOperationException("Receivable persistence is required for deferred sales.");
+        }
+
         if (!request.IsQuoteConversion)
         {
             decimal maximumDiscount = await CashierDiscountPolicy
@@ -213,10 +218,8 @@ public sealed class CreateSaleUseCase
         if (sale.DeferredBalance().Amount > 0m && request.CustomerId.HasValue)
         {
             receivable = new Receivable(request.CustomerId.Value, sale.Id, sale.DeferredBalance());
-            if (_receivables is not null)
-            {
-                await _receivables.AddAsync(receivable, cancellationToken);
-            }
+            await (_receivables ?? throw new InvalidOperationException("Receivable persistence is required for deferred sales."))
+                .AddAsync(receivable, cancellationToken);
         }
 
         if (_accumulatePoints is not null && request.CustomerId.HasValue)

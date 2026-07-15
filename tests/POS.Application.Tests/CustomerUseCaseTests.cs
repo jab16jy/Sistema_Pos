@@ -275,4 +275,50 @@ public sealed class CustomerUseCaseTests
 
         return new AppDbContext(options);
     }
+
+    [Fact]
+    public async Task DatabaseSchemaRolloutAsync_AddsReceivableTenderAndShiftSettlementColumns()
+    {
+        string dbPath = Path.Combine(Path.GetTempPath(), $"pos-receivable-schema-{Guid.NewGuid():N}.db");
+        await File.WriteAllBytesAsync(dbPath, [], TestContext.Current.CancellationToken);
+        ServiceProvider? provider = null;
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddPosInfrastructure($"Data Source={dbPath}");
+            provider = services.BuildServiceProvider();
+
+            await DatabaseSchemaRollout.EnsureLatestSchemaAsync(provider, TestContext.Current.CancellationToken);
+
+            await using var connection = new SqliteConnection($"Data Source={dbPath}");
+            await connection.OpenAsync(TestContext.Current.CancellationToken);
+            Assert.Contains("method", await ReadColumnsAsync(connection, "RECEIVABLE_SETTLEMENTS"));
+            Assert.Contains("is_cancelled", await ReadColumnsAsync(connection, "RECEIVABLES"));
+            Assert.Contains("receivable_settlement_cash", await ReadColumnsAsync(connection, "CASHIER_SHIFTS"));
+        }
+        finally
+        {
+            if (provider is not null)
+            {
+                await provider.DisposeAsync();
+            }
+
+            SqliteConnection.ClearAllPools();
+            File.Delete(dbPath);
+        }
+    }
+
+    private static async Task<IReadOnlyList<string>> ReadColumnsAsync(SqliteConnection connection, string table)
+    {
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA table_info(\"{table}\")";
+        var columns = new List<string>();
+        await using SqliteDataReader reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken);
+        while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+        {
+            columns.Add(reader.GetString(1));
+        }
+
+        return columns;
+    }
 }

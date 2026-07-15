@@ -15,9 +15,11 @@ public sealed record ShiftSummary(
     bool HasClosingSummary = false,
     decimal SalesTotal = 0m,
     decimal CashPayments = 0m,
-    decimal DigitalPayments = 0m)
+    decimal DigitalPayments = 0m,
+    decimal ReceivableSettlementCash = 0m,
+    decimal ReceivableSettlementDigital = 0m)
 {
-    public decimal ExpectedCash => OpeningCash + CashPayments;
+    public decimal ExpectedCash => OpeningCash + CashPayments + ReceivableSettlementCash;
 }
 
 public sealed record StartShiftRequest(

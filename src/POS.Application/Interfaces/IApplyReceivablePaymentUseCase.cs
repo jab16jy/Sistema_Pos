@@ -1,3 +1,5 @@
+using POS.Domain.Enums;
+
 namespace POS.Application.Interfaces;
 
 /// <summary>
@@ -7,4 +9,12 @@ namespace POS.Application.Interfaces;
 public interface IApplyReceivablePaymentUseCase
 {
     Task ExecuteAsync(Guid receivableId, decimal paymentAmount, CancellationToken cancellationToken = default);
+
+    Task ExecuteAsync(
+        Guid receivableId,
+        decimal paymentAmount,
+        PaymentMethod paymentMethod,
+        string? bankOrPlatform,
+        CancellationToken cancellationToken = default)
+        => ExecuteAsync(receivableId, paymentAmount, cancellationToken);
 }

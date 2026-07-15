@@ -200,6 +200,12 @@ namespace POS.Infrastructure.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("receivable_settlement_total");
 
+                    b.Property<decimal>("ReceivableSettlementCash")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("receivable_settlement_cash");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -242,6 +248,18 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue(0m)
                         .HasColumnName("digital_payments");
+
+                    b.Property<decimal>("ReceivableSettlementCash")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("receivable_settlement_cash");
+
+                    b.Property<decimal>("ReceivableSettlementDigital")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("receivable_settlement_digital");
 
                     b.Property<bool>("HasClosingSummary")
                         .ValueGeneratedOnAdd()
@@ -1056,6 +1074,12 @@ namespace POS.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsCancelled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_cancelled");
+
                     b.Property<string>("CustomerId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -1071,6 +1095,13 @@ namespace POS.Infrastructure.Migrations
                     b.Property<string>("SaleId")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0)
+                        .HasColumnName("version")
+                        .IsConcurrencyToken();
 
                     b.HasKey("Id");
 
@@ -1089,6 +1120,17 @@ namespace POS.Infrastructure.Migrations
 
                     b.Property<DateTimeOffset>("AppliedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("BankOrPlatform")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("bank_or_platform");
+
+                    b.Property<int>("Method")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1)
+                        .HasColumnName("method");
 
                     b.Property<string>("ReceivableId")
                         .IsRequired()

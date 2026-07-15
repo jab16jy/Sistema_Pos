@@ -1,5 +1,7 @@
 using POS.Application.Interfaces;
+using POS.Application.Common;
 using POS.Domain.Interfaces;
+using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 
 namespace POS.Application.UseCases.Receivables;
@@ -21,6 +23,14 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
     }
 
     public async Task ExecuteAsync(Guid receivableId, decimal paymentAmount, CancellationToken cancellationToken = default)
+        => await ExecuteAsync(receivableId, paymentAmount, PaymentMethod.Cash, null, cancellationToken).ConfigureAwait(false);
+
+    public async Task ExecuteAsync(
+        Guid receivableId,
+        decimal paymentAmount,
+        PaymentMethod paymentMethod,
+        string? bankOrPlatform,
+        CancellationToken cancellationToken = default)
     {
         if (paymentAmount <= 0m)
         {
@@ -37,7 +47,8 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
                 $"Payment amount ({paymentAmount:N0}) exceeds outstanding balance ({receivable.OutstandingBalance.Amount:N0}).");
         }
 
-        receivable.ApplyPayment(new Money(paymentAmount));
+        PaymentPlatforms.Validate(paymentMethod, bankOrPlatform);
+        receivable.ApplyPayment(new Money(paymentAmount), paymentMethod, bankOrPlatform);
 
         await _receivables.UpdateAsync(receivable, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

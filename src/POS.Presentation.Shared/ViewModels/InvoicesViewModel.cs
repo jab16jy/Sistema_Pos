@@ -159,6 +159,8 @@ public sealed class InvoicesViewModel : ViewModelBase
                 OnPropertyChanged(nameof(LoyaltyDiscount));
                 OnPropertyChanged(nameof(TotalDiscounts));
                 OnPropertyChanged(nameof(NetTotal));
+                OnPropertyChanged(nameof(HasReceivable));
+                OnPropertyChanged(nameof(ReceivableOutstandingBalance));
             }
         }
     }
@@ -174,6 +176,12 @@ public sealed class InvoicesViewModel : ViewModelBase
     public decimal LoyaltyDiscount => SelectedInvoiceDetail?.Payments.Where(p => p.Method == PaymentMethod.LoyaltyPoints).Sum(p => p.Amount) ?? 0m;
     public decimal TotalDiscounts => TotalItemDiscounts + LoyaltyDiscount;
     public decimal NetTotal => SelectedInvoiceDetail is null ? 0m : SelectedInvoiceDetail.Total - LoyaltyDiscount;
+
+    public bool HasReceivable =>
+        SelectedInvoiceDetail?.OutstandingBalance > 0m ||
+        (SelectedInvoiceDetail?.Settlements?.Count > 0);
+
+    public decimal ReceivableOutstandingBalance => SelectedInvoiceDetail?.OutstandingBalance ?? 0m;
 
     public bool IsInvoiceDetailLoading
     {

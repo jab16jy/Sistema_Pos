@@ -32,7 +32,9 @@ public sealed class CloseShiftUseCase
             new ShiftClosingSummary(
                 new Money(salesSummary.SalesTotal),
                 new Money(salesSummary.CashPayments),
-                new Money(salesSummary.DigitalPayments)),
+                new Money(salesSummary.DigitalPayments),
+                new Money(salesSummary.ReceivableSettlementCash),
+                new Money(salesSummary.ReceivableSettlementDigital)),
             closedAt,
             request.Notes);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);

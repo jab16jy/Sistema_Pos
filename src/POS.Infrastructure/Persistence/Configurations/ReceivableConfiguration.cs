@@ -21,6 +21,15 @@ internal sealed class ReceivableConfiguration : IEntityTypeConfiguration<Receiva
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("outstanding_balance");
         builder.Property(r => r.CreatedAt).IsRequired();
+        builder.Property(r => r.IsCancelled)
+               .HasColumnName("is_cancelled")
+               .HasDefaultValue(false)
+               .IsRequired();
+        builder.Property(r => r.Version)
+               .HasColumnName("version")
+               .HasDefaultValue(0)
+               .IsConcurrencyToken()
+               .IsRequired();
 
         builder.HasMany(r => r.Settlements)
                .WithOne()

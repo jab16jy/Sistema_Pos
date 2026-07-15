@@ -62,18 +62,23 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
 
         // Receivable settlements in range — SQLite limitation: DateTimeOffset comparison
         // with SumAsync cannot be translated. Materialize then filter in memory.
-        var allSettlements = await _dbContext.ReceivableSettlements
+        var settlementRows = await _dbContext.ReceivableSettlements
             .AsNoTracking()
-            .Select(rs => new { rs.Amount, rs.AppliedAt })
+            .Select(rs => new { rs.Amount, rs.Method, rs.AppliedAt })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        decimal receivableSettlementTotal = allSettlements
+        var filteredSettlements = settlementRows
             .Where(rs => rs.AppliedAt >= request.From && rs.AppliedAt <= request.To)
-            .Sum(rs => rs.Amount.Amount);
+            .ToList();
 
-        decimal receivableSettlementCash = receivableSettlementTotal;
-        decimal receivableSettlementDigital = 0m;
+        decimal receivableSettlementTotal = filteredSettlements.Sum(rs => rs.Amount.Amount);
+        decimal receivableSettlementCash = filteredSettlements
+            .Where(rs => rs.Method == PaymentMethod.Cash)
+            .Sum(rs => rs.Amount.Amount);
+        decimal receivableSettlementDigital = filteredSettlements
+            .Where(rs => rs.Method != PaymentMethod.Cash)
+            .Sum(rs => rs.Amount.Amount);
         decimal expectedDrawerCash = saleCashCollected + receivableSettlementCash;
 
         // Generate chart points based on the date range

@@ -51,7 +51,7 @@ public sealed class CustomerHistoryQueryService : ICustomerHistoryQueryService
                 "Receivable",
                 $"Saldo venta {receivable.SaleId:N}",
                 receivable.OutstandingBalance.Amount,
-                receivable.IsPaidOff ? "Paid" : "Pending"))];
+                receivable.IsCancelled ? "Cancelled" : receivable.IsPaidOff ? "Paid" : "Pending"))];
 
         entries = [.. entries.OrderByDescending(entry => entry.OccurredAt)];
 

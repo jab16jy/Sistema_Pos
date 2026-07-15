@@ -146,12 +146,16 @@ public sealed class CashierViewModelTests
         private readonly Guid _customerId;
         private readonly decimal _discountPercent;
         private readonly LoyaltyAccount _account;
+        private readonly LoyaltyRule? _rule;
+        private readonly int _balance;
 
-        public TieredLoyaltyRepository(Guid customerId, decimal discountPercent)
+        public TieredLoyaltyRepository(Guid customerId, decimal discountPercent, LoyaltyRule? rule = null, int balance = 500)
         {
             _customerId = customerId;
             _discountPercent = discountPercent;
             _account = new LoyaltyAccount(customerId);
+            _rule = rule;
+            _balance = balance;
         }
 
         public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken cancellationToken = default)
@@ -161,10 +165,10 @@ public sealed class CashierViewModelTests
         public Task AddTransactionAsync(LoyaltyTransaction transaction, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<IReadOnlyList<LoyaltyTransaction>> GetTransactionsAsync(Guid loyaltyAccountId, int maxCount = 20, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
-        public Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default) => Task.FromResult<LoyaltyRule?>(null);
+        public Task<LoyaltyRule?> GetActiveRuleAsync(CancellationToken cancellationToken = default) => Task.FromResult(_rule);
         public Task AddRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task UpdateRuleAsync(LoyaltyRule rule, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default) => Task.FromResult(500);
+        public Task<int> GetBalanceAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default) => Task.FromResult(_balance);
         public Task<IReadOnlyList<LoyaltyRule>> GetRulesAsync(int maxCount = 20, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<LoyaltyRule>>([]);
         public Task<int> GetTotalIssuedPointsAsync(CancellationToken cancellationToken = default) => Task.FromResult(0);
@@ -175,6 +179,32 @@ public sealed class CashierViewModelTests
 
         public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<LoyaltyTier>>([new LoyaltyTier("Oro", 100, _discountPercent, 1m)]);
+    }
+
+    [Theory]
+    [InlineData(150, false)]
+    [InlineData(200, true)]
+    [InlineData(250, true)]
+    public async Task SelectCustomerAsync_HidesLoyaltyInfo_UntilBalanceReachesMinimumRedeemPoints(int balance, bool expectedVisible)
+    {
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var rule = new LoyaltyRule(pointsPerCurrencyUnit: 1m, redemptionValuePerPoint: 10m, minimumRedeemPoints: 200);
+        var loyalty = new TieredLoyaltyRepository(customer.Id, discountPercent: 0m, rule, balance);
+        var viewModel = new CashierViewModel(
+            new PrototypeProductLookupService(),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            null,
+            null,
+            null,
+            new GetLoyaltyBalanceUseCase(loyalty));
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expectedVisible, viewModel.HasCustomerLoyaltyInfo);
     }
 
     [Fact]

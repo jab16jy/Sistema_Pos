@@ -332,6 +332,31 @@ public sealed class InvoiceUseCaseTests
     }
 
     [Fact]
+    public async Task CancelSaleAsync_ClosesLinkedReceivable()
+    {
+        var product = CreateProduct();
+        var sale = CreateCompletedSale(product);
+        var receivable = new Receivable(Guid.NewGuid(), sale.Id, new Money(3_000m));
+        var receivables = new InMemoryReceivableRepository(receivable);
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+        var useCase = new CancelSaleUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            new InMemoryInventoryRepository(),
+            new InMemoryUserRepository(adminUser),
+            new TestRoleRepository(),
+            new CountingUnitOfWork(),
+            receivables: receivables);
+
+        await useCase.ExecuteAsync(
+            new CancelSaleRequest(sale.Id, adminUser.Id, "Cancela deuda asociada"),
+            TestContext.Current.CancellationToken);
+
+        Assert.True(receivable.IsCancelled);
+        Assert.Equal(0m, receivable.OutstandingBalance.Amount);
+    }
+
+    [Fact]
     public async Task CancelSaleAsync_WhenUserIsNotAdmin_ThrowsUnauthorizedActionException()
     {
         var product = CreateProduct();
@@ -479,6 +504,19 @@ public sealed class InvoiceUseCaseTests
 
         public Task AddAsync(Product product, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+    }
+
+    private sealed class InMemoryReceivableRepository(Receivable receivable) : IReceivableRepository
+    {
+        public Task AddAsync(Receivable value, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<Receivable?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult<Receivable?>(id == receivable.Id ? receivable : null);
+
+        public Task<Receivable?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
+            => Task.FromResult<Receivable?>(saleId == receivable.SaleId ? receivable : null);
+
+        public Task UpdateAsync(Receivable value, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class InMemoryInventoryRepository : IInventoryRepository

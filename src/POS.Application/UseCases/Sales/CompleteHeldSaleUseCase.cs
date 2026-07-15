@@ -14,15 +14,18 @@ public sealed class CompleteHeldSaleUseCase
     private readonly ISaleRepository _sales;
     private readonly IUnitOfWork _unitOfWork;
     private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
+    private readonly IReceivableRepository? _receivables;
 
     public CompleteHeldSaleUseCase(
         ISaleRepository sales,
         IUnitOfWork unitOfWork,
-        AccumulateLoyaltyPointsUseCase? accumulatePoints = null)
+        AccumulateLoyaltyPointsUseCase? accumulatePoints = null,
+        IReceivableRepository? receivables = null)
     {
         _sales = sales;
         _unitOfWork = unitOfWork;
         _accumulatePoints = accumulatePoints;
+        _receivables = receivables;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(
@@ -42,18 +45,57 @@ public sealed class CompleteHeldSaleUseCase
             throw new InvalidOperationException("Resume the held sale before completing it.");
         }
 
-        foreach (CreateSalePaymentRequest payment in request.Payments)
+        if (request.SettlementPlan?.DeferredBalanceAmount > 0m && _receivables is null)
         {
-            PaymentPlatforms.Validate(payment.Method, payment.BankOrPlatform);
+            throw new InvalidOperationException("Receivable persistence is required for deferred sales.");
+        }
 
-            sale.AddPayment(new Payment(
-                payment.Method,
-                new Money(payment.Amount),
-                payment.ReceivedAmount is null ? null : new Money(payment.ReceivedAmount.Value),
-                payment.BankOrPlatform));
+        if (request.SettlementPlan is not null)
+        {
+            SaleSettlementPlan plan = request.SettlementPlan;
+            if (plan.DeferredBalanceAmount > 0m && sale.CustomerId is null)
+            {
+                throw new InvalidOperationException("A customer must be identified to create a deferred balance.");
+            }
+
+            if (plan.CollectedMethod is { } method)
+            {
+                PaymentPlatforms.Validate(method, plan.CollectedBankOrPlatform);
+            }
+
+            sale.SetSettlementPlan(plan);
+            if (plan.CollectedAmount > 0m && plan.CollectedMethod is { } collectedMethod)
+            {
+                sale.AddPayment(new Payment(
+                    collectedMethod,
+                    new Money(plan.CollectedAmount),
+                    collectedMethod == PaymentMethod.Cash ? new Money(plan.CollectedAmount) : null,
+                    plan.CollectedBankOrPlatform));
+            }
+        }
+        else
+        {
+            foreach (CreateSalePaymentRequest payment in request.Payments)
+            {
+                PaymentPlatforms.Validate(payment.Method, payment.BankOrPlatform);
+
+                sale.AddPayment(new Payment(
+                    payment.Method,
+                    new Money(payment.Amount),
+                    payment.ReceivedAmount is null ? null : new Money(payment.ReceivedAmount.Value),
+                    payment.BankOrPlatform));
+            }
         }
 
         sale.Complete();
+
+        if (sale.DeferredBalance().Amount > 0m)
+        {
+            await (_receivables ?? throw new InvalidOperationException("Receivable persistence is required for deferred sales."))
+                .AddAsync(
+                new Receivable(sale.CustomerId!.Value, sale.Id, sale.DeferredBalance()),
+                cancellationToken).ConfigureAwait(false);
+        }
 
         if (_accumulatePoints is not null && sale.CustomerId.HasValue)
         {

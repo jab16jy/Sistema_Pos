@@ -39,10 +39,10 @@ public sealed class PreviewPaymentUseCase
                     "A payment platform requires a collected payment method.");
             }
 
-            if (collected + deferred.Amount < total.Amount)
+            if (collected + deferred.Amount != total.Amount)
             {
                 return new PaymentPreviewResult(false, 0m,
-                    "El monto cobrado más el crédito no cubre el total de la venta.");
+                    "El monto cobrado más el crédito debe ser exactamente igual al total de la venta.");
             }
 
             return new PaymentPreviewResult(true, 0m,

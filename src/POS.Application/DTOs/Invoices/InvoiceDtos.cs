@@ -29,7 +29,9 @@ public sealed record InvoiceDetailResult(
     decimal Total,
     string? CashierName,
     IReadOnlyList<InvoiceDetailItemResult> Items,
-    IReadOnlyList<InvoicePaymentResult> Payments);
+    IReadOnlyList<InvoicePaymentResult> Payments,
+    decimal OutstandingBalance = 0m,
+    IReadOnlyList<InvoiceSettlementResult>? Settlements = null);
 
 public sealed record InvoiceDetailItemResult(
     Guid SaleItemId,
@@ -51,6 +53,13 @@ public sealed record InvoicePaymentResult(
     decimal Amount,
     decimal? ReceivedAmount,
     decimal ChangeAmount,
+    string? BankOrPlatform);
+
+public sealed record InvoiceSettlementResult(
+    Guid SettlementId,
+    POS.Domain.Enums.PaymentMethod Method,
+    decimal Amount,
+    DateTimeOffset AppliedAt,
     string? BankOrPlatform);
 
 /// <summary>

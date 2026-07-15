@@ -25,6 +25,13 @@ public sealed class ReceivableRepository : IReceivableRepository
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
     }
 
+    public async Task<Receivable?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Receivables
+            .Include(r => r.Settlements)
+            .FirstOrDefaultAsync(r => r.SaleId == saleId, cancellationToken);
+    }
+
     public Task UpdateAsync(Receivable receivable, CancellationToken cancellationToken = default)
     {
         _dbContext.Receivables.Update(receivable);

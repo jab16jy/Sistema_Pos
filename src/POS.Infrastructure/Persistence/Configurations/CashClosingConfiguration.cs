@@ -42,5 +42,9 @@ internal sealed class CashClosingConfiguration : IEntityTypeConfiguration<CashCl
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("receivable_settlement_total")
                .HasDefaultValue(new Money(0m));
+        builder.Property(c => c.ReceivableSettlementCash)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("receivable_settlement_cash")
+               .HasDefaultValue(new Money(0m));
     }
 }
