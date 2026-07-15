@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.16.0...v1.16.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* saldo, abonos y consistencia cartera-caja turnos-facturas y anulaciones ([5c3a2f8](https://github.com/jab16jy/Sistema_Pos/commit/5c3a2f87992aaef4b61d6dc871f2698b5662a90d))
+
 ## [1.16.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.15.0...v1.16.0) (2026-07-15)
 
 
