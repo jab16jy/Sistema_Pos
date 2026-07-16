@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.17.1...v1.17.2) (2026-07-16)
+
+
+### Bug Fixes
+
+* **inventory:** restore movement history reload after selection/adjustment resets and fix UTC display ([4e05aff](https://github.com/jab16jy/Sistema_Pos/commit/4e05affca4766ec68820b763ca991a2b18a476cf))
+
 ## [1.17.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.17.0...v1.17.1) (2026-07-16)
 
 
