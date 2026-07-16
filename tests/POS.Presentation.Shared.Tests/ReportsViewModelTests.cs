@@ -1,3 +1,4 @@
+using System.Globalization;
 using POS.Application.DTOs.Reporting;
 using POS.Application.DTOs.Shifts;
 using POS.Application.Interfaces;
@@ -529,15 +530,16 @@ public sealed class ReportsViewModelTests
 
         await vm.LoadClosingsAsync(TestContext.Current.CancellationToken);
 
-        // Formatted with the ambient culture, same as ShiftsViewModel.ToShiftRow itself, to avoid a
-        // hardcoded culture-specific literal.
+        // ShiftsViewModel.ToShiftRow formats with a hardcoded es-CO culture regardless of the
+        // machine/CI ambient culture, so the expectation must use the same explicit culture.
+        var colombianCulture = CultureInfo.GetCultureInfo("es-CO");
         var surplusRow = vm.RecentClosings.Single(r => r.CashierUsername == "Surplus");
         Assert.Equal("primary", surplusRow.DifferenceKind);
-        Assert.Equal($"+${20_000m:N0}", surplusRow.DifferenceLabel);
+        Assert.Equal($"+${20_000m.ToString("N0", colombianCulture)}", surplusRow.DifferenceLabel);
 
         var shortageRow = vm.RecentClosings.Single(r => r.CashierUsername == "Shortage");
         Assert.Equal("error", shortageRow.DifferenceKind);
-        Assert.Equal($"-${20_000m:N0}", shortageRow.DifferenceLabel);
+        Assert.Equal($"-${20_000m.ToString("N0", colombianCulture)}", shortageRow.DifferenceLabel);
     }
 
     [Fact]
