@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.17.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.16.1...v1.17.0) (2026-07-16)
+
+
+### Features
+
+* **cashier:** add autocomplete button for saldo diferido ([a9d179b](https://github.com/jab16jy/Sistema_Pos/commit/a9d179b4ac07212acd3d72646ae5d72273b0f045))
+* **customers:** resolve concurrency bugs, UI issues and language inconsistencies in customer module ([8bfdfb9](https://github.com/jab16jy/Sistema_Pos/commit/8bfdfb9821f0f627a61d25b804d1b29a7db9d951))
+* **settings:** add configurable maximum deferred balance percent ([8009ee2](https://github.com/jab16jy/Sistema_Pos/commit/8009ee2e08b2cd81209dcf505917ced6e6d3323e))
+
+
+### Bug Fixes
+
+* **audit,shifts:** resolve design and logical bugs in turnos and auditoria modules, and other modifications ([0a5f1e7](https://github.com/jab16jy/Sistema_Pos/commit/0a5f1e7a76d77f8efb6388b93f743467316f620e))
+* **customers:** pagar todo el saldo button never enabled ([f3d9a27](https://github.com/jab16jy/Sistema_Pos/commit/f3d9a27198e3ee6cca4603233db0ce8cec80dc2b))
+* **loyalty:** don't award points on a deferred balance until it's paid ([8cd55e5](https://github.com/jab16jy/Sistema_Pos/commit/8cd55e5437ddf96be759eadfc81dd2e220d5111b))
+
 ## [1.16.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.16.0...v1.16.1) (2026-07-15)
 
 
