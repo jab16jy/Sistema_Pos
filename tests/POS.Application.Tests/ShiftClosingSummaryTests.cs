@@ -36,7 +36,7 @@ public sealed class ShiftClosingSummaryTests
         public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<CashierShift?>(id == shift.Id ? shift : null);
 
-        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CashierShift>>([shift]);
 
         public Task AddAsync(CashierShift cashierShift, CancellationToken cancellationToken = default) => Task.CompletedTask;

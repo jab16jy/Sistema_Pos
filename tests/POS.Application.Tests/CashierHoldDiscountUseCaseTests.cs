@@ -69,7 +69,7 @@ public sealed class CashierHoldDiscountUseCaseTests
         Assert.Equal(SaleStatus.Draft, sales.Sales.Single().Status);
         Assert.Equal(9m, product.CurrentStock);
 
-        var complete = new CompleteHeldSaleUseCase(sales, unitOfWork);
+        var complete = new CompleteHeldSaleUseCase(sales, unitOfWork, inventory: inventory);
         await complete.ExecuteAsync(
             new CompleteHeldSaleRequest(
                 cashierId,
@@ -80,6 +80,7 @@ public sealed class CashierHoldDiscountUseCaseTests
         Assert.Equal(SaleStatus.Completed, sales.Sales.Single().Status);
         Assert.Equal(9m, product.CurrentStock);
         Assert.Single(inventory.Movements);
+        Assert.Equal("Venta", inventory.Movements.Single().Reason);
     }
 
     [Fact]
@@ -209,6 +210,8 @@ public sealed class CashierHoldDiscountUseCaseTests
         public Task<IReadOnlyList<InventoryStockLevel>> GetStockLevelsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<InventoryStockLevel>>([]);
         public Task<IReadOnlyList<InventoryMovement>> GetMovementsByProductAsync(Guid productId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<InventoryMovement>>(Movements);
         public Task<IReadOnlyList<Product>> GetLowStockProductsAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Product>>([]);
+        public Task<IReadOnlyList<InventoryMovement>> GetMovementsByReferenceIdAsync(Guid referenceId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<InventoryMovement>>(Movements.Where(m => m.ReferenceId == referenceId).ToList());
     }
 
     private sealed class SettingsRepositoryFake(BusinessSettings? settings) : ISettingsRepository

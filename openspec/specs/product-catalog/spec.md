@@ -8,11 +8,11 @@ Defines the product catalog domain: creation, editing, search, barcode managemen
 
 ### Requirement: Product creation
 
-The system MUST allow creating products with name, price, barcode, minimum stock level, and a valid category.
+The system MUST allow creating products with name, price, barcode, minimum stock level, a valid category, and an indicator of whether the product tracks inventory (`TracksInventory` boolean, defaults to true).
 
 #### Scenario: Create product with all fields
 
-- GIVEN a user provides valid product data
+- GIVEN a user provides valid product data including `TracksInventory` = true
 - WHEN the product is saved
 - THEN the product MUST be persisted with all provided fields
 - AND the product MUST receive a unique identifier
@@ -50,12 +50,7 @@ The system MUST allow editing any mutable field of an existing product.
 
 ### Requirement: Current stock is not editable from the product catalog
 
-`CurrentStock` is master data that the catalog MAY display but MUST NOT edit directly. Ordinary
-product editing MUST NOT change stock; all stock changes go through traceable inventory movements
-(Inventario adjustments, Compras receipts, Ventas/Devoluciones/anulaciones). Product creation MAY
-accept an initial balance, but the system MUST record it as an `InitialBalance` inventory movement
-rather than writing `CurrentStock` directly. When no initial balance is provided, the product MUST
-be created with zero stock. `MinimumStock` MUST remain editable from the catalog.
+`CurrentStock` is master data that the catalog MAY display but MUST NOT edit directly. Ordinary product editing MUST NOT change stock; all stock changes go through traceable inventory movements (Inventario adjustments, Compras receipts, Ventas/Devoluciones/anulaciones). Product creation MAY accept an initial balance, but the system MUST record it as an `InitialBalance` inventory movement rather than writing `CurrentStock` directly, and only if the product tracks inventory (`TracksInventory` is true). When no initial balance is provided, or the product does not track inventory, the product MUST be created with zero stock. `MinimumStock` MUST remain editable from the catalog.
 
 #### Scenario: Editing a product does not change stock
 
@@ -67,6 +62,7 @@ be created with zero stock. `MinimumStock` MUST remain editable from the catalog
 #### Scenario: Initial balance on creation is recorded as a movement
 
 - GIVEN a user creates a product with an initial balance of 20 units
+- AND the product tracks inventory (`TracksInventory` is true)
 - WHEN the product is saved
 - THEN the product MUST start at zero stock and reach 20 through exactly one `InitialBalance` inventory movement
 - AND the movement MUST record the operator and quantity for traceability
@@ -77,6 +73,14 @@ be created with zero stock. `MinimumStock` MUST remain editable from the catalog
 - WHEN the product is saved
 - THEN the product MUST be created with current stock = 0
 - AND no inventory movement MUST be created
+
+#### Scenario: Initial balance ignored if product does not track inventory
+
+- GIVEN a user creates a product with an initial balance of 20 units
+- AND the product does not track inventory (`TracksInventory` is false)
+- WHEN the product is saved
+- THEN the product MUST be created with current stock = 0
+- AND no `InitialBalance` inventory movement MUST be created
 
 ### Requirement: Product search
 

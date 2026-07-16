@@ -16,19 +16,22 @@ public sealed class CompleteHeldSaleUseCase
     private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
     private readonly IReceivableRepository? _receivables;
     private readonly ISettingsRepository? _settings;
+    private readonly IInventoryRepository? _inventory;
 
     public CompleteHeldSaleUseCase(
         ISaleRepository sales,
         IUnitOfWork unitOfWork,
         AccumulateLoyaltyPointsUseCase? accumulatePoints = null,
         IReceivableRepository? receivables = null,
-        ISettingsRepository? settings = null)
+        ISettingsRepository? settings = null,
+        IInventoryRepository? inventory = null)
     {
         _sales = sales;
         _unitOfWork = unitOfWork;
         _accumulatePoints = accumulatePoints;
         _receivables = receivables;
         _settings = settings;
+        _inventory = inventory;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(
@@ -96,6 +99,18 @@ public sealed class CompleteHeldSaleUseCase
         }
 
         sale.Complete();
+
+        if (_inventory is not null)
+        {
+            var movements = await _inventory.GetMovementsByReferenceIdAsync(sale.Id, cancellationToken).ConfigureAwait(false);
+            foreach (var movement in movements)
+            {
+                if (movement.Reason == "Venta en espera")
+                {
+                    movement.UpdateReason("Venta");
+                }
+            }
+        }
 
         if (sale.DeferredBalance().Amount > 0m)
         {

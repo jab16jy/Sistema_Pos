@@ -2,6 +2,16 @@
 
 ## MODIFIED Requirements
 
+### Requirement: Complete held sale ledger description
+
+When a cashier completes a previously held sale (converting it to a completed sale), the system MUST update the ledger description / inventory movement reason of its corresponding inventory movements to "Venta".
+
+#### Scenario: Complete held sale updates description
+
+- GIVEN a held sale with inventory movement reason "Venta en espera"
+- WHEN the cashier completes the sale
+- THEN the system MUST update the inventory movement reasons to "Venta"
+
 ### Requirement: Persisted cashier sale confirmation
 
 The system MUST create a durable sale when a cashier confirms a valid cart with customer/payment data, including the classified payment outcome needed for cash-versus-digital reporting and any receivable balance created by the confirmation. For sales created via quote conversion, the cashier discount validation policy MUST be bypassed.

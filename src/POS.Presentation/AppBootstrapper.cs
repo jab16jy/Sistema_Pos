@@ -77,7 +77,9 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<SearchCustomersUseCase>(),
                 TryResolveOptional<GetLoyaltyBalanceUseCase>(sp),
                 TryResolveOptional<IReceivableQueryService>(sp),
-                TryResolveOptional<IApplyReceivablePaymentUseCase>(sp)),
+                TryResolveOptional<IApplyReceivablePaymentUseCase>(sp),
+                session,
+                sp.GetRequiredService<POS.Domain.Interfaces.ICashierShiftRepository>()),
             moduleWarnings);
 
         PurchasesViewModel? purchases = TryCreateOptionalModule(
@@ -274,7 +276,8 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<CloseShiftUseCase>(),
                 sp.GetRequiredService<GetShiftsUseCase>(),
                 sp.GetRequiredService<GetShiftSalesSummaryUseCase>(),
-                session),
+                session,
+                sp.GetRequiredService<POS.Domain.Interfaces.IUserRepository>()),
             moduleWarnings);
 
         AuditLogViewModel? auditLog = TryCreateOptionalModule(

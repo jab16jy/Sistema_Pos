@@ -81,12 +81,15 @@ public sealed class CancelSaleUseCase
             Product product = await _products.GetByIdAsync(item.ProductId, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException($"Product '{item.ProductId}' was not found.");
 
-            var quantity = new Quantity(item.Quantity);
-            product.IncreaseStock(quantity);
+            if (product.TracksInventory)
+            {
+                var quantity = new Quantity(item.Quantity * item.UnitsPerPresentation);
+                product.IncreaseStock(quantity);
 
-            await _inventory.AddMovementAsync(
-                new InventoryMovement(product.Id, InventoryMovementType.Return, quantity, $"Sale cancellation: {request.Reason}", request.CancelledByUserId, sale.Id),
-                cancellationToken).ConfigureAwait(false);
+                await _inventory.AddMovementAsync(
+                    new InventoryMovement(product.Id, InventoryMovementType.Return, quantity, $"Sale cancellation: {request.Reason}", request.CancelledByUserId, sale.Id),
+                    cancellationToken).ConfigureAwait(false);
+            }
         }
 
         if (_compensateLoyalty is not null)

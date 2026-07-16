@@ -15,6 +15,7 @@ public sealed class SaleReturnItem
 
     public SaleReturnItem(
         Guid saleReturnId,
+        Guid saleItemId,
         Guid productId,
         string productName,
         int quantityReturned,
@@ -24,6 +25,11 @@ public sealed class SaleReturnItem
         if (saleReturnId == Guid.Empty)
         {
             throw new ArgumentException("Sale return id is required.", nameof(saleReturnId));
+        }
+
+        if (saleItemId == Guid.Empty)
+        {
+            throw new ArgumentException("Sale item id is required.", nameof(saleItemId));
         }
 
         if (productId == Guid.Empty)
@@ -43,6 +49,7 @@ public sealed class SaleReturnItem
 
         Id = Guid.NewGuid();
         SaleReturnId = saleReturnId;
+        SaleItemId = saleItemId;
         ProductId = productId;
         ProductName = productName.Trim();
         QuantityReturned = quantityReturned;
@@ -52,6 +59,7 @@ public sealed class SaleReturnItem
 
     public Guid Id { get; private set; }
     public Guid SaleReturnId { get; private set; }
+    public Guid SaleItemId { get; private set; }
     public Guid ProductId { get; private set; }
     public string ProductName { get; private set; }
 

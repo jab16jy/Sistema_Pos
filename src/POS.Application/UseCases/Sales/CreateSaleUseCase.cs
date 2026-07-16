@@ -19,6 +19,7 @@ public sealed class CreateSaleUseCase
     private readonly RedeemLoyaltyPointsUseCase? _redeemPoints;
     private readonly IInventoryRepository? _inventory;
     private readonly ISettingsRepository? _settings;
+    private readonly ICashierShiftRepository? _shifts;
 
     /// <summary>Legacy constructor — no receivable support. Used by tests that don't need deferred balance.</summary>
     public CreateSaleUseCase(IProductRepository products, ISaleRepository sales, IUnitOfWork unitOfWork)
@@ -53,7 +54,8 @@ public sealed class CreateSaleUseCase
         AccumulateLoyaltyPointsUseCase? accumulatePoints,
         RedeemLoyaltyPointsUseCase? redeemPoints,
         IInventoryRepository? inventory = null,
-        ISettingsRepository? settings = null)
+        ISettingsRepository? settings = null,
+        ICashierShiftRepository? shifts = null)
     {
         _products = products;
         _sales = sales;
@@ -63,6 +65,7 @@ public sealed class CreateSaleUseCase
         _redeemPoints = redeemPoints;
         _inventory = inventory;
         _settings = settings;
+        _shifts = shifts;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(CreateSaleRequest request, CancellationToken cancellationToken = default)
@@ -70,6 +73,15 @@ public sealed class CreateSaleUseCase
         if (request.Items.Count == 0)
         {
             throw new InvalidOperationException("Add at least one product before completing the sale.");
+        }
+
+        if (_shifts is not null)
+        {
+            var openShift = await _shifts.GetOpenShiftAsync(request.CashierUserId, cancellationToken).ConfigureAwait(false);
+            if (openShift is null)
+            {
+                throw new InvalidOperationException("No se puede completar la venta porque el cajero no tiene un turno abierto.");
+            }
         }
 
         if (request.SettlementPlan?.DeferredBalanceAmount > 0m && _receivables is null)

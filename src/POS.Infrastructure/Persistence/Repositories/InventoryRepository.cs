@@ -62,4 +62,14 @@ public sealed class InventoryRepository : IInventoryRepository
     {
         await _dbContext.InventoryMovements.AddAsync(movement, cancellationToken).ConfigureAwait(false);
     }
+
+    public async Task<IReadOnlyList<InventoryMovement>> GetMovementsByReferenceIdAsync(
+        Guid referenceId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.InventoryMovements
+            .Where(m => m.ReferenceId == referenceId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
 }

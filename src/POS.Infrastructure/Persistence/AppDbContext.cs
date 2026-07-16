@@ -95,17 +95,50 @@ v => DateTimeOffset.Parse(v))
         base.OnModelCreating(modelBuilder);
     }
 
+    public override int SaveChanges()
+    {
+        AddAuditEntries();
+        return SaveChangesWithConcurrencyHandling(true);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        AddAuditEntries();
+        return SaveChangesWithConcurrencyHandling(acceptAllChangesOnSuccess);
+    }
+
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         AddAuditEntries();
-        return SaveChangesWithConcurrencyHandlingAsync(cancellationToken);
+        return SaveChangesWithConcurrencyHandlingAsync(true, cancellationToken);
     }
 
-    private async Task<int> SaveChangesWithConcurrencyHandlingAsync(CancellationToken cancellationToken)
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        AddAuditEntries();
+        return SaveChangesWithConcurrencyHandlingAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private int SaveChangesWithConcurrencyHandling(bool acceptAllChangesOnSuccess = true)
     {
         try
         {
-            return await base.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            ChangeTracker.Clear();
+            throw new ConcurrencyConflictException(
+                "The receivable was changed by another operation. Reload the balance and try again.",
+                exception);
+        }
+    }
+
+    private async Task<int> SaveChangesWithConcurrencyHandlingAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
         }
         catch (DbUpdateConcurrencyException exception)
         {
@@ -187,7 +220,9 @@ v => DateTimeOffset.Parse(v))
         Customer customer => customer.Identification,
         User user => user.Username,
         Supplier supplier => supplier.TaxId,
-        _ => entry.Properties.FirstOrDefault(p => p.Metadata.Name == "Id")?.CurrentValue?.ToString()
+        _ => entry.Metadata.FindPrimaryKey() is { } key
+            ? string.Join("-", key.Properties.Select(p => entry.Property(p.Name).CurrentValue?.ToString()))
+            : null
     };
 
     private string? BuildDetails(EntityEntry entry)

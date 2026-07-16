@@ -696,7 +696,7 @@ public sealed class ReportsViewModelTests
         public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(_shifts.FirstOrDefault(s => s.Id == id));
 
-        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default)
             => Task.FromResult(_shifts);
 
         public Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default)
@@ -725,7 +725,7 @@ public sealed class ReportsViewModelTests
         public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult(_shifts.FirstOrDefault(s => s.Id == id));
 
-        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default)
         {
             if (_shouldThrow)
             {

@@ -128,13 +128,13 @@ public sealed class SaleRepository : ISaleRepository
                               INNER JOIN RECEIVABLES r ON r."Id" = rs."ReceivableId"
                               INNER JOIN SALES s ON s."Id" = r."SaleId"
                               WHERE s."Status" = 3 AND rs."AppliedAt" >= $from AND rs."AppliedAt" < $to
-                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0),
+                                AND ($cashier IS NULL OR COALESCE(rs.cashier_user_id, s."CashierUserId") = $cashier)), 0),
                     COALESCE((SELECT SUM(CASE WHEN rs."Method" IN (2, 3, 4) THEN CAST(rs.amount AS NUMERIC) ELSE 0 END)
                               FROM RECEIVABLE_SETTLEMENTS rs
                               INNER JOIN RECEIVABLES r ON r."Id" = rs."ReceivableId"
                               INNER JOIN SALES s ON s."Id" = r."SaleId"
                               WHERE s."Status" = 3 AND rs."AppliedAt" >= $from AND rs."AppliedAt" < $to
-                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0);
+                                AND ($cashier IS NULL OR COALESCE(rs.cashier_user_id, s."CashierUserId") = $cashier)), 0);
                 """;
             command.Parameters.Add(new SqliteParameter("$from", ToSqliteTimestamp(from)));
             command.Parameters.Add(new SqliteParameter("$to", ToSqliteTimestamp(to)));

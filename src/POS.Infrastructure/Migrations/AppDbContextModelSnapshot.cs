@@ -241,7 +241,7 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset?>("ClosedAt")
+                    b.Property<string>("ClosedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("ClosingCash")
@@ -264,7 +264,8 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
-                    b.Property<DateTimeOffset>("OpenedAt")
+                    b.Property<string>("OpenedAt")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("OpeningCash")
@@ -1131,6 +1132,10 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("bank_or_platform");
 
+                    b.Property<string>("CashierUserId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("cashier_user_id");
+
                     b.Property<int>("Method")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
@@ -1140,6 +1145,10 @@ namespace POS.Infrastructure.Migrations
                     b.Property<string>("ReceivableId")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("ShiftId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("shift_id");
 
                     b.HasKey("Id");
 
@@ -1332,6 +1341,12 @@ namespace POS.Infrastructure.Migrations
                     b.Property<decimal>("RefundAmount")
                         .HasColumnType("TEXT")
                         .HasColumnName("RefundAmount");
+
+                    b.Property<string>("SaleItemId")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("00000000-0000-0000-0000-000000000000");
 
                     b.Property<string>("SaleReturnId")
                         .IsRequired()

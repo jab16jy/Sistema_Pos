@@ -9,9 +9,9 @@ public sealed class GetShiftsUseCase
 
     public GetShiftsUseCase(ICashierShiftRepository shifts) => _shifts = shifts;
 
-    public async Task<IReadOnlyList<ShiftSummary>> ExecuteAsync(int limit = 50, CancellationToken ct = default)
+    public async Task<IReadOnlyList<ShiftSummary>> ExecuteAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken ct = default)
     {
-        var shifts = await _shifts.GetRecentAsync(limit, ct).ConfigureAwait(false);
+        var shifts = await _shifts.GetRecentAsync(limit, fromDate, toDate, ct).ConfigureAwait(false);
         return shifts.Select(StartShiftUseCase.ToSummary).ToList();
     }
 }

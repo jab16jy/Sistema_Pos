@@ -19,6 +19,7 @@
     <PackageReference Include="MaterialDesignThemes" />
     <PackageReference Include="MaterialDesignColors" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
   </ItemGroup>
 
   <ItemGroup>

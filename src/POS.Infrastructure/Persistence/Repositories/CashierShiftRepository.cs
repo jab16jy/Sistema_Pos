@@ -22,7 +22,11 @@ public sealed class CashierShiftRepository : ICashierShiftRepository
         return _dbContext.CashierShifts.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CashierShift>> GetRecentAsync(
+        int limit = 50,
+        DateTimeOffset? fromDate = null,
+        DateTimeOffset? toDate = null,
+        CancellationToken cancellationToken = default)
     {
         if (limit <= 0)
         {
@@ -31,8 +35,21 @@ public sealed class CashierShiftRepository : ICashierShiftRepository
 
         int pageSize = Math.Min(limit, 500);
 
-        return await _dbContext.CashierShifts
-            .FromSqlInterpolated($"SELECT * FROM CASHIER_SHIFTS ORDER BY \"OpenedAt\" DESC LIMIT {pageSize}")
+        var query = _dbContext.CashierShifts.AsQueryable();
+
+        if (fromDate.HasValue)
+        {
+            query = query.Where(s => s.OpenedAt >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            query = query.Where(s => s.OpenedAt < toDate.Value);
+        }
+
+        return await query
+            .OrderByDescending(s => s.OpenedAt)
+            .Take(pageSize)
             .AsNoTracking()
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

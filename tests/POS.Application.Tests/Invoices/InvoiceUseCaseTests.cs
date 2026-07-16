@@ -417,6 +417,116 @@ public sealed class InvoiceUseCaseTests
             TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task CancelSaleAsync_WithNonTrackedProduct_DoesNotRestoreStockOrRecordMovement()
+    {
+        var product = Product.CreateImportedCatalogItem(
+            "SRC-02",
+            "Non-tracked Product",
+            Guid.NewGuid(),
+            new Money(1500m),
+            new StockQuantity(0m),
+            new StockQuantity(0m),
+            CatalogItemType.Product,
+            false,
+            null,
+            null);
+        var sale = CreateCompletedSale(product);
+        var inventory = new InMemoryInventoryRepository();
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+        var useCase = new CancelSaleUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            inventory,
+            new InMemoryUserRepository(adminUser),
+            new TestRoleRepository(),
+            new CountingUnitOfWork());
+
+        await useCase.ExecuteAsync(
+            new CancelSaleRequest(sale.Id, adminUser.Id, "Cancellation test"),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(0m, product.CurrentStock);
+        Assert.Empty(inventory.AddedMovements);
+    }
+
+    [Fact]
+    public async Task CancelSaleAsync_WithBoxPresentation_RestoresQuantityScaledByUnitsPerPresentation()
+    {
+        var product = new Product(
+            "Rice Box",
+            Guid.NewGuid(),
+            new Money(800m),
+            new Money(1000m),
+            new StockQuantity(24m),
+            new StockQuantity(2m),
+            unitsPerBox: 12,
+            boxPrice: new Money(10000m));
+        
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(2m), ProductPresentation.Box, Money.Zero);
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(20000m), new Money(20000m)));
+        sale.Complete();
+
+        var inventory = new InMemoryInventoryRepository();
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+        var useCase = new CancelSaleUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            inventory,
+            new InMemoryUserRepository(adminUser),
+            new TestRoleRepository(),
+            new CountingUnitOfWork());
+
+        await useCase.ExecuteAsync(
+            new CancelSaleRequest(sale.Id, adminUser.Id, "Cancellation box test"),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(24m, product.CurrentStock);
+        Assert.Single(inventory.AddedMovements);
+        Assert.Equal(24m, inventory.AddedMovements[0].Quantity);
+    }
+
+    [Fact]
+    public async Task ProcessReturnAsync_LimitIsolationBySaleItemId_AllowsIndependentReturns()
+    {
+        var product = CreateProduct();
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new Quantity(2m), ProductPresentation.Unit, Money.Zero);
+        sale.AddItem(product, new Quantity(3m), ProductPresentation.Unit, Money.Zero);
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(7500m), new Money(7500m)));
+        sale.Complete();
+
+        var item1 = sale.Items.ElementAt(0);
+        var item2 = sale.Items.ElementAt(1);
+
+        var inventory = new InMemoryInventoryRepository();
+        var returns = new InMemorySaleReturnRepository();
+        var adminUser = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+        var useCase = new ProcessReturnUseCase(
+            new InMemorySaleRepository(sale),
+            new InMemoryProductRepository(product),
+            inventory,
+            returns,
+            new CountingUnitOfWork(),
+            new InMemoryUserRepository(adminUser));
+
+        await useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Return Line 1", 
+                [new ReturnLineRequest(item1.Id, 1, 1500m)]),
+            TestContext.Current.CancellationToken);
+
+        await useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Return Line 2", 
+                [new ReturnLineRequest(item2.Id, 3, 4500m)]),
+            TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new ProcessReturnRequest(sale.Id, adminUser.Id, "Over-limit return Line 1", 
+                [new ReturnLineRequest(item1.Id, 2, 3000m)]),
+            TestContext.Current.CancellationToken));
+    }
+
     private static Product CreateProduct() => new(
         "Rice",
         Guid.NewGuid(),

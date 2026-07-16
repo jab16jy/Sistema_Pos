@@ -56,4 +56,26 @@ public sealed class ProductTests
         Assert.False(outOfStock.IsLowStock());
         Assert.False(noMinimum.IsLowStock());
     }
+
+    [Fact]
+    public void StockOperations_WhenTracksInventoryIsFalse_IgnoreAdjustments()
+    {
+        var product = Product.CreateImportedCatalogItem(
+            "SRC-01",
+            "Non-tracked",
+            Guid.NewGuid(),
+            new Money(1500m),
+            new StockQuantity(0m),
+            new StockQuantity(0m),
+            POS.Domain.Enums.CatalogItemType.Product,
+            false,
+            null,
+            null);
+
+        product.IncreaseStock(new Quantity(10m));
+        Assert.Equal(0m, product.CurrentStock);
+
+        product.DecreaseStock(new Quantity(5m));
+        Assert.Equal(0m, product.CurrentStock);
+    }
 }

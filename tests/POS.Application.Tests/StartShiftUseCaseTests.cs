@@ -54,7 +54,7 @@ public sealed class StartShiftUseCaseTests
         public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<CashierShift?>(AddedShift);
 
-        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CashierShift>>(AddedShift is { } shift ? [shift] : []);
 
         public Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default)

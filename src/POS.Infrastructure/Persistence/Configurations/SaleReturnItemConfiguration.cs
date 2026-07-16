@@ -13,6 +13,7 @@ internal sealed class SaleReturnItemConfiguration : IEntityTypeConfiguration<Sal
         builder.HasKey(i => i.Id);
         builder.Property(i => i.Id).HasConversion<string>();
         builder.Property(i => i.SaleReturnId).HasConversion<string>();
+        builder.Property(i => i.SaleItemId).HasConversion<string>().HasDefaultValue(Guid.Empty);
         builder.Property(i => i.ProductId).HasConversion<string>();
         builder.Property(i => i.ProductName).IsRequired().HasMaxLength(200);
         builder.Property(i => i.UnitPrice)

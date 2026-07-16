@@ -45,6 +45,16 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
                .HasDefaultValue(false);
         builder.Property(s => s.Notes).HasMaxLength(500);
         builder.Property(s => s.Status).HasConversion<int>();
+        builder.Property(s => s.OpenedAt)
+               .HasConversion(
+                   v => v.ToString("yyyy-MM-dd HH:mm:ss.fffffffzzz"),
+                   v => DateTimeOffset.Parse(v))
+               .HasColumnType("TEXT");
+        builder.Property(s => s.ClosedAt)
+               .HasConversion(
+                   v => v == null ? null : v.Value.ToString("yyyy-MM-dd HH:mm:ss.fffffffzzz"),
+                   v => v == null ? (DateTimeOffset?)null : DateTimeOffset.Parse(v))
+               .HasColumnType("TEXT");
         builder.HasIndex(s => new { s.CashierUserId, s.Status });
         builder.HasIndex(s => s.OpenedAt);
     }

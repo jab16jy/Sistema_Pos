@@ -295,7 +295,15 @@ public sealed class Product
         CurrentStock -= quantity.Value;
     }
 
-    public void IncreaseStock(Quantity quantity) => CurrentStock += quantity.Value;
+    public void IncreaseStock(Quantity quantity)
+    {
+        if (!TracksInventory)
+        {
+            return;
+        }
+
+        CurrentStock += quantity.Value;
+    }
 
     public void ApplyPurchaseReceiptCost(decimal priorStock, Quantity receivedUnits, Money receivedBaseUnitCost)
     {

@@ -13,7 +13,7 @@ public sealed class ReceivableSettlement
     {
     }
 
-    internal ReceivableSettlement(Guid receivableId, Money amount, PaymentMethod method, string? bankOrPlatform)
+    internal ReceivableSettlement(Guid receivableId, Money amount, PaymentMethod method, string? bankOrPlatform, Guid? cashierUserId = null, Guid? shiftId = null)
     {
         Id = Guid.NewGuid();
         ReceivableId = receivableId;
@@ -21,6 +21,8 @@ public sealed class ReceivableSettlement
         Method = method;
         BankOrPlatform = string.IsNullOrWhiteSpace(bankOrPlatform) ? null : bankOrPlatform.Trim();
         AppliedAt = DateTimeOffset.UtcNow;
+        CashierUserId = cashierUserId;
+        ShiftId = shiftId;
     }
 
     public Guid Id { get; private set; }
@@ -29,4 +31,6 @@ public sealed class ReceivableSettlement
     public PaymentMethod Method { get; private set; }
     public string? BankOrPlatform { get; private set; }
     public DateTimeOffset AppliedAt { get; private set; }
+    public Guid? CashierUserId { get; private set; }
+    public Guid? ShiftId { get; private set; }
 }

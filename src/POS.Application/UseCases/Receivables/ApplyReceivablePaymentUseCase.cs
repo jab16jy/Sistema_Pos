@@ -29,14 +29,16 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
         _accumulatePoints = accumulatePoints;
     }
 
-    public async Task ExecuteAsync(Guid receivableId, decimal paymentAmount, CancellationToken cancellationToken = default)
-        => await ExecuteAsync(receivableId, paymentAmount, PaymentMethod.Cash, null, cancellationToken).ConfigureAwait(false);
+    public async Task ExecuteAsync(Guid receivableId, decimal paymentAmount, Guid? cashierUserId = null, Guid? shiftId = null, CancellationToken cancellationToken = default)
+        => await ExecuteAsync(receivableId, paymentAmount, PaymentMethod.Cash, null, cashierUserId, shiftId, cancellationToken).ConfigureAwait(false);
 
     public async Task ExecuteAsync(
         Guid receivableId,
         decimal paymentAmount,
         PaymentMethod paymentMethod,
         string? bankOrPlatform,
+        Guid? cashierUserId = null,
+        Guid? shiftId = null,
         CancellationToken cancellationToken = default)
     {
         if (paymentAmount <= 0m)
@@ -55,7 +57,7 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
         }
 
         PaymentPlatforms.Validate(paymentMethod, bankOrPlatform);
-        receivable.ApplyPayment(new Money(paymentAmount), paymentMethod, bankOrPlatform);
+        receivable.ApplyPayment(new Money(paymentAmount), paymentMethod, bankOrPlatform, cashierUserId, shiftId);
 
         await _receivables.UpdateAsync(receivable, cancellationToken);
 
@@ -73,6 +75,8 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
         Guid customerId,
         PaymentMethod paymentMethod,
         string? bankOrPlatform,
+        Guid? cashierUserId = null,
+        Guid? shiftId = null,
         CancellationToken cancellationToken = default)
     {
         if (customerId == Guid.Empty)
@@ -101,7 +105,9 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
                 receivable.ApplyPayment(
                     receivable.OutstandingBalance,
                     paymentMethod,
-                    bankOrPlatform);
+                    bankOrPlatform,
+                    cashierUserId,
+                    shiftId);
                 await _receivables.UpdateAsync(receivable, transactionCancellationToken).ConfigureAwait(false);
 
                 if (_accumulatePoints is not null)

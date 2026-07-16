@@ -22,7 +22,8 @@ public sealed class ShiftsViewModelTests
             new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new SummarySaleRepository(new ShiftSalesSummaryData(4_200m, 2_800m, 1_400m))),
-            new StubOperatorSession());
+            new StubOperatorSession(),
+            new StubUserRepository());
 
         viewModel.LoadCommand.Execute(null);
         await Task.Delay(50, TestContext.Current.CancellationToken);
@@ -42,7 +43,8 @@ public sealed class ShiftsViewModelTests
             new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new SummarySaleRepository(new ShiftSalesSummaryData(4_200m, 2_800m, 1_400m))),
-            new StubOperatorSession());
+            new StubOperatorSession(),
+            new StubUserRepository());
 
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
 
@@ -66,7 +68,8 @@ public sealed class ShiftsViewModelTests
             new CloseShiftUseCase(repository, new EmptySaleRepository(), new NoOpUnitOfWork()),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new EmptySaleRepository()),
-            new StubOperatorSession());
+            new StubOperatorSession(),
+            new StubUserRepository());
 
         // Narrow the filter to a past window that would exclude today's shift, mirroring the redirect
         // from Reportes landing on Turnos with whatever filter was left over from a previous visit.
@@ -99,7 +102,8 @@ public sealed class ShiftsViewModelTests
             new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new SummarySaleRepository(ShiftSalesSummaryData.Empty)),
-            new StubOperatorSession())
+            new StubOperatorSession(),
+            new StubUserRepository())
         {
             OpeningTime = "9:5"
         };
@@ -119,7 +123,8 @@ public sealed class ShiftsViewModelTests
             new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new SummarySaleRepository(ShiftSalesSummaryData.Empty)),
-            new StubOperatorSession());
+            new StubOperatorSession(),
+            new StubUserRepository());
         var selectedDate = new DateTime(2020, 5, 6);
         viewModel.OpeningDate = selectedDate;
         viewModel.OpeningTime = "09:17";
@@ -176,7 +181,7 @@ public sealed class ShiftsViewModelTests
         public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<CashierShift?>(AddedShift);
 
-        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CashierShift>>(AddedShift is { } shift ? [shift] : []);
 
         public Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default)
@@ -198,7 +203,7 @@ public sealed class ShiftsViewModelTests
         public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<CashierShift?>(_shift);
 
-        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CashierShift>>([_shift]);
 
         public Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -212,10 +217,21 @@ public sealed class ShiftsViewModelTests
         public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<CashierShift?>(null);
 
-        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default)
             => Task.FromException<IReadOnlyList<CashierShift>>(new InvalidOperationException("Consulta falló"));
 
         public Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class StubUserRepository : IUserRepository
+    {
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<User?>(null);
+        public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) => Task.FromResult<User?>(null);
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task AddAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<User>>([]);
+        public Task UpdateAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 
     private sealed class EmptySaleRepository : ISaleRepository

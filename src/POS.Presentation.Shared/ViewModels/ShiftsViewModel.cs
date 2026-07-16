@@ -19,6 +19,7 @@ public sealed class ShiftsViewModel : ViewModelBase
     private readonly GetShiftsUseCase _getShifts;
     private readonly GetShiftSalesSummaryUseCase _getShiftSalesSummary;
     private readonly ICurrentOperatorSession _session;
+    private readonly IUserRepository _userRepository;
     private ShiftSummary? _selectedShift;
     private ShiftRowPresentation? _selectedShiftRow;
     private decimal _openingCash;
@@ -41,13 +42,15 @@ public sealed class ShiftsViewModel : ViewModelBase
         CloseShiftUseCase closeShift,
         GetShiftsUseCase getShifts,
         GetShiftSalesSummaryUseCase getShiftSalesSummary,
-        ICurrentOperatorSession session)
+        ICurrentOperatorSession session,
+        IUserRepository userRepository)
     {
         _startShift = startShift;
         _closeShift = closeShift;
         _getShifts = getShifts;
         _getShiftSalesSummary = getShiftSalesSummary;
         _session = session;
+        _userRepository = userRepository;
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar turnos: {ex.Message}"));
         StartShiftCommand = new RelayCommand(_ => RunSafe(StartAsync(), ex => Message = $"Error al abrir turno: {ex.Message}"));
         CloseShiftCommand = new RelayCommand(_ => RunSafe(CloseAsync(), ex => Message = $"Error al cerrar turno: {ex.Message}"), _ => HasActiveShift);
@@ -205,7 +208,7 @@ public sealed class ShiftsViewModel : ViewModelBase
         get
         {
             var active = Shifts.FirstOrDefault(s => s.Status == ShiftStatus.Open);
-            return active is null ? 0m : active.OpeningCash + _activeShiftSalesSummary.CashPayments;
+            return active is null ? 0m : active.OpeningCash + _activeShiftSalesSummary.CashPayments + _activeShiftSalesSummary.ReceivableSettlementCash;
         }
     }
 
@@ -257,9 +260,34 @@ public sealed class ShiftsViewModel : ViewModelBase
     {
         try
         {
-            var shifts = await _getShifts.ExecuteAsync(50, ct).ConfigureAwait(true);
+            DateTimeOffset? from = null;
+            DateTimeOffset? to = null;
+
+            if (FromDate.HasValue)
+            {
+                from = new DateTimeOffset(FromDate.Value.Date, TimeZoneInfo.Local.GetUtcOffset(FromDate.Value.Date));
+            }
+
+            if (ToDate.HasValue)
+            {
+                var toDay = ToDate.Value.Date.AddDays(1);
+                to = new DateTimeOffset(toDay, TimeZoneInfo.Local.GetUtcOffset(toDay));
+            }
+
+            var shifts = await _getShifts.ExecuteAsync(50, from, to, ct).ConfigureAwait(true);
+
+            // Fetch the 10 most recent shifts to see if there is an active open shift
+            var recentShifts = await _getShifts.ExecuteAsync(10, null, null, ct).ConfigureAwait(true);
+            var activeShift = recentShifts.FirstOrDefault(s => s.Status == ShiftStatus.Open);
+            
+            var shiftList = shifts.ToList();
+            if (activeShift is not null && !shiftList.Any(s => s.Id == activeShift.Id))
+            {
+                shiftList.Add(activeShift);
+            }
+
             Shifts.Clear();
-            foreach (var shift in shifts)
+            foreach (var shift in shiftList.OrderByDescending(s => s.OpenedAt))
             {
                 Shifts.Add(shift);
             }
@@ -310,14 +338,14 @@ public sealed class ShiftsViewModel : ViewModelBase
             // FromDate is Kind=Local; DateTimeOffset(local, Zero) throws when the local offset isn't 0.
             // Use the real local offset, same as ReportsViewModel does.
             var from = new DateTimeOffset(FromDate.Value.Date, TimeZoneInfo.Local.GetUtcOffset(FromDate.Value.Date));
-            filtered = filtered.Where(s => s.OpenedAt >= from);
+            filtered = filtered.Where(s => s.OpenedAt >= from || s.Status == ShiftStatus.Open);
         }
 
         if (ToDate.HasValue)
         {
             var toDay = ToDate.Value.Date.AddDays(1);
             var to = new DateTimeOffset(toDay, TimeZoneInfo.Local.GetUtcOffset(toDay));
-            filtered = filtered.Where(s => s.OpenedAt < to);
+            filtered = filtered.Where(s => s.OpenedAt < to || s.Status == ShiftStatus.Open);
         }
 
         foreach (var shift in filtered)
@@ -433,13 +461,29 @@ public sealed class ShiftsViewModel : ViewModelBase
                 ? _session.Username
                 : SelectedCashierUsername;
 
+            Guid cashierId;
+            if (string.Equals(cashierName, _session.Username, StringComparison.OrdinalIgnoreCase))
+            {
+                cashierId = _session.OperatorId;
+            }
+            else
+            {
+                var user = await _userRepository.GetByUsernameAsync(cashierName).ConfigureAwait(true);
+                if (user is null)
+                {
+                    Message = "El usuario cajero especificado no existe.";
+                    return;
+                }
+                cashierId = user.Id;
+            }
+
             if (!TryBuildOpeningTimestamp(out var openedAt))
             {
                 return;
             }
 
             await _startShift.ExecuteAsync(new StartShiftRequest(
-                _session.OperatorId,
+                cashierId,
                 cashierName,
                 OpeningCash,
                 OpenNotes,

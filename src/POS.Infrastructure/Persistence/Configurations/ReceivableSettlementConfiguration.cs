@@ -25,5 +25,11 @@ internal sealed class ReceivableSettlementConfiguration : IEntityTypeConfigurati
                .HasColumnName("bank_or_platform")
                .HasMaxLength(100);
         builder.Property(s => s.AppliedAt).IsRequired();
+        builder.Property(s => s.CashierUserId)
+               .HasConversion<string>()
+               .HasColumnName("cashier_user_id");
+        builder.Property(s => s.ShiftId)
+               .HasConversion<string>()
+               .HasColumnName("shift_id");
     }
 }

@@ -535,7 +535,7 @@ public sealed class CustomersViewModelTests
             return Task.FromResult(result);
         }
 
-        public Task ExecuteAsync(Guid receivableId, decimal paymentAmount, CancellationToken cancellationToken = default)
+        public Task ExecuteAsync(Guid receivableId, decimal paymentAmount, Guid? cashierUserId = null, Guid? shiftId = null, CancellationToken cancellationToken = default)
         {
             if (paymentAmount <= 0m)
             {
@@ -551,10 +551,15 @@ public sealed class CustomersViewModelTests
             return Task.CompletedTask;
         }
 
+        public Task ExecuteAsync(Guid receivableId, decimal paymentAmount, POS.Domain.Enums.PaymentMethod paymentMethod, string? bankOrPlatform, Guid? cashierUserId = null, Guid? shiftId = null, CancellationToken cancellationToken = default)
+            => ExecuteAsync(receivableId, paymentAmount, cashierUserId, shiftId, cancellationToken);
+
         public Task<decimal> ExecuteAllAsync(
             Guid customerId,
             POS.Domain.Enums.PaymentMethod paymentMethod,
             string? bankOrPlatform,
+            Guid? cashierUserId = null,
+            Guid? shiftId = null,
             CancellationToken cancellationToken = default)
         {
             decimal amount = _outstanding;

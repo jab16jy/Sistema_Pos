@@ -112,7 +112,7 @@ public sealed class UserAndShiftPersistenceTests
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var repository = new CashierShiftRepository(dbContext);
 
-        var recent = await repository.GetRecentAsync(10, TestContext.Current.CancellationToken);
+        var recent = await repository.GetRecentAsync(10, cancellationToken: TestContext.Current.CancellationToken);
 
         CashierShift persistedShift = Assert.Single(recent);
         Assert.Equal(shift.Id, persistedShift.Id);
@@ -132,7 +132,7 @@ public sealed class UserAndShiftPersistenceTests
         await dbContext.CashierShifts.AddRangeAsync([older, newest, middle], TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var recent = await new CashierShiftRepository(dbContext).GetRecentAsync(2, TestContext.Current.CancellationToken);
+        var recent = await new CashierShiftRepository(dbContext).GetRecentAsync(2, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Collection(
             recent,

@@ -75,9 +75,9 @@ public sealed class ProcessReturnUseCase
 
         // Fetch past returns
         var pastReturns = await _saleReturns.GetAllBySaleIdAsync(sale.Id, cancellationToken).ConfigureAwait(false);
-        var pastReturnedQtyByProduct = pastReturns
+        var pastReturnedQtyBySaleItem = pastReturns
             .SelectMany(r => r.Items)
-            .GroupBy(i => i.ProductId)
+            .GroupBy(i => i.SaleItemId)
             .ToDictionary(g => g.Key, g => g.Sum(i => i.QuantityReturned));
 
         // Unify return lines
@@ -95,7 +95,7 @@ public sealed class ProcessReturnUseCase
             returnLines = [];
             foreach (var saleItem in sale.Items)
             {
-                int pastReturnedQty = pastReturnedQtyByProduct.TryGetValue(saleItem.ProductId, out int q) ? q : 0;
+                int pastReturnedQty = pastReturnedQtyBySaleItem.TryGetValue(saleItem.Id, out int q) ? q : 0;
                 int remainingQty = (int)saleItem.Quantity - pastReturnedQty;
                 if (remainingQty > 0)
                 {
@@ -122,7 +122,7 @@ public sealed class ProcessReturnUseCase
             var saleItem = sale.Items.FirstOrDefault(i => i.Id == line.SaleItemId)
                 ?? throw new InvalidOperationException($"Sale item '{line.SaleItemId}' was not found in sale '{sale.Id}'.");
 
-            int pastReturnedQty = pastReturnedQtyByProduct.TryGetValue(saleItem.ProductId, out int q) ? q : 0;
+            int pastReturnedQty = pastReturnedQtyBySaleItem.TryGetValue(saleItem.Id, out int q) ? q : 0;
             int remainingQty = (int)saleItem.Quantity - pastReturnedQty;
 
             if (line.QuantityReturned <= 0 || line.QuantityReturned > remainingQty)
@@ -153,6 +153,7 @@ public sealed class ProcessReturnUseCase
 
             var returnItem = new SaleReturnItem(
                 saleReturn.Id,
+                saleItem.Id,
                 saleItem.ProductId,
                 saleItem.ProductName,
                 line.QuantityReturned,
@@ -166,7 +167,7 @@ public sealed class ProcessReturnUseCase
         bool allItemsReturned = true;
         foreach (var saleItem in sale.Items)
         {
-            int pastReturnedQty = pastReturnedQtyByProduct.TryGetValue(saleItem.ProductId, out int q) ? q : 0;
+            int pastReturnedQty = pastReturnedQtyBySaleItem.TryGetValue(saleItem.Id, out int q) ? q : 0;
             var currentLine = returnLines.FirstOrDefault(l => l.SaleItemId == saleItem.Id);
             int currentReturnedQty = currentLine?.QuantityReturned ?? 0;
 

@@ -265,7 +265,8 @@ public sealed class MainShellViewModelTests
                 new CloseShiftUseCase(shiftRepository, new StaticSaleSummaryRepository(new DashboardSummaryData(0m, 0m, 0m, 0, 0)), new NoOpUnitOfWork()),
                 new GetShiftsUseCase(shiftRepository),
                 new GetShiftSalesSummaryUseCase(new StaticSaleSummaryRepository(new DashboardSummaryData(0m, 0m, 0m, 0, 0))),
-                new StubOperatorSession())
+                new StubOperatorSession(),
+                new StubUserRepository())
         };
 
         viewModel.SelectedModule = viewModel.AdminHubModules.Single(module => module.Key == "shifts");
@@ -303,10 +304,21 @@ public sealed class MainShellViewModelTests
         public Task<CashierShift?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
             => Task.FromResult<CashierShift?>(shift);
 
-        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, CancellationToken cancellationToken = default)
+        public Task<IReadOnlyList<CashierShift>> GetRecentAsync(int limit = 50, DateTimeOffset? fromDate = null, DateTimeOffset? toDate = null, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CashierShift>>([shift]);
 
         public Task AddAsync(CashierShift newShift, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class StubUserRepository : POS.Domain.Interfaces.IUserRepository
+    {
+        public Task<Domain.Entities.User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Domain.Entities.User?>(null);
+        public Task<Domain.Entities.User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) => Task.FromResult<Domain.Entities.User?>(null);
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task AddAsync(Domain.Entities.User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<Domain.Entities.User>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<Domain.Entities.User>>([]);
+        public Task UpdateAsync(Domain.Entities.User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 
     private sealed class StubOperatorSession : ICurrentOperatorSession

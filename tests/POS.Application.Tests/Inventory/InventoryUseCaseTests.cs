@@ -94,6 +94,28 @@ public sealed class InventoryUseCaseTests
         Assert.Equal(3m, Assert.Single(inventory.AddedMovements).Quantity);
     }
 
+    [Fact]
+    public async Task AdjustStockAsync_WithNonTrackedProduct_ThrowsInvalidOperationException()
+    {
+        var product = Product.CreateImportedCatalogItem(
+            "SRC-01",
+            "Non-tracked",
+            Guid.NewGuid(),
+            new Money(10m),
+            new StockQuantity(0m),
+            new StockQuantity(0m),
+            CatalogItemType.Product,
+            false,
+            null,
+            null);
+        var inventory = new InMemoryInventoryRepository();
+        var useCase = new AdjustStockUseCase(new InMemoryProductRepository(product), inventory, new CountingUnitOfWork());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
+            new AdjustStockRequest(product.Id, 5m, "Correction", Guid.NewGuid()),
+            TestContext.Current.CancellationToken));
+    }
+
     private static Product CreateProduct(string name, decimal currentStock, decimal minimumStock) => new(
         name,
         Guid.NewGuid(),
@@ -123,6 +145,9 @@ public sealed class InventoryUseCaseTests
             AddedMovements.Add(movement);
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<InventoryMovement>> GetMovementsByReferenceIdAsync(Guid referenceId, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<InventoryMovement>>(AddedMovements.Concat(Movements).Where(m => m.ReferenceId == referenceId).ToList());
     }
 
     private sealed class InMemoryProductRepository : IProductRepository

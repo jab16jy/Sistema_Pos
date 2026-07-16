@@ -49,7 +49,7 @@ public sealed class Receivable
     public void ApplyPayment(Money payment)
         => ApplyPayment(payment, PaymentMethod.Cash);
 
-    public void ApplyPayment(Money payment, PaymentMethod method, string? bankOrPlatform = null)
+    public void ApplyPayment(Money payment, PaymentMethod method, string? bankOrPlatform = null, Guid? cashierUserId = null, Guid? shiftId = null)
     {
         if (IsCancelled)
         {
@@ -71,7 +71,7 @@ public sealed class Receivable
             throw new InvalidOperationException("Payment amount exceeds outstanding balance.");
         }
 
-        _settlements.Add(new ReceivableSettlement(Id, payment, method, bankOrPlatform));
+        _settlements.Add(new ReceivableSettlement(Id, payment, method, bankOrPlatform, cashierUserId, shiftId));
         OutstandingBalance = OutstandingBalance - payment;
         Version++;
     }

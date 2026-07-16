@@ -30,7 +30,7 @@ public sealed class ReceivablePaymentUseCaseTests
             customerId,
             PaymentMethod.Cash,
             null,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(20_000m, amountApplied);
         Assert.True(first.IsPaidOff);
@@ -65,7 +65,7 @@ public sealed class ReceivablePaymentUseCaseTests
             20_000m,
             PaymentMethod.Cash,
             null,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Receivable persisted = await dbContext.Receivables.SingleAsync(
             item => item.Id == receivable.Id,
@@ -90,7 +90,7 @@ public sealed class ReceivablePaymentUseCaseTests
             4_000m,
             PaymentMethod.Cash,
             null,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Single(loyalty.Transactions);
         Assert.Equal(4, loyalty.Transactions[0].Points); // FLOOR(4000 * 0.001)
@@ -113,7 +113,7 @@ public sealed class ReceivablePaymentUseCaseTests
             customerId,
             PaymentMethod.Cash,
             null,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(20_000m, amountApplied);
         Assert.Equal(2, loyalty.Transactions.Count);

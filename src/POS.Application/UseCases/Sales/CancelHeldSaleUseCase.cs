@@ -48,20 +48,23 @@ public sealed class CancelHeldSaleUseCase
             Product product = await _products.GetByIdAsync(item.ProductId, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException($"Product '{item.ProductId}' was not found.");
 
-            var quantity = new Quantity(item.Quantity * item.UnitsPerPresentation);
-            product.IncreaseStock(quantity);
-
-            if (_inventory is not null)
+            if (product.TracksInventory)
             {
-                await _inventory.AddMovementAsync(
-                    new InventoryMovement(
-                        product.Id,
-                        InventoryMovementType.Return,
-                        quantity,
-                        "Venta en espera cancelada",
-                        cashierUserId,
-                        sale.Id),
-                    cancellationToken).ConfigureAwait(false);
+                var quantity = new Quantity(item.Quantity * item.UnitsPerPresentation);
+                product.IncreaseStock(quantity);
+
+                if (_inventory is not null)
+                {
+                    await _inventory.AddMovementAsync(
+                        new InventoryMovement(
+                            product.Id,
+                            InventoryMovementType.Return,
+                            quantity,
+                            "Venta en espera cancelada",
+                            cashierUserId,
+                            sale.Id),
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
         }
 

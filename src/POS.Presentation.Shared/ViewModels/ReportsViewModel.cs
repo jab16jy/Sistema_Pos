@@ -678,13 +678,30 @@ public sealed class ReportsViewModel : ViewModelBase
 
         try
         {
-            var shifts = await _getShiftsUseCase.ExecuteAsync(MaxRecentShiftsToScan, ct).ConfigureAwait(true);
-            var closed = shifts
+            var from = new DateTimeOffset(ReportFromDate.Date, TimeZoneInfo.Local.GetUtcOffset(ReportFromDate.Date));
+            var to = new DateTimeOffset(ReportToDate.Date, TimeZoneInfo.Local.GetUtcOffset(ReportToDate.Date)).AddDays(1);
+
+            var shifts = await _getShiftsUseCase.ExecuteAsync(MaxRecentShiftsToScan, from, to, ct).ConfigureAwait(true);
+
+            // Fetch the 10 most recent shifts unfiltered to get active open shifts (pending review)
+            var recentShifts = await _getShiftsUseCase.ExecuteAsync(10, null, null, ct).ConfigureAwait(true);
+            var activeShifts = recentShifts.Where(s => s.Status == ShiftStatus.Open).ToList();
+
+            var mergedShifts = shifts.ToList();
+            foreach (var active in activeShifts)
+            {
+                if (!mergedShifts.Any(s => s.Id == active.Id))
+                {
+                    mergedShifts.Add(active);
+                }
+            }
+
+            var closed = mergedShifts
                 .Where(s => s.Status == ShiftStatus.Closed)
                 .OrderByDescending(s => s.ClosedAt)
                 .Take(MaxRecentClosingsDisplayed)
                 .ToList();
-            var pending = shifts
+            var pending = mergedShifts
                 .Where(s => s.Status == ShiftStatus.Open)
                 .OrderBy(s => s.OpenedAt)
                 .ToList();
