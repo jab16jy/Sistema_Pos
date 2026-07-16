@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.18.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.17.2...v1.18.0) (2026-07-16)
+
+
+### Features
+
+* **invoices:** improve PDF documents with loyalty details ([d3d4ce5](https://github.com/jab16jy/Sistema_Pos/commit/d3d4ce544feca5f3ade2a8acfdaacea04758efa1))
+
+
+### Bug Fixes
+
+* **ci:** use explicit es-CO culture in test and tolerate artifact upload quota ([8dd83ef](https://github.com/jab16jy/Sistema_Pos/commit/8dd83efa785b6757178c2b2f6f83486a73f8b16a))
+
 ## [1.17.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.17.1...v1.17.2) (2026-07-16)
 
 
