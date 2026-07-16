@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.18.0...v1.18.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **invoices:** use thermal logo in PDF documents ([0e8ed1d](https://github.com/jab16jy/Sistema_Pos/commit/0e8ed1d307a83d8d9a6c6a7a8c1b90d98b68b106))
+
 ## [1.18.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.17.2...v1.18.0) (2026-07-16)
 
 
