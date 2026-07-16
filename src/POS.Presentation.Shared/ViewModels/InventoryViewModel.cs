@@ -136,30 +136,40 @@ public sealed class InventoryViewModel : ViewModelBase
     public StockLevelResult? SelectedProduct
     {
         get => _selectedProduct;
-        set
+        set => SetSelectedProduct(value, autoLoadHistory: true);
+    }
+
+    // autoLoadHistory: false lets LoadStockAsync restore the WPF-deselected ListBox
+    // selection after a reload without racing its own explicit, awaited
+    // LoadMovementHistoryAsync call with a second, fire-and-forget one from here.
+    private void SetSelectedProduct(StockLevelResult? value, bool autoLoadHistory)
+    {
+        if (SetProperty(ref _selectedProduct, value))
         {
-            if (SetProperty(ref _selectedProduct, value))
+            MovementHistory.Clear();
+            AdjustmentDelta = 0;
+            AdjustmentReason = string.Empty;
+            AdjustmentQuantity = 1m;
+            IsAdjustmentPositive = true;
+            AdjustmentNote = string.Empty;
+
+            if (LoadMovementHistoryCommand is RelayCommand historyCommand)
             {
-                MovementHistory.Clear();
-                AdjustmentDelta = 0;
-                AdjustmentReason = string.Empty;
-                AdjustmentQuantity = 1m;
-                IsAdjustmentPositive = true;
-                AdjustmentNote = string.Empty;
+                historyCommand.RaiseCanExecuteChanged();
+            }
 
-                if (LoadMovementHistoryCommand is RelayCommand historyCommand)
-                {
-                    historyCommand.RaiseCanExecuteChanged();
-                }
+            if (AdjustStockCommand is RelayCommand adjustCommand)
+            {
+                adjustCommand.RaiseCanExecuteChanged();
+            }
 
-                if (AdjustStockCommand is RelayCommand adjustCommand)
-                {
-                    adjustCommand.RaiseCanExecuteChanged();
-                }
+            RecalculateAdjustmentPreview();
+            OnPropertyChanged(nameof(SelectedProductChipLabel));
+            OnPropertyChanged(nameof(HasSelectedProduct));
 
-                RecalculateAdjustmentPreview();
-                OnPropertyChanged(nameof(SelectedProductChipLabel));
-                OnPropertyChanged(nameof(HasSelectedProduct));
+            if (autoLoadHistory && value is not null)
+            {
+                RunSafe(LoadMovementHistoryAsync(), ex => Message = $"Error al cargar movimientos: {ex.Message}");
             }
         }
     }
@@ -280,10 +290,22 @@ public sealed class InventoryViewModel : ViewModelBase
         try
         {
             var results = await _queryStock.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+
+            // Clearing StockLevels deselects the bound ListBox item, which pushes
+            // SelectedProduct = null back through the TwoWay binding. Restore it by
+            // id so a caller-awaited LoadMovementHistoryAsync right after this still
+            // has a product to query.
+            var selectedProductId = SelectedProduct?.ProductId;
+
             StockLevels.Clear();
             foreach (var stock in results)
             {
                 StockLevels.Add(stock);
+            }
+
+            if (selectedProductId is Guid productId)
+            {
+                SetSelectedProduct(StockLevels.FirstOrDefault(stock => stock.ProductId == productId), autoLoadHistory: false);
             }
 
             LowStockProducts.Clear();
@@ -344,7 +366,8 @@ public sealed class InventoryViewModel : ViewModelBase
             MovementHistory.Clear();
             foreach (var movement in results)
             {
-                MovementHistory.Add(movement);
+                // CreatedAt is stored as UTC; convert for display like AuditLogViewModel does.
+                MovementHistory.Add(movement with { CreatedAt = movement.CreatedAt.ToLocalTime() });
             }
 
             OnPropertyChanged(nameof(FilteredMovements));
@@ -390,9 +413,11 @@ public sealed class InventoryViewModel : ViewModelBase
 
             Message = "Ajuste aplicado correctamente";
 
-            ClearAdjustment();
+            // Reload movements before clearing: ClearAdjustment nulls SelectedProduct,
+            // and LoadMovementHistoryAsync needs it to know which product to query.
             await LoadStockAsync(cancellationToken).ConfigureAwait(true);
             await LoadMovementHistoryAsync(cancellationToken).ConfigureAwait(true);
+            ClearAdjustment();
         }
         catch (ArgumentException ex)
         {
