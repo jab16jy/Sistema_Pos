@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Interfaces;
@@ -12,6 +14,9 @@ namespace POS.Infrastructure.Services;
 
 public sealed class PdfService : IPdfService
 {
+    private const int ThermalLogoWidthDots = 280;
+    private const int ThermalLogoHeightDots = 213;
+    private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
     private readonly AppDbContext _dbContext;
     private static readonly Lazy<byte[]> LogoImage = new(LoadLogoImage);
 
@@ -495,12 +500,84 @@ public sealed class PdfService : IPdfService
 
     private static byte[] LoadLogoImage()
     {
-        using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("POS.Infrastructure.Assets.Newlogo.png");
+        using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("POS.Infrastructure.Assets.receipt-logo.bin");
         if (stream is null)
             return [];
 
         using var memory = new MemoryStream();
         stream.CopyTo(memory);
-        return memory.ToArray();
+        return BuildPngImage(memory.ToArray(), ThermalLogoWidthDots, ThermalLogoHeightDots);
+    }
+
+    private static byte[] BuildPngImage(byte[] packedBits, int width, int height)
+    {
+        int widthBytes = (width + 7) / 8;
+        if (packedBits.Length < widthBytes * height)
+            return [];
+
+        var scanlines = new byte[(width + 1) * height];
+        for (int y = 0; y < height; y++)
+        {
+            int sourceRow = y * widthBytes;
+            int targetRow = y * (width + 1);
+            scanlines[targetRow] = 0;
+
+            for (int x = 0; x < width; x++)
+            {
+                bool isPrinted = (packedBits[sourceRow + x / 8] & (1 << (7 - x % 8))) != 0;
+                scanlines[targetRow + x + 1] = isPrinted ? (byte)0 : (byte)255;
+            }
+        }
+
+        using var png = new MemoryStream();
+        png.Write(PngSignature);
+
+        Span<byte> header = stackalloc byte[13];
+        BinaryPrimitives.WriteInt32BigEndian(header, width);
+        BinaryPrimitives.WriteInt32BigEndian(header[4..], height);
+        header[8] = 8; // grayscale
+        WritePngChunk(png, "IHDR", header);
+
+        using var compressed = new MemoryStream();
+        using (var zlib = new ZLibStream(compressed, CompressionLevel.Fastest, leaveOpen: true))
+        {
+            zlib.Write(scanlines);
+        }
+
+        WritePngChunk(png, "IDAT", compressed.ToArray());
+        WritePngChunk(png, "IEND", []);
+        return png.ToArray();
+    }
+
+    private static void WritePngChunk(Stream destination, string type, ReadOnlySpan<byte> data)
+    {
+        byte[] typeBytes = System.Text.Encoding.ASCII.GetBytes(type);
+        Span<byte> length = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(length, (uint)data.Length);
+        destination.Write(length);
+        destination.Write(typeBytes);
+        destination.Write(data);
+
+        Span<byte> crc = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32BigEndian(crc, PngCrc(typeBytes, data));
+        destination.Write(crc);
+    }
+
+    private static uint PngCrc(ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
+    {
+        uint crc = uint.MaxValue;
+        foreach (byte value in type)
+            crc = UpdatePngCrc(crc, value);
+        foreach (byte value in data)
+            crc = UpdatePngCrc(crc, value);
+        return ~crc;
+    }
+
+    private static uint UpdatePngCrc(uint crc, byte value)
+    {
+        crc ^= value;
+        for (int bit = 0; bit < 8; bit++)
+            crc = (crc >> 1) ^ (0xEDB88320u & (uint)-(int)(crc & 1));
+        return crc;
     }
 }
