@@ -469,6 +469,49 @@ public sealed class RuntimeReadinessTests
     }
 
     [Fact]
+    public async Task PdfService_GeneratesInvoiceAndQuoteWithDiscountsLoyaltyTierAndPointRedemption()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var tier = new LoyaltyTier("Oro", 100m, 10m);
+        var customer = new Customer("Cliente Leal", "123456789");
+        customer.SetLoyaltyTier(tier.Id);
+        dbContext.AddRange(tier, customer);
+
+        Product product = await TestProductFactory.CreateAndPersistAsync(
+            dbContext, "Serum Premium", new Money(20_000m), new Money(45_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
+
+        var quote = new Quote("COT-001", customer.FullName, 15, customer.Id, "3001234567", "cliente@example.com");
+        quote.AddItem(new QuoteItem(product.Id, product.Name, new Money(45_000m), new Quantity(1m), 10m));
+        dbContext.Quotes.Add(quote);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        var sale = await saleUseCase.ExecuteAsync(
+            new CreateSaleRequest(
+                Guid.NewGuid(),
+                customer.Id,
+                [new CreateSaleItemRequest(product.Id, 1m, 4_500m)],
+                [
+                    new CreateSalePaymentRequest(PaymentMethod.Cash, 36_000m, 40_000m, null),
+                    new CreateSalePaymentRequest(PaymentMethod.LoyaltyPoints, 4_500m, null, null)
+                ]),
+            TestContext.Current.CancellationToken);
+
+        var service = new PdfService(dbContext);
+        byte[] invoice = await service.GenerateInvoicePdfAsync(sale.SaleId, TestContext.Current.CancellationToken);
+        byte[] quotePdf = await service.GenerateQuotePdfAsync(quote.Id, TestContext.Current.CancellationToken);
+
+        Assert.Equal((byte)'%', invoice[0]);
+        Assert.Equal((byte)'%', quotePdf[0]);
+        Assert.True(invoice.Length > 1_000);
+        Assert.True(quotePdf.Length > 1_000);
+    }
+
+    [Fact]
     public async Task PrintService_WhenPrinterIsMissing_FailsWithRecoverableMessage()
     {
         var service = new PrintService(new PrinterRuntimeOptions());

@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Assets\receipt-logo.bin" />
+    <EmbeddedResource Include="..\..\logo\Newlogo.png" Link="Assets\Newlogo.png" />
   </ItemGroup>
 
   <ItemGroup>

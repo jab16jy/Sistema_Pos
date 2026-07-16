@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.Interfaces;
 using POS.Domain.Entities;
@@ -12,6 +13,7 @@ namespace POS.Infrastructure.Services;
 public sealed class PdfService : IPdfService
 {
     private readonly AppDbContext _dbContext;
+    private static readonly Lazy<byte[]> LogoImage = new(LoadLogoImage);
 
     static PdfService()
     {
@@ -41,6 +43,9 @@ public sealed class PdfService : IPdfService
             .FirstOrDefaultAsync(ct)
             .ConfigureAwait(false);
 
+        Customer? customer = await FindCustomerAsync(quote.CustomerId, ct).ConfigureAwait(false);
+        LoyaltyTier? loyaltyTier = await FindLoyaltyTierAsync(customer, ct).ConfigureAwait(false);
+
         var culture = CultureInfo.GetCultureInfo("es-CO");
 
         var pdfBytes = Document.Create(container =>
@@ -53,9 +58,9 @@ public sealed class PdfService : IPdfService
                     col.Spacing(12);
                     col.Item().Element(header => ComposeDocumentHeader(
                         header, settings, "COTIZACIÓN", quote.QuoteNumber, quote.CreatedAt, quote.CustomerName));
-                    col.Item().Element(card => ComposeQuoteMetaCard(card, quote));
+                    col.Item().Element(card => ComposeQuoteMetaCard(card, quote, customer, loyaltyTier));
                     col.Item().Element(table => ComposeQuoteItemsTable(table, quote, culture));
-                    col.Item().AlignRight().Width(260).Element(totals => ComposeTotalRow(totals, "TOTAL", quote.Total.ToString("C0", culture)));
+                    col.Item().AlignRight().Width(280).Element(totals => ComposeQuoteTotalsCard(totals, quote, culture));
                     if (!string.IsNullOrWhiteSpace(quote.Observations))
                     {
                         col.Item().Element(CardStyle).Column(obs =>
@@ -91,14 +96,8 @@ public sealed class PdfService : IPdfService
 
         var culture = CultureInfo.GetCultureInfo("es-CO");
 
-        Customer? customer = null;
-        if (sale.CustomerId.HasValue)
-        {
-            customer = await _dbContext.Customers
-                .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == sale.CustomerId.Value, ct)
-                .ConfigureAwait(false);
-        }
+        Customer? customer = await FindCustomerAsync(sale.CustomerId, ct).ConfigureAwait(false);
+        LoyaltyTier? loyaltyTier = await FindLoyaltyTierAsync(customer, ct).ConfigureAwait(false);
 
         var pdfBytes = Document.Create(container =>
         {
@@ -114,6 +113,10 @@ public sealed class PdfService : IPdfService
                         customer?.FullName ?? "Cliente consumidor final"));
 
                     col.Item().Element(card => ComposeCustomerCard(card, customer));
+                    if (loyaltyTier is not null || LoyaltyDiscount(sale) > 0m)
+                    {
+                        col.Item().Element(card => ComposeLoyaltyCard(card, loyaltyTier, LoyaltyDiscount(sale), culture));
+                    }
                     col.Item().Element(card => ComposePaymentCard(card, sale, culture));
                     col.Item().Element(table => ComposeItemsTable(table, sale, culture));
                     col.Item().AlignRight().Width(280).Element(totals => ComposeTotalsCard(totals, sale, culture));
@@ -125,7 +128,6 @@ public sealed class PdfService : IPdfService
         return pdfBytes;
     }
 
-    // ponytail: one clean monochrome layout for both documents — no color fills, thermal/print friendly.
     private static void ConfigurePage(PageDescriptor page)
     {
         page.Size(PageSizes.A4);
@@ -146,11 +148,16 @@ public sealed class PdfService : IPdfService
 
         container.Element(CardStyle).Row(row =>
         {
+            if (LogoImage.Value.Length > 0)
+            {
+                row.ConstantItem(76).Height(64).Image(LogoImage.Value).FitArea();
+            }
+
             row.RelativeItem().Column(info =>
             {
                 info.Spacing(2);
                 info.Item().Text(businessName).FontSize(20).Bold().FontColor(BodyColor);
-                info.Item().Text($"{documentType.Substring(0, 1)}{documentType.Substring(1).ToLowerInvariant()} de venta POS").FontSize(10).FontColor(LabelColor);
+                info.Item().Text($"{documentType} · Documento comercial").FontSize(10).FontColor(LabelColor);
 
                 if (!string.IsNullOrWhiteSpace(settings?.BusinessAddress))
                 {
@@ -177,14 +184,33 @@ public sealed class PdfService : IPdfService
         });
     }
 
-    private static void ComposeQuoteMetaCard(IContainer container, Quote quote)
+    private static void ComposeQuoteMetaCard(IContainer container, Quote quote, Customer? customer, LoyaltyTier? loyaltyTier)
     {
         container.Element(CardStyle).Column(col =>
         {
             col.Spacing(4);
             col.Item().Text("Datos de la cotización").FontSize(9).Bold().FontColor(LabelColor);
             col.Item().Text(quote.CustomerName).FontSize(12).Bold();
-            col.Item().Text($"Válida hasta: {quote.ExpiresAt:yyyy-MM-dd}").FontSize(9);
+            col.Item().Text($"Válida hasta: {quote.ExpiresAt:yyyy-MM-dd} · Vigencia: {quote.ValidityDays} días").FontSize(9);
+            if (!string.IsNullOrWhiteSpace(quote.CustomerPhone))
+                col.Item().Text($"Teléfono: {quote.CustomerPhone}").FontSize(9);
+            if (!string.IsNullOrWhiteSpace(quote.CustomerEmail))
+                col.Item().Text($"Email: {quote.CustomerEmail}").FontSize(9);
+            if (loyaltyTier is not null)
+                col.Item().Text($"Nivel de lealtad actual: {loyaltyTier.Name} · Beneficio: {loyaltyTier.DiscountPercent:N0}% dcto.").FontSize(9).FontColor(AccentColor);
+        });
+    }
+
+    private static void ComposeLoyaltyCard(IContainer container, LoyaltyTier? loyaltyTier, decimal loyaltyDiscount, CultureInfo culture)
+    {
+        container.Element(AccentCardStyle).Column(col =>
+        {
+            col.Spacing(4);
+            col.Item().Text("Beneficios de lealtad").FontSize(9).Bold().FontColor(AccentColor);
+            if (loyaltyTier is not null)
+                col.Item().Text($"Nivel actual: {loyaltyTier.Name} · Beneficio configurado: {loyaltyTier.DiscountPercent:N0}% de descuento").FontSize(10).Bold();
+            if (loyaltyDiscount > 0m)
+                col.Item().Text($"Canje de puntos aplicado: -{loyaltyDiscount.ToString("C0", culture)}").FontSize(10).Bold();
         });
     }
 
@@ -228,7 +254,7 @@ public sealed class PdfService : IPdfService
             col.Item().Text("Forma de pago").FontSize(9).Bold().FontColor(LabelColor);
             col.Item().Row(row =>
             {
-                row.RelativeItem().Text(string.Join(", ", paymentMethods)).FontSize(12).Bold();
+                row.RelativeItem().Text(string.Join(", ", paymentMethods.Where(method => method != "Puntos de lealtad"))).FontSize(12).Bold();
                 row.ConstantItem(120).AlignRight().Text(totalPaid.ToString("C0", culture)).FontSize(12).Bold();
             });
 
@@ -258,6 +284,7 @@ public sealed class PdfService : IPdfService
                 columns.RelativeColumn(1.2f);
                 columns.RelativeColumn(2);
                 columns.RelativeColumn(2);
+                columns.RelativeColumn(1.8f);
                 columns.RelativeColumn(2);
             });
 
@@ -267,6 +294,7 @@ public sealed class PdfService : IPdfService
                 header.Cell().Element(HeaderCellStyle).Text("Producto").Bold();
                 header.Cell().Element(HeaderCellStyle).AlignCenter().Text("Cant.").Bold();
                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Vr unit.").Bold();
+                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Dcto.").Bold();
                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("IVA").Bold();
                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Total").Bold();
             });
@@ -282,6 +310,7 @@ public sealed class PdfService : IPdfService
                 });
                 table.Cell().Element(CellStyle).AlignCenter().Text(item.Quantity.ToString("N2", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
+                table.Cell().Element(CellStyle).AlignRight().Text(ItemDiscount(item).ToString("C0", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.TaxAmount().Amount.ToString("C0", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.Subtotal().Amount.ToString("C0", culture));
             }
@@ -297,6 +326,7 @@ public sealed class PdfService : IPdfService
                 columns.RelativeColumn(4);
                 columns.RelativeColumn(1.2f);
                 columns.RelativeColumn(2);
+                columns.RelativeColumn(1.5f);
                 columns.RelativeColumn(2);
             });
 
@@ -305,6 +335,7 @@ public sealed class PdfService : IPdfService
                 header.Cell().Element(HeaderCellStyle).Text("Producto").Bold();
                 header.Cell().Element(HeaderCellStyle).AlignCenter().Text("Cant.").Bold();
                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Vr unit.").Bold();
+                header.Cell().Element(HeaderCellStyle).AlignRight().Text("Dcto.").Bold();
                 header.Cell().Element(HeaderCellStyle).AlignRight().Text("Total").Bold();
             });
 
@@ -317,6 +348,7 @@ public sealed class PdfService : IPdfService
                 });
                 table.Cell().Element(CellStyle).AlignCenter().Text(item.Quantity.Value.ToString("N2", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
+                table.Cell().Element(CellStyle).AlignRight().Text($"{item.Discount:N0}%");
                 table.Cell().Element(CellStyle).AlignRight().Text(item.Subtotal().Amount.ToString("C0", culture));
             }
         });
@@ -325,6 +357,8 @@ public sealed class PdfService : IPdfService
     private static void ComposeTotalsCard(IContainer container, Sale sale, CultureInfo culture)
     {
         decimal loyaltyDiscount = LoyaltyDiscount(sale);
+        decimal grossTotal = GrossTotal(sale);
+        decimal itemDiscount = grossTotal - sale.Total().Amount;
 
         container.Element(CardStyle).Column(col =>
         {
@@ -332,8 +366,16 @@ public sealed class PdfService : IPdfService
             col.Item().Row(row =>
             {
                 row.RelativeItem().Text("Total bruto");
-                row.ConstantItem(120).AlignRight().Text(sale.Total().Amount.ToString("C0", culture));
+                row.ConstantItem(120).AlignRight().Text(grossTotal.ToString("C0", culture));
             });
+            if (itemDiscount > 0m)
+            {
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem().Text("Descuentos en productos").FontColor(AccentColor);
+                    row.ConstantItem(120).AlignRight().Text($"-{itemDiscount.ToString("C0", culture)}").FontColor(AccentColor);
+                });
+            }
             col.Item().Row(row =>
             {
                 row.RelativeItem().Text("Subtotal");
@@ -349,8 +391,8 @@ public sealed class PdfService : IPdfService
             {
                 col.Item().Row(row =>
                 {
-                    row.RelativeItem().Text("Descuento por puntos").FontColor(LabelColor);
-                    row.ConstantItem(120).AlignRight().Text($"-{loyaltyDiscount.ToString("C0", culture)}").FontColor(LabelColor);
+                    row.RelativeItem().Text("Canje de puntos").FontColor(AccentColor);
+                    row.ConstantItem(120).AlignRight().Text($"-{loyaltyDiscount.ToString("C0", culture)}").FontColor(AccentColor);
                 });
             }
 
@@ -358,7 +400,37 @@ public sealed class PdfService : IPdfService
             col.Item().Row(row =>
             {
                 row.RelativeItem().Text("TOTAL A PAGAR").FontSize(13).Bold();
-                row.ConstantItem(120).AlignRight().Text(sale.Total().Amount.ToString("C0", culture)).FontSize(15).Bold();
+                row.ConstantItem(120).AlignRight().Text((sale.Total().Amount - loyaltyDiscount).ToString("C0", culture)).FontSize(15).Bold();
+            });
+        });
+    }
+
+    private static void ComposeQuoteTotalsCard(IContainer container, Quote quote, CultureInfo culture)
+    {
+        decimal grossTotal = quote.Items.Sum(item => item.UnitPrice.Amount * item.Quantity.Value);
+        decimal itemDiscount = grossTotal - quote.Total;
+
+        container.Element(CardStyle).Column(col =>
+        {
+            col.Spacing(6);
+            col.Item().Row(row =>
+            {
+                row.RelativeItem().Text("Total bruto");
+                row.ConstantItem(120).AlignRight().Text(grossTotal.ToString("C0", culture));
+            });
+            if (itemDiscount > 0m)
+            {
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem().Text("Descuentos en productos").FontColor(AccentColor);
+                    row.ConstantItem(120).AlignRight().Text($"-{itemDiscount.ToString("C0", culture)}").FontColor(AccentColor);
+                });
+            }
+            col.Item().LineHorizontal(0.5f).LineColor(BorderColor);
+            col.Item().Row(row =>
+            {
+                row.RelativeItem().Text("TOTAL COTIZADO").FontSize(13).Bold();
+                row.ConstantItem(120).AlignRight().Text(quote.Total.ToString("C0", culture)).FontSize(15).Bold();
             });
         });
     }
@@ -366,15 +438,6 @@ public sealed class PdfService : IPdfService
     private static decimal LoyaltyDiscount(Sale sale) => sale.Payments
         .Where(payment => payment.Method == Domain.Enums.PaymentMethod.LoyaltyPoints)
         .Sum(payment => payment.Amount.Amount);
-
-    private static void ComposeTotalRow(IContainer container, string label, string amount)
-    {
-        container.Element(CardStyle).Row(row =>
-        {
-            row.RelativeItem().Text(label).FontSize(13).Bold();
-            row.ConstantItem(120).AlignRight().Text(amount).FontSize(15).Bold();
-        });
-    }
 
     private static void ComposeDocumentFooter(IContainer container, string message)
     {
@@ -387,14 +450,17 @@ public sealed class PdfService : IPdfService
         });
     }
 
-    // ponytail: single knob to shrink the whole document (fonts + spacing) — QuestPDF Scale does it proportionally.
     private const float ContentScale = 0.75f;
     private const string BodyColor = "#1A1A1A";
     private const string LabelColor = "#6B6B6B";
     private const string BorderColor = "#D0D0D0";
+    private const string AccentColor = "#0F766E";
 
     private static IContainer CardStyle(IContainer container) =>
         container.Border(0.75f).BorderColor(BorderColor).Padding(12);
+
+    private static IContainer AccentCardStyle(IContainer container) =>
+        container.Background("#F0FDFA").Border(0.75f).BorderColor("#99F6E4").Padding(12);
 
     private static IContainer HeaderCellStyle(IContainer container) =>
         container.Background("#F2F2F2").BorderBottom(0.75f).BorderColor(BorderColor).PaddingVertical(6).PaddingHorizontal(6);
@@ -414,4 +480,27 @@ public sealed class PdfService : IPdfService
 
     private static string PresentationLabel(Domain.Enums.ProductPresentation presentation, int unitsPerPresentation) =>
         presentation == Domain.Enums.ProductPresentation.Box ? $"Caja x{unitsPerPresentation}" : "Unidad";
+
+    private async Task<Customer?> FindCustomerAsync(Guid? customerId, CancellationToken ct) => customerId.HasValue
+        ? await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(customer => customer.Id == customerId.Value, ct).ConfigureAwait(false)
+        : null;
+
+    private async Task<LoyaltyTier?> FindLoyaltyTierAsync(Customer? customer, CancellationToken ct) => customer?.LoyaltyTierId is Guid tierId
+        ? await _dbContext.LoyaltyTiers.AsNoTracking().FirstOrDefaultAsync(tier => tier.Id == tierId, ct).ConfigureAwait(false)
+        : null;
+
+    private static decimal GrossTotal(Sale sale) => sale.Items.Sum(item => item.UnitPrice.Amount * item.Quantity);
+
+    private static decimal ItemDiscount(SaleItem item) => item.UnitPrice.Amount * item.Quantity - item.Subtotal().Amount;
+
+    private static byte[] LoadLogoImage()
+    {
+        using Stream? stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("POS.Infrastructure.Assets.Newlogo.png");
+        if (stream is null)
+            return [];
+
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+        return memory.ToArray();
+    }
 }
