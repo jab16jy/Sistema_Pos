@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.17.0...v1.17.1) (2026-07-16)
+
+
+### Bug Fixes
+
+* **auth,cashier:** enforce username uniqueness constraint and update cashier workflow ([e52df06](https://github.com/jab16jy/Sistema_Pos/commit/e52df069e7a895bf0702c33858eb53fc8dfe399f))
+
 ## [1.17.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.16.1...v1.17.0) (2026-07-16)
 
 
