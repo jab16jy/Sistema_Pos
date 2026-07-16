@@ -22,13 +22,12 @@ public sealed class LoginViewModelTests
         var session = new FakeWritableSession();
         var viewModel = new LoginViewModel(loginUseCase, session)
         {
-            Username = "",
-            Password = "somepassword"
+            Username = ""
         };
 
         Assert.False(viewModel.IsError);
 
-        await viewModel.ExecuteLoginAsync();
+        await viewModel.ExecuteLoginAsync("somepassword");
 
         Assert.Equal("El usuario es requerido.", viewModel.Message);
         Assert.True(viewModel.IsError);
@@ -46,13 +45,12 @@ public sealed class LoginViewModelTests
         var session = new FakeWritableSession();
         var viewModel = new LoginViewModel(loginUseCase, session)
         {
-            Username = "someuser",
-            Password = ""
+            Username = "someuser"
         };
 
         Assert.False(viewModel.IsError);
 
-        await viewModel.ExecuteLoginAsync();
+        await viewModel.ExecuteLoginAsync("");
 
         Assert.Equal("La contraseña es requerida.", viewModel.Message);
         Assert.True(viewModel.IsError);
@@ -70,13 +68,12 @@ public sealed class LoginViewModelTests
         var session = new FakeWritableSession();
         var viewModel = new LoginViewModel(loginUseCase, session)
         {
-            Username = "nonexistent",
-            Password = "password"
+            Username = "nonexistent"
         };
 
         Assert.False(viewModel.IsError);
 
-        await viewModel.ExecuteLoginAsync();
+        await viewModel.ExecuteLoginAsync("password");
 
         Assert.True(userRepository.GetByUsernameInvoked);
         Assert.NotEmpty(viewModel.Message);

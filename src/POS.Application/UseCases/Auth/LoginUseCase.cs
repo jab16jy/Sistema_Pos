@@ -36,8 +36,10 @@ public sealed class LoginUseCase
         if (!_hasher.VerifyPassword(request.Password, user.PasswordHash))
             return await AuditFailureAsync(username, "Contraseña incorrecta.", ct, user.Id);
 
-        var role = await _roles.GetByIdAsync(user.RoleId, ct).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("User's role no longer exists.");
+        var role = await _roles.GetByIdAsync(user.RoleId, ct).ConfigureAwait(false);
+        if (role is null)
+            return await AuditFailureAsync(username, "El rol del usuario ya no existe.", ct, user.Id);
+
         if (!role.IsActive)
             return await AuditFailureAsync(username, "El rol del usuario está inactivo.", ct, user.Id);
 
@@ -55,6 +57,6 @@ public sealed class LoginUseCase
     {
         await _auditLogs.AddAsync(new AuditLog(userId, attemptedUsername, "LoginFailed", "User", attemptedUsername, errorMessage), ct).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(ct).ConfigureAwait(false);
-        return new LoginResult(false, errorMessage);
+        return new LoginResult(false, "Usuario o contraseña incorrectos.");
     }
 }

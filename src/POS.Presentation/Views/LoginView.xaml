@@ -50,10 +50,12 @@
 
         <TextBlock Text="Usuario" FontWeight="SemiBold" Margin="0,0,0,6" />
         <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                 IsEnabled="{Binding IsNotLoading}"
                  ToolTip="Escribe el usuario asignado por el administrador." />
 
         <TextBlock Text="Contraseña" FontWeight="SemiBold" Margin="0,16,0,6" />
         <PasswordBox x:Name="LoginPasswordBox"
+                     IsEnabled="{Binding IsNotLoading}"
                      ToolTip="Escribe tu contraseña de acceso." />
 
         <Border BorderThickness="1"
@@ -114,6 +116,8 @@
 
         <Button Content="Iniciar sesión"
                 Command="{Binding LoginCommand}"
+                CommandParameter="{Binding ElementName=LoginPasswordBox}"
+                IsDefault="True"
                 Style="{StaticResource PrimaryButton}"
                 Height="46"
                 HorizontalAlignment="Stretch" />

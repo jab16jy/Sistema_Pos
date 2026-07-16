@@ -10,7 +10,6 @@ public sealed class LoginViewModel : ViewModelBase
     private readonly LoginUseCase _loginUseCase;
     private readonly IWritableOperatorSession _session;
     private string _username = string.Empty;
-    private string _password = string.Empty;
     private string _message = "Ingresa tus credenciales para iniciar.";
     private bool _isLoading;
     private bool _isError;
@@ -22,7 +21,7 @@ public sealed class LoginViewModel : ViewModelBase
         _loginUseCase = loginUseCase;
         _session = session;
         LoginCommand = new RelayCommand(
-            execute: _ => RunSafe(ExecuteLoginAsync(), ex => { Message = $"Error inesperado: {ex.Message}"; IsError = true; }),
+            execute: parameter => RunSafe(ExecuteLoginAsync(parameter), ex => { Message = $"Error inesperado: {ex.Message}"; IsError = true; }),
             canExecute: _ => !IsLoading);
     }
 
@@ -30,12 +29,6 @@ public sealed class LoginViewModel : ViewModelBase
     {
         get => _username;
         set { SetProperty(ref _username, value); LoginCommand.RaiseCanExecuteChanged(); }
-    }
-
-    public string Password
-    {
-        get => _password;
-        set { SetProperty(ref _password, value); LoginCommand.RaiseCanExecuteChanged(); }
     }
 
     public string Message
@@ -47,8 +40,17 @@ public sealed class LoginViewModel : ViewModelBase
     public bool IsLoading
     {
         get => _isLoading;
-        set { SetProperty(ref _isLoading, value); LoginCommand.RaiseCanExecuteChanged(); }
+        set
+        {
+            if (SetProperty(ref _isLoading, value))
+            {
+                OnPropertyChanged(nameof(IsNotLoading));
+                LoginCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
+
+    public bool IsNotLoading => !IsLoading;
 
     public bool IsError
     {
@@ -58,7 +60,7 @@ public sealed class LoginViewModel : ViewModelBase
 
     public RelayCommand LoginCommand { get; }
 
-    internal async Task ExecuteLoginAsync()
+    internal async Task ExecuteLoginAsync(object? parameter)
     {
         if (string.IsNullOrWhiteSpace(Username))
         {
@@ -67,7 +69,17 @@ public sealed class LoginViewModel : ViewModelBase
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(Password))
+        string password = string.Empty;
+        if (parameter is System.Windows.Controls.PasswordBox passwordBox)
+        {
+            password = passwordBox.Password;
+        }
+        else if (parameter is string passwordStr)
+        {
+            password = passwordStr;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
         {
             Message = "La contraseña es requerida.";
             IsError = true;
@@ -79,7 +91,7 @@ public sealed class LoginViewModel : ViewModelBase
         Message = "Verificando credenciales...";
         try
         {
-            var result = await _loginUseCase.ExecuteAsync(new LoginRequest(Username, Password)).ConfigureAwait(true);
+            var result = await _loginUseCase.ExecuteAsync(new LoginRequest(Username, password)).ConfigureAwait(true);
             if (result.Success)
             {
                 _session.SetUser(result.UserId, result.Username, result.RoleId, result.RoleName, result.Permissions ?? new HashSet<string>());

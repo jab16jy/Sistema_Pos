@@ -52,7 +52,7 @@ public sealed class InventoryRepository : IInventoryRepository
     {
         return await _dbContext.Products
             .AsNoTracking()
-            .Where(product => product.IsActive && product.MinimumStock > 0m && product.CurrentStock <= product.MinimumStock)
+            .Where(product => product.IsActive && product.MinimumStock > 0m && product.CurrentStock > 0m && product.CurrentStock <= product.MinimumStock)
             .OrderBy(product => product.Name)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

@@ -27,6 +27,11 @@ public abstract class ViewModelBase : INotifyPropertyChanged
         return true;
     }
 
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
     private static async Task ObserveTaskAsync(Task task, Action<Exception> onException)
     {
         try
