@@ -1499,6 +1499,9 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasIndex("RoleId");
 
+                    b.HasIndex("Username")
+                        .IsUnique();
+
                     b.ToTable("Users", (string)null);
                 });
 

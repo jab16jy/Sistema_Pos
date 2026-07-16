@@ -17,5 +17,6 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.Id).HasConversion<string>();
         builder.Property(u => u.RoleId).HasConversion<string>();
         builder.HasOne<Role>().WithMany().HasForeignKey(u => u.RoleId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(u => u.Username).IsUnique();
     }
 }

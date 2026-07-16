@@ -141,6 +141,51 @@ public sealed class CashierViewModelTests
         Assert.Equal(1_800m, sale.Total().Amount); // matches viewModel.NetPayable exactly
     }
 
+    [Fact]
+    public async Task ConfirmSaleAsync_WithTierAndManualDiscount_CompoundsBothIndependently()
+    {
+        // Tier (10%) and the cashier's manual ApplyCartDiscountCommand (20%) are independent and
+        // never additive: 100_000 -> 90_000 (tier) -> 72_000 (manual on top), not 100_000 * 0.7.
+        var product = new Product("Crema", Guid.NewGuid(), new Money(50_000m), new Money(100_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var loyalty = new TieredLoyaltyRepository(customer.Id, discountPercent: 10m);
+        var sales = new InMemorySaleRepository();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            null,
+            null,
+            null,
+            new GetLoyaltyBalanceUseCase(loyalty))
+        {
+            SearchText = "crema",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+
+        viewModel.CartDiscountPercentInput = 20m;
+        viewModel.ApplyCartDiscountCommand.Execute(null);
+
+        Assert.Equal(72_000m, viewModel.NetPayable);
+        Assert.True(viewModel.HasManualDiscount);
+
+        viewModel.ReceivedAmount = viewModel.NetPayable;
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+
+        Sale sale = Assert.Single(sales.Sales);
+        SaleItem line = Assert.Single(sale.Items);
+        Assert.Equal(28_000m, line.Discount.Amount); // 100_000 - 72_000, persisted as one compounded money discount
+        Assert.Equal(72_000m, sale.Total().Amount);
+    }
+
     private sealed class TieredLoyaltyRepository : ILoyaltyRepository
     {
         private readonly Guid _customerId;

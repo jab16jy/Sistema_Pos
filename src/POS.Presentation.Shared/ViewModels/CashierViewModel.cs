@@ -60,6 +60,8 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _loadCustomerQuoteCommand;
     private readonly RelayCommand _clearLoadedQuoteCommand;
     private readonly RelayCommand _cancelRedemptionCommand;
+    private readonly RelayCommand _applyCartDiscountCommand;
+    private readonly RelayCommand _clearCartDiscountCommand;
     private CancellationTokenSource? _autocompleteSearchCts;
     private readonly SemaphoreSlim _querySemaphore = new(1, 1);
     private int _scannerInputInProgress;
@@ -81,6 +83,7 @@ public sealed class CashierViewModel : ViewModelBase
     private Guid? _customerId;
     private string _customerSearchText = string.Empty;
     private decimal _loyaltyDiscount;
+    private decimal _cartDiscountPercentInput;
     private string _bankOrPlatform = string.Empty;
     private int _loyaltyPointsToRedeem;
     private bool _isCustomerAssignmentOpen;
@@ -186,6 +189,8 @@ public sealed class CashierViewModel : ViewModelBase
         _clearCartCommand = new RelayCommand(_ => ClearCart(), _ => CartItems.Count > 0 && !IsResumedSale);
         _editCartItemCommand = new RelayCommand(EditCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
         _removeCartItemCommand = new RelayCommand(RemoveCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
+        _applyCartDiscountCommand = new RelayCommand(_ => ApplyCartDiscount(), _ => HasCartItems && CanEditCart);
+        _clearCartDiscountCommand = new RelayCommand(_ => ClearCartDiscount(), _ => HasManualDiscount && CanEditCart);
         _associateCustomerCommand = new RelayCommand(_ => AssociateCustomer());
         _holdSaleCommand = new RelayCommand(_ => RunSafe(HoldSaleAsync(), ex => Message = $"Error al poner la venta en espera: {ex.Message}"), _ => CanHoldSale);
         _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale());
@@ -203,6 +208,8 @@ public sealed class CashierViewModel : ViewModelBase
         ClearCartCommand = _clearCartCommand;
         EditCartItemCommand = _editCartItemCommand;
         RemoveCartItemCommand = _removeCartItemCommand;
+        ApplyCartDiscountCommand = _applyCartDiscountCommand;
+        ClearCartDiscountCommand = _clearCartDiscountCommand;
         AssociateCustomerCommand = _associateCustomerCommand;
         HoldSaleCommand = _holdSaleCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
@@ -270,6 +277,10 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand EditCartItemCommand { get; }
 
     public ICommand RemoveCartItemCommand { get; }
+
+    public ICommand ApplyCartDiscountCommand { get; }
+
+    public ICommand ClearCartDiscountCommand { get; }
 
     public ICommand AssociateCustomerCommand { get; }
 
@@ -491,6 +502,25 @@ public sealed class CashierViewModel : ViewModelBase
     public System.Windows.Media.Brush CurrentTierTextForegroundBrush => _currentTierTextForeground == POS.Domain.Enums.LoyaltyTierTextForeground.Black
         ? System.Windows.Media.Brushes.Black
         : System.Windows.Media.Brushes.White;
+
+    /// <summary>Percentage typed by the cashier, applied to every cart line via ApplyCartDiscountCommand.</summary>
+    public decimal CartDiscountPercentInput
+    {
+        get => _cartDiscountPercentInput;
+        set => SetProperty(ref _cartDiscountPercentInput, Math.Clamp(value, 0m, 100m));
+    }
+
+    /// <summary>True when any cart line currently carries a manual (cashier-applied) discount.</summary>
+    public bool HasManualDiscount => CartItems.Any(item => item.Discount > 0m);
+
+    /// <summary>
+    /// Manual discount money, computed independently of the tier discount (each line's manual
+    /// percentage against its gross, tier compounding happens separately in TierDiscount/BuildLineRequests).
+    /// </summary>
+    public decimal ManualDiscountAmount => CartItems.Sum(item => item.Quantity * item.UnitPrice * (item.Discount / 100m));
+
+    /// <summary>Manual discount as a negative currency string, e.g. "-$5.000".</summary>
+    public string ManualDiscountText => $"-{FormatCurrency(ManualDiscountAmount)}";
 
     /// <summary>Automatic discount from the customer's current tier, applied on top of any loyalty point redemption.</summary>
     public decimal TierDiscount => Math.Max(0m, TotalAmount * (_currentTierDiscountPercent / 100m));
@@ -1008,6 +1038,7 @@ public sealed class CashierViewModel : ViewModelBase
     {
         CartItems.Clear();
         ReceivedAmount = 0m;
+        CartDiscountPercentInput = 0m;
         ClearCustomerAssignment(resetReviewedFlag: true);
         ClearCustomerQuoteCandidates();
         RefreshTotals(updateMessage: false);
@@ -1168,6 +1199,34 @@ public sealed class CashierViewModel : ViewModelBase
         }
         RefreshTotals(updateMessage: false);
         Message = $"{item.ProductName} eliminado del carrito.";
+    }
+
+    /// <summary>
+    /// Applies CartDiscountPercentInput to every cart line at once — more ergonomic than editing
+    /// lines one by one. Independent of the loyalty tier discount: both are stored as separate
+    /// percentages and compounded (never added) when the sale is built — see CompoundDiscount.
+    /// </summary>
+    private void ApplyCartDiscount()
+    {
+        foreach (CashierCartItemViewModel item in CartItems)
+        {
+            item.Discount = CartDiscountPercentInput;
+        }
+
+        Message = CartDiscountPercentInput > 0m
+            ? $"Descuento de {CartDiscountPercentInput.ToString("0.##", ColombianCulture)}% aplicado al carrito."
+            : "Descuento removido del carrito.";
+    }
+
+    private void ClearCartDiscount()
+    {
+        CartDiscountPercentInput = 0m;
+        foreach (CashierCartItemViewModel item in CartItems)
+        {
+            item.Discount = 0m;
+        }
+
+        Message = "Descuento removido del carrito.";
     }
 
     private void AssociateCustomer()
@@ -1903,6 +1962,9 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(TierDiscount));
         OnPropertyChanged(nameof(TierDiscountText));
         OnPropertyChanged(nameof(HasTierDiscount));
+        OnPropertyChanged(nameof(HasManualDiscount));
+        OnPropertyChanged(nameof(ManualDiscountAmount));
+        OnPropertyChanged(nameof(ManualDiscountText));
         OnPropertyChanged(nameof(CartLineCount));
         OnPropertyChanged(nameof(CartUnitCount));
         OnPropertyChanged(nameof(CartSummaryText));
@@ -1917,6 +1979,8 @@ public sealed class CashierViewModel : ViewModelBase
         _clearCartCommand.RaiseCanExecuteChanged();
         _editCartItemCommand.RaiseCanExecuteChanged();
         _removeCartItemCommand.RaiseCanExecuteChanged();
+        _applyCartDiscountCommand.RaiseCanExecuteChanged();
+        _clearCartDiscountCommand.RaiseCanExecuteChanged();
     }
 
     private void RefreshPaymentPreview(bool updateMessage = true)

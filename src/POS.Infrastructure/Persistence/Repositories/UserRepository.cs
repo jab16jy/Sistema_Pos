@@ -15,7 +15,7 @@ public sealed class UserRepository : IUserRepository
         => _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id, ct);
 
     public Task<User?> GetByUsernameAsync(string username, CancellationToken ct = default)
-        => _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username && u.IsActive, ct);
+        => _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username, ct);
 
     public Task<bool> AnyAsync(CancellationToken ct = default)
         => _dbContext.Users.AnyAsync(ct);

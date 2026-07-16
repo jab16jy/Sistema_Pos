@@ -902,6 +902,52 @@
                   Height="44"
                   FontSize="15" />
 
+          <Border BorderBrush="{StaticResource BrushBorder}"
+                  BorderThickness="1"
+                  CornerRadius="8"
+                  Padding="12"
+                  Margin="0,10,0,0"
+                  Background="{StaticResource BrushSurfaceContainer}">
+            <StackPanel>
+              <TextBlock Text="Descuento del cajero" Style="{StaticResource CashHint}" FontWeight="Medium" />
+              <Grid Margin="0,6,0,0">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Text="{Binding CartDiscountPercentInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                         Tag="% de descuento..."
+                         Height="34"
+                         VerticalContentAlignment="Center" />
+                <Button Grid.Column="1"
+                        Content="Aplicar"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding ApplyCartDiscountCommand}"
+                        Margin="8,0,0,0"
+                        Padding="10,4" />
+                <Button Grid.Column="2"
+                        Content="Quitar"
+                        Style="{StaticResource GhostButton}"
+                        Command="{Binding ClearCartDiscountCommand}"
+                        Margin="8,0,0,0"
+                        Padding="10,4" />
+              </Grid>
+              <Grid Margin="0,8,0,0"
+                    Visibility="{Binding HasManualDiscount, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Descuento manual" FontWeight="Medium" />
+                <TextBlock Grid.Column="1"
+                           Text="{Binding ManualDiscountText}"
+                           FontWeight="SemiBold"
+                           Foreground="{StaticResource BrushPrimary}" />
+              </Grid>
+            </StackPanel>
+          </Border>
+
           <Border Background="{StaticResource BrushPrimaryContainer}"
                   BorderBrush="{StaticResource BrushPrimary}"
                   BorderThickness="1"

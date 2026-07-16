@@ -90,5 +90,5 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";
-    private static decimal NormalizeDiscount(decimal value) => value < 0m ? 0m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+    private static decimal NormalizeDiscount(decimal value) => decimal.Round(Math.Clamp(value, 0m, 100m), 2, MidpointRounding.AwayFromZero);
 }
