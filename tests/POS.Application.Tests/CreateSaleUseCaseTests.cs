@@ -62,6 +62,32 @@ public sealed class CreateSaleUseCaseSettlementTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_DeferredBalanceAboveConfiguredMaximum_IsRejected()
+    {
+        // Sale total is 800_000; default maximum deferred balance is 50% (400_000).
+        var product = new Product("Laptop", Guid.NewGuid(), new Money(500_000m), new Money(800_000m), new StockQuantity(5m), new StockQuantity(1m));
+        var products = new InMemProductRepo(product);
+        var sales = new InMemSaleRepo();
+        var receivables = new InMemReceivableRepo();
+        var unitOfWork = new InMemUoW();
+        var customerId = Guid.NewGuid();
+
+        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables);
+
+        var request = new CreateSaleRequest(
+            Guid.NewGuid(),
+            customerId,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            new SaleSettlementPlan(300_000m, PaymentMethod.Cash, 500_000m));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
+
+        Assert.Contains("50%", ex.Message);
+        Assert.Empty(receivables.Stored);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_FullPayment_NoReceivedBalance_NoReceivableCreated()
     {
         var product = new Product("Mouse", Guid.NewGuid(), new Money(30_000m), new Money(50_000m), new StockQuantity(10m), new StockQuantity(2m));

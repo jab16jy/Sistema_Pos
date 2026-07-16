@@ -368,6 +368,15 @@
                         FontSize="10"
                         TextWrapping="Wrap"
                         Margin="0,0,0,12" />
+             <TextBlock Text="Máximo saldo diferido por venta (%)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+             <TextBox Text="{Binding MaximumDeferredBalancePercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      Tag="50"
+                      Margin="0,0,0,4" />
+             <TextBlock Text="El saldo diferido de una venta no puede superar este porcentaje del total. Rango permitido: 0–100%."
+                        Style="{StaticResource MutedText}"
+                        FontSize="10"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,12" />
              <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Margin="0,0,8,0">
                 <StackPanel Orientation="Horizontal">

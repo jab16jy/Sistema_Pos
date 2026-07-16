@@ -161,6 +161,11 @@ public sealed class CreateSaleUseCase
                     "A customer must be identified to create a deferred balance.");
             }
 
+            decimal maximumDeferredPercent = await DeferredBalancePolicy
+                .GetMaximumAsync(_settings, cancellationToken)
+                .ConfigureAwait(false);
+            DeferredBalancePolicy.Validate(plan.DeferredBalanceAmount, sale.Total().Amount, maximumDeferredPercent);
+
             if (plan.CollectedMethod is { } collectedMethod)
             {
                 PaymentPlatforms.Validate(collectedMethod, plan.CollectedBankOrPlatform);

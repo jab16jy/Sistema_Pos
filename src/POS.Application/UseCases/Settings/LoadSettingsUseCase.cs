@@ -55,5 +55,6 @@ public sealed class LoadSettingsUseCase
                     settings.LastBackupSizeBytes.Value,
                     settings.LastBackupLocation,
                     settings.LastBackupUsername),
-        settings.MaximumCashierDiscountPercent);
+        settings.MaximumCashierDiscountPercent,
+        settings.MaximumDeferredBalancePercent);
 }

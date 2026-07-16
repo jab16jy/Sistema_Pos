@@ -799,24 +799,18 @@
                               FormatString="N0"
                               PreviewTextInput="ReceivedAmount_PreviewTextInput"
                                PreviewKeyDown="ReceivedAmount_PreviewKeyDown"
-                               DataObject.Pasting="ReceivedAmount_Pasting" />
+                               DataObject.Pasting="ReceivedAmount_Pasting"
+                               LostFocus="ReceivedAmount_LostFocus" />
 
            <StackPanel Margin="0,0,0,12"
-                       Visibility="{Binding HasAssignedCustomer, Converter={StaticResource BoolToVisibilityConverter}}">
-             <DockPanel>
-               <Button DockPanel.Dock="Right"
-                       Content="Autocompletar"
-                       Style="{StaticResource GhostButton}"
-                       FontSize="11"
-                       Padding="4,2"
-                       Command="{Binding SetExactDeferredAmountCommand}" />
-               <TextBlock Text="Saldo diferido" Style="{StaticResource CashHint}" FontWeight="Medium" />
-             </DockPanel>
-             <TextBlock Text="Parte de la venta que queda pendiente para el cliente."
+                       Visibility="{Binding IsDeferredAmountVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+             <TextBlock Text="Saldo diferido" Style="{StaticResource CashHint}" FontWeight="Medium" />
+             <TextBlock Text="Parte de la venta que queda pendiente para el cliente. Se calcula automáticamente."
                         Style="{StaticResource CashHint}"
                         TextWrapping="Wrap"
                         Margin="0,2,0,4" />
-             <xctk:DecimalUpDown Value="{Binding DeferredAmount, Mode=TwoWay}"
+             <xctk:DecimalUpDown Value="{Binding DeferredAmount, Mode=OneWay}"
+                                 IsReadOnly="True"
                                  Minimum="0"
                                  Height="36"
                                  FontSize="15"

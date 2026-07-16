@@ -53,7 +53,8 @@ public sealed class SaveSettingsUseCase
                 request.PrinterPort,
                 request.BackupDirectory,
                 request.CurrencyCode,
-                request.MaximumCashierDiscountPercent);
+                request.MaximumCashierDiscountPercent,
+                request.MaximumDeferredBalancePercent);
         }
         else
         {
@@ -73,7 +74,8 @@ public sealed class SaveSettingsUseCase
                 request.PrinterPort,
                 request.BackupDirectory,
                 request.CurrencyCode,
-                request.MaximumCashierDiscountPercent);
+                request.MaximumCashierDiscountPercent,
+                request.MaximumDeferredBalancePercent);
         }
 
         IReadOnlyList<SettingsWarning> warnings = _printerCommandValidator is null
@@ -108,6 +110,7 @@ public sealed class SaveSettingsUseCase
                     settings.LastBackupSizeBytes.Value,
                     settings.LastBackupLocation,
                     settings.LastBackupUsername),
-            settings.MaximumCashierDiscountPercent);
+            settings.MaximumCashierDiscountPercent,
+            settings.MaximumDeferredBalancePercent);
     }
 }

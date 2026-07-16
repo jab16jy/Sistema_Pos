@@ -57,6 +57,14 @@ public sealed class RuntimeGapDomainTests
     }
 
     [Fact]
+    public void BusinessSettings_WithMaximumDeferredBalancePercentOutOfRange_ThrowsArgumentOutOfRangeException()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BusinessSettings(
+            "Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP",
+            maximumDeferredBalancePercent: 150m));
+    }
+
+    [Fact]
     public void SaleReturn_WithMissingReason_RejectsCreation()
     {
         Assert.Throws<ArgumentException>(() => new SaleReturn(Guid.NewGuid(), Guid.NewGuid(), " "));

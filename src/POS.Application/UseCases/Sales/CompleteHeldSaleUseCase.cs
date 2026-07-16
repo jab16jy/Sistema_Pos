@@ -15,17 +15,20 @@ public sealed class CompleteHeldSaleUseCase
     private readonly IUnitOfWork _unitOfWork;
     private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
     private readonly IReceivableRepository? _receivables;
+    private readonly ISettingsRepository? _settings;
 
     public CompleteHeldSaleUseCase(
         ISaleRepository sales,
         IUnitOfWork unitOfWork,
         AccumulateLoyaltyPointsUseCase? accumulatePoints = null,
-        IReceivableRepository? receivables = null)
+        IReceivableRepository? receivables = null,
+        ISettingsRepository? settings = null)
     {
         _sales = sales;
         _unitOfWork = unitOfWork;
         _accumulatePoints = accumulatePoints;
         _receivables = receivables;
+        _settings = settings;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(
@@ -62,6 +65,11 @@ public sealed class CompleteHeldSaleUseCase
             {
                 PaymentPlatforms.Validate(method, plan.CollectedBankOrPlatform);
             }
+
+            decimal maximumDeferredPercent = await DeferredBalancePolicy
+                .GetMaximumAsync(_settings, cancellationToken)
+                .ConfigureAwait(false);
+            DeferredBalancePolicy.Validate(plan.DeferredBalanceAmount, sale.Total().Amount, maximumDeferredPercent);
 
             sale.SetSettlementPlan(plan);
             if (plan.CollectedAmount > 0m && plan.CollectedMethod is { } collectedMethod)

@@ -21,7 +21,8 @@ public sealed record SettingsResult(
     string CurrencyCode,
     IReadOnlyList<SettingsWarning>? Warnings = null,
     ManualBackupMetadata? LastSuccessfulBackup = null,
-    decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent);
+    decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent,
+    decimal MaximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent);
 
 public sealed record SaveSettingsRequest(
     string BusinessName,
@@ -39,7 +40,8 @@ public sealed record SaveSettingsRequest(
     string? PrinterPort,
     string? BackupDirectory,
     string CurrencyCode,
-    decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent);
+    decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent,
+    decimal MaximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent);
 
 public sealed record SettingsWarning(string Code, string Message);
 

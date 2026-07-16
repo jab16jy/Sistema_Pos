@@ -133,6 +133,25 @@ public sealed class CashierHoldDiscountUseCaseTests
     }
 
     [Fact]
+    public async Task SettingsMaximumDeferredBalance_IsMappedThroughSaveUseCase()
+    {
+        var settings = new SettingsRepositoryFake(null);
+        var unitOfWork = new UnitOfWorkFake();
+        var session = new SessionFake(POS.Domain.Authorization.PermissionKeys.Settings.Edit);
+        var useCase = new POS.Application.UseCases.Settings.SaveSettingsUseCase(settings, unitOfWork, session);
+
+        SettingsResult result = await useCase.ExecuteAsync(
+            new POS.Application.DTOs.Settings.SaveSettingsRequest(
+                "Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP",
+                MaximumCashierDiscountPercent: 20m,
+                MaximumDeferredBalancePercent: 30m),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(30m, result.MaximumDeferredBalancePercent);
+        Assert.Equal(30m, settings.Stored!.MaximumDeferredBalancePercent);
+    }
+
+    [Fact]
     public async Task CancelHeldSale_RestoresStockAndMarksCancelled()
     {
         var product = Product();

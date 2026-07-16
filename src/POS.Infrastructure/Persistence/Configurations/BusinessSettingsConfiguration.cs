@@ -35,5 +35,7 @@ internal sealed class BusinessSettingsConfiguration : IEntityTypeConfiguration<B
         builder.Property(settings => settings.CurrencyCode).IsRequired().HasMaxLength(3);
         builder.Property(settings => settings.MaximumCashierDiscountPercent)
             .HasDefaultValue(BusinessSettings.DefaultMaximumCashierDiscountPercent);
+        builder.Property(settings => settings.MaximumDeferredBalancePercent)
+            .HasDefaultValue(BusinessSettings.DefaultMaximumDeferredBalancePercent);
     }
 }

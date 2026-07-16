@@ -523,7 +523,7 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
-    public async Task ReceivedCash_WhenLowerThanTotal_DisablesConfirmation()
+    public async Task ReceivedCash_WhenLowerThanTotal_DisablesConfirmationUntilCustomerIsIdentified()
     {
         var viewModel = new CashierViewModel(new PrototypeProductLookupService())
         {
@@ -534,10 +534,14 @@ public sealed class CashierViewModelTests
         viewModel.AddSelectedProductCommand.Execute(null);
 
         viewModel.ReceivedAmount = 1000m;
+        viewModel.CommitReceivedAmount(); // simulates pressing Enter / leaving the field
 
+        // Underpaying now auto-derives a deferred balance, which requires an identified customer.
         Assert.False(viewModel.CanConfirm);
         Assert.Equal(0m, viewModel.ChangeAmount);
-        Assert.Contains("no cubre", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(viewModel.IsDeferredAmountVisible);
+        Assert.Equal(10_200m, viewModel.DeferredAmount);
+        Assert.Contains("cliente", viewModel.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(viewModel.IsPaymentShortfall);
         Assert.Equal("Falta", viewModel.PaymentBalanceLabel);
         Assert.Equal("$10.200", viewModel.PaymentBalanceText);
@@ -1027,7 +1031,7 @@ public sealed class CashierViewModelTests
     // --- RED: settlement plan / deferred balance in CashierViewModel ---
 
     [Fact]
-    public async Task DeferredAmount_WhenSetAndProductInCart_PreviewShowsDeferredCreditMessage()
+    public async Task DeferredAmount_WhenReceivedAmountIsBelowTotal_AutoCompletesToShortfallAndShowsCreditMessage()
     {
         var viewModel = new CashierViewModel(new PrototypeProductLookupService())
         {
@@ -1038,13 +1042,34 @@ public sealed class CashierViewModelTests
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);
 
-        // Set deferred amount so that CollectedAmount + DeferredAmount == Total
-        viewModel.DeferredAmount = viewModel.TotalAmount;
-        viewModel.ReceivedAmount = 0m;
+        // Cashier enters less than the total — DeferredAmount auto-derives the shortfall.
+        decimal total = viewModel.TotalAmount;
+        viewModel.ReceivedAmount = total - 1m;
+        viewModel.CommitReceivedAmount(); // simulates pressing Enter / leaving the field
 
         Assert.True(viewModel.CanConfirm);
-        Assert.Equal(viewModel.TotalAmount, viewModel.DeferredAmount);
+        Assert.True(viewModel.IsDeferredAmountVisible);
+        Assert.Equal(1m, viewModel.DeferredAmount);
         Assert.Contains("crédito", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AddSelectedProduct_WithDefaultReceivedAmount_DoesNotRevealDeferredPanel()
+    {
+        // Regression: adding a product recomputes totals (NetPayable > 0) while ReceivedAmount is
+        // still its default 0, so DeferredAmount is already > 0 — but nothing has been committed
+        // yet, so the panel must stay hidden.
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid()
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        Assert.True(viewModel.DeferredAmount > 0m);
+        Assert.False(viewModel.IsDeferredAmountVisible);
     }
 
     [Fact]
@@ -1059,8 +1084,7 @@ public sealed class CashierViewModelTests
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);
 
-        // Attempt deferred sale without a customer
-        viewModel.DeferredAmount = viewModel.TotalAmount;
+        // Underpaying auto-derives a deferred balance without a customer assigned.
         viewModel.ReceivedAmount = 0m;
 
         // Without a customer, deferred should block confirmation
@@ -1080,12 +1104,79 @@ public sealed class CashierViewModelTests
         viewModel.AddSelectedProductCommand.Execute(null);
 
         decimal total = viewModel.TotalAmount;
-        // Pay half in cash, defer half
+        // Pay half in cash; the other half is auto-derived as the deferred balance.
         viewModel.ReceivedAmount = total / 2m;
-        viewModel.DeferredAmount = total / 2m;
 
         Assert.True(viewModel.CanConfirm);
+        Assert.Equal(total / 2m, viewModel.DeferredAmount);
         Assert.Contains("crédito", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData(0)]    // exact match
+    [InlineData(1000)] // overpayment
+    public async Task DeferredAmount_WhenReceivedAmountCoversTotal_StaysHiddenAndZero(int extraReceived)
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid()
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        viewModel.ReceivedAmount = viewModel.TotalAmount + extraReceived;
+
+        Assert.Equal(0m, viewModel.DeferredAmount);
+        Assert.False(viewModel.IsDeferredAmountVisible);
+    }
+
+    [Fact]
+    public async Task DeferredAmount_WhenUnderpaid_StaysHiddenUntilCommitted()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid()
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        decimal total = viewModel.TotalAmount;
+        viewModel.ReceivedAmount = total - 1m;
+
+        // Not real time: the panel stays hidden while typing, even though the underlying
+        // amount is already short of the total.
+        Assert.False(viewModel.IsDeferredAmountVisible);
+        Assert.Equal(1m, viewModel.DeferredAmount);
+
+        // Simulates the cashier pressing Enter or leaving the field.
+        viewModel.CommitReceivedAmount();
+        Assert.True(viewModel.IsDeferredAmountVisible);
+    }
+
+    [Fact]
+    public async Task DeferredAmount_WhenReceivedAmountChangesAfterCommit_HidesPanelAgain()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid()
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        decimal total = viewModel.TotalAmount;
+        viewModel.ReceivedAmount = total - 1m;
+        viewModel.CommitReceivedAmount();
+        Assert.True(viewModel.IsDeferredAmountVisible);
+
+        // Editing the amount again invalidates the stale commit until it's committed again.
+        viewModel.ReceivedAmount = total - 2m;
+        Assert.False(viewModel.IsDeferredAmountVisible);
     }
 
     // Loyalty backing store for a redemption use case that the empty-cart guard never reaches.

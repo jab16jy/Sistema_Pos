@@ -49,7 +49,6 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _appendReceivedAmountCommand;
     private readonly RelayCommand _backspaceReceivedAmountCommand;
     private readonly RelayCommand _setExactAmountCommand;
-    private readonly RelayCommand _setExactDeferredAmountCommand;
     private readonly RelayCommand _clearCartCommand;
     private readonly RelayCommand _editCartItemCommand;
     private readonly RelayCommand _removeCartItemCommand;
@@ -72,7 +71,7 @@ public sealed class CashierViewModel : ViewModelBase
     private bool _sellSelectedAsBox;
     private PaymentMethodOption _selectedPaymentMethod;
     private decimal _receivedAmount;
-    private decimal _deferredAmount;
+    private bool _isDeferredAmountVisible;
     private string _message = "Busca o escanea un producto para iniciar la venta.";
     private bool _hasNoMatches;
     private bool _canConfirm;
@@ -184,7 +183,6 @@ public sealed class CashierViewModel : ViewModelBase
         _appendReceivedAmountCommand = new RelayCommand(AppendReceivedAmount);
         _backspaceReceivedAmountCommand = new RelayCommand(_ => BackspaceReceivedAmount());
         _setExactAmountCommand = new RelayCommand(_ => SetExactReceivedAmount(), _ => TotalAmount > 0m);
-        _setExactDeferredAmountCommand = new RelayCommand(_ => SetExactDeferredAmount(), _ => NetPayable > ReceivedAmount);
         _clearCartCommand = new RelayCommand(_ => ClearCart(), _ => CartItems.Count > 0 && !IsResumedSale);
         _editCartItemCommand = new RelayCommand(EditCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
         _removeCartItemCommand = new RelayCommand(RemoveCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
@@ -202,7 +200,6 @@ public sealed class CashierViewModel : ViewModelBase
         AppendReceivedAmountCommand = _appendReceivedAmountCommand;
         BackspaceReceivedAmountCommand = _backspaceReceivedAmountCommand;
         SetExactAmountCommand = _setExactAmountCommand;
-        SetExactDeferredAmountCommand = _setExactDeferredAmountCommand;
         ClearCartCommand = _clearCartCommand;
         EditCartItemCommand = _editCartItemCommand;
         RemoveCartItemCommand = _removeCartItemCommand;
@@ -267,8 +264,6 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand BackspaceReceivedAmountCommand { get; }
 
     public ICommand SetExactAmountCommand { get; }
-
-    public ICommand SetExactDeferredAmountCommand { get; }
 
     public ICommand ClearCartCommand { get; }
 
@@ -534,6 +529,7 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(HasTierDiscount));
         OnPropertyChanged(nameof(NetPayable));
         OnPropertyChanged(nameof(NetPayableText));
+        NotifyPaymentBalanceChanged();
     }
 
     public ICommand PrintReceiptYesCommand { get; }
@@ -661,21 +657,24 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Amount to defer as a receivable balance.
+    /// Shortfall between what's owed and what the cashier entered as received — the receivable
+    /// balance left on the customer's account. Not directly editable: it's the gap ReceivedAmount
+    /// leaves against NetPayable, so it only appears once the cashier underpays.
     /// When DeferredAmount > 0, a CustomerId is required and
     /// CollectedAmount + DeferredAmount must equal TotalAmount for CanConfirm to be true.
     /// </summary>
-    public decimal DeferredAmount
+    public decimal DeferredAmount => Math.Max(0m, NetPayable - ReceivedAmount);
+
+    /// <summary>
+    /// Shows the saldo diferido panel. Only becomes true when the cashier commits the received
+    /// amount (Enter or losing focus on the field, see <see cref="CommitReceivedAmount"/>) and it's
+    /// short of NetPayable at that moment. Any later recomputation of totals/payment state forces it
+    /// back to hidden, since that commit's evaluation is now stale until the cashier commits again.
+    /// </summary>
+    public bool IsDeferredAmountVisible
     {
-        get => _deferredAmount;
-        set
-        {
-            decimal normalized = value < 0m ? 0m : decimal.Truncate(value);
-            if (SetProperty(ref _deferredAmount, normalized))
-            {
-                RefreshPaymentPreview();
-            }
-        }
+        get => _isDeferredAmountVisible;
+        private set => SetProperty(ref _isDeferredAmountVisible, value);
     }
 
     public string Message
@@ -1009,7 +1008,6 @@ public sealed class CashierViewModel : ViewModelBase
     {
         CartItems.Clear();
         ReceivedAmount = 0m;
-        DeferredAmount = 0m;
         ClearCustomerAssignment(resetReviewedFlag: true);
         ClearCustomerQuoteCandidates();
         RefreshTotals(updateMessage: false);
@@ -1060,7 +1058,6 @@ public sealed class CashierViewModel : ViewModelBase
             CreateSaleResult result = await _createSaleUseCase.ExecuteAsync(BuildCreateSaleRequest(), cancellationToken).ConfigureAwait(true);
             CartItems.Clear();
             ReceivedAmount = 0m;
-            DeferredAmount = 0m;
             ClearCustomerAssignment(resetReviewedFlag: true);
             ClearCustomerQuoteCandidates();
             RefreshTotals(updateMessage: false);
@@ -1307,7 +1304,6 @@ public sealed class CashierViewModel : ViewModelBase
     {
         SelectedCustomer = null;
         CustomerId = null;
-        DeferredAmount = 0m;
         CustomerSearchText = string.Empty;
         CustomerSearchResults.Clear();
         SelectedCustomerSearchResult = null;
@@ -1324,6 +1320,9 @@ public sealed class CashierViewModel : ViewModelBase
             _customerAssignmentReviewed = false;
             _confirmAfterCustomerAssignment = false;
         }
+
+        // Removing the customer can re-trigger the "customer required for deferred balance" gate.
+        RefreshPaymentPreview(updateMessage: false);
     }
 
     private async Task LoadCustomerQuotesForSelectedCustomerAsync(CancellationToken cancellationToken)
@@ -1435,11 +1434,8 @@ public sealed class CashierViewModel : ViewModelBase
         _loadedQuote = quote;
         SelectedCustomerQuote = quote;
         _customerAssignmentReviewed = true;
-        DeferredAmount = 0m;
-        if (SelectedPaymentMethod.Method == PaymentMethod.Cash)
-        {
-            ReceivedAmount = quote.Total;
-        }
+        // Default to full payment (no deferred balance) — the cashier can lower ReceivedAmount afterward.
+        ReceivedAmount = quote.Total;
 
         NotifyQuoteContextChanged();
         RefreshTotals(updateMessage: false);
@@ -1854,7 +1850,6 @@ public sealed class CashierViewModel : ViewModelBase
 
             CartItems.Clear();
             ReceivedAmount = 0m;
-            DeferredAmount = 0m;
             ClearCustomerAssignment(resetReviewedFlag: true);
             RefreshTotals(updateMessage: false);
             Message = $"Cotización {quote.QuoteNumber} facturada con factura {result.InvoiceNumber}.";
@@ -1926,8 +1921,6 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void RefreshPaymentPreview(bool updateMessage = true)
     {
-        _setExactDeferredAmountCommand.RaiseCanExecuteChanged();
-
         // Deferred balance requires an identified customer — block confirmation without one
         if (DeferredAmount > 0m && CustomerId is null)
         {
@@ -2023,6 +2016,14 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsPaymentShortfall));
         OnPropertyChanged(nameof(PaymentBalanceLabel));
         OnPropertyChanged(nameof(PaymentBalanceText));
+        OnPropertyChanged(nameof(DeferredAmount));
+        IsDeferredAmountVisible = false;
+    }
+
+    /// <summary>Called when the cashier commits the received amount — Enter or losing focus on the field.</summary>
+    public void CommitReceivedAmount()
+    {
+        IsDeferredAmountVisible = DeferredAmount > 0m;
     }
 
     private void UpdateCommandState()
@@ -2067,11 +2068,6 @@ public sealed class CashierViewModel : ViewModelBase
     private void SetExactReceivedAmount()
     {
         ReceivedAmount = NetPayable;
-    }
-
-    private void SetExactDeferredAmount()
-    {
-        DeferredAmount = Math.Max(0m, NetPayable - ReceivedAmount);
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";

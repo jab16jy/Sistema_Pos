@@ -180,6 +180,20 @@ public partial class CashierView : UserControl
         if (e.Key == Key.Space)
         {
             e.Handled = true;
+            return;
+        }
+
+        if (e.Key == Key.Enter && DataContext is CashierViewModel viewModel)
+        {
+            viewModel.CommitReceivedAmount();
+        }
+    }
+
+    private void ReceivedAmount_LostFocus(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is CashierViewModel viewModel)
+        {
+            viewModel.CommitReceivedAmount();
         }
     }
 

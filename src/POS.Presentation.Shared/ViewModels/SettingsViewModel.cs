@@ -36,6 +36,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private ManualBackupMetadata? _lastSuccessfulBackup;
     private string _currencyCode = "COP";
     private decimal _maximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent;
+    private decimal _maximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent;
     private string _message = "Carga la configuración del negocio o realiza un backup.";
 
     private string _receiptTemplate = "80 mm térmico";
@@ -197,6 +198,12 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         get => _maximumCashierDiscountPercent;
         set => SetProperty(ref _maximumCashierDiscountPercent, value);
+    }
+
+    public decimal MaximumDeferredBalancePercent
+    {
+        get => _maximumDeferredBalancePercent;
+        set => SetProperty(ref _maximumDeferredBalancePercent, value);
     }
 
     public string Message
@@ -373,6 +380,7 @@ public sealed class SettingsViewModel : ViewModelBase
             BackupDirectory = settings.BackupDirectory;
             CurrencyCode = settings.CurrencyCode;
             MaximumCashierDiscountPercent = settings.MaximumCashierDiscountPercent;
+            MaximumDeferredBalancePercent = settings.MaximumDeferredBalancePercent;
             UpdateLastSuccessfulBackup(settings.LastSuccessfulBackup);
 
             Warnings.Clear();
@@ -534,7 +542,8 @@ public sealed class SettingsViewModel : ViewModelBase
             PrinterPort,
             BackupDirectory,
             CurrencyCode,
-            MaximumCashierDiscountPercent);
+            MaximumCashierDiscountPercent,
+            MaximumDeferredBalancePercent);
 
         SettingsResult result = await _saveSettings.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 

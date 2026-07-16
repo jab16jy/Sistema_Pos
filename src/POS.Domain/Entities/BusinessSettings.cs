@@ -3,12 +3,14 @@ namespace POS.Domain.Entities;
 public sealed class BusinessSettings
 {
     public const decimal DefaultMaximumCashierDiscountPercent = 20m;
+    public const decimal DefaultMaximumDeferredBalancePercent = 50m;
 
     private BusinessSettings()
     {
         BusinessName = string.Empty;
         CurrencyCode = "COP";
         MaximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent;
+        MaximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent;
     }
 
     public BusinessSettings(
@@ -27,7 +29,8 @@ public sealed class BusinessSettings
         string? printerPort,
         string? backupDirectory,
         string currencyCode,
-        decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent)
+        decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent,
+        decimal maximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent)
     {
         Id = Guid.NewGuid();
         Apply(
@@ -46,7 +49,8 @@ public sealed class BusinessSettings
             printerPort,
             backupDirectory,
             currencyCode,
-            maximumCashierDiscountPercent);
+            maximumCashierDiscountPercent,
+            maximumDeferredBalancePercent);
     }
 
     public Guid Id { get; private set; }
@@ -70,6 +74,7 @@ public sealed class BusinessSettings
     public string? LastBackupUsername { get; private set; }
     public string CurrencyCode { get; private set; } = "COP";
     public decimal MaximumCashierDiscountPercent { get; private set; } = DefaultMaximumCashierDiscountPercent;
+    public decimal MaximumDeferredBalancePercent { get; private set; } = DefaultMaximumDeferredBalancePercent;
 
     public void Update(
         string businessName,
@@ -87,7 +92,8 @@ public sealed class BusinessSettings
         string? printerPort,
         string? backupDirectory,
         string currencyCode,
-        decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent)
+        decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent,
+        decimal maximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent)
     {
         Apply(
             businessName,
@@ -105,7 +111,8 @@ public sealed class BusinessSettings
             printerPort,
             backupDirectory,
             currencyCode,
-            maximumCashierDiscountPercent);
+            maximumCashierDiscountPercent,
+            maximumDeferredBalancePercent);
     }
 
     public void RecordSuccessfulBackup(
@@ -146,7 +153,8 @@ public sealed class BusinessSettings
         string? printerPort,
         string? backupDirectory,
         string currencyCode,
-        decimal maximumCashierDiscountPercent)
+        decimal maximumCashierDiscountPercent,
+        decimal maximumDeferredBalancePercent)
     {
         if (string.IsNullOrWhiteSpace(businessName))
         {
@@ -176,6 +184,13 @@ public sealed class BusinessSettings
                 "Maximum cashier discount must be between 0 and 100 percent.");
         }
 
+        if (maximumDeferredBalancePercent < 0m || maximumDeferredBalancePercent > 100m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maximumDeferredBalancePercent),
+                "Maximum deferred balance must be between 0 and 100 percent.");
+        }
+
         BusinessName = businessName.Trim();
         BusinessAddress = TrimToNull(businessAddress);
         TaxId = TrimToNull(taxId);
@@ -192,6 +207,7 @@ public sealed class BusinessSettings
         BackupDirectory = TrimToNull(backupDirectory);
         CurrencyCode = normalizedCurrency;
         MaximumCashierDiscountPercent = maximumCashierDiscountPercent;
+        MaximumDeferredBalancePercent = maximumDeferredBalancePercent;
     }
 
     private static string? TrimToNull(string? value)
