@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.18.1...v1.19.0) (2026-07-18)
+
+
+### Features
+
+* **integrity:** harden audit, returns, and financial integrity across 9 capabilities ([24db47c](https://github.com/jab16jy/Sistema_Pos/commit/24db47cdde4136aad59fdb406c757ac610ac9ed2))
+
 ## [1.18.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.18.0...v1.18.1) (2026-07-16)
 
 
