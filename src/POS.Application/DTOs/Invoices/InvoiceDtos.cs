@@ -65,22 +65,29 @@ public sealed record InvoiceSettlementResult(
 /// <summary>
 /// A single line in a partial return request.
 /// SaleItemId identifies the original sale item; QuantityReturned must be in [1, originalQty].
-/// RefundAmount is the monetary amount to refund for this line.
 /// </summary>
 public sealed record ReturnLineRequest(
     Guid SaleItemId,
-    int QuantityReturned,
-    decimal RefundAmount);
+    int QuantityReturned);
+
+public enum ReturnResolutionChoice
+{
+    Cash = 1,
+    DebitCard = 2,
+    CreditCard = 3,
+    Transfer = 4,
+    Receivable = 5
+}
 
 /// <summary>
 /// Request to process a sale return (full or partial).
-/// When Items is null or empty, a full return of all items is performed (backward compatible).
-/// When Items is provided, only the listed items are returned at the specified quantities.
+/// The operation id makes retried submissions idempotent; the resolution choice selects settlement or receivable reconciliation.
 /// </summary>
 public sealed record ProcessReturnRequest(
     Guid SaleId,
-    Guid ProcessedByUserId,
     string Reason,
+    Guid OperationId,
+    ReturnResolutionChoice ResolutionChoice,
     IReadOnlyList<ReturnLineRequest>? Items = null);
 
 public sealed record CancelSaleRequest(

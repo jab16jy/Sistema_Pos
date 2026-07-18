@@ -45,10 +45,10 @@ public sealed class ThermalPrinterIntegrationTests
         var saleUseCase = new CreateSaleUseCase(
             new ProductRepository(fixture.DbContext),
             new SaleRepository(fixture.DbContext),
-            fixture.DbContext);
+            fixture.DbContext,
+            authorizer: TestAuthorizer.Create(dbContext: fixture.DbContext));
         var sale = await saleUseCase.ExecuteAsync(
             new CreateSaleRequest(
-                Guid.NewGuid(),
                 null,
                 [new CreateSaleItemRequest(product.Id, 1m, 0m)],
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_000m, 2_000m, null)]),
@@ -90,10 +90,10 @@ public sealed class ThermalPrinterIntegrationTests
         var saleUseCase = new CreateSaleUseCase(
             new ProductRepository(fixture.DbContext),
             new SaleRepository(fixture.DbContext),
-            fixture.DbContext);
+            fixture.DbContext,
+            authorizer: TestAuthorizer.Create(dbContext: fixture.DbContext));
         var sale = await saleUseCase.ExecuteAsync(
             new CreateSaleRequest(
-                Guid.NewGuid(),
                 customer.Id,
                 [new CreateSaleItemRequest(product.Id, 1m, 0m)],
                 [

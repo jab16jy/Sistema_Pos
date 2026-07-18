@@ -406,8 +406,7 @@ public sealed class InventoryViewModel : ViewModelBase
             var request = new AdjustStockRequest(
                 SelectedProduct.ProductId,
                 delta,
-                AdjustmentReason,
-                OperatorUserId);
+                AdjustmentReason);
 
             var result = await _adjustStock.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 

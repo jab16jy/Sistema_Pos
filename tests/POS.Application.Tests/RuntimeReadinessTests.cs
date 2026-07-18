@@ -401,10 +401,10 @@ public sealed class RuntimeReadinessTests
         var saleUseCase = new CreateSaleUseCase(
             new ProductRepository(dbContext),
             new SaleRepository(dbContext),
-            dbContext);
+            dbContext,
+            authorizer: TestAuthorizer.Create(dbContext: dbContext));
         await saleUseCase.ExecuteAsync(
             new CreateSaleRequest(
-                Guid.NewGuid(),
                 null,
                 [new CreateSaleItemRequest(product.Id, 1m, 0m)],
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 35_000m, 40_000m, null)]),
@@ -451,10 +451,10 @@ public sealed class RuntimeReadinessTests
         var saleUseCase = new CreateSaleUseCase(
             new ProductRepository(dbContext),
             new SaleRepository(dbContext),
-            dbContext);
+            dbContext,
+            authorizer: TestAuthorizer.Create(dbContext: dbContext));
         var sale = await saleUseCase.ExecuteAsync(
             new CreateSaleRequest(
-                Guid.NewGuid(),
                 null,
                 [new CreateSaleItemRequest(product.Id, 1m, 0m)],
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 45_000m, 50_000m, null)]),
@@ -489,10 +489,9 @@ public sealed class RuntimeReadinessTests
         dbContext.Quotes.Add(quote);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
-        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext, authorizer: TestAuthorizer.Create(dbContext: dbContext));
         var sale = await saleUseCase.ExecuteAsync(
             new CreateSaleRequest(
-                Guid.NewGuid(),
                 customer.Id,
                 [new CreateSaleItemRequest(product.Id, 1m, 4_500m)],
                 [

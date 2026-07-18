@@ -33,9 +33,9 @@ public sealed class StockTraceabilityTests
             new CreateProductRequest("Arroz", category.Id, 1_000m, 1_500m, 10m, 2m, null, null, OperatorUserId: Operator),
             TestContext.Current.CancellationToken);
 
-        var sell = new CreateSaleUseCase(products, new ListSaleRepository(), unitOfWork, null, null, null, inventory);
+        var sell = new CreateSaleUseCase(products, new ListSaleRepository(), unitOfWork, null, null, null, inventory, authorizer: TestAuthorizer.Create());
         await sell.ExecuteAsync(
-            new CreateSaleRequest(Operator, null,
+            new CreateSaleRequest(null,
                 [new CreateSaleItemRequest(productId, 3m, 0m)],
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 4_500m, 4_500m, null)]),
             TestContext.Current.CancellationToken);
@@ -72,10 +72,10 @@ public sealed class StockTraceabilityTests
         int savesAfterCreate = unitOfWork.SaveCount;
         int movementsAfterCreate = inventory.Movements.Count;
         var sales = new ListSaleRepository();
-        var sell = new CreateSaleUseCase(products, sales, unitOfWork, null, null, null, inventory);
+        var sell = new CreateSaleUseCase(products, sales, unitOfWork, null, null, null, inventory, authorizer: TestAuthorizer.Create());
 
         await Assert.ThrowsAsync<InsufficientStockException>(() => sell.ExecuteAsync(
-            new CreateSaleRequest(Operator, null,
+            new CreateSaleRequest(null,
                 [new CreateSaleItemRequest(productId, 10m, 0m)],
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 8_000m, 8_000m, null)]),
             TestContext.Current.CancellationToken));

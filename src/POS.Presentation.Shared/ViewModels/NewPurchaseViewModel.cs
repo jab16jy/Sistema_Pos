@@ -77,7 +77,6 @@ public sealed class NewPurchaseViewModel : ViewModelBase
 
     private readonly SearchSuppliersUseCase _searchSuppliers;
     private readonly RegisterPurchaseUseCase _registerPurchase;
-    private readonly Func<Guid> _currentOperatorIdProvider;
     private readonly GetEligibleSupplierCatalogUseCase? _eligibleCatalog;
     private readonly RelayCommand _goToStepCommand;
     private readonly RelayCommand _addDraftItemCommand;
@@ -107,12 +106,10 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     public NewPurchaseViewModel(
         SearchSuppliersUseCase searchSuppliers,
         RegisterPurchaseUseCase registerPurchase,
-        Func<Guid> currentOperatorIdProvider,
         GetEligibleSupplierCatalogUseCase? eligibleCatalog = null)
     {
         _searchSuppliers = searchSuppliers ?? throw new ArgumentNullException(nameof(searchSuppliers));
         _registerPurchase = registerPurchase ?? throw new ArgumentNullException(nameof(registerPurchase));
-        _currentOperatorIdProvider = currentOperatorIdProvider ?? throw new ArgumentNullException(nameof(currentOperatorIdProvider));
         _eligibleCatalog = eligibleCatalog;
 
         Items.CollectionChanged += OnItemsChanged;
@@ -374,12 +371,9 @@ public sealed class NewPurchaseViewModel : ViewModelBase
     public async Task ConfirmPurchaseAsync(CancellationToken cancellationToken = default)
     {
         if (!CanConfirm) { Message = ConfirmBlockReason!; return; }
-        Guid operatorId = _currentOperatorIdProvider();
-        if (operatorId == Guid.Empty) { Message = "No se pudo identificar el operador."; return; }
 
         var request = new RegisterPurchaseRequest(
             SelectedSupplier!.Id,
-            operatorId,
             DateOnly.FromDateTime(PurchaseDate!.Value),
             Normalize(PurchaseInvoiceNumber),
             Normalize(PaymentTerms),

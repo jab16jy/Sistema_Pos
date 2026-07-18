@@ -73,7 +73,8 @@ public sealed class LoyaltyRepositoryTests
         var redeemed = new LoyaltyTransaction(account.Id, LoyaltyTransactionType.Redeemed, -40, saleId);
         db.AddRange(tier, customer, account, earned, redeemed);
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
-        db.AddRange(LoyaltyTransaction.CreateCompensation(earned, "Return"), LoyaltyTransaction.CreateCompensation(redeemed, "Return"));
+        var saleReturnId = Guid.NewGuid();
+        db.AddRange(LoyaltyTransaction.CreateCompensation(earned, "Return", saleReturnId: saleReturnId), LoyaltyTransaction.CreateCompensation(redeemed, "Return", saleReturnId: saleReturnId));
         await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var repository = new LoyaltyRepository(db);
@@ -82,7 +83,8 @@ public sealed class LoyaltyRepositoryTests
         Assert.Equal(100, await repository.GetTotalIssuedPointsAsync(TestContext.Current.CancellationToken));
         Assert.Equal(1, await repository.GetRedemptionCountAsync(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(1), TestContext.Current.CancellationToken));
 
-        db.LoyaltyTransactions.Add(LoyaltyTransaction.CreateCompensation(earned, "Duplicate"));
+        db.ChangeTracker.Clear();
+        db.LoyaltyTransactions.Add(LoyaltyTransaction.CreateCompensation(earned, "Duplicate", saleReturnId: saleReturnId));
         await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync(TestContext.Current.CancellationToken));
     }
 }

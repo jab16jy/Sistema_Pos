@@ -1,6 +1,7 @@
 using System.Linq;
 using POS.Application.DTOs.Shifts;
 using POS.Application.Interfaces;
+using POS.Application.Services;
 using POS.Application.UseCases.Shifts;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -17,12 +18,13 @@ public sealed class ShiftsViewModelTests
     public async Task LoadCommand_WhenShiftQueryFails_SetsRecoverableMessage()
     {
         var repository = new ThrowingShiftRepository();
+        var session = new StubOperatorSession();
         var viewModel = new ShiftsViewModel(
-            new StartShiftUseCase(repository, new NoOpUnitOfWork()),
-            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
+            new StartShiftUseCase(repository, new NoOpUnitOfWork(), CreateAuthorizer(session)),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork(), CreateAuthorizer(session)),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new SummarySaleRepository(new ShiftSalesSummaryData(4_200m, 2_800m, 1_400m))),
-            new StubOperatorSession(),
+            session,
             new StubUserRepository());
 
         viewModel.LoadCommand.Execute(null);
@@ -38,12 +40,13 @@ public sealed class ShiftsViewModelTests
         // persisted shift opened on a previous day.
         var shift = new CashierShift(Guid.NewGuid(), "cajero", new Money(100m), null);
         var repository = new SingleShiftRepository(shift);
+        var session = new StubOperatorSession();
         var viewModel = new ShiftsViewModel(
-            new StartShiftUseCase(repository, new NoOpUnitOfWork()),
-            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
+            new StartShiftUseCase(repository, new NoOpUnitOfWork(), CreateAuthorizer(session)),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork(), CreateAuthorizer(session)),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new SummarySaleRepository(new ShiftSalesSummaryData(4_200m, 2_800m, 1_400m))),
-            new StubOperatorSession(),
+            session,
             new StubUserRepository());
 
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
@@ -59,16 +62,43 @@ public sealed class ShiftsViewModelTests
     }
 
     [Fact]
+    public async Task LoadAsync_WithReturnOutflows_SubtractsOnlyCashFromExpectedDrawer()
+    {
+        var shift = new CashierShift(Guid.NewGuid(), "cajero", new Money(100m), null);
+        var repository = new SingleShiftRepository(shift);
+        var session = new StubOperatorSession();
+        var viewModel = new ShiftsViewModel(
+            new StartShiftUseCase(repository, new NoOpUnitOfWork(), CreateAuthorizer(session)),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork(), CreateAuthorizer(session)),
+            new GetShiftsUseCase(repository),
+            new GetShiftSalesSummaryUseCase(new SummarySaleRepository(new ShiftSalesSummaryData(
+                SalesTotal: 4_200m,
+                CashPayments: 2_800m,
+                DigitalPayments: 1_400m,
+                CashReturnOutflows: 600m,
+                DigitalReturnOutflows: 700m))),
+            session,
+            new StubUserRepository());
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2_300m, viewModel.ExpectedCash);
+        Assert.Equal("$1.400", viewModel.ExpectedDigitalFormatted);
+        Assert.Equal(2_300m, viewModel.CountedCash);
+    }
+
+    [Fact]
     public async Task SelectShiftAsync_ClearsDateFilterAndSelectsShiftById()
     {
         var shift = new CashierShift(Guid.NewGuid(), "cajero", new Money(100m), null);
         var repository = new SingleShiftRepository(shift);
+        var session = new StubOperatorSession();
         var viewModel = new ShiftsViewModel(
-            new StartShiftUseCase(repository, new NoOpUnitOfWork()),
-            new CloseShiftUseCase(repository, new EmptySaleRepository(), new NoOpUnitOfWork()),
+            new StartShiftUseCase(repository, new NoOpUnitOfWork(), CreateAuthorizer(session)),
+            new CloseShiftUseCase(repository, new EmptySaleRepository(), new NoOpUnitOfWork(), CreateAuthorizer(session)),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new EmptySaleRepository()),
-            new StubOperatorSession(),
+            session,
             new StubUserRepository());
 
         // Narrow the filter to a past window that would exclude today's shift, mirroring the redirect
@@ -97,12 +127,13 @@ public sealed class ShiftsViewModelTests
     public void StartShiftCommand_WithInvalidOpeningTime_ShowsFormatMessage()
     {
         var repository = new CapturingShiftRepository();
+        var session = new StubOperatorSession();
         var viewModel = new ShiftsViewModel(
-            new StartShiftUseCase(repository, new NoOpUnitOfWork()),
-            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
+            new StartShiftUseCase(repository, new NoOpUnitOfWork(), CreateAuthorizer(session)),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork(), CreateAuthorizer(session)),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new SummarySaleRepository(ShiftSalesSummaryData.Empty)),
-            new StubOperatorSession(),
+            session,
             new StubUserRepository())
         {
             OpeningTime = "9:5"
@@ -118,12 +149,13 @@ public sealed class ShiftsViewModelTests
     public async Task StartShiftCommand_WithSelectedDateAndTime_PassesLocalTimestampToCreatedShift()
     {
         var repository = new CapturingShiftRepository();
+        var session = new StubOperatorSession();
         var viewModel = new ShiftsViewModel(
-            new StartShiftUseCase(repository, new NoOpUnitOfWork()),
-            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork()),
+            new StartShiftUseCase(repository, new NoOpUnitOfWork(), CreateAuthorizer(session)),
+            new CloseShiftUseCase(repository, new SummarySaleRepository(ShiftSalesSummaryData.Empty), new NoOpUnitOfWork(), CreateAuthorizer(session)),
             new GetShiftsUseCase(repository),
             new GetShiftSalesSummaryUseCase(new SummarySaleRepository(ShiftSalesSummaryData.Empty)),
-            new StubOperatorSession(),
+            session,
             new StubUserRepository());
         var selectedDate = new DateTime(2020, 5, 6);
         viewModel.OpeningDate = selectedDate;
@@ -223,9 +255,9 @@ public sealed class ShiftsViewModelTests
         public Task AddAsync(CashierShift shift, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed class StubUserRepository : IUserRepository
+    private sealed class StubUserRepository(User? user = null) : IUserRepository
     {
-        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<User?>(null);
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(user?.Id == id ? user : null);
         public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) => Task.FromResult<User?>(null);
         public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
         public Task AddAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -275,12 +307,29 @@ public sealed class ShiftsViewModelTests
 
     private sealed class StubOperatorSession : ICurrentOperatorSession
     {
-        public Guid OperatorId { get; } = Guid.NewGuid();
-        public string Username { get; } = "cajero";
+        public User User { get; } = new("cajero", "hash", Guid.NewGuid());
+        public Guid OperatorId => User.Id;
+        public string Username => User.Username;
         public Guid RoleId { get; } = POS.Domain.Authorization.RoleConstants.CashierRoleId;
         public string RoleName => POS.Domain.Authorization.RoleConstants.CashierRoleName;
         public IReadOnlySet<string> Permissions => new HashSet<string>(POS.Domain.Authorization.PermissionKeys.CashierDefaults);
         public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => true;
+    }
+
+    private static CriticalCommandAuthorizer CreateAuthorizer(StubOperatorSession session) =>
+        new(session, new StubUserRepository(session.User), new StubRoleRepository());
+
+    private sealed class StubRoleRepository : IRoleRepository
+    {
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(new Role("Cashier"));
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 }

@@ -66,6 +66,50 @@ public sealed class CompensateSaleLoyaltyUseCaseTests
         Assert.Single(repo.Rows);
     }
 
+    [Fact]
+    public async Task CompensateReturnAsync_TwoPartialReturnsAppendOnlyTheirUnpaidCumulativeDeltas()
+    {
+        Sale sale = CreateSale();
+        var repo = new InMemoryLoyaltyRepository();
+        var accountId = Guid.NewGuid();
+        LoyaltyTransaction earned = new(accountId, LoyaltyTransactionType.Earned, 90, sale.Id);
+        LoyaltyTransaction redeemed = new(accountId, LoyaltyTransactionType.Redeemed, -10, sale.Id);
+        repo.Rows.AddRange([earned, redeemed]);
+        var useCase = new CompensateSaleLoyaltyUseCase(repo);
+
+        SaleReturn first = CreateReturn(sale, 3);
+        await useCase.CompensateReturnAsync(sale, [], first, "First partial return", TestContext.Current.CancellationToken);
+
+        SaleReturn second = CreateReturn(sale, 7);
+        await useCase.CompensateReturnAsync(sale, [first], second, "Second partial return", TestContext.Current.CancellationToken);
+        await useCase.CompensateReturnAsync(sale, [first], second, "Retry", TestContext.Current.CancellationToken);
+
+        LoyaltyTransaction[] compensations = repo.Rows.Where(row => row.CompensatesTransactionId is not null).ToArray();
+        Assert.Equal(4, compensations.Length);
+        Assert.Equal(-90, compensations.Where(row => row.CompensatesTransactionId == earned.Id).Sum(row => row.Points));
+        Assert.Equal(10, compensations.Where(row => row.CompensatesTransactionId == redeemed.Id).Sum(row => row.Points));
+        Assert.All(compensations.Where(row => row.SaleReturnId == second.Id), row => Assert.Equal(second.Id, row.SaleReturnId));
+    }
+
+    [Fact]
+    public async Task CompensateReturnAsync_SubtractsHistoricalCompensationBeforeAppendingTheCurrentDelta()
+    {
+        Sale sale = CreateSale();
+        var repo = new InMemoryLoyaltyRepository();
+        LoyaltyTransaction earned = new(Guid.NewGuid(), LoyaltyTransactionType.Earned, 90, sale.Id);
+        repo.Rows.Add(earned);
+        SaleReturn previous = CreateReturn(sale, 3);
+        repo.Rows.Add(LoyaltyTransaction.CreateCompensation(earned, "Historical", 27, previous.Id));
+        SaleReturn current = CreateReturn(sale, 4);
+
+        await new CompensateSaleLoyaltyUseCase(repo).CompensateReturnAsync(
+            sale, [previous], current, "Current partial return", TestContext.Current.CancellationToken);
+
+        LoyaltyTransaction delta = Assert.Single(repo.Rows, row => row.SaleReturnId == current.Id);
+        Assert.Equal(-36, delta.Points);
+        Assert.Equal(current.Id, delta.SaleReturnId);
+    }
+
     private static Sale CreateSale()
     {
         var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(20m), new StockQuantity(1m));
@@ -75,6 +119,15 @@ public sealed class CompensateSaleLoyaltyUseCaseTests
         sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(9_000m), new Money(9_000m)));
         sale.Complete();
         return sale;
+    }
+
+    private static SaleReturn CreateReturn(Sale sale, int quantity)
+    {
+        SaleItem item = sale.Items.Single();
+        var saleReturn = new SaleReturn(sale.Id, sale.CashierUserId, "Return", Guid.NewGuid());
+        saleReturn.AddItem(new SaleReturnItem(
+            saleReturn.Id, item.Id, item.ProductId, item.ProductName, quantity, item.UnitPrice, new Money(item.UnitPrice.Amount * quantity)));
+        return saleReturn;
     }
 
     private sealed class InMemoryLoyaltyRepository : ILoyaltyRepository

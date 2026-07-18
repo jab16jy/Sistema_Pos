@@ -11,4 +11,8 @@ public interface IReceivableRepository
     Task<Receivable?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default)
         => Task.FromResult<Receivable?>(null);
     Task UpdateAsync(Receivable receivable, CancellationToken cancellationToken = default);
+    Task AddReturnSettlementAsync(ReturnSettlement settlement, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Return settlement staging is required.");
+    Task AddReturnReceivableReconciliationAsync(ReturnReceivableReconciliation reconciliation, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("Return receivable reconciliation staging is required.");
 }

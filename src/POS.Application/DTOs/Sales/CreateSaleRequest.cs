@@ -10,15 +10,13 @@ namespace POS.Application.DTOs.Sales;
 /// </summary>
 public sealed record CreateSaleRequest
 {
-    /// <summary>Full-payment (legacy) constructor. Preserved for backward compatibility.</summary>
+    /// <summary>Creates a full-payment sale request.</summary>
     public CreateSaleRequest(
-        Guid cashierUserId,
         Guid? customerId,
         IReadOnlyCollection<CreateSaleItemRequest> items,
         IReadOnlyCollection<CreateSalePaymentRequest> payments,
         int redeemLoyaltyPoints = 0)
     {
-        CashierUserId = cashierUserId;
         CustomerId = customerId;
         Items = items;
         Payments = payments;
@@ -28,19 +26,16 @@ public sealed record CreateSaleRequest
 
     /// <summary>Settlement-plan constructor. Use this when deferred balance may be > 0.</summary>
     public CreateSaleRequest(
-        Guid cashierUserId,
         Guid? customerId,
         IReadOnlyCollection<CreateSaleItemRequest> items,
         SaleSettlementPlan settlementPlan)
     {
-        CashierUserId = cashierUserId;
         CustomerId = customerId;
         Items = items;
         Payments = null;
         SettlementPlan = settlementPlan;
     }
 
-    public Guid CashierUserId { get; }
     public Guid? CustomerId { get; }
     public IReadOnlyCollection<CreateSaleItemRequest> Items { get; }
 

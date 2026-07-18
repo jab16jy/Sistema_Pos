@@ -1,5 +1,7 @@
 using POS.Application.DTOs.Reporting;
 using POS.Application.Interfaces;
+using POS.Application.Services;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
@@ -16,21 +18,25 @@ public sealed class CloseCashRegisterUseCase
     private readonly IOperationalReportQueryService _queryService;
     private readonly ICashClosingRepository _cashClosingRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly CriticalCommandAuthorizer _authorizer;
 
     public CloseCashRegisterUseCase(
         IOperationalReportQueryService queryService,
         ICashClosingRepository cashClosingRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        CriticalCommandAuthorizer authorizer)
     {
         _queryService = queryService ?? throw new ArgumentNullException(nameof(queryService));
         _cashClosingRepository = cashClosingRepository ?? throw new ArgumentNullException(nameof(cashClosingRepository));
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _authorizer = authorizer ?? throw new ArgumentNullException(nameof(authorizer));
     }
 
     public async Task<CashClosingResult> ExecuteAsync(
         CashClosingRequest request,
         CancellationToken cancellationToken = default)
     {
+        CanonicalActor actor = await _authorizer.AuthorizeAsync(PermissionKeys.CashRegister.Close, cancellationToken).ConfigureAwait(false);
         if (request is null)
         {
             return new CashClosingResult(false, null, "Closing request cannot be null.");
@@ -64,7 +70,7 @@ public sealed class CloseCashRegisterUseCase
         var countedCash = new Money(request.CountedCash.Value);
 
         var closing = new CashClosing(
-            request.OperatorId,
+            actor.UserId,
             billedTotal,
             cashCollected,
             digitalCollected,

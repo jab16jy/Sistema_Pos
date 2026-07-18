@@ -29,7 +29,6 @@ public sealed record HeldSaleSummary(
 public sealed record ResumeHeldSaleRequest(Guid CashierUserId, Guid SaleId);
 
 public sealed record CompleteHeldSaleRequest(
-    Guid CashierUserId,
     Guid SaleId,
     IReadOnlyCollection<CreateSalePaymentRequest> Payments,
     SaleSettlementPlan? SettlementPlan = null);

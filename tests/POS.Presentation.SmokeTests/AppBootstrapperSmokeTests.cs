@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.Services;
 using POS.Domain.Entities;
 using POS.Infrastructure.Persistence;
 using POS.Presentation.Shared.ViewModels;
@@ -26,6 +27,7 @@ public sealed class AppBootstrapperSmokeTests
 
             using (IServiceScope scope = services.CreateScope())
             {
+                Assert.NotNull(scope.ServiceProvider.GetRequiredService<CriticalCommandAuthorizer>());
                 var printerProvider = scope.ServiceProvider.GetRequiredService<IInstalledPrinterProvider>();
                 var writableSession = scope.ServiceProvider.GetRequiredService<IWritableOperatorSession>();
                 var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();

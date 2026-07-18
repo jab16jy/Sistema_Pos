@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -36,8 +37,62 @@ public sealed class QuoteRepository : IQuoteRepository
 
     public async Task<string> GetNextQuoteNumberAsync(CancellationToken ct = default)
     {
-        var count = await _dbContext.Quotes.CountAsync(ct);
-        return $"COT-{DateTime.UtcNow.Year}-{(count + 1):D4}";
+        int year = DateTime.UtcNow.Year;
+        string prefix = $"COT-{year}-";
+
+        // ponytail: single atomic UPSERT/RETURNING reservation (must run inside the caller's
+        // transaction). Seeds LastIssued from the highest valid "COT-{year}-####" number already
+        // in QUOTES so migrating a populated database never collides; after the first row exists
+        // for a year it simply increments. Deletion never touches this row, so numbers are burned,
+        // not reused. Not generalized into a shared sequence service (out of scope for this packet).
+        DbConnection connection = _dbContext.Database.GetDbConnection();
+        bool closeConnection = connection.State != System.Data.ConnectionState.Open;
+        if (closeConnection)
+        {
+            await _dbContext.Database.OpenConnectionAsync(ct).ConfigureAwait(false);
+        }
+
+        try
+        {
+            await using DbCommand command = connection.CreateCommand();
+            command.CommandText = """
+                INSERT INTO "QUOTE_SEQUENCES" ("Year", "LastIssued")
+                VALUES (
+                    @year,
+                    1 + COALESCE(
+                        (SELECT MAX(CAST(SUBSTR("QuoteNumber", LENGTH(@prefix) + 1) AS INTEGER))
+                         FROM "QUOTES"
+                         WHERE "QuoteNumber" LIKE @likePrefix ESCAPE '\'),
+                        0))
+                ON CONFLICT("Year") DO UPDATE SET "LastIssued" = "LastIssued" + 1
+                RETURNING "LastIssued";
+                """;
+
+            DbParameter yearParam = command.CreateParameter();
+            yearParam.ParameterName = "@year";
+            yearParam.Value = year;
+            command.Parameters.Add(yearParam);
+
+            DbParameter prefixParam = command.CreateParameter();
+            prefixParam.ParameterName = "@prefix";
+            prefixParam.Value = prefix;
+            command.Parameters.Add(prefixParam);
+
+            DbParameter likePrefixParam = command.CreateParameter();
+            likePrefixParam.ParameterName = "@likePrefix";
+            likePrefixParam.Value = prefix.Replace("_", "\\_").Replace("%", "\\%") + "%";
+            command.Parameters.Add(likePrefixParam);
+
+            long issued = Convert.ToInt64(await command.ExecuteScalarAsync(ct).ConfigureAwait(false));
+            return $"{prefix}{issued:D4}";
+        }
+        finally
+        {
+            if (closeConnection)
+            {
+                await _dbContext.Database.CloseConnectionAsync().ConfigureAwait(false);
+            }
+        }
     }
 
     public async Task AddAsync(Quote quote, CancellationToken ct = default)

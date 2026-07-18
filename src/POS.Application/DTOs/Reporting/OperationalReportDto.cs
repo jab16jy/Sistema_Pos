@@ -19,4 +19,6 @@ public sealed record OperationalReportDto(
     decimal ReceivableSettlementDigital,
     decimal ReceivableSettlementTotal,
     decimal ExpectedDrawerCash,
-    IReadOnlyList<OperationalReportChartPointDto> ChartPoints);
+    IReadOnlyList<OperationalReportChartPointDto> ChartPoints,
+    decimal CashReturnOutflows = 0m,
+    decimal DigitalReturnOutflows = 0m);

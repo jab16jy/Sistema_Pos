@@ -20,38 +20,46 @@ public sealed class CreateQuoteUseCase
 
     public async Task<QuoteResult> ExecuteAsync(CreateQuoteRequest request, CancellationToken ct = default)
     {
-        var quoteNumber = await _quotes.GetNextQuoteNumberAsync(ct);
+        Quote quote = null!;
 
-        var quote = new Quote(
-            quoteNumber,
-            request.CustomerName,
-            request.ValidityDays,
-            request.CustomerId,
-            request.Phone,
-            request.Email,
-            request.Observations);
-
-        foreach (var item in request.Items)
+        // Reservation, quote staging, and save must commit atomically: the sequence UPSERT and the
+        // quote insert live in the same transaction so a failed save never burns a number silently
+        // beyond what the sequence row already reflects, and no two callers can observe the same number.
+        await _unitOfWork.ExecuteInTransactionAsync(async transactionCt =>
         {
-            var product = await _products.GetByIdAsync(item.ProductId, ct)
-                ?? throw new InvalidOperationException($"Producto {item.ProductId} no encontrado.");
+            var quoteNumber = await _quotes.GetNextQuoteNumberAsync(transactionCt);
 
-            int unitsPerPresentation = item.Presentation == Domain.Enums.ProductPresentation.Box
-                ? product.UnitsPerBox ?? throw new InvalidOperationException($"Producto '{product.Name}' no está configurado para venta por caja.")
-                : 1;
+            quote = new Quote(
+                quoteNumber,
+                request.CustomerName,
+                request.ValidityDays,
+                request.CustomerId,
+                request.Phone,
+                request.Email,
+                request.Observations);
 
-            quote.AddItem(new QuoteItem(
-                product.Id,
-                product.Name,
-                product.PriceFor(item.Presentation),
-                new Quantity(item.Quantity),
-                item.Discount,
-                item.Presentation,
-                unitsPerPresentation));
-        }
+            foreach (var item in request.Items)
+            {
+                var product = await _products.GetByIdAsync(item.ProductId, transactionCt)
+                    ?? throw new InvalidOperationException($"Producto {item.ProductId} no encontrado.");
 
-        await _quotes.AddAsync(quote, ct);
-        await _unitOfWork.SaveChangesAsync(ct);
+                int unitsPerPresentation = item.Presentation == Domain.Enums.ProductPresentation.Box
+                    ? product.UnitsPerBox ?? throw new InvalidOperationException($"Producto '{product.Name}' no está configurado para venta por caja.")
+                    : 1;
+
+                quote.AddItem(new QuoteItem(
+                    product.Id,
+                    product.Name,
+                    product.PriceFor(item.Presentation),
+                    new Quantity(item.Quantity),
+                    item.Discount,
+                    item.Presentation,
+                    unitsPerPresentation));
+            }
+
+            await _quotes.AddAsync(quote, transactionCt);
+            await _unitOfWork.SaveChangesAsync(transactionCt);
+        }, ct).ConfigureAwait(false);
 
         return new QuoteResult(
             quote.Id,

@@ -36,4 +36,12 @@ public sealed class SaleReturnRepository : ISaleReturnRepository
             .ConfigureAwait(false);
         return list;
     }
+
+    public Task<SaleReturn?> GetByOperationIdAsync(Guid operationId, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.SaleReturns
+            .AsNoTracking()
+            .Include(r => r.Items)
+            .FirstOrDefaultAsync(saleReturn => saleReturn.OperationId == operationId, cancellationToken);
+    }
 }

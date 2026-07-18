@@ -33,8 +33,8 @@ public sealed class InventoryMovement
 
     public void UpdateReason(string newReason)
     {
-        Reason = string.IsNullOrWhiteSpace(newReason) 
-            ? throw new ArgumentException("Movement reason is required.", nameof(newReason)) 
+        Reason = string.IsNullOrWhiteSpace(newReason)
+            ? throw new ArgumentException("Movement reason is required.", nameof(newReason))
             : newReason.Trim();
     }
 }

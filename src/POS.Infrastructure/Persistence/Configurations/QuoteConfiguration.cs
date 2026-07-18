@@ -24,5 +24,15 @@ internal sealed class QuoteConfiguration : IEntityTypeConfiguration<Quote>
                .WithOne()
                .HasForeignKey(qi => qi.QuoteId)
                .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne<Customer>()
+               .WithMany()
+               .HasForeignKey(q => q.CustomerId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Sale>()
+               .WithMany()
+               .HasForeignKey(q => q.ConvertedSaleId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

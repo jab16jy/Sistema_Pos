@@ -36,11 +36,14 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<CashClosing> CashClosings => Set<CashClosing>();
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
+    public DbSet<QuoteSequence> QuoteSequences => Set<QuoteSequence>();
     public DbSet<DocumentSendLog> DocumentSendLogs => Set<DocumentSendLog>();
     public DbSet<Receivable> Receivables => Set<Receivable>();
     public DbSet<ReceivableSettlement> ReceivableSettlements => Set<ReceivableSettlement>();
     public DbSet<SaleReturn> SaleReturns => Set<SaleReturn>();
     public DbSet<SaleReturnItem> SaleReturnItems => Set<SaleReturnItem>();
+    public DbSet<ReturnSettlement> ReturnSettlements => Set<ReturnSettlement>();
+    public DbSet<ReturnReceivableReconciliation> ReturnReceivableReconciliations => Set<ReturnReceivableReconciliation>();
     public DbSet<BusinessSettings> BusinessSettings => Set<BusinessSettings>();
     public DbSet<LoyaltyAccount> LoyaltyAccounts => Set<LoyaltyAccount>();
     public DbSet<LoyaltyRule> LoyaltyRules => Set<LoyaltyRule>();
@@ -123,13 +126,14 @@ v => DateTimeOffset.Parse(v))
     {
         try
         {
+            AdvanceProductVersions();
             return base.SaveChanges(acceptAllChangesOnSuccess);
         }
         catch (DbUpdateConcurrencyException exception)
         {
             ChangeTracker.Clear();
             throw new ConcurrencyConflictException(
-                "The receivable was changed by another operation. Reload the balance and try again.",
+                "The entity was modified or deleted by another operation.",
                 exception);
         }
     }
@@ -138,14 +142,27 @@ v => DateTimeOffset.Parse(v))
     {
         try
         {
+            AdvanceProductVersions();
             return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
         }
         catch (DbUpdateConcurrencyException exception)
         {
             ChangeTracker.Clear();
             throw new ConcurrencyConflictException(
-                "The receivable was changed by another operation. Reload the balance and try again.",
+                "The entity was modified or deleted by another operation.",
                 exception);
+        }
+    }
+
+    private void AdvanceProductVersions()
+    {
+        foreach (var entry in ChangeTracker.Entries<Product>())
+        {
+            if (entry.State == EntityState.Modified)
+            {
+                int originalVersion = entry.Property(p => p.Version).OriginalValue;
+                entry.Property(p => p.Version).CurrentValue = originalVersion + 1;
+            }
         }
     }
 
@@ -297,7 +314,8 @@ v => DateTimeOffset.Parse(v))
             ["Balance"] = "Saldo",
             ["Quantity"] = "Cantidad",
             ["SourceCode"] = "Código",
-            ["TracksInventory"] = "Control de inventario"
+            ["TracksInventory"] = "Control de inventario",
+            ["Version"] = "Versión"
         };
 
     private static string TranslateFieldName(string name) =>

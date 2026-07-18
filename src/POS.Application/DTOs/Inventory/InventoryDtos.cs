@@ -32,5 +32,4 @@ public sealed record InventoryMovementResult(
 public sealed record AdjustStockRequest(
     Guid ProductId,
     decimal Delta,
-    string Reason,
-    Guid UserId);
+    string Reason);

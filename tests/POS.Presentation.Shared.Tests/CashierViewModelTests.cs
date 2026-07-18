@@ -11,6 +11,8 @@ using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
+using POS.Application.Services;
+using POS.Domain.Authorization;
 using POS.Presentation.Shared.Cashier;
 using POS.Presentation.Shared.Prototype;
 using POS.Presentation.Shared.ViewModels;
@@ -114,7 +116,7 @@ public sealed class CashierViewModelTests
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
             new PreviewPaymentUseCase(),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()),
             null,
             null,
             new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
@@ -153,7 +155,7 @@ public sealed class CashierViewModelTests
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
             new PreviewPaymentUseCase(),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()),
             null,
             null,
             new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
@@ -260,7 +262,7 @@ public sealed class CashierViewModelTests
         var unitOfWork = new InMemoryUnitOfWork();
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork))
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, authorizer: CreateAuthorizer()))
         {
             SearchText = "rice",
             Quantity = 2m,
@@ -306,7 +308,7 @@ public sealed class CashierViewModelTests
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(
                 product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock, 0m, 12, 110_000m)),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork))
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, authorizer: CreateAuthorizer()))
         {
             SearchText = "ampolla",
             Quantity = 1m,
@@ -340,7 +342,7 @@ public sealed class CashierViewModelTests
         var sales = new InMemorySaleRepository();
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()))
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()))
         {
             CashierUserId = Guid.NewGuid(),
             ReceivedAmount = 10_000m
@@ -489,7 +491,7 @@ public sealed class CashierViewModelTests
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
             new PreviewPaymentUseCase(),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()),
             null,
             null,
             new SearchCustomersUseCase(new StaticCustomerLookupQueryService([])))
@@ -524,7 +526,7 @@ public sealed class CashierViewModelTests
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
             new PreviewPaymentUseCase(),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork()),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()),
             null,
             null,
             new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])))
@@ -904,7 +906,7 @@ public sealed class CashierViewModelTests
         var quoteRepo = new InMemoryQuoteRepository(quote);
         var sales = new InMemorySaleRepository();
         var unitOfWork = new InMemoryUnitOfWork();
-        var createSaleUseCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork);
+        var createSaleUseCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, authorizer: CreateAuthorizer());
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "SER-1", product.SalePrice.Amount, product.CurrentStock)),
             new PreviewPaymentUseCase(),
@@ -1277,5 +1279,43 @@ public sealed class CashierViewModelTests
 
         public Task<ProductLookupResult?> FindByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
             => Task.FromResult<ProductLookupResult?>(string.Equals(_product.Barcode, barcode.Trim(), StringComparison.Ordinal) ? _product : null);
+    }
+
+    private static CriticalCommandAuthorizer CreateAuthorizer()
+    {
+        var user = new User("test-cashier", "hash", RoleConstants.AdministratorRoleId);
+        return new CriticalCommandAuthorizer(new TestSession(user.Id), new TestUsers(user), new TestRoles());
+    }
+
+    private sealed class TestSession(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => "test-cashier";
+        public bool IsAuthenticated => true;
+    }
+
+    private sealed class TestUsers(User user) : IUserRepository
+    {
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<User?>(id == user.Id ? user : null);
+        public Task<User?> GetByUsernameAsync(string username, CancellationToken ct = default) => Task.FromResult<User?>(null);
+        public Task<bool> AnyAsync(CancellationToken ct = default) => Task.FromResult(true);
+        public Task AddAsync(User value, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<User>>([user]);
+        public Task UpdateAsync(User value, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class TestRoles : IRoleRepository
+    {
+        private static readonly Role Administrator = Role.CreateSystemRole(RoleConstants.AdministratorRoleId, RoleConstants.AdministratorRoleName);
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(id == Administrator.Id ? Administrator : null);
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([Administrator]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 }

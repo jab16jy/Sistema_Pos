@@ -51,7 +51,7 @@ public sealed class SaleRepository : ISaleRepository
         DateTimeOffset utcFrom = from.ToUniversalTime();
         DateTimeOffset utcTo = to.ToUniversalTime();
 
-        (decimal salesTotal, decimal cashInDrawer, decimal digitalPayments, int salesCount, _, _) =
+        (decimal salesTotal, decimal cashInDrawer, decimal digitalPayments, int salesCount, _, _, _, _) =
             await ReadSalesSummaryAsync(utcFrom, utcTo, cashierUserId: null, cancellationToken).ConfigureAwait(false);
 
         int lowStockCount = await _dbContext.Products
@@ -81,13 +81,13 @@ public sealed class SaleRepository : ISaleRepository
         DateTimeOffset utcOpenedAt = openedAt.ToUniversalTime();
         DateTimeOffset utcClosedAt = closedAt.ToUniversalTime();
 
-        (decimal salesTotal, decimal cashPayments, decimal digitalPayments, _, decimal settlementCash, decimal settlementDigital) =
+        (decimal salesTotal, decimal cashPayments, decimal digitalPayments, _, decimal settlementCash, decimal settlementDigital, decimal cashReturnOutflows, decimal digitalReturnOutflows) =
             await ReadSalesSummaryAsync(utcOpenedAt, utcClosedAt, cashierUserId, cancellationToken).ConfigureAwait(false);
 
-        return new ShiftSalesSummaryData(salesTotal, cashPayments, digitalPayments, settlementCash, settlementDigital);
+        return new ShiftSalesSummaryData(salesTotal, cashPayments, digitalPayments, settlementCash, settlementDigital, cashReturnOutflows, digitalReturnOutflows);
     }
 
-    private async Task<(decimal SalesTotal, decimal CashPayments, decimal DigitalPayments, int SalesCount, decimal SettlementCash, decimal SettlementDigital)> ReadSalesSummaryAsync(
+    private async Task<(decimal SalesTotal, decimal CashPayments, decimal DigitalPayments, int SalesCount, decimal SettlementCash, decimal SettlementDigital, decimal CashReturnOutflows, decimal DigitalReturnOutflows)> ReadSalesSummaryAsync(
         DateTimeOffset from,
         DateTimeOffset to,
         Guid? cashierUserId,
@@ -134,7 +134,19 @@ public sealed class SaleRepository : ISaleRepository
                               INNER JOIN RECEIVABLES r ON r."Id" = rs."ReceivableId"
                               INNER JOIN SALES s ON s."Id" = r."SaleId"
                               WHERE s."Status" = 3 AND rs."AppliedAt" >= $from AND rs."AppliedAt" < $to
-                                AND ($cashier IS NULL OR COALESCE(rs.cashier_user_id, s."CashierUserId") = $cashier)), 0);
+                                AND ($cashier IS NULL OR COALESCE(rs.cashier_user_id, s."CashierUserId") = $cashier)), 0),
+                    COALESCE((SELECT SUM(CASE WHEN rst."PaymentMethod" = 1 THEN CAST(rst."Amount" AS NUMERIC) ELSE 0 END)
+                              FROM RETURN_SETTLEMENTS rst
+                              INNER JOIN SALE_RETURNS sr ON sr."Id" = rst."SaleReturnId"
+                              INNER JOIN SALES s ON s."Id" = sr."OriginalSaleId"
+                              WHERE rst."SettledAt" >= $from AND rst."SettledAt" < $to
+                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0),
+                    COALESCE((SELECT SUM(CASE WHEN rst."PaymentMethod" IN (2, 3, 4) THEN CAST(rst."Amount" AS NUMERIC) ELSE 0 END)
+                              FROM RETURN_SETTLEMENTS rst
+                              INNER JOIN SALE_RETURNS sr ON sr."Id" = rst."SaleReturnId"
+                              INNER JOIN SALES s ON s."Id" = sr."OriginalSaleId"
+                              WHERE rst."SettledAt" >= $from AND rst."SettledAt" < $to
+                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0);
                 """;
             command.Parameters.Add(new SqliteParameter("$from", ToSqliteTimestamp(from)));
             command.Parameters.Add(new SqliteParameter("$to", ToSqliteTimestamp(to)));
@@ -150,7 +162,9 @@ public sealed class SaleRepository : ISaleRepository
                 ToDecimal(reader.GetValue(2)),
                 Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
                 ToDecimal(reader.GetValue(4)),
-                ToDecimal(reader.GetValue(5)));
+                ToDecimal(reader.GetValue(5)),
+                ToDecimal(reader.GetValue(6)),
+                ToDecimal(reader.GetValue(7)));
         }
         finally
         {

@@ -68,4 +68,16 @@ public sealed class ReceivableRepository : IReceivableRepository
         }
 
     }
+
+    public async Task AddReturnSettlementAsync(ReturnSettlement settlement, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.ReturnSettlements.AddAsync(settlement, cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task AddReturnReceivableReconciliationAsync(
+        ReturnReceivableReconciliation reconciliation,
+        CancellationToken cancellationToken = default)
+    {
+        await _dbContext.ReturnReceivableReconciliations.AddAsync(reconciliation, cancellationToken).ConfigureAwait(false);
+    }
 }

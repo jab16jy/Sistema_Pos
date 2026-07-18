@@ -11,6 +11,7 @@ using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 using POS.Infrastructure;
 using POS.Infrastructure.Persistence;
+using POS.Domain.Interfaces;
 using POS.Infrastructure.Persistence.Repositories;
 using Xunit;
 
@@ -95,6 +96,8 @@ public sealed class AuthPersistenceTests
                 var admin = new User("carlos", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
                 adminId = admin.Id;
                 await users.AddAsync(admin, TestContext.Current.CancellationToken);
+                var unitOfWork = seedScope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                await unitOfWork.SaveChangesAsync(TestContext.Current.CancellationToken);
             }
 
             // Simulate a logged-in operator, then perform an audited write in a request scope.
@@ -136,7 +139,7 @@ public sealed class AuthPersistenceTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var userRepository = new UserRepository(dbContext);
         var admin = await SeedAdminAsync(dbContext, userRepository, TestContext.Current.CancellationToken);
-        var sale = new Sale(Guid.NewGuid());
+        var sale = new Sale(admin.Id);
         await dbContext.Sales.AddAsync(sale, TestContext.Current.CancellationToken);
 
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -338,6 +341,80 @@ public sealed class AuthPersistenceTests
         Assert.Equal("admin-seed", userLog.EntityId);
         AuditLogEntry supplierLog = Assert.Single(logs, l => l.EntityName == "Supplier");
         Assert.Equal("900123456-1", supplierLog.EntityId);
+    }
+
+    [Fact]
+    public async Task UserRepository_AddAndUpdate_AreStageOnlyUntilUnitOfWorkSaves()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var repository = new UserRepository(dbContext);
+        var user = new User("stage-user", "hash", POS.Domain.Authorization.RoleConstants.CashierRoleId);
+
+        await repository.AddAsync(user, TestContext.Current.CancellationToken);
+
+        await using (var checkContext = CreateDbContext(connection))
+        {
+            Assert.Equal(0, await checkContext.Users.CountAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(0, await checkContext.Roles.CountAsync(TestContext.Current.CancellationToken));
+        }
+
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await using (var checkContext = CreateDbContext(connection))
+        {
+            Assert.Equal(1, await checkContext.Users.CountAsync(TestContext.Current.CancellationToken));
+            Assert.Equal(2, await checkContext.Roles.CountAsync(TestContext.Current.CancellationToken));
+        }
+
+        user.Deactivate();
+        await repository.UpdateAsync(user, TestContext.Current.CancellationToken);
+
+        await using (var checkContext = CreateDbContext(connection))
+        {
+            User uncommittedUser = await checkContext.Users.SingleAsync(u => u.Id == user.Id, TestContext.Current.CancellationToken);
+            Assert.True(uncommittedUser.IsActive);
+        }
+
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await using (var checkContext = CreateDbContext(connection))
+        {
+            User committedUser = await checkContext.Users.SingleAsync(u => u.Id == user.Id, TestContext.Current.CancellationToken);
+            Assert.False(committedUser.IsActive);
+        }
+    }
+
+    [Fact]
+    public async Task CreateUserUseCase_WhenRoleBootstrapFails_PersistsNeitherUserNorRolePartialState()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var repository = new UserRepository(dbContext);
+        var user = new User("newadmin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+
+        await repository.AddAsync(user, TestContext.Current.CancellationToken);
+
+        var failingUnitOfWork = new FailingUnitOfWork();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => failingUnitOfWork.SaveChangesAsync(TestContext.Current.CancellationToken));
+
+        await using var checkContext = CreateDbContext(connection);
+        Assert.Equal(0, await checkContext.Roles.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(0, await checkContext.Users.CountAsync(TestContext.Current.CancellationToken));
+    }
+
+    private sealed class FailingUnitOfWork : IUnitOfWork
+    {
+        public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+            => Task.FromException<int>(new InvalidOperationException("Simulated save failure."));
+
+        public Task ExecuteInTransactionAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken = default)
+            => operation(cancellationToken);
     }
 
     private static async Task<User> SeedAdminAsync(AppDbContext dbContext, UserRepository repository, CancellationToken ct)

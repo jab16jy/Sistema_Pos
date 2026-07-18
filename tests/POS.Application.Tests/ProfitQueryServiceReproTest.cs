@@ -22,7 +22,8 @@ public sealed class ProfitQueryServiceReproTest
 
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Widget", new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
-        var sale = new Sale(Guid.NewGuid());
+        Guid cashierId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var sale = new Sale(cashierId);
         sale.AddItem(product, new Quantity(2m), Money.Zero);
         sale.AddPayment(new Domain.Entities.Payment(Domain.Enums.PaymentMethod.Cash, new Money(100_000m)));
         sale.Complete();
@@ -47,7 +48,8 @@ public sealed class ProfitQueryServiceReproTest
 
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Widget", new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
-        var sale = new Sale(Guid.NewGuid());
+        Guid cashierId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var sale = new Sale(cashierId);
         sale.AddItem(product, new Quantity(2m), Money.Zero);
         sale.AddPayment(new Domain.Entities.Payment(Domain.Enums.PaymentMethod.Cash, new Money(100_000m)));
         sale.Complete();
@@ -72,7 +74,8 @@ public sealed class ProfitQueryServiceReproTest
 
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Widget", new Money(10_000m), new Money(50_000m), new StockQuantity(20m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
-        var sale = new Sale(Guid.NewGuid());
+        Guid cashierId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var sale = new Sale(cashierId);
         sale.AddItem(product, new Quantity(2m), Money.Zero);
         sale.AddPayment(new Domain.Entities.Payment(Domain.Enums.PaymentMethod.Cash, new Money(100_000m)));
         sale.Complete();

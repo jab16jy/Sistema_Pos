@@ -6,7 +6,6 @@ namespace POS.Application.DTOs.Reporting;
 /// A null CountedCash is rejected — closing requires the physical count.
 /// </summary>
 public sealed record CashClosingRequest(
-    Guid OperatorId,
     DateTimeOffset From,
     DateTimeOffset To,
     decimal? CountedCash);

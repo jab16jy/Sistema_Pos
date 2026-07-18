@@ -22,10 +22,9 @@ public sealed class CreateSaleUseCaseSettlementTests
         var unitOfWork = new InMemUoW();
         var customerId = Guid.NewGuid();
 
-        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables);
+        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             customerId,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             new SaleSettlementPlan(400_000m, PaymentMethod.Cash, 400_000m));
@@ -49,10 +48,9 @@ public sealed class CreateSaleUseCaseSettlementTests
         var receivables = new InMemReceivableRepo();
         var unitOfWork = new InMemUoW();
 
-        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables);
+        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             null, // no customer
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             new SaleSettlementPlan(200_000m, PaymentMethod.Cash, 150_000m));
@@ -72,10 +70,9 @@ public sealed class CreateSaleUseCaseSettlementTests
         var unitOfWork = new InMemUoW();
         var customerId = Guid.NewGuid();
 
-        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables);
+        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             customerId,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             new SaleSettlementPlan(300_000m, PaymentMethod.Cash, 500_000m));
@@ -96,10 +93,9 @@ public sealed class CreateSaleUseCaseSettlementTests
         var receivables = new InMemReceivableRepo();
         var unitOfWork = new InMemUoW();
 
-        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables);
+        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             Guid.NewGuid(),
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             new SaleSettlementPlan(50_000m, PaymentMethod.Cash, 0m));
@@ -162,10 +158,9 @@ public sealed class CreateSaleUseCaseTests
         var products = new InMemoryProductRepository(product);
         var sales = new InMemorySaleRepository();
         var unitOfWork = new InMemoryUnitOfWork();
-        var useCase = new CreateSaleUseCase(products, sales, unitOfWork);
+        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, authorizer: TestAuthorizer.Create());
 
         var result = await useCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 2m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 3_000m, null)]), TestContext.Current.CancellationToken);
@@ -182,10 +177,9 @@ public sealed class CreateSaleUseCaseTests
     {
         var product = new Product("Coffee", Guid.NewGuid(), new Money(2_000m), new Money(3_000m), new StockQuantity(10m), new StockQuantity(2m));
         var sales = new InMemorySaleRepository();
-        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork());
+        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: TestAuthorizer.Create());
 
         await useCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 3_000m, 3_000m, null)]), TestContext.Current.CancellationToken);
@@ -199,11 +193,10 @@ public sealed class CreateSaleUseCaseTests
     {
         var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(800m), new StockQuantity(10m), new StockQuantity(2m));
         var sales = new InMemorySaleRepository();
-        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork());
+        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: TestAuthorizer.Create());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
             new CreateSaleRequest(
-                Guid.NewGuid(),
                 null,
                 [new CreateSaleItemRequest(product.Id, 1m, 0m)],
                 [new CreateSalePaymentRequest(PaymentMethod.Transfer, 800m, null, "PayPal")]),
@@ -221,10 +214,9 @@ public sealed class CreateSaleUseCaseTests
         var loyalty = new InMemoryLoyaltyRepository { ActiveRule = new LoyaltyRule(0.001m, 1m, 0) };
         var accumulate = new AccumulateLoyaltyPointsUseCase(loyalty, unitOfWork);
         var customerId = Guid.NewGuid();
-        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, null, accumulate);
+        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, null, accumulate, authorizer: TestAuthorizer.Create());
 
         var result = await useCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             customerId,
             [new CreateSaleItemRequest(product.Id, 5m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 5_000m, 5_000m, null)]), TestContext.Current.CancellationToken);
@@ -359,10 +351,10 @@ public sealed class CreateSaleUseCaseTests
             accumulatePoints: null,
             redeemPoints: null,
             inventory: null,
-            settings: settingsRepo);
+            settings: settingsRepo,
+            authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 250m, ManualDiscountPercent: 25m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 750m, 1_000m, null)]);
@@ -398,10 +390,10 @@ public sealed class CreateSaleUseCaseTests
             accumulatePoints: null,
             redeemPoints: null,
             inventory: null,
-            settings: settingsRepo);
+            settings: settingsRepo,
+            authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 250m, ManualDiscountPercent: 25m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 750m, 1_000m, null)])
@@ -415,6 +407,25 @@ public sealed class CreateSaleUseCaseTests
         // THEN
         Assert.NotNull(result);
         Assert.Single(sales.Sales);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutAuthorizer_ThrowsUnauthorizedActionExceptionBeforeStaging()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var useCase = new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, authorizer: null);
+
+        await Assert.ThrowsAsync<POS.Domain.Exceptions.UnauthorizedActionException>(() => useCase.ExecuteAsync(
+            new CreateSaleRequest(
+                null,
+                [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+                [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_000m, 1_000m, null)]),
+            TestContext.Current.CancellationToken));
+
+        Assert.Empty(sales.Sales);
+        Assert.Equal(0, unitOfWork.SaveCount);
     }
 
     private sealed class SettingsRepositoryFake : ISettingsRepository

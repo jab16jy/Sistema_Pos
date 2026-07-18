@@ -289,6 +289,8 @@ public sealed class ReportExportService : IReportExportService
                 AddKpi(table, "Efectivo de ventas", report.SaleCashCollected);
                 AddKpi(table, "Pagos digitales", report.SaleDigitalCollected);
                 AddKpi(table, "Abonos cobrados", report.ReceivableSettlementTotal);
+                AddKpi(table, "Devoluciones en efectivo", report.CashReturnOutflows);
+                AddKpi(table, "Devoluciones digitales", report.DigitalReturnOutflows);
                 AddKpi(table, "Efectivo esperado", report.ExpectedDrawerCash);
                 AddKpi(table, "Recaudo de ventas", report.SaleCashCollected + report.SaleDigitalCollected);
             });
@@ -316,6 +318,8 @@ public sealed class ReportExportService : IReportExportService
                 AddOperationalRow(table, "Ventas", "Pagos digitales", report.SaleDigitalCollected, "Ingreso registrado fuera de la caja física.");
                 AddOperationalRow(table, "Cartera", "Abonos en efectivo", report.ReceivableSettlementCash, "Abonos que aumentan el efectivo disponible.");
                 AddOperationalRow(table, "Cartera", "Abonos digitales", report.ReceivableSettlementDigital, "Abonos registrados en canales digitales.");
+                AddOperationalRow(table, "Devoluciones", "Efectivo entregado", report.CashReturnOutflows, "Salidas por devoluciones liquidadas en efectivo.");
+                AddOperationalRow(table, "Devoluciones", "Digital entregado", report.DigitalReturnOutflows, "Salidas por devoluciones liquidadas en canales digitales.");
                 AddOperationalRow(table, "Caja", "Efectivo esperado", report.ExpectedDrawerCash, "Monto físico que debe conciliase contra el efectivo contado.", isEmphasized: true);
             });
         });
@@ -553,7 +557,9 @@ public sealed class ReportExportService : IReportExportService
         AddExcelOperationalRow(worksheet, 14, "Ventas", "Pagos digitales", report.SaleDigitalCollected, "Ingreso fuera de la caja física.");
         AddExcelOperationalRow(worksheet, 15, "Cartera", "Abonos cobrados", report.ReceivableSettlementTotal, "Pagos aplicados a cuentas por cobrar.");
         AddExcelOperationalRow(worksheet, 16, "Caja", "Efectivo esperado", report.ExpectedDrawerCash, "Monto que debe conciliase contra el efectivo contado.", isEmphasized: true);
-        FormatExcelTable(worksheet, 11, 16, 4, freezeRows: 11);
+        AddExcelOperationalRow(worksheet, 17, "Devoluciones", "Devoluciones en efectivo", report.CashReturnOutflows, "Salidas liquidadas en efectivo.");
+        AddExcelOperationalRow(worksheet, 18, "Devoluciones", "Devoluciones digitales", report.DigitalReturnOutflows, "Salidas liquidadas en canales digitales.");
+        FormatExcelTable(worksheet, 11, 18, 4, freezeRows: 11);
         worksheet.Column(1).Width = 16;
         worksheet.Column(2).Width = 25;
         worksheet.Column(3).Width = 18;
@@ -568,8 +574,10 @@ public sealed class ReportExportService : IReportExportService
         AddExcelOperationalRow(worksheet, 7, "Ventas", "Digital", report.SaleDigitalCollected, "No, se recauda fuera de la caja.");
         AddExcelOperationalRow(worksheet, 8, "Abonos de cartera", "Efectivo", report.ReceivableSettlementCash, "Sí, aumenta el efectivo esperado.");
         AddExcelOperationalRow(worksheet, 9, "Abonos de cartera", "Digital", report.ReceivableSettlementDigital, "No, se recauda fuera de la caja.");
-        AddExcelOperationalRow(worksheet, 10, "Conciliación", "Efectivo esperado", report.ExpectedDrawerCash, "Compare este valor con el dinero contado.", isEmphasized: true);
-        FormatExcelTable(worksheet, 5, 10, 4, freezeRows: 5);
+        AddExcelOperationalRow(worksheet, 10, "Devoluciones", "Efectivo", report.CashReturnOutflows, "Sí, representa una salida de caja física.");
+        AddExcelOperationalRow(worksheet, 11, "Devoluciones", "Digital", report.DigitalReturnOutflows, "No, se liquida fuera de la caja.");
+        AddExcelOperationalRow(worksheet, 12, "Conciliación", "Efectivo esperado", report.ExpectedDrawerCash, "Compare este valor con el dinero contado.", isEmphasized: true);
+        FormatExcelTable(worksheet, 5, 12, 4, freezeRows: 5);
         worksheet.Column(1).Width = 22;
         worksheet.Column(2).Width = 22;
         worksheet.Column(3).Width = 18;
@@ -589,7 +597,9 @@ public sealed class ReportExportService : IReportExportService
         AddExcelDetailedOperationalRow(worksheet, 12, "Cartera", "Abonos digitales", report.ReceivableSettlementDigital, "Pagos de cartera digitales", "No", "Ingreso conciliado fuera del cajón.");
         AddExcelDetailedOperationalRow(worksheet, 13, "Caja", "Efectivo esperado", report.ExpectedDrawerCash, "Efectivo de ventas + abonos en efectivo", "Sí", "Compare este total contra el efectivo contado.", isEmphasized: true);
         AddExcelDetailedOperationalRow(worksheet, 14, "Recaudo", "Total cobrado", report.SaleCashCollected + report.SaleDigitalCollected + report.ReceivableSettlementTotal, "Recaudo de ventas + abonos cobrados", "Mixto", "Total de entradas cobradas, físicas y digitales.", isEmphasized: true);
-        FormatExcelTable(worksheet, 5, 14, 6, freezeRows: 5);
+        AddExcelDetailedOperationalRow(worksheet, 15, "Devoluciones", "Efectivo entregado", report.CashReturnOutflows, "Devoluciones liquidadas en efectivo", "Sí", "Salida física registrada en el período.");
+        AddExcelDetailedOperationalRow(worksheet, 16, "Devoluciones", "Digital entregado", report.DigitalReturnOutflows, "Devoluciones liquidadas digitalmente", "No", "Salida digital registrada en el período.");
+        FormatExcelTable(worksheet, 5, 16, 6, freezeRows: 5);
         worksheet.Column(1).Width = 15;
         worksheet.Column(2).Width = 24;
         worksheet.Column(3).Width = 18;

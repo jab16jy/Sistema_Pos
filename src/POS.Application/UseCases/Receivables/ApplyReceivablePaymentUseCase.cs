@@ -1,7 +1,9 @@
 using POS.Application.Interfaces;
 using POS.Application.Common;
 using POS.Application.DTOs.Loyalty;
+using POS.Application.Services;
 using POS.Application.UseCases.Loyalty;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 using POS.Domain.Enums;
@@ -20,27 +22,36 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
 {
     private readonly IReceivableRepository _receivables;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly CriticalCommandAuthorizer _authorizer;
+    private readonly ICashierShiftRepository _shifts;
     private readonly AccumulateLoyaltyPointsUseCase? _accumulatePoints;
 
-    public ApplyReceivablePaymentUseCase(IReceivableRepository receivables, IUnitOfWork unitOfWork, AccumulateLoyaltyPointsUseCase? accumulatePoints = null)
+    public ApplyReceivablePaymentUseCase(
+        IReceivableRepository receivables,
+        IUnitOfWork unitOfWork,
+        CriticalCommandAuthorizer authorizer,
+        ICashierShiftRepository shifts,
+        AccumulateLoyaltyPointsUseCase? accumulatePoints = null)
     {
         _receivables = receivables;
         _unitOfWork = unitOfWork;
+        _authorizer = authorizer;
+        _shifts = shifts;
         _accumulatePoints = accumulatePoints;
     }
 
-    public async Task ExecuteAsync(Guid receivableId, decimal paymentAmount, Guid? cashierUserId = null, Guid? shiftId = null, CancellationToken cancellationToken = default)
-        => await ExecuteAsync(receivableId, paymentAmount, PaymentMethod.Cash, null, cashierUserId, shiftId, cancellationToken).ConfigureAwait(false);
+    public async Task ExecuteAsync(Guid receivableId, decimal paymentAmount, CancellationToken cancellationToken = default)
+        => await ExecuteAsync(receivableId, paymentAmount, PaymentMethod.Cash, null, cancellationToken).ConfigureAwait(false);
 
     public async Task ExecuteAsync(
         Guid receivableId,
         decimal paymentAmount,
         PaymentMethod paymentMethod,
         string? bankOrPlatform,
-        Guid? cashierUserId = null,
-        Guid? shiftId = null,
         CancellationToken cancellationToken = default)
     {
+        var actor = await _authorizer.AuthorizeAsync(PermissionKeys.Receivables.ApplyPayment, cancellationToken).ConfigureAwait(false);
+
         if (paymentAmount <= 0m)
         {
             throw new InvalidOperationException("Payment amount must be greater than zero.");
@@ -57,7 +68,8 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
         }
 
         PaymentPlatforms.Validate(paymentMethod, bankOrPlatform);
-        receivable.ApplyPayment(new Money(paymentAmount), paymentMethod, bankOrPlatform, cashierUserId, shiftId);
+        var shift = await _shifts.GetOpenShiftAsync(actor.UserId, cancellationToken).ConfigureAwait(false);
+        receivable.ApplyPayment(new Money(paymentAmount), paymentMethod, bankOrPlatform, actor.UserId, shift?.Id);
 
         await _receivables.UpdateAsync(receivable, cancellationToken);
 
@@ -75,16 +87,17 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
         Guid customerId,
         PaymentMethod paymentMethod,
         string? bankOrPlatform,
-        Guid? cashierUserId = null,
-        Guid? shiftId = null,
         CancellationToken cancellationToken = default)
     {
+        var actor = await _authorizer.AuthorizeAsync(PermissionKeys.Receivables.ApplyPayment, cancellationToken).ConfigureAwait(false);
+
         if (customerId == Guid.Empty)
         {
             throw new InvalidOperationException("Customer id is required.");
         }
 
         PaymentPlatforms.Validate(paymentMethod, bankOrPlatform);
+        var shift = await _shifts.GetOpenShiftAsync(actor.UserId, cancellationToken).ConfigureAwait(false);
 
         decimal amountApplied = 0m;
         await _unitOfWork.ExecuteInTransactionAsync(async transactionCancellationToken =>
@@ -106,8 +119,8 @@ public sealed class ApplyReceivablePaymentUseCase : IApplyReceivablePaymentUseCa
                     receivable.OutstandingBalance,
                     paymentMethod,
                     bankOrPlatform,
-                    cashierUserId,
-                    shiftId);
+                    actor.UserId,
+                    shift?.Id);
                 await _receivables.UpdateAsync(receivable, transactionCancellationToken).ConfigureAwait(false);
 
                 if (_accumulatePoints is not null)

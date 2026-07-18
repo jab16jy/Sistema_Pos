@@ -8,13 +8,24 @@ Define operational reporting and cash-closing outputs from persisted data with s
 
 ### Requirement: Produce operational persisted totals
 
-The system MUST derive reporting totals from persisted sales, payments, receivable settlements, and closing records. It MUST separate physical cash from digital collections and SHOULD stay limited to operational reporting rather than advanced BI.
+The system MUST derive operational totals from persisted sales, payments, receivable settlements, return settlements, and closing records. It MUST report gross billed sales from completed and returned sales, separately report dated cash and digital return outflows, and preserve the distinction between physical cash and digital value. Gross billing MUST be attributed to the sale date; return outflows MUST be attributed to the settlement date.
 
-#### Scenario: Report mixed tender totals
+#### Scenario: Report a sale and later cash return in different periods
 
-- GIVEN persisted activity includes cash sales, digital sales, and receivable settlements
-- WHEN an operator requests an operational report for that period
-- THEN the report MUST show billed totals, cash collected, digital collected, and receivable settlement totals as separate values
+- GIVEN a sale billed for 50,000 COP on 2026-07-01 and later returned for cash on 2026-07-03
+- WHEN an operator reports 2026-07-01
+- THEN gross billed sales MUST include 50,000 COP
+- AND return outflows MUST be zero for that period
+- WHEN an operator reports 2026-07-03
+- THEN cash return outflows MUST include 50,000 COP
+- AND the original gross billing MUST NOT be moved to 2026-07-03
+
+#### Scenario: Report a digital return separately from drawer cash
+
+- GIVEN a persisted digital return settlement of 20,000 COP
+- WHEN an operator requests the operational report for its settlement date
+- THEN digital return outflows MUST include 20,000 COP
+- AND expected drawer cash MUST NOT be reduced by that digital amount
 
 #### Scenario: Reject invalid report range
 
@@ -24,14 +35,15 @@ The system MUST derive reporting totals from persisted sales, payments, receivab
 
 ### Requirement: Reconcile cash closing results
 
-The system MUST produce a cash-closing summary with billed total, expected drawer cash, digital collections, counted cash, and difference. It MAY expose export-ready output for operational use.
+The cash-closing summary MUST calculate expected drawer cash from physical-cash inflows less persisted cash return outflows. It MUST NOT treat digital sales, digital receivable settlements, or digital return outflows as physical drawer cash. The summary MUST expose gross billing, cash return outflows, and digital return outflows as separate values.
 
-#### Scenario: Close cash with mixed tenders
+#### Scenario: Close cash after a cash refund
 
-- GIVEN persisted activity exists for a closing period and counted cash is provided
-- WHEN the operator completes cash closing
-- THEN the summary MUST separate expected cash from digital collections
-- AND the summary MUST show the difference between expected cash and counted cash
+- GIVEN the closing period has 100,000 COP in cash inflows and a persisted 15,000 COP cash return settlement
+- WHEN the operator completes cash closing with 85,000 COP counted
+- THEN expected drawer cash MUST be 85,000 COP
+- AND the reported cash-return outflow MUST be 15,000 COP
+- AND the cash difference MUST be zero
 
 #### Scenario: Reject closing without counted cash
 
@@ -123,3 +135,14 @@ All four extended report sections MUST source their data from `IProfitQueryServi
 - THEN each section shows an empty-state message (e.g., "Sin datos para el período seleccionado")
 - AND no exception is thrown
 - AND Revenue/Margin values are shown as $0 or N/A where applicable
+
+### Requirement: Historical reporting compatibility
+
+The system MUST preserve historical completed and returned sale records without changing their billed values. Historical returns without persisted settlement evidence MUST remain excluded from cash and digital return-outflow totals, rather than being estimated. Report consumers MUST treat the new outflow fields as additive and MUST remain able to read prior reports that do not contain them.
+
+#### Scenario: Read a period containing a legacy return without settlement evidence
+
+- GIVEN a historical returned sale has no persisted return settlement
+- WHEN an operator runs a report for the relevant period
+- THEN gross billing MUST follow the preserved sale record
+- AND no cash or digital return outflow MUST be inferred for that return

@@ -24,14 +24,21 @@ The system MUST maintain supplier records that can be searched and selected duri
 
 ### Requirement: Persist purchases atomically with stock traceability
 
-The system MUST persist purchase header, purchase items, supplier linkage, stock increase, and inventory-movement audit data as one atomic operation.
+The system MUST require the canonical active authenticated session actor to hold the existing purchase-registration permission before it persists a purchase. It MUST use that session actor for purchase and audit attribution, and it MUST preserve the existing atomic purchase, stock, and inventory-movement outcome.
 
-#### Scenario: Confirm valid purchase
+#### Scenario: Reject unauthorized purchase before stock mutation
 
-- GIVEN a supplier and valid purchase items are ready for confirmation
-- WHEN the purchase is confirmed
-- THEN stock MUST increase according to the purchased quantities
-- AND matching inventory-movement records MUST exist for the same purchase outcome
+- GIVEN an authenticated active user lacks purchase-registration permission
+- WHEN the user confirms valid purchase items
+- THEN the system MUST reject the operation before persisting a purchase or inventory movement
+- AND product stock MUST remain unchanged
+
+#### Scenario: Attribute an authorized purchase to the session actor
+
+- GIVEN an authenticated active user has purchase-registration permission
+- WHEN the user confirms a valid purchase
+- THEN the purchase and resulting audit record MUST be attributed to that session actor
+- AND the stock increase and inventory movements MUST remain atomic with the purchase
 
 #### Scenario: Roll back failed purchase persistence
 

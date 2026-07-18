@@ -1,5 +1,7 @@
 using System.Collections.Specialized;
 using POS.Application.DTOs.Inventory;
+using POS.Application.Interfaces;
+using POS.Application.Services;
 using POS.Application.UseCases.Inventory;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -27,11 +29,10 @@ public sealed class InventoryViewModelTests
             new QueryStockUseCase(repository),
             new QueryLowStockUseCase(repository),
             new QueryMovementHistoryUseCase(repository),
-            new AdjustStockUseCase(new StubProductRepository(product), repository, new NoOpUnitOfWork()))
+            new AdjustStockUseCase(new StubProductRepository(product), repository, new NoOpUnitOfWork(), CreateAuthorizer()))
         {
             SelectedProduct = new StockLevelResult(product.Id, product.Name, product.Barcode, product.CurrentStock, product.MinimumStock, false, 0m),
-            AdjustmentReason = "Recuento físico",
-            OperatorUserId = Guid.NewGuid()
+            AdjustmentReason = "Recuento físico"
         };
 
         // WPF's ListBox (SelectedItem TwoWay-bound to SelectedProduct) deselects and
@@ -67,7 +68,7 @@ public sealed class InventoryViewModelTests
             new QueryStockUseCase(repository),
             new QueryLowStockUseCase(repository),
             new QueryMovementHistoryUseCase(repository),
-            new AdjustStockUseCase(new StubProductRepository(product), repository, new NoOpUnitOfWork()));
+            new AdjustStockUseCase(new StubProductRepository(product), repository, new NoOpUnitOfWork(), CreateAuthorizer()));
 
         viewModel.SelectedProduct = new StockLevelResult(product.Id, product.Name, product.Barcode, product.CurrentStock, product.MinimumStock, false, 0m);
 
@@ -91,7 +92,7 @@ public sealed class InventoryViewModelTests
             new QueryStockUseCase(repository),
             new QueryLowStockUseCase(repository),
             new QueryMovementHistoryUseCase(repository),
-            new AdjustStockUseCase(new StubProductRepository(product), repository, new NoOpUnitOfWork()));
+            new AdjustStockUseCase(new StubProductRepository(product), repository, new NoOpUnitOfWork(), CreateAuthorizer()));
 
         viewModel.SelectedProduct = new StockLevelResult(product.Id, product.Name, product.Barcode, product.CurrentStock, product.MinimumStock, false, 0m);
 
@@ -112,7 +113,7 @@ public sealed class InventoryViewModelTests
             new QueryStockUseCase(repository),
             new QueryLowStockUseCase(repository),
             new QueryMovementHistoryUseCase(repository),
-            new AdjustStockUseCase(new StubProductRepository(), repository, new NoOpUnitOfWork()));
+            new AdjustStockUseCase(new StubProductRepository(), repository, new NoOpUnitOfWork(), CreateAuthorizer()));
 
         await viewModel.LoadStockAsync(TestContext.Current.CancellationToken);
 
@@ -138,11 +139,40 @@ public sealed class InventoryViewModelTests
             new QueryStockUseCase(new ThrowingInventoryRepository()),
             new QueryLowStockUseCase(new ThrowingInventoryRepository()),
             new QueryMovementHistoryUseCase(new ThrowingInventoryRepository()),
-            new AdjustStockUseCase(new StubProductRepository(), new ThrowingInventoryRepository(), new NoOpUnitOfWork()));
+            new AdjustStockUseCase(new StubProductRepository(), new ThrowingInventoryRepository(), new NoOpUnitOfWork(), CreateAuthorizer()));
 
         await viewModel.LoadStockAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("Error al cargar inventario", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_WithValidProductAndReason_ExecutesActorFreeRequest()
+    {
+        var product = new Product(
+            "Widget",
+            Guid.NewGuid(),
+            new Money(1m),
+            new Money(2m),
+            new StockQuantity(10m),
+            new StockQuantity(1m));
+        var repository = new RecordingInventoryRepository(product);
+        var viewModel = new InventoryViewModel(
+            new QueryStockUseCase(repository),
+            new QueryLowStockUseCase(repository),
+            new QueryMovementHistoryUseCase(repository),
+            new AdjustStockUseCase(new StubProductRepository(product), repository, new NoOpUnitOfWork(), CreateAuthorizer()))
+        {
+            SelectedProduct = new StockLevelResult(product.Id, product.Name, product.Barcode, product.CurrentStock, product.MinimumStock, false, 0m),
+            AdjustmentQuantity = 5m,
+            IsAdjustmentPositive = true,
+            AdjustmentReason = "Recuento físico"
+        };
+
+        await viewModel.AdjustStockAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(15m, product.CurrentStock);
+        Assert.Single(repository.GetMovementsByProductAsync(product.Id).Result);
     }
 
     private sealed class StaticInventoryRepository : IInventoryRepository
@@ -235,5 +265,43 @@ public sealed class InventoryViewModelTests
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(0);
+    }
+
+    private static CriticalCommandAuthorizer CreateAuthorizer()
+    {
+        var role = new Role("Inventory");
+        var user = new User("inventory", "hash", role.Id);
+        return new CriticalCommandAuthorizer(new FakeSession(user.Id), new FakeUserRepository(user), new FakeRoleRepository(role));
+    }
+
+    private sealed class FakeSession(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => "inventory";
+        public bool IsAuthenticated => true;
+    }
+
+    private sealed class FakeUserRepository(User user) : IUserRepository
+    {
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<User?>(id == user.Id ? user : null);
+        public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) => Task.FromResult<User?>(null);
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task AddAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<User>>([]);
+        public Task UpdateAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class FakeRoleRepository(Role role) : IRoleRepository
+    {
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(role);
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 }

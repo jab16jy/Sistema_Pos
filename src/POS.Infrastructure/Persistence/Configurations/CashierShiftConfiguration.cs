@@ -40,6 +40,14 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("receivable_settlement_digital")
                .HasDefaultValue(Money.Zero);
+        builder.Property(s => s.CashReturnOutflows)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("cash_return_outflows")
+               .HasDefaultValue(Money.Zero);
+        builder.Property(s => s.DigitalReturnOutflows)
+               .HasConversion(m => m.Amount, v => new Money(v))
+               .HasColumnName("digital_return_outflows")
+               .HasDefaultValue(Money.Zero);
         builder.Property(s => s.HasClosingSummary)
                .HasColumnName("has_closing_summary")
                .HasDefaultValue(false);
@@ -57,5 +65,10 @@ internal sealed class CashierShiftConfiguration : IEntityTypeConfiguration<Cashi
                .HasColumnType("TEXT");
         builder.HasIndex(s => new { s.CashierUserId, s.Status });
         builder.HasIndex(s => s.OpenedAt);
+
+        builder.HasOne<User>()
+               .WithMany()
+               .HasForeignKey(s => s.CashierUserId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

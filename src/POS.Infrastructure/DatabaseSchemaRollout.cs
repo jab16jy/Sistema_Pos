@@ -8,6 +8,7 @@ using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 using POS.Infrastructure.Catalog;
 using POS.Infrastructure.Persistence;
+using POS.Infrastructure.Persistence.Preflight;
 
 namespace POS.Infrastructure;
 
@@ -17,6 +18,7 @@ public static class DatabaseSchemaRollout
     {
         using IServiceScope scope = serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await IntegrityPreflight.VerifyAsync(dbContext, cancellationToken);
         await dbContext.Database.MigrateAsync(cancellationToken);
         await NormalizeLegacyUnixTimestampDateTimesAsync(dbContext, cancellationToken);
         await SeedDefaultRolesAndAdminAsync(scope.ServiceProvider, dbContext, cancellationToken);

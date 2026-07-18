@@ -1,7 +1,9 @@
 using POS.Application.Common;
 using POS.Application.DTOs.Loyalty;
 using POS.Application.DTOs.Sales;
+using POS.Application.Services;
 using POS.Application.UseCases.Loyalty;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
@@ -20,19 +22,10 @@ public sealed class CreateSaleUseCase
     private readonly IInventoryRepository? _inventory;
     private readonly ISettingsRepository? _settings;
     private readonly ICashierShiftRepository? _shifts;
-
+    private readonly CriticalCommandAuthorizer? _authorizer;
     /// <summary>Legacy constructor — no receivable support. Used by tests that don't need deferred balance.</summary>
-    public CreateSaleUseCase(IProductRepository products, ISaleRepository sales, IUnitOfWork unitOfWork)
-        : this(products, sales, unitOfWork, null, null, null, null)
-    {
-    }
-
-    public CreateSaleUseCase(
-        IProductRepository products,
-        ISaleRepository sales,
-        IUnitOfWork unitOfWork,
-        IReceivableRepository? receivables)
-        : this(products, sales, unitOfWork, receivables, null, null, null)
+    public CreateSaleUseCase(IProductRepository products, ISaleRepository sales, IUnitOfWork unitOfWork, CriticalCommandAuthorizer? authorizer = null)
+        : this(products, sales, unitOfWork, null, null, null, null, authorizer: authorizer)
     {
     }
 
@@ -41,8 +34,19 @@ public sealed class CreateSaleUseCase
         ISaleRepository sales,
         IUnitOfWork unitOfWork,
         IReceivableRepository? receivables,
-        AccumulateLoyaltyPointsUseCase? accumulatePoints)
-        : this(products, sales, unitOfWork, receivables, accumulatePoints, null, null)
+        CriticalCommandAuthorizer? authorizer = null)
+        : this(products, sales, unitOfWork, receivables, null, null, null, authorizer: authorizer)
+    {
+    }
+
+    public CreateSaleUseCase(
+        IProductRepository products,
+        ISaleRepository sales,
+        IUnitOfWork unitOfWork,
+        IReceivableRepository? receivables,
+        AccumulateLoyaltyPointsUseCase? accumulatePoints,
+        CriticalCommandAuthorizer? authorizer = null)
+        : this(products, sales, unitOfWork, receivables, accumulatePoints, null, null, authorizer: authorizer)
     {
     }
 
@@ -55,7 +59,8 @@ public sealed class CreateSaleUseCase
         RedeemLoyaltyPointsUseCase? redeemPoints,
         IInventoryRepository? inventory = null,
         ISettingsRepository? settings = null,
-        ICashierShiftRepository? shifts = null)
+        ICashierShiftRepository? shifts = null,
+        CriticalCommandAuthorizer? authorizer = null)
     {
         _products = products;
         _sales = sales;
@@ -66,10 +71,15 @@ public sealed class CreateSaleUseCase
         _inventory = inventory;
         _settings = settings;
         _shifts = shifts;
+        _authorizer = authorizer;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(CreateSaleRequest request, CancellationToken cancellationToken = default)
     {
+        CriticalCommandAuthorizer authorizer = _authorizer
+            ?? throw new POS.Domain.Exceptions.UnauthorizedActionException(PermissionKeys.Cashier.Sell);
+        CanonicalActor actor = await authorizer.AuthorizeAsync(PermissionKeys.Cashier.Sell, cancellationToken).ConfigureAwait(false);
+
         if (request.Items.Count == 0)
         {
             throw new InvalidOperationException("Add at least one product before completing the sale.");
@@ -77,7 +87,7 @@ public sealed class CreateSaleUseCase
 
         if (_shifts is not null)
         {
-            var openShift = await _shifts.GetOpenShiftAsync(request.CashierUserId, cancellationToken).ConfigureAwait(false);
+            var openShift = await _shifts.GetOpenShiftAsync(actor.UserId, cancellationToken).ConfigureAwait(false);
             if (openShift is null)
             {
                 throw new InvalidOperationException("No se puede completar la venta porque el cajero no tiene un turno abierto.");
@@ -106,7 +116,7 @@ public sealed class CreateSaleUseCase
             }
         }
 
-        var sale = new Sale(request.CashierUserId, request.CustomerId);
+        var sale = new Sale(actor.UserId, request.CustomerId);
         var productsById = new Dictionary<Guid, Product>();
 
         foreach (var item in request.Items)
@@ -225,7 +235,7 @@ public sealed class CreateSaleUseCase
                 {
                     var baseUnits = new Quantity(line.Quantity * line.UnitsPerPresentation);
                     await _inventory.AddMovementAsync(
-                        new InventoryMovement(line.ProductId, InventoryMovementType.Exit, baseUnits, "Venta", request.CashierUserId, sale.Id),
+                        new InventoryMovement(line.ProductId, InventoryMovementType.Exit, baseUnits, "Venta", actor.UserId, sale.Id),
                         cancellationToken).ConfigureAwait(false);
                 }
             }

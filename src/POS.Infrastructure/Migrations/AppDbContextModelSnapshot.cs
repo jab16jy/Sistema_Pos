@@ -232,6 +232,12 @@ namespace POS.Infrastructure.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("cash_payments");
 
+                    b.Property<decimal>("CashReturnOutflows")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("cash_return_outflows");
+
                     b.Property<string>("CashierUserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -253,6 +259,12 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue(0m)
                         .HasColumnName("digital_payments");
+
+                    b.Property<decimal>("DigitalReturnOutflows")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("digital_return_outflows");
 
                     b.Property<bool>("HasClosingSummary")
                         .ValueGeneratedOnAdd()
@@ -402,7 +414,8 @@ namespace POS.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<Guid>("ProductId")
+                    b.Property<string>("ProductId")
+                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("Quantity")
@@ -422,6 +435,8 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
 
                     b.ToTable("InventoryMovements", (string)null);
                 });
@@ -547,15 +562,19 @@ namespace POS.Infrastructure.Migrations
                     b.Property<string>("SaleId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SaleReturnId")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CompensatesTransactionId")
-                        .IsUnique();
-
                     b.HasIndex("LoyaltyAccountId");
+
+                    b.HasIndex("CompensatesTransactionId", "SaleReturnId")
+                        .IsUnique()
+                        .HasFilter("\"CompensatesTransactionId\" IS NOT NULL AND \"SaleReturnId\" IS NOT NULL");
 
                     b.ToTable("LOYALTY_TRANSACTIONS", (string)null);
                 });
@@ -670,6 +689,12 @@ namespace POS.Infrastructure.Migrations
                     b.Property<int?>("UnitsPerBox")
                         .HasColumnType("INTEGER")
                         .HasColumnName("units_per_box");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
 
                     b.HasKey("Id");
 
@@ -1015,6 +1040,10 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ConvertedSaleId");
+
+                    b.HasIndex("CustomerId");
+
                     b.HasIndex("QuoteNumber")
                         .IsUnique();
 
@@ -1071,6 +1100,19 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("QUOTE_ITEMS", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.QuoteSequence", b =>
+                {
+                    b.Property<int>("Year")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LastIssued")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Year");
+
+                    b.ToTable("QUOTE_SEQUENCES", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Receivable", b =>
                 {
                     b.Property<string>("Id")
@@ -1110,6 +1152,10 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnName("version");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CustomerId");
+
+                    b.HasIndex("SaleId");
 
                     b.ToTable("RECEIVABLES", (string)null);
                 });
@@ -1155,6 +1201,65 @@ namespace POS.Infrastructure.Migrations
                     b.HasIndex("ReceivableId");
 
                     b.ToTable("RECEIVABLE_SETTLEMENTS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ReturnReceivableReconciliation", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceivableId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReconciledAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SaleReturnId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceivableId");
+
+                    b.HasIndex("SaleReturnId")
+                        .IsUnique();
+
+                    b.ToTable("RETURN_RECEIVABLE_RECONCILIATIONS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ReturnSettlement", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PaymentMethod")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SaleReturnId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SettledAt")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SaleReturnId")
+                        .IsUnique();
+
+                    b.ToTable("RETURN_SETTLEMENTS", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Role", b =>
@@ -1229,6 +1334,8 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CashierUserId");
+
                     b.ToTable("SALES", (string)null);
                 });
 
@@ -1297,6 +1404,9 @@ namespace POS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OperationId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("OriginalSaleId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -1315,7 +1425,13 @@ namespace POS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("OperationId")
+                        .IsUnique()
+                        .HasFilter("\"OperationId\" IS NOT NULL");
+
                     b.HasIndex("OriginalSaleId");
+
+                    b.HasIndex("ProcessedByUserId");
 
                     b.ToTable("SALE_RETURNS", (string)null);
                 });
@@ -1357,6 +1473,10 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnName("UnitPrice");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SaleItemId");
 
                     b.HasIndex("SaleReturnId");
 
@@ -1505,12 +1625,30 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.CashierShift", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CashierUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.Customer", b =>
                 {
                     b.HasOne("POS.Domain.Entities.LoyaltyTier", null)
                         .WithMany()
                         .HasForeignKey("LoyaltyTierId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.InventoryMovement", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.LoyaltyAccount", b =>
@@ -1607,12 +1745,40 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.Quote", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Sale", null)
+                        .WithMany()
+                        .HasForeignKey("ConvertedSaleId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("POS.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.QuoteItem", b =>
                 {
                     b.HasOne("POS.Domain.Entities.Quote", null)
                         .WithMany("Items")
                         .HasForeignKey("QuoteId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.Receivable", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Customer", null)
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("POS.Domain.Entities.Sale", null)
+                        .WithMany()
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -1625,12 +1791,45 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.ReturnReceivableReconciliation", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Receivable", null)
+                        .WithMany()
+                        .HasForeignKey("ReceivableId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("POS.Domain.Entities.SaleReturn", null)
+                        .WithOne()
+                        .HasForeignKey("POS.Domain.Entities.ReturnReceivableReconciliation", "SaleReturnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ReturnSettlement", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.SaleReturn", null)
+                        .WithOne()
+                        .HasForeignKey("POS.Domain.Entities.ReturnSettlement", "SaleReturnId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.RolePermission", b =>
                 {
                     b.HasOne("POS.Domain.Entities.Role", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.Sale", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CashierUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -1643,8 +1842,29 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.SaleReturn", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("ProcessedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.SaleReturnItem", b =>
                 {
+                    b.HasOne("POS.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("POS.Domain.Entities.SaleItem", null)
+                        .WithMany()
+                        .HasForeignKey("SaleItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("POS.Domain.Entities.SaleReturn", null)
                         .WithMany("Items")
                         .HasForeignKey("SaleReturnId")
