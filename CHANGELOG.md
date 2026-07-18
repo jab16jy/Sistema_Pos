@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.19.0...v1.19.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **integrity:** fix return outflow attribution, expected drawer cash, and migration preflight cleanup ([5709718](https://github.com/jab16jy/Sistema_Pos/commit/570971863149401ac874253163dcce9b8bb0b938))
+
 ## [1.19.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.18.1...v1.19.0) (2026-07-18)
 
 
