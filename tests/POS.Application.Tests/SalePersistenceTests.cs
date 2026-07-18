@@ -193,7 +193,7 @@ public sealed class SalePersistenceTests
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         ShiftSalesSummaryData summary = await sales.GetShiftSalesSummaryAsync(
-            cashierId,
+            returnProcessorId,
             DateTimeOffset.UtcNow.AddMinutes(-1),
             TestContext.Current.CancellationToken);
 

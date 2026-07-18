@@ -140,13 +140,13 @@ public sealed class SaleRepository : ISaleRepository
                               INNER JOIN SALE_RETURNS sr ON sr."Id" = rst."SaleReturnId"
                               INNER JOIN SALES s ON s."Id" = sr."OriginalSaleId"
                               WHERE rst."SettledAt" >= $from AND rst."SettledAt" < $to
-                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0),
+                                AND ($cashier IS NULL OR sr."ProcessedByUserId" = $cashier)), 0),
                     COALESCE((SELECT SUM(CASE WHEN rst."PaymentMethod" IN (2, 3, 4) THEN CAST(rst."Amount" AS NUMERIC) ELSE 0 END)
                               FROM RETURN_SETTLEMENTS rst
                               INNER JOIN SALE_RETURNS sr ON sr."Id" = rst."SaleReturnId"
                               INNER JOIN SALES s ON s."Id" = sr."OriginalSaleId"
                               WHERE rst."SettledAt" >= $from AND rst."SettledAt" < $to
-                                AND ($cashier IS NULL OR s."CashierUserId" = $cashier)), 0);
+                                AND ($cashier IS NULL OR sr."ProcessedByUserId" = $cashier)), 0);
                 """;
             command.Parameters.Add(new SqliteParameter("$from", ToSqliteTimestamp(from)));
             command.Parameters.Add(new SqliteParameter("$to", ToSqliteTimestamp(to)));

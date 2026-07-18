@@ -79,8 +79,6 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
         decimal receivableSettlementDigital = filteredSettlements
             .Where(rs => rs.Method != PaymentMethod.Cash)
             .Sum(rs => rs.Amount.Amount);
-        decimal expectedDrawerCash = saleCashCollected + receivableSettlementCash;
-
         var returnSettlementRows = await _dbContext.ReturnSettlements
             .AsNoTracking()
             .Select(rs => new { rs.Amount, rs.PaymentMethod, rs.SettledAt })
@@ -97,6 +95,8 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
         decimal digitalReturnOutflows = filteredReturnSettlements
             .Where(rs => rs.PaymentMethod is PaymentMethod.DebitCard or PaymentMethod.CreditCard or PaymentMethod.Transfer)
             .Sum(rs => rs.Amount.Amount);
+
+        decimal expectedDrawerCash = saleCashCollected + receivableSettlementCash - cashReturnOutflows;
 
         // Generate chart points based on the date range
         var chartPoints = new List<OperationalReportChartPointDto>();

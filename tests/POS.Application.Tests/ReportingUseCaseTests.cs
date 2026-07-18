@@ -188,9 +188,11 @@ public sealed class ReportingUseCaseTests
             new DateTimeOffset(2026, 7, 3, 23, 59, 59, TimeSpan.Zero)), TestContext.Current.CancellationToken);
 
         Assert.Equal(50_000m, salesDay.BilledSalesTotal);
+        Assert.Equal(50_000m, salesDay.ExpectedDrawerCash);
         Assert.Equal(0m, salesDay.CashReturnOutflows);
         Assert.Equal(0m, returnDay.BilledSalesTotal);
         Assert.Equal(50_000m, returnDay.CashReturnOutflows);
+        Assert.Equal(-50_000m, returnDay.ExpectedDrawerCash);
     }
 
     [Fact]
