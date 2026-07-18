@@ -5,9 +5,12 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.DTOs.Purchases;
 using POS.Application.Interfaces;
+using POS.Application.Services;
 using POS.Application.UseCases.Purchases;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
 using POS.Infrastructure;
@@ -106,7 +109,8 @@ public sealed class SupplierPurchaseUseCaseTests
         await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 5m, 1_000m, 12m, 10_000m);
 
-        RegisterPurchaseResult result = await CreateRegisterUseCase(db).ExecuteAsync(new RegisterPurchaseRequest(supplier.Id, Guid.NewGuid(), new DateOnly(2026, 7, 11), "FAC-1", "30 days", "Transfer", "first delivery", 19m, [new RegisterPurchaseItemRequest(product.Id, 2m)]), TestContext.Current.CancellationToken);
+        User actor = new("purchaser", "hash", Guid.NewGuid());
+        RegisterPurchaseResult result = await CreateRegisterUseCase(db, CreateAuthorizer(actor)).ExecuteAsync(new RegisterPurchaseRequest(supplier.Id, new DateOnly(2026, 7, 11), "FAC-1", "30 days", "Transfer", "first delivery", 19m, [new RegisterPurchaseItemRequest(product.Id, 2m)]), TestContext.Current.CancellationToken);
 
         Purchase purchase = await db.Purchases.Include(p => p.Items).SingleAsync(TestContext.Current.CancellationToken);
         PurchaseItem line = Assert.Single(purchase.Items);
@@ -119,6 +123,8 @@ public sealed class SupplierPurchaseUseCaseTests
         Assert.Equal(29m, persisted.CurrentStock);
         Assert.Equal(862.07m, persisted.CostPrice?.Amount);
         Assert.Equal(24m, movement.Quantity);
+        Assert.Equal(actor.Id, purchase.UserId);
+        Assert.Equal(actor.Id, movement.UserId);
         Assert.Equal(23_800m, purchase.Total?.Amount);
     }
 
@@ -142,7 +148,6 @@ public sealed class SupplierPurchaseUseCaseTests
 
         RegisterPurchaseResult result = await CreateRegisterUseCase(db).ExecuteAsync(new RegisterPurchaseRequest(
             supplier.Id,
-            Guid.NewGuid(),
             new DateOnly(2026, 7, 12),
             "FAC-3",
             null,
@@ -207,7 +212,7 @@ public sealed class SupplierPurchaseUseCaseTests
         (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 0m, null, 1m, 100m);
 
         RegisterPurchaseResult result = await CreateRegisterUseCase(db).ExecuteAsync(
-            new RegisterPurchaseRequest(supplier.Id, Guid.NewGuid(), new DateOnly(2026, 7, 11), null, null, "Cash", null, 0m, [new RegisterPurchaseItemRequest(product.Id, 1m)]),
+            new RegisterPurchaseRequest(supplier.Id, new DateOnly(2026, 7, 11), null, null, "Cash", null, 0m, [new RegisterPurchaseItemRequest(product.Id, 1m)]),
             TestContext.Current.CancellationToken);
 
         Purchase purchase = await db.Purchases.SingleAsync(TestContext.Current.CancellationToken);
@@ -247,7 +252,7 @@ public sealed class SupplierPurchaseUseCaseTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(new RegisterPurchaseRequest(
             supplier.Id,
-            Guid.NewGuid(), DateOnly.FromDateTime(DateTime.Today), null, null, "Contado", null, 0m,
+            DateOnly.FromDateTime(DateTime.Today), null, null, "Contado", null, 0m,
             [new RegisterPurchaseItemRequest(product.Id, 7m)]),
             TestContext.Current.CancellationToken));
 
@@ -265,7 +270,7 @@ public sealed class SupplierPurchaseUseCaseTests
         await setup.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(setup, 5m, 100m, 12m, 120m);
         await using var failing = CreateDbContext(connection);
-        var useCase = new RegisterPurchaseUseCase(new SupplierRepository(failing), new ProductRepository(failing), new ProductSupplierRepository(failing), new PurchaseRepository(failing), new ThrowingUnitOfWork());
+        var useCase = new RegisterPurchaseUseCase(new SupplierRepository(failing), new ProductRepository(failing), new ProductSupplierRepository(failing), new PurchaseRepository(failing), new ThrowingUnitOfWork(), CreateAuthorizer(new User("purchaser", "hash", Guid.NewGuid())));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(NewRequest(supplier.Id, product.Id), TestContext.Current.CancellationToken));
 
@@ -277,6 +282,27 @@ public sealed class SupplierPurchaseUseCaseTests
         Assert.Empty(await verification.InventoryMovements.ToListAsync(TestContext.Current.CancellationToken));
     }
 
+    [Theory]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    public async Task RegisterPurchase_RejectsUnauthorizedActorsBeforeStaging(bool isAuthenticated, bool isActive, bool hasPermission)
+    {
+        await using var connection = await OpenAsync();
+        await using var db = CreateDbContext(connection);
+        await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 5m, 100m, 12m, 120m);
+        User actor = new("purchaser", "hash", Guid.NewGuid());
+        if (!isActive) actor.Deactivate();
+        var useCase = CreateRegisterUseCase(db, CreateAuthorizer(actor, isAuthenticated, hasPermission));
+
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() => useCase.ExecuteAsync(NewRequest(supplier.Id, product.Id), TestContext.Current.CancellationToken));
+
+        Assert.Empty(await db.Purchases.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Empty(await db.InventoryMovements.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(5m, (await db.Products.SingleAsync(TestContext.Current.CancellationToken)).CurrentStock);
+    }
+
     [Fact]
     public async Task PurchaseHistory_FiltersInclusiveDatesInvoiceAndPaginatesPersistedHeaders()
     {
@@ -285,8 +311,8 @@ public sealed class SupplierPurchaseUseCaseTests
         await db.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         (Supplier supplier, Product product) = await SeedSupplierProductAndCatalogAsync(db, 0m, null, 1m, 100m);
         RegisterPurchaseUseCase register = CreateRegisterUseCase(db);
-        await register.ExecuteAsync(new RegisterPurchaseRequest(supplier.Id, Guid.NewGuid(), new DateOnly(2026, 7, 1), "A-1", null, "Cash", null, 0m, [new RegisterPurchaseItemRequest(product.Id, 1m)]), TestContext.Current.CancellationToken);
-        await register.ExecuteAsync(new RegisterPurchaseRequest(supplier.Id, Guid.NewGuid(), new DateOnly(2026, 7, 2), "A-2", null, "Cash", null, 0m, [new RegisterPurchaseItemRequest(product.Id, 1m)]), TestContext.Current.CancellationToken);
+        await register.ExecuteAsync(new RegisterPurchaseRequest(supplier.Id, new DateOnly(2026, 7, 1), "A-1", null, "Cash", null, 0m, [new RegisterPurchaseItemRequest(product.Id, 1m)]), TestContext.Current.CancellationToken);
+        await register.ExecuteAsync(new RegisterPurchaseRequest(supplier.Id, new DateOnly(2026, 7, 2), "A-2", null, "Cash", null, 0m, [new RegisterPurchaseItemRequest(product.Id, 1m)]), TestContext.Current.CancellationToken);
 
         PagedResult<PurchaseHistoryResult> page = await new SearchPurchaseHistoryUseCase(new PurchaseHistoryQueryService(db)).ExecuteAsync(new PurchaseHistoryRequest(supplier.Id, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1), "A-1", 1, 1), TestContext.Current.CancellationToken);
 
@@ -412,8 +438,12 @@ public sealed class SupplierPurchaseUseCaseTests
         Assert.Single(await db.Products.ToListAsync(TestContext.Current.CancellationToken));
     }
 
-    private static RegisterPurchaseRequest NewRequest(Guid supplierId, Guid productId) => new(supplierId, Guid.NewGuid(), new DateOnly(2026, 7, 11), null, null, "Cash", null, 19m, [new RegisterPurchaseItemRequest(productId, 1m)]);
-    private static RegisterPurchaseUseCase CreateRegisterUseCase(AppDbContext db) => new(new SupplierRepository(db), new ProductRepository(db), new ProductSupplierRepository(db), new PurchaseRepository(db), db);
+    private static RegisterPurchaseRequest NewRequest(Guid supplierId, Guid productId) => new(supplierId, new DateOnly(2026, 7, 11), null, null, "Cash", null, 19m, [new RegisterPurchaseItemRequest(productId, 1m)]);
+    private static RegisterPurchaseUseCase CreateRegisterUseCase(AppDbContext db, CriticalCommandAuthorizer? authorizer = null)
+        => new(new SupplierRepository(db), new ProductRepository(db), new ProductSupplierRepository(db), new PurchaseRepository(db), db, authorizer ?? CreateAuthorizer(new User("purchaser", "hash", Guid.NewGuid())));
+
+    private static CriticalCommandAuthorizer CreateAuthorizer(User user, bool isAuthenticated = true, bool hasPermission = true)
+        => new(new FakeSession(isAuthenticated ? user.Id : Guid.Empty), new FakeUsers(user), new FakeRoles(hasPermission));
     private static async Task<SqliteConnection> OpenAsync() { var connection = new SqliteConnection("Data Source=:memory:"); await connection.OpenAsync(TestContext.Current.CancellationToken); return connection; }
     private static AppDbContext CreateDbContext(SqliteConnection connection) => new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
 
@@ -428,5 +458,36 @@ public sealed class SupplierPurchaseUseCaseTests
     private sealed class ThrowingUnitOfWork : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) => throw new InvalidOperationException("Simulated failure.");
+    }
+
+    private sealed class FakeSession(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => string.Empty;
+        public bool IsAuthenticated => OperatorId != Guid.Empty;
+    }
+
+    private sealed class FakeUsers(User user) : IUserRepository
+    {
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(user.Id == id ? user : null);
+        public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) => Task.FromResult<User?>(null);
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task AddAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<User>>([]);
+        public Task UpdateAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class FakeRoles(bool hasPermission) : IRoleRepository
+    {
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(new Role("Purchaser"));
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(hasPermission && permissionKey == PermissionKeys.Purchases.Create);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 }

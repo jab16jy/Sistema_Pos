@@ -6,7 +6,9 @@ public readonly record struct ShiftClosingSummary(
     Money CashPayments,
     Money DigitalPayments,
     Money ReceivableSettlementCash = default,
-    Money ReceivableSettlementDigital = default)
+    Money ReceivableSettlementDigital = default,
+    Money CashReturnOutflows = default,
+    Money DigitalReturnOutflows = default)
 {
     public static ShiftClosingSummary Empty => new(Money.Zero, Money.Zero, Money.Zero);
 }

@@ -1696,7 +1696,6 @@ public sealed class CashierViewModel : ViewModelBase
         {
             CompleteHeldSaleRequest request = DeferredAmount > 0m
                 ? new CompleteHeldSaleRequest(
-                    CashierUserId,
                     saleId,
                     [],
                     new Domain.Entities.SaleSettlementPlan(
@@ -1705,7 +1704,6 @@ public sealed class CashierViewModel : ViewModelBase
                         DeferredAmount,
                         ReceivedAmount > 0m && SelectedPaymentMethod.Method == PaymentMethod.Transfer ? BankOrPlatform : null))
                 : new CompleteHeldSaleRequest(
-                    CashierUserId,
                     saleId,
                     [new CreateSalePaymentRequest(
                         SelectedPaymentMethod.Method,
@@ -1829,7 +1827,7 @@ public sealed class CashierViewModel : ViewModelBase
                 ReceivedAmount > 0m && SelectedPaymentMethod.Method == PaymentMethod.Transfer
                     ? BankOrPlatform
                     : null);
-            return new CreateSaleRequest(CashierUserId, CustomerId, items, plan);
+            return new CreateSaleRequest(CustomerId, items, plan);
         }
 
         // The customer only pays the net (total minus redeemed points); the loyalty tender
@@ -1844,7 +1842,7 @@ public sealed class CashierViewModel : ViewModelBase
         ];
 
         int redeemPoints = LoyaltyDiscount > 0m ? LoyaltyPointsToRedeem : 0;
-        return new CreateSaleRequest(CashierUserId, CustomerId, items, payments, redeemPoints);
+        return new CreateSaleRequest(CustomerId, items, payments, redeemPoints);
     }
 
     private IReadOnlyCollection<CreateSaleItemRequest> BuildLineRequests()
@@ -1900,7 +1898,6 @@ public sealed class CashierViewModel : ViewModelBase
             CustomerPayableQuote quote = _loadedQuote;
             var request = new ConvertQuoteToSaleRequest(
                 quote.QuoteId,
-                CashierUserId,
                 BuildPaymentRequests());
 
             CreateSaleResult result = DeferredAmount > 0m

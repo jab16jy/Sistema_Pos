@@ -106,8 +106,13 @@ public sealed class UserAndShiftPersistenceTests
         await connection.OpenAsync(TestContext.Current.CancellationToken);
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        await SeedSystemRolesAsync(dbContext);
 
-        var shift = new CashierShift(Guid.NewGuid(), "cashier", new Money(10_000m));
+        var cashier = new User("cashier", "hash", RoleConstants.CashierRoleId);
+        await dbContext.Users.AddAsync(cashier, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var shift = new CashierShift(cashier.Id, "cashier", new Money(10_000m));
         await dbContext.CashierShifts.AddAsync(shift, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
         var repository = new CashierShiftRepository(dbContext);
@@ -125,10 +130,15 @@ public sealed class UserAndShiftPersistenceTests
         await connection.OpenAsync(TestContext.Current.CancellationToken);
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        await SeedSystemRolesAsync(dbContext);
 
-        var older = new CashierShift(Guid.NewGuid(), "older", new Money(10m), openedAt: DateTimeOffset.UtcNow.AddHours(-2));
-        var newest = new CashierShift(Guid.NewGuid(), "newest", new Money(10m), openedAt: DateTimeOffset.UtcNow);
-        var middle = new CashierShift(Guid.NewGuid(), "middle", new Money(10m), openedAt: DateTimeOffset.UtcNow.AddHours(-1));
+        var cashier = new User("cashier", "hash", RoleConstants.CashierRoleId);
+        await dbContext.Users.AddAsync(cashier, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var older = new CashierShift(cashier.Id, "older", new Money(10m), openedAt: DateTimeOffset.UtcNow.AddHours(-2));
+        var newest = new CashierShift(cashier.Id, "newest", new Money(10m), openedAt: DateTimeOffset.UtcNow);
+        var middle = new CashierShift(cashier.Id, "middle", new Money(10m), openedAt: DateTimeOffset.UtcNow.AddHours(-1));
         await dbContext.CashierShifts.AddRangeAsync([older, newest, middle], TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 

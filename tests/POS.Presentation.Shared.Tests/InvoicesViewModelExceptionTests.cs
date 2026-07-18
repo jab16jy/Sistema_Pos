@@ -76,6 +76,8 @@ public sealed class InvoicesViewModelExceptionTests
             => Task.FromResult<SaleReturn?>(null);
 
         public Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SaleReturn>>([]);
+
+        public Task<SaleReturn?> GetByOperationIdAsync(Guid operationId, CancellationToken cancellationToken = default) => Task.FromResult<SaleReturn?>(null);
     }
 
     private sealed class EmptyUserRepository : IUserRepository

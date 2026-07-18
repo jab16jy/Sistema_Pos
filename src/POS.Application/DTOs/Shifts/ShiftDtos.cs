@@ -17,14 +17,14 @@ public sealed record ShiftSummary(
     decimal CashPayments = 0m,
     decimal DigitalPayments = 0m,
     decimal ReceivableSettlementCash = 0m,
-    decimal ReceivableSettlementDigital = 0m)
+    decimal ReceivableSettlementDigital = 0m,
+    decimal CashReturnOutflows = 0m,
+    decimal DigitalReturnOutflows = 0m)
 {
-    public decimal ExpectedCash => OpeningCash + CashPayments + ReceivableSettlementCash;
+    public decimal ExpectedCash => OpeningCash + CashPayments + ReceivableSettlementCash - CashReturnOutflows;
 }
 
 public sealed record StartShiftRequest(
-    Guid CashierUserId,
-    string CashierUsername,
     decimal OpeningCash,
     string? Notes,
     DateTimeOffset? OpenedAt = null);

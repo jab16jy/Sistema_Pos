@@ -1,4 +1,5 @@
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 using Xunit;
 
@@ -76,5 +77,71 @@ public sealed class SaleReturnTests
         var total = saleReturn.TotalRefund();
 
         Assert.Equal(0m, total.Amount);
+    }
+
+    [Fact]
+    public void SaleReturn_WithOperationId_PreservesTheIdempotencyKey()
+    {
+        var operationId = Guid.NewGuid();
+
+        var saleReturn = new SaleReturn(Guid.NewGuid(), Guid.NewGuid(), "Partial return", operationId);
+
+        Assert.Equal(operationId, saleReturn.OperationId);
+    }
+
+    [Fact]
+    public void SaleReturn_WithEmptyOperationId_Throws()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new SaleReturn(Guid.NewGuid(), Guid.NewGuid(), "Partial return", Guid.Empty));
+    }
+
+    [Fact]
+    public void ReturnSettlement_WithCashAmount_CapturesAnImmutableResolution()
+    {
+        var returnId = Guid.NewGuid();
+
+        var settlement = new ReturnSettlement(returnId, new Money(3_000m), PaymentMethod.Cash);
+
+        Assert.Equal(returnId, settlement.SaleReturnId);
+        Assert.Equal(3_000m, settlement.Amount.Amount);
+        Assert.Equal(PaymentMethod.Cash, settlement.PaymentMethod);
+        Assert.NotEqual(default, settlement.SettledAt);
+    }
+
+    [Theory]
+    [InlineData(PaymentMethod.LoyaltyPoints)]
+    public void ReturnSettlement_WithUnsupportedPaymentMethod_Throws(PaymentMethod paymentMethod)
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new ReturnSettlement(Guid.NewGuid(), new Money(3_000m), paymentMethod));
+    }
+
+    [Fact]
+    public void ReturnSettlement_WithZeroAmount_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new ReturnSettlement(Guid.NewGuid(), Money.Zero, PaymentMethod.Cash));
+    }
+
+    [Fact]
+    public void ReturnReceivableReconciliation_WithPositiveAmount_CapturesTheReturnAndReceivable()
+    {
+        var returnId = Guid.NewGuid();
+        var receivableId = Guid.NewGuid();
+
+        var reconciliation = new ReturnReceivableReconciliation(returnId, receivableId, new Money(3_000m));
+
+        Assert.Equal(returnId, reconciliation.SaleReturnId);
+        Assert.Equal(receivableId, reconciliation.ReceivableId);
+        Assert.Equal(3_000m, reconciliation.Amount.Amount);
+        Assert.NotEqual(default, reconciliation.ReconciledAt);
+    }
+
+    [Fact]
+    public void ReturnReceivableReconciliation_WithZeroAmount_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new ReturnReceivableReconciliation(Guid.NewGuid(), Guid.NewGuid(), Money.Zero));
     }
 }

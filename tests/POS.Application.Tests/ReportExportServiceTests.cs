@@ -41,6 +41,10 @@ public sealed class ReportExportServiceTests
         Assert.Equal("Total facturado", summary.Cell("A5").GetString());
         Assert.Equal(1_500_000m, summary.Cell("A6").GetValue<decimal>());
         Assert.Equal("Efectivo esperado", summary.Cell("B16").GetString());
+        Assert.Equal("Devoluciones en efectivo", summary.Cell("B17").GetString());
+        Assert.Equal(75_000m, summary.Cell("C17").GetValue<decimal>());
+        Assert.Equal("Devoluciones digitales", summary.Cell("B18").GetString());
+        Assert.Equal(25_000m, summary.Cell("C18").GetValue<decimal>());
         Assert.Equal("DETALLE DE RECAUDO", detail.Cell("A1").GetString());
         Assert.Equal("Recaudo de ventas", detail.Cell("B7").GetString());
         Assert.Equal(1_500_000m, detail.Cell("C7").GetValue<decimal>());
@@ -95,5 +99,7 @@ public sealed class ReportExportServiceTests
         ReceivableSettlementDigital: 50_000m,
         ReceivableSettlementTotal: 150_000m,
         ExpectedDrawerCash: 1_000_000m,
+        CashReturnOutflows: 75_000m,
+        DigitalReturnOutflows: 25_000m,
         ChartPoints: Array.Empty<OperationalReportChartPointDto>());
 }

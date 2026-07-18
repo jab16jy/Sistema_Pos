@@ -208,7 +208,7 @@ public sealed class ShiftsViewModel : ViewModelBase
         get
         {
             var active = Shifts.FirstOrDefault(s => s.Status == ShiftStatus.Open);
-            return active is null ? 0m : active.OpeningCash + _activeShiftSalesSummary.CashPayments + _activeShiftSalesSummary.ReceivableSettlementCash;
+            return active is null ? 0m : active.OpeningCash + _activeShiftSalesSummary.CashPayments + _activeShiftSalesSummary.ReceivableSettlementCash - _activeShiftSalesSummary.CashReturnOutflows;
         }
     }
 
@@ -279,7 +279,7 @@ public sealed class ShiftsViewModel : ViewModelBase
             // Fetch the 10 most recent shifts to see if there is an active open shift
             var recentShifts = await _getShifts.ExecuteAsync(10, null, null, ct).ConfigureAwait(true);
             var activeShift = recentShifts.FirstOrDefault(s => s.Status == ShiftStatus.Open);
-            
+
             var shiftList = shifts.ToList();
             if (activeShift is not null && !shiftList.Any(s => s.Id == activeShift.Id))
             {
@@ -457,34 +457,12 @@ public sealed class ShiftsViewModel : ViewModelBase
     {
         try
         {
-            var cashierName = string.IsNullOrWhiteSpace(SelectedCashierUsername)
-                ? _session.Username
-                : SelectedCashierUsername;
-
-            Guid cashierId;
-            if (string.Equals(cashierName, _session.Username, StringComparison.OrdinalIgnoreCase))
-            {
-                cashierId = _session.OperatorId;
-            }
-            else
-            {
-                var user = await _userRepository.GetByUsernameAsync(cashierName).ConfigureAwait(true);
-                if (user is null)
-                {
-                    Message = "El usuario cajero especificado no existe.";
-                    return;
-                }
-                cashierId = user.Id;
-            }
-
             if (!TryBuildOpeningTimestamp(out var openedAt))
             {
                 return;
             }
 
             await _startShift.ExecuteAsync(new StartShiftRequest(
-                cashierId,
-                cashierName,
                 OpeningCash,
                 OpenNotes,
                 openedAt));

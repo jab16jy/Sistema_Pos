@@ -96,6 +96,7 @@ public sealed class UpdateUserUseCase
 
                 user.ChangeRole(newRoleId);
                 await _users.UpdateAsync(user, transactionCt).ConfigureAwait(false);
+                await _unitOfWork.SaveChangesAsync(transactionCt).ConfigureAwait(false);
                 result = (true, null);
             }, ct).ConfigureAwait(false);
         }

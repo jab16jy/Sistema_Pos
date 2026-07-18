@@ -31,6 +31,16 @@ internal sealed class ReceivableConfiguration : IEntityTypeConfiguration<Receiva
                .IsConcurrencyToken()
                .IsRequired();
 
+        builder.HasOne<Customer>()
+               .WithMany()
+               .HasForeignKey(r => r.CustomerId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Sale>()
+               .WithMany()
+               .HasForeignKey(r => r.SaleId)
+               .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasMany(r => r.Settlements)
                .WithOne()
                .HasForeignKey(s => s.ReceivableId)

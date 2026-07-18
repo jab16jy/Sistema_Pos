@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using POS.Application.Interfaces;
+using POS.Application.Services;
 using POS.Application.UseCases.Audit;
 using POS.Application.UseCases.Auth;
 using POS.Application.UseCases.BarcodeLabels;
@@ -44,6 +45,7 @@ public static class DependencyInjection
         services.AddSingleton<InMemoryUserSession>();
         services.AddSingleton<ICurrentOperatorSession>(sp => sp.GetRequiredService<InMemoryUserSession>());
         services.AddSingleton<IWritableOperatorSession>(sp => sp.GetRequiredService<InMemoryUserSession>());
+        services.AddScoped<CriticalCommandAuthorizer>();
         services.AddScoped<IPasswordHashService, Pbkdf2PasswordHashService>();
         services.AddScoped<LoginUseCase>();
         services.AddScoped<LogoutUseCase>();

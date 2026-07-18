@@ -8,23 +8,18 @@ namespace POS.Application.Interfaces;
 /// </summary>
 public interface IApplyReceivablePaymentUseCase
 {
-    Task ExecuteAsync(Guid receivableId, decimal paymentAmount, Guid? cashierUserId = null, Guid? shiftId = null, CancellationToken cancellationToken = default);
+    Task ExecuteAsync(Guid receivableId, decimal paymentAmount, CancellationToken cancellationToken = default);
 
     Task ExecuteAsync(
         Guid receivableId,
         decimal paymentAmount,
         PaymentMethod paymentMethod,
         string? bankOrPlatform,
-        Guid? cashierUserId = null,
-        Guid? shiftId = null,
-        CancellationToken cancellationToken = default)
-        => ExecuteAsync(receivableId, paymentAmount, cashierUserId, shiftId, cancellationToken);
+        CancellationToken cancellationToken = default);
 
     Task<decimal> ExecuteAllAsync(
         Guid customerId,
         PaymentMethod paymentMethod,
         string? bankOrPlatform,
-        Guid? cashierUserId = null,
-        Guid? shiftId = null,
         CancellationToken cancellationToken = default);
 }

@@ -11,7 +11,7 @@ public sealed class SaleReturn
         Reason = string.Empty;
     }
 
-    public SaleReturn(Guid originalSaleId, Guid processedByUserId, string reason)
+    public SaleReturn(Guid originalSaleId, Guid processedByUserId, string reason, Guid? operationId = null)
     {
         if (originalSaleId == Guid.Empty)
         {
@@ -28,11 +28,17 @@ public sealed class SaleReturn
             throw new ArgumentException("Return reason is required.", nameof(reason));
         }
 
+        if (operationId == Guid.Empty)
+        {
+            throw new ArgumentException("Operation id cannot be empty.", nameof(operationId));
+        }
+
         Id = Guid.NewGuid();
         OriginalSaleId = originalSaleId;
         ProcessedByUserId = processedByUserId;
         ReturnedAt = DateTimeOffset.UtcNow;
         Reason = reason.Trim();
+        OperationId = operationId;
     }
 
     public Guid Id { get; private set; }
@@ -40,6 +46,7 @@ public sealed class SaleReturn
     public Guid ProcessedByUserId { get; private set; }
     public DateTimeOffset ReturnedAt { get; private set; }
     public string Reason { get; private set; }
+    public Guid? OperationId { get; private set; }
 
     /// <summary>Items included in this return. Empty means a full-return (all items from the original sale).</summary>
     public IReadOnlyCollection<SaleReturnItem> Items => _items.AsReadOnly();

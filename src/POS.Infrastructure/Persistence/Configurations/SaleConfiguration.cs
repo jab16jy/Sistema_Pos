@@ -15,6 +15,10 @@ internal sealed class SaleConfiguration : IEntityTypeConfiguration<Sale>
         builder.Property(s => s.CustomerId).HasConversion<string?>();
         builder.Property(s => s.InvoiceNumber).IsRequired().HasMaxLength(50);
         builder.Property(s => s.Status).HasConversion<int>();
+        builder.HasOne<User>()
+               .WithMany()
+               .HasForeignKey(s => s.CashierUserId)
+               .OnDelete(DeleteBehavior.Restrict);
         builder.HasMany(s => s.Items)
                .WithOne()
                .HasForeignKey(si => si.SaleId)

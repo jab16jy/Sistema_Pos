@@ -42,10 +42,9 @@ public sealed class PaymentPlatformValidationTests
         var product = MakeProduct();
         var sales = new InMemSaleRepo();
         var useCase = new CreateSaleUseCase(
-            new InMemProductRepo(product), sales, new InMemUoW());
+            new InMemProductRepo(product), sales, new InMemUoW(), authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_500m, 1_500m, "Zelle")]);
@@ -61,11 +60,10 @@ public sealed class PaymentPlatformValidationTests
     {
         var product = MakeProduct();
         var useCase = new CreateSaleUseCase(
-            new InMemProductRepo(product), new InMemSaleRepo(), new InMemUoW());
+            new InMemProductRepo(product), new InMemSaleRepo(), new InMemUoW(), authorizer: TestAuthorizer.Create());
 
         // null BankOrPlatform is allowed (Cash or non-platform payment)
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_500m, 1_500m, null)]);
@@ -80,10 +78,9 @@ public sealed class PaymentPlatformValidationTests
     {
         var product = MakeProduct();
         var useCase = new CreateSaleUseCase(
-            new InMemProductRepo(product), new InMemSaleRepo(), new InMemUoW());
+            new InMemProductRepo(product), new InMemSaleRepo(), new InMemUoW(), authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_500m, null, "Nequi")]);
@@ -99,10 +96,9 @@ public sealed class PaymentPlatformValidationTests
         var product = MakeProduct();
         var sales = new InMemSaleRepo();
         var useCase = new CreateSaleUseCase(
-            new InMemProductRepo(product), sales, new InMemUoW());
+            new InMemProductRepo(product), sales, new InMemUoW(), authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_500m, null, null)]);
@@ -119,10 +115,9 @@ public sealed class PaymentPlatformValidationTests
         var product = MakeProduct();
         var sales = new InMemSaleRepo();
         var useCase = new CreateSaleUseCase(
-            new InMemProductRepo(product), sales, new InMemUoW());
+            new InMemProductRepo(product), sales, new InMemUoW(), authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_500m, 1_500m, "Nequi")]);

@@ -355,7 +355,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     /// </summary>
     public void RequestSaleConversion(QuoteSummaryRow? row)
     {
-        if (row is null || !CanConvertToSale(row, ResolveCashierUserId()))
+        if (row is null || !CanConvertToSale(row))
         {
             return;
         }
@@ -368,29 +368,28 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     /// Converts a quote only after the view has obtained operator confirmation.
     /// </summary>
     public Task ConfirmSaleConversionAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
-        => ConvertToSaleAsync(row, ResolveCashierUserId(), null, cancellationToken);
+        => ConvertToSaleAsync(row, null, cancellationToken);
 
     /// <summary>
     /// Converts an eligible (non-converted) quote to a sale using full cash payment.
     /// This explicit overload supports non-WPF callers that have already confirmed the operation.
     /// </summary>
-    public Task ConvertToSaleAsync(QuoteSummaryRow? row, Guid cashierUserId, CancellationToken cancellationToken = default)
-        => ConvertToSaleAsync(row, cashierUserId, null, cancellationToken);
+    public Task ConvertToSaleAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
+        => ConvertToSaleAsync(row, null, cancellationToken);
 
     /// <summary>
     /// Converts an eligible (non-converted) quote to a sale with an explicit settlement plan.
     /// Pass null for settlementPlan to use the legacy full-cash-payment path.
     /// Blocked when the quote status is already Converted.
     /// </summary>
-    public async Task ConvertToSaleAsync(QuoteSummaryRow? row, Guid cashierUserId, SaleSettlementPlan? settlementPlan, CancellationToken cancellationToken = default)
+    public async Task ConvertToSaleAsync(QuoteSummaryRow? row, SaleSettlementPlan? settlementPlan, CancellationToken cancellationToken = default)
     {
         var payments = new[] { new CreateSalePaymentRequest(PaymentMethod.Cash, row?.Total ?? 0m, null, null) };
-        await ConvertToSaleAsync(row, cashierUserId, payments, settlementPlan, "Cotización convertida", cancellationToken).ConfigureAwait(true);
+        await ConvertToSaleAsync(row, payments, settlementPlan, "Cotización convertida", cancellationToken).ConfigureAwait(true);
     }
 
     private async Task ConvertToSaleAsync(
         QuoteSummaryRow? row,
-        Guid cashierUserId,
         IReadOnlyList<CreateSalePaymentRequest> payments,
         SaleSettlementPlan? settlementPlan,
         string successMessagePrefix,
@@ -401,7 +400,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
             return;
         }
 
-        if (!CanConvertToSale(row, cashierUserId))
+        if (!CanConvertToSale(row))
         {
             return;
         }
@@ -414,7 +413,6 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
             CreateSaleResult result;
             var request = new Application.DTOs.Quotes.ConvertQuoteToSaleRequest(
                 row.QuoteId,
-                cashierUserId,
                 payments);
 
             if (settlementPlan is not null)
@@ -457,10 +455,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         await LoadAsync().ConfigureAwait(true);
     }
 
-    private Guid ResolveCashierUserId()
-        => _operatorSession is { IsAuthenticated: true } ? _operatorSession.OperatorId : Guid.Empty;
-
-    private bool CanConvertToSale(QuoteSummaryRow? row, Guid cashierUserId)
+    private bool CanConvertToSale(QuoteSummaryRow? row)
     {
         if (row is null)
         {
@@ -477,7 +472,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
             return false;
         }
 
-        if (cashierUserId == Guid.Empty)
+        if (_operatorSession is not { IsAuthenticated: true })
         {
             StatusMessage = "No hay cajero autenticado para convertir la cotización.";
             return false;

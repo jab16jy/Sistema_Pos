@@ -37,7 +37,8 @@ public sealed class LoyaltySchemaRolloutTests
 
                 Product product = await TestProductFactory.CreateAndPersistAsync(db, "Tratamiento", new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
-                var sale = new Sale(Guid.NewGuid(), customer.Id);
+                User cashier = await db.Users.FirstAsync(TestContext.Current.CancellationToken);
+                var sale = new Sale(cashier.Id, customer.Id);
                 sale.AddItem(product, new Quantity(1m), Money.Zero);
                 sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(700_000m), new Money(700_000m), null));
                 sale.Complete();
@@ -92,7 +93,8 @@ public sealed class LoyaltySchemaRolloutTests
 
                 Product product = await TestProductFactory.CreateAndPersistAsync(db, "Tratamiento", new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
-                var sale = new Sale(Guid.NewGuid(), customer.Id);
+                User cashier = await db.Users.FirstAsync(TestContext.Current.CancellationToken);
+                var sale = new Sale(cashier.Id, customer.Id);
                 sale.AddItem(product, new Quantity(1m), Money.Zero);
                 sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(700_000m), new Money(700_000m), null));
                 sale.Complete();
@@ -163,7 +165,8 @@ public sealed class LoyaltySchemaRolloutTests
                 Product product = await TestProductFactory.CreateAndPersistAsync(db, "Tratamiento", new Money(300_000m), new Money(700_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
                 // Simulates historical data where the referenced Customer row no longer exists.
-                var sale = new Sale(Guid.NewGuid(), orphanedCustomerId);
+                User cashier = await db.Users.FirstAsync(TestContext.Current.CancellationToken);
+                var sale = new Sale(cashier.Id, orphanedCustomerId);
                 sale.AddItem(product, new Quantity(1m), Money.Zero);
                 sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(700_000m), new Money(700_000m), null));
                 sale.Complete();

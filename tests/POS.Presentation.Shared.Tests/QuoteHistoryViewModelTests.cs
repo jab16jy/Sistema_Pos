@@ -185,7 +185,7 @@ public sealed class QuoteHistoryViewModelTests
         await vm.LoadAsync(TestContext.Current.CancellationToken);
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
-        await vm.ConvertToSaleAsync(row, cashierUserId: Guid.NewGuid(), TestContext.Current.CancellationToken);
+        await vm.ConvertToSaleAsync(row, TestContext.Current.CancellationToken);
 
         Assert.Contains("POS-", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
@@ -236,7 +236,7 @@ public sealed class QuoteHistoryViewModelTests
         await vm.LoadAsync(TestContext.Current.CancellationToken);
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
-        await vm.ConvertToSaleAsync(row, cashierUserId: Guid.NewGuid(), TestContext.Current.CancellationToken);
+        await vm.ConvertToSaleAsync(row, TestContext.Current.CancellationToken);
 
         Assert.Contains("no hay stock suficiente", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
         Assert.NotEqual(QuoteStatus.Converted, quote.Status);
@@ -255,7 +255,7 @@ public sealed class QuoteHistoryViewModelTests
         await vm.LoadAsync(TestContext.Current.CancellationToken);
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
-        await vm.ConvertToSaleAsync(row, cashierUserId: Guid.NewGuid(), TestContext.Current.CancellationToken);
+        await vm.ConvertToSaleAsync(row, TestContext.Current.CancellationToken);
 
         Assert.Contains("ya fue convertida", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
@@ -302,10 +302,11 @@ public sealed class QuoteHistoryViewModelTests
         var vm = BuildHistoryVmWithProduct(
             [new QuoteSummary(quote.Id, "COT-009", "Cliente", null, null, 2_000m, QuoteStatus.Draft, "2026-12-31")],
             quoteRepo,
-            product);
+            product,
+            session: new FakeOperatorSession(Guid.Empty));
         await vm.LoadAsync(TestContext.Current.CancellationToken);
 
-        await vm.ConvertToSaleAsync(vm.Quotes.Single(), Guid.Empty, TestContext.Current.CancellationToken);
+        await vm.ConvertToSaleAsync(vm.Quotes.Single(), TestContext.Current.CancellationToken);
 
         Assert.Contains("cajero autenticado", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
@@ -368,6 +369,7 @@ public sealed class QuoteHistoryViewModelTests
         InMemorySaleRepository? saleRepo = null,
         ICurrentOperatorSession? session = null)
     {
+        session ??= new FakeOperatorSession(Guid.NewGuid());
         var log = new InMemoryDocumentSendLogRepository();
         var quoteEntities = BuildQuoteEntitiesFromSummaries(summaries, quoteRepo);
         var historyRepo = new StaticQuoteHistoryRepository(quoteEntities);
@@ -375,7 +377,7 @@ public sealed class QuoteHistoryViewModelTests
         var getHistoryUseCase = new GetQuoteHistoryUseCase(historyRepo);
         var convertUseCase = new ConvertQuoteToSaleUseCase(
             quoteRepo,
-            new CreateSaleUseCase(new StaticProductRepository(product), saleRepo ?? new InMemorySaleRepository(), new InMemoryUnitOfWork()),
+            new CreateSaleUseCase(new StaticProductRepository(product), saleRepo ?? new InMemorySaleRepository(), new InMemoryUnitOfWork(), authorizer: CreateAuthorizer(session?.OperatorId)),
             new InMemoryUnitOfWork());
         var sendUseCase = new SendDocumentUseCase(
             new FakePdfService(),
@@ -404,7 +406,7 @@ public sealed class QuoteHistoryViewModelTests
         var getHistoryUseCase = new GetQuoteHistoryUseCase(historyRepo);
         var convertUseCase = new ConvertQuoteToSaleUseCase(
             repo,
-            new CreateSaleUseCase(new StaticProductRepository(product), new InMemorySaleRepository(), new InMemoryUnitOfWork()),
+            new CreateSaleUseCase(new StaticProductRepository(product), new InMemorySaleRepository(), new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()),
             new InMemoryUnitOfWork());
         var sendUseCase = new SendDocumentUseCase(
             new FakePdfService(),
@@ -579,6 +581,49 @@ public sealed class QuoteHistoryViewModelTests
             => Task.FromResult<Product?>(null);
 
         public Task AddAsync(Product product, CancellationToken ct = default) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken ct = default) => Task.FromResult<IReadOnlyList<SaleReturn>>([]);
+        public Task<SaleReturn?> GetByOperationIdAsync(Guid operationId, CancellationToken ct = default) => Task.FromResult<SaleReturn?>(null);
+    }
+
+    private static POS.Application.Services.CriticalCommandAuthorizer CreateAuthorizer(Guid? operatorId = null)
+    {
+        var id = operatorId ?? Guid.NewGuid();
+        var user = new User("cashier", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+        typeof(User).GetProperty(nameof(User.Id))!.SetValue(user, id);
+        return new POS.Application.Services.CriticalCommandAuthorizer(new TestSession(id), new TestUsers(user), new TestRoles());
+    }
+
+    private sealed class TestSession(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => "cashier";
+        public bool IsAuthenticated => true;
+    }
+
+    private sealed class TestUsers(User user) : IUserRepository
+    {
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<User?>(id == user.Id ? user : null);
+        public Task<User?> GetByUsernameAsync(string username, CancellationToken ct = default) => Task.FromResult<User?>(null);
+        public Task<bool> AnyAsync(CancellationToken ct = default) => Task.FromResult(true);
+        public Task AddAsync(User value, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<User>>([user]);
+        public Task UpdateAsync(User value, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class TestRoles : IRoleRepository
+    {
+        private static readonly Role Administrator = Role.CreateSystemRole(POS.Domain.Authorization.RoleConstants.AdministratorRoleId, POS.Domain.Authorization.RoleConstants.AdministratorRoleName);
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(id == Administrator.Id ? Administrator : null);
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([Administrator]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 
     private sealed class InMemoryUnitOfWork : IUnitOfWork
@@ -639,7 +684,7 @@ public sealed class QuoteHistoryViewModelTests
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
         // Full cash payment — no deferred amount
-        await vm.ConvertToSaleAsync(row, Guid.NewGuid(), new SaleSettlementPlan(2_000m, PaymentMethod.Cash, 0m), TestContext.Current.CancellationToken);
+        await vm.ConvertToSaleAsync(row, new SaleSettlementPlan(2_000m, PaymentMethod.Cash, 0m), TestContext.Current.CancellationToken);
 
         Assert.Contains("POS-", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Empty(receivables.Stored);
@@ -656,9 +701,10 @@ public sealed class QuoteHistoryViewModelTests
         var historyRepo = new StaticQuoteHistoryRepository(quoteEntities);
 
         var getHistoryUseCase = new GetQuoteHistoryUseCase(historyRepo);
+        var session = new FakeOperatorSession(Guid.NewGuid());
         var convertUseCase = new ConvertQuoteToSaleUseCase(
             quoteRepo,
-            new CreateSaleUseCase(new StaticProductRepository(product), new InMemorySaleRepository(), new InMemoryUnitOfWork(), receivables),
+            new CreateSaleUseCase(new StaticProductRepository(product), new InMemorySaleRepository(), new InMemoryUnitOfWork(), receivables, authorizer: CreateAuthorizer(session.OperatorId)),
             new InMemoryUnitOfWork());
         var sendUseCase = new SendDocumentUseCase(
             new FakePdfService(),
@@ -667,7 +713,7 @@ public sealed class QuoteHistoryViewModelTests
             log,
             new InMemoryUnitOfWork());
 
-        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase);
+        return new QuoteHistoryViewModel(getHistoryUseCase, convertUseCase, sendUseCase, session);
     }
 
     private sealed class InMemoryReceivableRepository : IReceivableRepository

@@ -1,6 +1,7 @@
 using POS.Application.DTOs.Sales;
 using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
+using POS.Application.Services;
 using POS.Application.UseCases.Loyalty;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
@@ -28,11 +29,11 @@ public sealed class CashierHoldDiscountUseCaseTests
             null,
             null,
             null,
-            settings);
+            settings,
+            authorizer: TestAuthorizer.Create());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
             new CreateSaleRequest(
-                Guid.NewGuid(),
                 null,
                 [new CreateSaleItemRequest(product.Id, 1m, 0m, ManualDiscountPercent: 25m)],
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_000m, 1_000m, null)]),
@@ -51,7 +52,9 @@ public sealed class CashierHoldDiscountUseCaseTests
         var unitOfWork = new UnitOfWorkFake();
         var inventory = new InventoryRepositoryFake();
         var settings = new SettingsRepositoryFake(Settings(maximumDiscount: 20m));
-        Guid cashierId = Guid.NewGuid();
+        var authorizer = TestAuthorizer.Create();
+        CanonicalActor actor = await authorizer.AuthorizeAsync(POS.Domain.Authorization.PermissionKeys.Cashier.Sell, TestContext.Current.CancellationToken);
+        Guid cashierId = actor.UserId;
 
         var hold = new HoldSaleUseCase(new ProductRepositoryFake(product), sales, unitOfWork, inventory, settings);
         HeldSaleSummary held = await hold.ExecuteAsync(
@@ -69,10 +72,9 @@ public sealed class CashierHoldDiscountUseCaseTests
         Assert.Equal(SaleStatus.Draft, sales.Sales.Single().Status);
         Assert.Equal(9m, product.CurrentStock);
 
-        var complete = new CompleteHeldSaleUseCase(sales, unitOfWork, inventory: inventory);
+        var complete = new CompleteHeldSaleUseCase(sales, unitOfWork, inventory: inventory, authorizer: authorizer);
         await complete.ExecuteAsync(
             new CompleteHeldSaleRequest(
-                cashierId,
                 held.SaleId,
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 3_000m, 3_000m, null)]),
             TestContext.Current.CancellationToken);
@@ -92,6 +94,9 @@ public sealed class CashierHoldDiscountUseCaseTests
         var unitOfWork = new UnitOfWorkFake();
         var loyalty = new LoyaltyRepositoryFake(new LoyaltyRule(0.001m, 10m, 100));
         Guid cashierId = Guid.NewGuid();
+        var authorizer = TestAuthorizer.Create();
+        CanonicalActor actor = await authorizer.AuthorizeAsync(POS.Domain.Authorization.PermissionKeys.Cashier.Sell, TestContext.Current.CancellationToken);
+        cashierId = actor.UserId;
         var sale = new Sale(cashierId, customer.Id);
         sale.AddItem(product, new Quantity(1m), Money.Zero);
         sale.Hold();
@@ -101,11 +106,11 @@ public sealed class CashierHoldDiscountUseCaseTests
         var complete = new CompleteHeldSaleUseCase(
             sales,
             unitOfWork,
-            new AccumulateLoyaltyPointsUseCase(loyalty, unitOfWork));
+            new AccumulateLoyaltyPointsUseCase(loyalty, unitOfWork),
+            authorizer: authorizer);
 
         await complete.ExecuteAsync(
             new CompleteHeldSaleRequest(
-                cashierId,
                 sale.Id,
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 3_000m, 3_000m, null)]),
             TestContext.Current.CancellationToken);

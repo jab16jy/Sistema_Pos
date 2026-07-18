@@ -4,19 +4,13 @@ public sealed record RegisterPurchaseItemRequest(Guid ProductId, decimal Quantit
 
 public sealed record RegisterPurchaseRequest(
     Guid SupplierId,
-    Guid UserId,
     DateOnly EffectiveDate,
     string? InvoiceNumber,
     string? PaymentTerms,
     string PaymentMethod,
     string? Observations,
     decimal VatRate,
-    IReadOnlyList<RegisterPurchaseItemRequest> Items)
-{
-    [Obsolete("Use the auditable purchase-header overload.")]
-    public RegisterPurchaseRequest(Guid supplierId, Guid userId, IReadOnlyList<RegisterPurchaseItemRequest> items)
-        : this(supplierId, userId, DateOnly.FromDateTime(DateTime.Today), null, null, "Contado", null, 19m, items) { }
-}
+    IReadOnlyList<RegisterPurchaseItemRequest> Items);
 
 public sealed record RegisterPurchaseResult(Guid PurchaseId, Guid SupplierId, decimal TotalCost, int ItemCount, decimal VatAmount = 0m, string? InvoiceNumber = null);
 

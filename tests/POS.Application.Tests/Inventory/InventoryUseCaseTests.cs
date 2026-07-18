@@ -1,6 +1,10 @@
 using POS.Application.DTOs.Inventory;
+using POS.Application.Interfaces;
+using POS.Application.Services;
 using POS.Application.UseCases.Inventory;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
+using POS.Domain.Exceptions;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
@@ -65,10 +69,11 @@ public sealed class InventoryUseCaseTests
         var product = CreateProduct("Rice", 20m, 5m);
         var inventory = new InMemoryInventoryRepository();
         var unitOfWork = new CountingUnitOfWork();
-        var useCase = new AdjustStockUseCase(new InMemoryProductRepository(product), inventory, unitOfWork);
+        var actor = Guid.NewGuid();
+        var useCase = CreateUseCase(product, inventory, unitOfWork, actor);
 
         StockLevelResult result = await useCase.ExecuteAsync(
-            new AdjustStockRequest(product.Id, 5m, "Count correction", Guid.NewGuid()),
+            new AdjustStockRequest(product.Id, 5m, "Count correction"),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(25m, product.CurrentStock);
@@ -76,6 +81,7 @@ public sealed class InventoryUseCaseTests
         InventoryMovement movement = Assert.Single(inventory.AddedMovements);
         Assert.Equal(InventoryMovementType.Adjustment, movement.Type);
         Assert.Equal(5m, movement.Quantity);
+        Assert.Equal(actor, movement.UserId);
         Assert.Equal(1, unitOfWork.SaveCount);
     }
 
@@ -84,10 +90,10 @@ public sealed class InventoryUseCaseTests
     {
         var product = CreateProduct("Rice", 20m, 5m);
         var inventory = new InMemoryInventoryRepository();
-        var useCase = new AdjustStockUseCase(new InMemoryProductRepository(product), inventory, new CountingUnitOfWork());
+        var useCase = CreateUseCase(product, inventory, new CountingUnitOfWork(), Guid.NewGuid());
 
         await useCase.ExecuteAsync(
-            new AdjustStockRequest(product.Id, -3m, "Damaged goods", Guid.NewGuid()),
+            new AdjustStockRequest(product.Id, -3m, "Damaged goods"),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(17m, product.CurrentStock);
@@ -109,11 +115,80 @@ public sealed class InventoryUseCaseTests
             null,
             null);
         var inventory = new InMemoryInventoryRepository();
-        var useCase = new AdjustStockUseCase(new InMemoryProductRepository(product), inventory, new CountingUnitOfWork());
+        var useCase = CreateUseCase(product, inventory, new CountingUnitOfWork(), Guid.NewGuid());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(
-            new AdjustStockRequest(product.Id, 5m, "Correction", Guid.NewGuid()),
+            new AdjustStockRequest(product.Id, 5m, "Correction"),
             TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_Unauthenticated_DoesNotLoadOrMutateProduct()
+    {
+        var product = CreateProduct("Rice", 20m, 5m);
+        var products = new InMemoryProductRepository(product);
+        var inventory = new InMemoryInventoryRepository();
+        var unitOfWork = new CountingUnitOfWork();
+        var useCase = CreateUseCase(product, inventory, unitOfWork, null, products: products);
+
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() => useCase.ExecuteAsync(
+            new AdjustStockRequest(product.Id, 5m, "Count correction"),
+            TestContext.Current.CancellationToken));
+
+        Assert.Equal(0, products.GetByIdCalls);
+        Assert.Empty(inventory.AddedMovements);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task AdjustStockAsync_InactiveOrUnauthorized_DoesNotMutateProduct()
+    {
+        foreach (var (isActive, hasPermission) in new[] { (false, true), (true, false) })
+        {
+            var product = CreateProduct("Rice", 20m, 5m);
+            var products = new InMemoryProductRepository(product);
+            var inventory = new InMemoryInventoryRepository();
+            var unitOfWork = new CountingUnitOfWork();
+            var useCase = CreateUseCase(product, inventory, unitOfWork, Guid.NewGuid(), isActive, hasPermission, products);
+
+            await Assert.ThrowsAsync<UnauthorizedActionException>(() => useCase.ExecuteAsync(
+                new AdjustStockRequest(product.Id, 5m, "Count correction"),
+                TestContext.Current.CancellationToken));
+
+            Assert.Equal(20m, product.CurrentStock);
+            Assert.Equal(0, products.GetByIdCalls);
+            Assert.Empty(inventory.AddedMovements);
+            Assert.Equal(0, unitOfWork.SaveCount);
+        }
+    }
+
+    private static AdjustStockUseCase CreateUseCase(
+        Product product,
+        InMemoryInventoryRepository inventory,
+        CountingUnitOfWork unitOfWork,
+        Guid? actorId,
+        bool isActive = true,
+        bool hasPermission = true,
+        InMemoryProductRepository? products = null)
+    {
+        User? user = actorId is null ? null : new User("inventory", "hash", Guid.NewGuid());
+        if (user is not null)
+        {
+            typeof(User).GetProperty(nameof(User.Id))!.SetValue(user, actorId.Value);
+            if (!isActive)
+            {
+                user.Deactivate();
+            }
+        }
+
+        return new AdjustStockUseCase(
+            products ?? new InMemoryProductRepository(product),
+            inventory,
+            unitOfWork,
+            new CriticalCommandAuthorizer(
+                new FakeSession(actorId ?? Guid.Empty),
+                new FakeUserRepository(user),
+                new FakeRoleRepository(hasPermission)));
     }
 
     private static Product CreateProduct(string name, decimal currentStock, decimal minimumStock) => new(
@@ -154,13 +229,18 @@ public sealed class InventoryUseCaseTests
     {
         private readonly Product _product;
 
+        public int GetByIdCalls { get; private set; }
+
         public InMemoryProductRepository(Product product)
         {
             _product = product;
         }
 
         public Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-            => Task.FromResult(id == _product.Id ? _product : null);
+        {
+            GetByIdCalls++;
+            return Task.FromResult(id == _product.Id ? _product : null);
+        }
 
         public Task<Product?> GetByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
             => Task.FromResult<Product?>(null);
@@ -178,5 +258,39 @@ public sealed class InventoryUseCaseTests
             SaveCount++;
             return Task.FromResult(1);
         }
+    }
+
+    private sealed class FakeSession(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => "inventory";
+        public bool IsAuthenticated => OperatorId != Guid.Empty;
+    }
+
+    private sealed class FakeUserRepository(User? user) : IUserRepository
+    {
+        public Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(user?.Id == id ? user : null);
+
+        public Task<User?> GetByUsernameAsync(string username, CancellationToken cancellationToken = default) => Task.FromResult<User?>(null);
+        public Task<bool> AnyAsync(CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task AddAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<User>>([]);
+        public Task UpdateAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+    }
+
+    private sealed class FakeRoleRepository(bool hasPermission) : IRoleRepository
+    {
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(new Role("Inventory"));
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default)
+            => Task.FromResult(hasPermission && permissionKey == PermissionKeys.Inventory.Adjust);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 }

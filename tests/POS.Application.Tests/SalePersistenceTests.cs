@@ -32,10 +32,10 @@ public sealed class SalePersistenceTests
         var useCase = new CreateSaleUseCase(
             new ProductRepository(dbContext),
             new SaleRepository(dbContext),
-            dbContext);
+            dbContext,
+            authorizer: TestAuthorizer.Create(dbContext: dbContext));
 
         var result = await useCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 2m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 3_000m, null)]),
@@ -82,21 +82,20 @@ public sealed class SalePersistenceTests
 
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
-        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext, authorizer: TestAuthorizer.Create(dbContext: dbContext));
         await saleUseCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 2m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 3_000m, null)]),
             TestContext.Current.CancellationToken);
         await saleUseCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_400m, null, "Nequi")]),
             TestContext.Current.CancellationToken);
 
-        var heldSale = new Sale(Guid.NewGuid());
+        Guid heldSaleCashierId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var heldSale = new Sale(heldSaleCashierId);
         heldSale.Hold();
         await dbContext.Sales.AddAsync(heldSale, TestContext.Current.CancellationToken);
         await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -125,22 +124,20 @@ public sealed class SalePersistenceTests
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
         Guid cashierId = Guid.NewGuid();
         var sales = new SaleRepository(dbContext);
-        var useCase = new CreateSaleUseCase(new ProductRepository(dbContext), sales, dbContext);
+        var useCase = new CreateSaleUseCase(new ProductRepository(dbContext), sales, dbContext, authorizer: TestAuthorizer.Create(cashierId, dbContext));
 
         await useCase.ExecuteAsync(new CreateSaleRequest(
-            cashierId,
             null,
             [new CreateSaleItemRequest(product.Id, 2m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 2_800m, null)]),
             TestContext.Current.CancellationToken);
         await useCase.ExecuteAsync(new CreateSaleRequest(
-            cashierId,
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_400m, null, "Nequi")]),
             TestContext.Current.CancellationToken);
-        await useCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
+        var otherUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), sales, dbContext, authorizer: TestAuthorizer.Create(Guid.NewGuid(), dbContext));
+        await otherUseCase.ExecuteAsync(new CreateSaleRequest(
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_400m, 1_400m, null)]),
@@ -162,6 +159,49 @@ public sealed class SalePersistenceTests
     }
 
     [Fact]
+    public async Task GetShiftSalesSummaryAsync_ClassifiesPersistedReturnOutflowsWithoutInferringLegacyReturns()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        Product product = await TestProductFactory.CreateAndPersistAsync(
+            dbContext, "Sugar", new Money(1_000m), new Money(1_400m),
+            new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
+        Guid cashierId = Guid.NewGuid();
+        var sales = new SaleRepository(dbContext);
+        var useCase = new CreateSaleUseCase(new ProductRepository(dbContext), sales, dbContext, authorizer: TestAuthorizer.Create(cashierId, dbContext));
+
+        CreateSaleResult cashSale = await useCase.ExecuteAsync(new CreateSaleRequest(
+            null, [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_400m, 1_400m, null)]),
+            TestContext.Current.CancellationToken);
+        CreateSaleResult digitalSale = await useCase.ExecuteAsync(new CreateSaleRequest(
+            null, [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_400m, null, "Nequi")]),
+            TestContext.Current.CancellationToken);
+
+        Guid returnProcessorId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var cashReturn = new SaleReturn(cashSale.SaleId, returnProcessorId, "Damaged");
+        var digitalReturn = new SaleReturn(digitalSale.SaleId, returnProcessorId, "Damaged");
+        var legacyReturn = new SaleReturn(cashSale.SaleId, returnProcessorId, "Legacy");
+        await dbContext.SaleReturns.AddRangeAsync([cashReturn, digitalReturn, legacyReturn], TestContext.Current.CancellationToken);
+        await dbContext.ReturnSettlements.AddRangeAsync(
+            new ReturnSettlement(cashReturn.Id, new Money(400m), PaymentMethod.Cash),
+            new ReturnSettlement(digitalReturn.Id, new Money(500m), PaymentMethod.Transfer));
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        ShiftSalesSummaryData summary = await sales.GetShiftSalesSummaryAsync(
+            cashierId,
+            DateTimeOffset.UtcNow.AddMinutes(-1),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(400m, summary.CashReturnOutflows);
+        Assert.Equal(500m, summary.DigitalReturnOutflows);
+    }
+
+    [Fact]
     public async Task GetDashboardSummaryAsync_ExcludesLoyaltyTenderFromDigitalPaymentsAndIgnoresZeroMinimumStock()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -173,7 +213,8 @@ public sealed class SalePersistenceTests
         Product noThresholdProduct = await TestProductFactory.CreateAndPersistAsync(dbContext, "No threshold", new Money(1_000m), new Money(1_400m), new StockQuantity(0m), new StockQuantity(0m), TestContext.Current.CancellationToken);
         Product lowStockProduct = await TestProductFactory.CreateAndPersistAsync(dbContext, "Low stock", new Money(1_000m), new Money(1_400m), new StockQuantity(1m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
-        var sale = new Sale(Guid.NewGuid());
+        Guid saleCashierId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var sale = new Sale(saleCashierId);
         sale.AddItem(product, new Quantity(1m), Money.Zero);
         sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(2_000m), new Money(2_000m), null));
         sale.AddPayment(new Payment(PaymentMethod.LoyaltyPoints, new Money(800m), null, null));
@@ -205,15 +246,13 @@ public sealed class SalePersistenceTests
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
         Product lowStockProduct = await TestProductFactory.CreateAndPersistAsync(dbContext, "Low stock", new Money(1_000m), new Money(1_400m), new StockQuantity(1m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
-        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext, authorizer: TestAuthorizer.Create(dbContext: dbContext));
         await saleUseCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_400m, 1_400m, null)]),
             TestContext.Current.CancellationToken);
         CreateSaleResult yesterdaySale = await saleUseCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Transfer, 1_400m, null, "Nequi")]),
@@ -270,9 +309,9 @@ public sealed class SalePersistenceTests
         Product product = await TestProductFactory.CreateAndPersistAsync(
             dbContext, "Boundary product", new Money(1_000m), new Money(1_400m),
             new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
-        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext, authorizer: TestAuthorizer.Create(dbContext: dbContext));
         CreateSaleResult result = await saleUseCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(), null, [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            null, [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 1_400m, 1_400m, null)]),
             TestContext.Current.CancellationToken);
 
@@ -301,16 +340,19 @@ public sealed class SalePersistenceTests
 
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Monitor", new Money(200_000m), new Money(350_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
-        var customerId = Guid.NewGuid();
+        var customer = new Customer("Deferred Customer", "def-cust-" + Guid.NewGuid().ToString("N")[..8]);
+        await dbContext.Customers.AddAsync(customer, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var customerId = customer.Id;
 
         var useCase = new CreateSaleUseCase(
             new ProductRepository(dbContext),
             new SaleRepository(dbContext),
             dbContext,
-            new ReceivableRepository(dbContext));
+            new ReceivableRepository(dbContext),
+            authorizer: TestAuthorizer.Create(dbContext: dbContext));
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             customerId,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             new SaleSettlementPlan(200_000m, PaymentMethod.Transfer, 150_000m, "Nequi"));
@@ -348,14 +390,17 @@ public sealed class SalePersistenceTests
 
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Monitor", new Money(200_000m), new Money(350_000m), new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
 
-        var customerId = Guid.NewGuid();
+        var customer = new Customer("Receivable Customer", "rec-cust-" + Guid.NewGuid().ToString("N")[..8]);
+        await dbContext.Customers.AddAsync(customer, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var customerId = customer.Id;
         var useCase = new CreateSaleUseCase(
             new ProductRepository(dbContext),
             new SaleRepository(dbContext),
             dbContext,
-            new ReceivableRepository(dbContext));
+            new ReceivableRepository(dbContext),
+            authorizer: TestAuthorizer.Create(dbContext: dbContext));
         var result = await useCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             customerId,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             new SaleSettlementPlan(200_000m, PaymentMethod.Cash, 150_000m)),
@@ -383,9 +428,8 @@ public sealed class SalePersistenceTests
 
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
-        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext, authorizer: TestAuthorizer.Create(dbContext: dbContext));
         await saleUseCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 2m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 3_000m, null)]),
@@ -411,9 +455,8 @@ public sealed class SalePersistenceTests
 
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Money(1_000m), new Money(1_400m), new StockQuantity(10m), new StockQuantity(2m), TestContext.Current.CancellationToken);
 
-        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext);
+        var saleUseCase = new CreateSaleUseCase(new ProductRepository(dbContext), new SaleRepository(dbContext), dbContext, authorizer: TestAuthorizer.Create(dbContext: dbContext));
         CreateSaleResult created = await saleUseCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             null,
             [new CreateSaleItemRequest(product.Id, 2m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 2_800m, 3_000m, null)]),

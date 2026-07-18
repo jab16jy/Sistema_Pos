@@ -251,9 +251,8 @@ public sealed class NewPurchaseViewModelTests
     public async Task ConfirmPurchaseAsync_SendsValidatedRequestAndResetsFlow()
     {
         var supplierId = Guid.NewGuid();
-        var operatorId = Guid.NewGuid();
         var purchaseUseCase = new StaticRegisterPurchaseUseCase(new RegisterPurchaseResult(Guid.NewGuid(), supplierId, 26_000m, 1, 4_940m, "CMP-20260711-test"));
-        var viewModel = CreateViewModel([ActiveSupplier(supplierId)], [CatalogItem(supplierId, cost: 12_000m)], purchaseUseCase, () => operatorId);
+        var viewModel = CreateViewModel([ActiveSupplier(supplierId)], [CatalogItem(supplierId, cost: 12_000m)], purchaseUseCase);
         await viewModel.LoadAsync(TestContext.Current.CancellationToken);
         viewModel.SelectedSupplier = viewModel.Suppliers.Single();
         viewModel.SelectedCatalogItem = viewModel.CatalogSuggestions.Single();
@@ -269,7 +268,6 @@ public sealed class NewPurchaseViewModelTests
 
         Assert.NotNull(purchaseUseCase.LastRequest);
         Assert.Equal(supplierId, purchaseUseCase.LastRequest!.SupplierId);
-        Assert.Equal(operatorId, purchaseUseCase.LastRequest.UserId);
         Assert.Equal("FAC-00123", purchaseUseCase.LastRequest.InvoiceNumber);
         Assert.Equal(19m, purchaseUseCase.LastRequest.VatRate);
         RegisterPurchaseItemRequest item = Assert.Single(purchaseUseCase.LastRequest.Items);
@@ -332,8 +330,7 @@ public sealed class NewPurchaseViewModelTests
     private static NewPurchaseViewModel CreateViewModel(
         IReadOnlyList<SupplierSearchResult> suppliers,
         IReadOnlyList<SupplierCatalogItemResult>? catalogItems = null,
-        StaticRegisterPurchaseUseCase? purchaseUseCase = null,
-        Func<Guid>? currentOperatorIdProvider = null)
+        StaticRegisterPurchaseUseCase? purchaseUseCase = null)
     {
         GetEligibleSupplierCatalogUseCase? eligibleCatalog = catalogItems is null
             ? null
@@ -341,7 +338,6 @@ public sealed class NewPurchaseViewModelTests
         return new NewPurchaseViewModel(
             new SearchSuppliersUseCase(new StaticSupplierLookupQueryService(suppliers)),
             purchaseUseCase ?? new StaticRegisterPurchaseUseCase(new RegisterPurchaseResult(Guid.NewGuid(), Guid.NewGuid(), 0m, 0)),
-            currentOperatorIdProvider ?? (() => Guid.NewGuid()),
             eligibleCatalog);
     }
 
@@ -380,7 +376,7 @@ public sealed class NewPurchaseViewModelTests
         private readonly RegisterPurchaseResult _result;
 
         public StaticRegisterPurchaseUseCase(RegisterPurchaseResult result)
-            : base(new NullSupplierRepository(), new NullProductRepository(), new NullCatalogRepository(), new NullPurchaseRepository(), new InMemoryUnitOfWork())
+            : base(new NullSupplierRepository(), new NullProductRepository(), new NullCatalogRepository(), new NullPurchaseRepository(), new InMemoryUnitOfWork(), null!)
             => _result = result;
 
         public RegisterPurchaseRequest? LastRequest { get; private set; }

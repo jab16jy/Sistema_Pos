@@ -491,7 +491,7 @@ public sealed class PurchasesViewModelTests
     {
         private readonly RegisterPurchaseResult _result;
 
-        public StaticRegisterPurchaseUseCase(RegisterPurchaseResult result) : base(new NullSupplierRepository(), new NullProductRepository(), new NullPurchaseRepository(), new InMemoryUnitOfWork())
+        public StaticRegisterPurchaseUseCase(RegisterPurchaseResult result) : base(new NullSupplierRepository(), new NullProductRepository(), new NullCatalogRepository(), new NullPurchaseRepository(), new InMemoryUnitOfWork(), null!)
             => _result = result;
 
         public RegisterPurchaseRequest? LastRequest { get; private set; }
@@ -517,6 +517,16 @@ public sealed class PurchasesViewModelTests
         public Task AddAsync(Product product, CancellationToken cancellationToken = default) => Task.CompletedTask;
         public Task<Product?> GetByBarcodeAsync(string barcode, CancellationToken cancellationToken = default) => Task.FromResult<Product?>(null);
         public Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Product?>(null);
+    }
+
+    private sealed class NullCatalogRepository : IProductSupplierRepository
+    {
+        public Task AddAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<ProductSupplier?> GetAsync(Guid supplierId, Guid productId, CancellationToken cancellationToken = default) => Task.FromResult<ProductSupplier?>(null);
+        public Task<IReadOnlyList<ProductSupplier>> GetForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ProductSupplier>>([]);
+        public Task<IReadOnlyList<ProductSupplier>> GetActiveForSupplierAsync(Guid supplierId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<ProductSupplier>>([]);
+        public Task UpdateAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task RemoveAsync(ProductSupplier catalogItem, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class NullPurchaseRepository : IPurchaseRepository

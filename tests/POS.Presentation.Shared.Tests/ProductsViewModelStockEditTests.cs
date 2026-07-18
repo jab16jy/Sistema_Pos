@@ -1,7 +1,6 @@
 using POS.Application.DTOs.Products;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Categories;
-using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Products;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -44,9 +43,7 @@ public sealed class ProductsViewModelStockEditTests
             new UpdateProductUseCase(productRepo, categoryRepo, unitOfWork),
             new DeleteProductUseCase(productRepo, unitOfWork),
             new SearchProductsUseCase(queryService),
-            new SearchCategoriesUseCase(categoryRepo),
-            null,
-            new AdjustStockUseCase(productRepo, inventoryRepo, unitOfWork))
+            new SearchCategoriesUseCase(categoryRepo))
         {
             OperatorUserId = Guid.NewGuid()
         };
@@ -81,9 +78,7 @@ public sealed class ProductsViewModelStockEditTests
             new UpdateProductUseCase(productRepo, categoryRepo, unitOfWork),
             new DeleteProductUseCase(productRepo, unitOfWork),
             new SearchProductsUseCase(queryService),
-            new SearchCategoriesUseCase(categoryRepo),
-            null,
-            new AdjustStockUseCase(productRepo, inventoryRepo, unitOfWork))
+            new SearchCategoriesUseCase(categoryRepo))
         {
             OperatorUserId = Guid.NewGuid()
         };

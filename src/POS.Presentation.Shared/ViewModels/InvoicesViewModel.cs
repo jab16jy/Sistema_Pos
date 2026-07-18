@@ -29,11 +29,8 @@ public sealed class InvoicesViewModel : ViewModelBase
         "Otro"
     ];
 
-    /// <summary>
-    /// Fixed refund-type options matching the wireframe's mock select. Presentation-only: <see cref="ProcessReturnRequest"/>
-    /// has no refund-type field, so this is not persisted — flagged as a deviation in apply-progress notes.
-    /// </summary>
-    public static IReadOnlyList<string> RefundTypeOptions { get; } = ["Efectivo", "Nota crédito", "Cambio de producto"];
+    /// <summary>Return resolution options accepted by <see cref="ProcessReturnRequest"/>.</summary>
+    public static IReadOnlyList<string> RefundTypeOptions { get; } = ["Efectivo", "Tarjeta débito", "Tarjeta crédito", "Transferencia", "Cuenta por cobrar"];
 
     private readonly QuerySalesHistoryUseCase _querySalesHistory;
     private readonly ReprintReceiptUseCase _reprintReceipt;
@@ -254,7 +251,7 @@ public sealed class InvoicesViewModel : ViewModelBase
         set => SetProperty(ref _returnDescription, value ?? string.Empty);
     }
 
-    /// <summary>Presentation-only; not persisted (see <see cref="RefundTypeOptions"/> remarks).</summary>
+    /// <summary>Selected resolution for the return.</summary>
     public string RefundType
     {
         get => _refundType;
@@ -543,7 +540,15 @@ public sealed class InvoicesViewModel : ViewModelBase
                 ? ReturnReason
                 : $"{ReturnReason}: {ReturnDescription}";
 
-            var request = new ProcessReturnRequest(SelectedInvoice.SaleId, OperatorUserId, reason);
+            ReturnResolutionChoice resolution = RefundType switch
+            {
+                "Tarjeta débito" => ReturnResolutionChoice.DebitCard,
+                "Tarjeta crédito" => ReturnResolutionChoice.CreditCard,
+                "Transferencia" => ReturnResolutionChoice.Transfer,
+                "Cuenta por cobrar" => ReturnResolutionChoice.Receivable,
+                _ => ReturnResolutionChoice.Cash
+            };
+            var request = new ProcessReturnRequest(SelectedInvoice.SaleId, reason, Guid.NewGuid(), resolution);
 
             await _processReturn.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
             Message = $"Devolución de {SelectedInvoice.InvoiceNumber} registrada. El stock ha sido restaurado.";

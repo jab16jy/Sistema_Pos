@@ -27,8 +27,6 @@ public sealed class CustomersViewModel : ViewModelBase
     private readonly GetLoyaltyBalanceUseCase? _getLoyaltyBalance;
     private readonly IReceivableQueryService? _receivableQuery;
     private readonly IApplyReceivablePaymentUseCase? _applyPayment;
-    private readonly ICurrentOperatorSession? _session;
-    private readonly ICashierShiftRepository? _cashierShifts;
     private bool _isReloading;
     private CancellationTokenSource? _customerLoadingCts;
     private CustomerSearchResult? _selectedCustomer;
@@ -72,8 +70,6 @@ public sealed class CustomersViewModel : ViewModelBase
         _getLoyaltyBalance = getLoyaltyBalance;
         _receivableQuery = receivableQuery;
         _applyPayment = applyPayment;
-        _session = session;
-        _cashierShifts = cashierShifts;
 
         SettlementPaymentMethods =
         [
@@ -593,22 +589,12 @@ public sealed class CustomersViewModel : ViewModelBase
 
         try
         {
-            Guid? cashierUserId = _session?.IsAuthenticated == true ? _session.OperatorId : null;
-            Guid? shiftId = null;
-            if (cashierUserId.HasValue && _cashierShifts is not null)
-            {
-                var openShift = await _cashierShifts.GetOpenShiftAsync(cashierUserId.Value, cancellationToken).ConfigureAwait(true);
-                shiftId = openShift?.Id;
-            }
-
             decimal abonado = AbonoAmount;
             await _applyPayment.ExecuteAsync(
                 SelectedReceivable.ReceivableId,
                 abonado,
                 SelectedSettlementPaymentMethod.Method,
                 string.IsNullOrWhiteSpace(SelectedSettlementBankOrPlatform) ? null : SelectedSettlementBankOrPlatform,
-                cashierUserId,
-                shiftId,
                 cancellationToken).ConfigureAwait(true);
             AbonoAmount = 0m;
             await OpenHistoryAsync(cancellationToken).ConfigureAwait(true); // refresh SALDO + open receivables first
@@ -635,20 +621,10 @@ public sealed class CustomersViewModel : ViewModelBase
 
         try
         {
-            Guid? cashierUserId = _session?.IsAuthenticated == true ? _session.OperatorId : null;
-            Guid? shiftId = null;
-            if (cashierUserId.HasValue && _cashierShifts is not null)
-            {
-                var openShift = await _cashierShifts.GetOpenShiftAsync(cashierUserId.Value, cancellationToken).ConfigureAwait(true);
-                shiftId = openShift?.Id;
-            }
-
             decimal abonado = await _applyPayment.ExecuteAllAsync(
                 SelectedCustomer.Id,
                 SelectedSettlementPaymentMethod.Method,
                 string.IsNullOrWhiteSpace(SelectedSettlementBankOrPlatform) ? null : SelectedSettlementBankOrPlatform,
-                cashierUserId,
-                shiftId,
                 cancellationToken).ConfigureAwait(true);
             AbonoAmount = 0m;
             await OpenHistoryAsync(cancellationToken).ConfigureAwait(true);

@@ -1,6 +1,9 @@
 using POS.Application.DTOs.Inventory;
+using POS.Application.Services;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
+using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
 
@@ -11,23 +14,25 @@ public sealed class AdjustStockUseCase
     private readonly IProductRepository _products;
     private readonly IInventoryRepository _inventory;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly CriticalCommandAuthorizer? _authorizer;
 
     public AdjustStockUseCase(
         IProductRepository products,
         IInventoryRepository inventory,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        CriticalCommandAuthorizer? authorizer = null)
     {
         _products = products;
         _inventory = inventory;
         _unitOfWork = unitOfWork;
+        _authorizer = authorizer;
     }
 
     public async Task<StockLevelResult> ExecuteAsync(AdjustStockRequest request, CancellationToken cancellationToken = default)
     {
-        if (request.UserId == Guid.Empty)
-        {
-            throw new ArgumentException("Stock adjustment requires an operator for audit traceability.", nameof(request));
-        }
+        CriticalCommandAuthorizer authorizer = _authorizer
+            ?? throw new UnauthorizedActionException(PermissionKeys.Inventory.Adjust);
+        CanonicalActor actor = await authorizer.AuthorizeAsync(PermissionKeys.Inventory.Adjust, cancellationToken).ConfigureAwait(false);
 
         if (string.IsNullOrWhiteSpace(request.Reason))
         {
@@ -46,7 +51,7 @@ public sealed class AdjustStockUseCase
             InventoryMovementType.Adjustment,
             request.Delta,
             request.Reason,
-            request.UserId);
+            actor.UserId);
 
         await _inventory.AddMovementAsync(movement, cancellationToken).ConfigureAwait(false);
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

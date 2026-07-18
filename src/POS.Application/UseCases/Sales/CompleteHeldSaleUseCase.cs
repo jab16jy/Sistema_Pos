@@ -1,7 +1,9 @@
 using POS.Application.DTOs.Sales;
 using POS.Application.Common;
 using POS.Application.DTOs.Loyalty;
+using POS.Application.Services;
 using POS.Application.UseCases.Loyalty;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
@@ -17,6 +19,7 @@ public sealed class CompleteHeldSaleUseCase
     private readonly IReceivableRepository? _receivables;
     private readonly ISettingsRepository? _settings;
     private readonly IInventoryRepository? _inventory;
+    private readonly CriticalCommandAuthorizer? _authorizer;
 
     public CompleteHeldSaleUseCase(
         ISaleRepository sales,
@@ -24,7 +27,8 @@ public sealed class CompleteHeldSaleUseCase
         AccumulateLoyaltyPointsUseCase? accumulatePoints = null,
         IReceivableRepository? receivables = null,
         ISettingsRepository? settings = null,
-        IInventoryRepository? inventory = null)
+        IInventoryRepository? inventory = null,
+        CriticalCommandAuthorizer? authorizer = null)
     {
         _sales = sales;
         _unitOfWork = unitOfWork;
@@ -32,16 +36,20 @@ public sealed class CompleteHeldSaleUseCase
         _receivables = receivables;
         _settings = settings;
         _inventory = inventory;
+        _authorizer = authorizer;
     }
 
     public async Task<CreateSaleResult> ExecuteAsync(
         CompleteHeldSaleRequest request,
         CancellationToken cancellationToken = default)
     {
+        CriticalCommandAuthorizer authorizer = _authorizer
+            ?? throw new POS.Domain.Exceptions.UnauthorizedActionException(PermissionKeys.Cashier.Sell);
+        CanonicalActor actor = await authorizer.AuthorizeAsync(PermissionKeys.Cashier.Sell, cancellationToken).ConfigureAwait(false);
         Sale sale = await _sales.GetByIdAsync(request.SaleId, cancellationToken)
             ?? throw new InvalidOperationException("The held sale was not found.");
 
-        if (sale.CashierUserId != request.CashierUserId)
+        if (sale.CashierUserId != actor.UserId)
         {
             throw new UnauthorizedAccessException("The held sale belongs to another cashier.");
         }

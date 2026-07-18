@@ -90,14 +90,22 @@ public sealed class Receivable
 
     public void ReduceForReturn(Money refundAmount)
     {
-        if (IsCancelled || refundAmount.Amount <= 0m)
+        if (IsCancelled)
         {
-            return;
+            throw new InvalidOperationException("Cancelled receivables cannot be reconciled.");
         }
 
-        OutstandingBalance = refundAmount.Amount >= OutstandingBalance.Amount
-            ? Money.Zero
-            : OutstandingBalance - refundAmount;
+        if (refundAmount.Amount <= 0m)
+        {
+            throw new InvalidOperationException("Reconciliation amount must be greater than zero.");
+        }
+
+        if (refundAmount.Amount > OutstandingBalance.Amount)
+        {
+            throw new InvalidOperationException("Reconciliation amount exceeds outstanding balance.");
+        }
+
+        OutstandingBalance = refundAmount.Amount == OutstandingBalance.Amount ? Money.Zero : OutstandingBalance - refundAmount;
         Version++;
     }
 }

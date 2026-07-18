@@ -62,8 +62,8 @@ public sealed class ConvertQuoteToSaleUseCase
             i.UnitsPerPresentation)).ToList();
 
         CreateSaleRequest saleRequest = settlementPlan is not null
-            ? new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, settlementPlan) { IsQuoteConversion = true }
-            : new CreateSaleRequest(request.CashierUserId, quote.CustomerId, saleItems, request.Payments) { IsQuoteConversion = true };
+            ? new CreateSaleRequest(quote.CustomerId, saleItems, settlementPlan) { IsQuoteConversion = true }
+            : new CreateSaleRequest(quote.CustomerId, saleItems, request.Payments) { IsQuoteConversion = true };
 
         CreateSaleResult? saleResult = null;
         await _unitOfWork.ExecuteInTransactionAsync(async transactionCt =>

@@ -111,6 +111,7 @@ public sealed class Product
     public bool TracksInventory { get; private set; }
     public decimal TaxRate { get; private set; }
     public bool IsActive { get; private set; }
+    public int Version { get; private set; }
 
     /// <summary>Units contained in one box, when the product can also be sold by the box. Null = unit-only.</summary>
     public int? UnitsPerBox { get; private set; }

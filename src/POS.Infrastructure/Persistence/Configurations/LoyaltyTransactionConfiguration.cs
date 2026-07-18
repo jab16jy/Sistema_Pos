@@ -15,10 +15,13 @@ internal sealed class LoyaltyTransactionConfiguration : IEntityTypeConfiguration
         builder.Property(t => t.Type).HasConversion<int>();
         builder.Property(t => t.SaleId).HasConversion<string?>();
         builder.Property(t => t.CompensatesTransactionId).HasConversion<string?>();
+        builder.Property(t => t.SaleReturnId).HasConversion<string?>();
         builder.Property(t => t.Description).HasMaxLength(500);
 
         builder.HasIndex(t => t.LoyaltyAccountId);
-        builder.HasIndex(t => t.CompensatesTransactionId).IsUnique();
+        builder.HasIndex(t => new { t.CompensatesTransactionId, t.SaleReturnId })
+               .IsUnique()
+               .HasFilter("\"CompensatesTransactionId\" IS NOT NULL AND \"SaleReturnId\" IS NOT NULL");
 
         builder.HasOne<LoyaltyAccount>()
                .WithMany()

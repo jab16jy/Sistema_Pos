@@ -148,7 +148,8 @@ public sealed class CustomerUseCaseTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var customer = new Customer("Ana Gomez", "123");
         var otherCustomer = new Customer("No Sales", "999");
-        var sale = new Sale(Guid.NewGuid(), customer.Id);
+        Guid cashierId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var sale = new Sale(cashierId, customer.Id);
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Sugar", new Domain.ValueObjects.Money(1_000m), new Domain.ValueObjects.Money(1_400m), new Domain.ValueObjects.StockQuantity(10m), new Domain.ValueObjects.StockQuantity(2m), TestContext.Current.CancellationToken);
         sale.AddItem(product, new Domain.ValueObjects.Quantity(2m), Domain.ValueObjects.Money.Zero);
         sale.AddPayment(new Payment(Domain.Enums.PaymentMethod.Cash, new Domain.ValueObjects.Money(2_800m), new Domain.ValueObjects.Money(3_000m)));
@@ -176,7 +177,8 @@ public sealed class CustomerUseCaseTests
         await using var dbContext = CreateDbContext(connection);
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var customer = new Customer("Ana Gomez", "123");
-        var draftSale = new Sale(Guid.NewGuid(), customer.Id);
+        Guid cashierId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var draftSale = new Sale(cashierId, customer.Id);
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Rice", new Domain.ValueObjects.Money(1_000m), new Domain.ValueObjects.Money(1_500m), new Domain.ValueObjects.StockQuantity(10m), new Domain.ValueObjects.StockQuantity(2m), TestContext.Current.CancellationToken);
         draftSale.AddItem(product, new Domain.ValueObjects.Quantity(1m), Domain.ValueObjects.Money.Zero);
         await dbContext.Customers.AddAsync(customer, TestContext.Current.CancellationToken);
@@ -202,7 +204,8 @@ public sealed class CustomerUseCaseTests
         await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
         var customer = new Customer("Ana Gomez", "123");
         Product product = await TestProductFactory.CreateAndPersistAsync(dbContext, "Rice", new Domain.ValueObjects.Money(1_000m), new Domain.ValueObjects.Money(1_500m), new Domain.ValueObjects.StockQuantity(10m), new Domain.ValueObjects.StockQuantity(2m), TestContext.Current.CancellationToken);
-        var sale = new Sale(Guid.NewGuid(), customer.Id);
+        Guid cashierId = await TestCashierFactory.CreateAndPersistAsync(dbContext, TestContext.Current.CancellationToken);
+        var sale = new Sale(cashierId, customer.Id);
         sale.AddItem(product, new Domain.ValueObjects.Quantity(1m), Domain.ValueObjects.Money.Zero);
         var quote = new Quote("COT-2026-0001", "Ana Gomez", 30, customer.Id, "+57 300 123 4567", "ana@example.com");
         quote.AddItem(new QuoteItem(product.Id, product.Name, new Domain.ValueObjects.Money(1_500m), new Domain.ValueObjects.Quantity(2m), 0m));

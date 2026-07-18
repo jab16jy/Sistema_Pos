@@ -34,11 +34,20 @@ public sealed class ReceivableTests
     }
 
     [Fact]
-    public void ReduceForReturn_CapsAtOutstandingBalance()
+    public void ReduceForReturn_ExceedingOutstandingBalance_IsRejected()
     {
         var receivable = new Receivable(Guid.NewGuid(), Guid.NewGuid(), new Money(10_000m));
 
-        receivable.ReduceForReturn(new Money(20_000m));
+        Assert.Throws<InvalidOperationException>(() => receivable.ReduceForReturn(new Money(20_000m)));
+        Assert.Equal(10_000m, receivable.OutstandingBalance.Amount);
+    }
+
+    [Fact]
+    public void ReduceForReturn_MatchingOutstandingBalance_PaysOff()
+    {
+        var receivable = new Receivable(Guid.NewGuid(), Guid.NewGuid(), new Money(10_000m));
+
+        receivable.ReduceForReturn(new Money(10_000m));
 
         Assert.Equal(0m, receivable.OutstandingBalance.Amount);
         Assert.True(receivable.IsPaidOff);

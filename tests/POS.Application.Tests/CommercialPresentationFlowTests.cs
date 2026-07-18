@@ -32,14 +32,13 @@ public sealed class CommercialPresentationFlowTests
         var products = new SingleProductRepository(product);
         var sales = new SaleRepository();
         var unitOfWork = new TrackingUnitOfWork();
-        var createSale = new CreateSaleUseCase(products, sales, unitOfWork);
+        var createSale = new CreateSaleUseCase(products, sales, unitOfWork, authorizer: TestAuthorizer.Create());
         var quotes = new SingleQuoteRepository(quote);
         var useCase = new ConvertQuoteToSaleUseCase(quotes, createSale, unitOfWork);
 
         await useCase.ExecuteAsync(
             new ConvertQuoteToSaleRequest(
                 quote.Id,
-                Guid.NewGuid(),
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 99_000m, 99_000m, null)]),
             TestContext.Current.CancellationToken);
 
@@ -71,14 +70,17 @@ public sealed class CommercialPresentationFlowTests
             inventory,
             returns,
             new TrackingUnitOfWork(),
-            new SingleUserRepository(administrator));
+            new SingleUserRepository(administrator),
+            receivables: new ReturnResolutionRepository(),
+            authorizer: TestAuthorizer.Create());
 
         await useCase.ExecuteAsync(
             new ProcessReturnRequest(
                 sale.Id,
-                administrator.Id,
                 "Customer requested a return",
-                [new ReturnLineRequest(Assert.Single(sale.Items).Id, 1, 110_000m)]),
+                Guid.NewGuid(),
+                ReturnResolutionChoice.Cash,
+                [new ReturnLineRequest(Assert.Single(sale.Items).Id, 1)]),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(12m, product.CurrentStock);
@@ -266,6 +268,18 @@ public sealed class CommercialPresentationFlowTests
 
         public Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<SaleReturn>>(Returns.Where(saleReturn => saleReturn.OriginalSaleId == saleId).ToList());
+
+        public Task<SaleReturn?> GetByOperationIdAsync(Guid operationId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(Returns.SingleOrDefault(saleReturn => saleReturn.OperationId == operationId));
+    }
+
+    private sealed class ReturnResolutionRepository : IReceivableRepository
+    {
+        public Task AddAsync(Receivable receivable, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<Receivable?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Receivable?>(null);
+        public Task UpdateAsync(Receivable receivable, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task AddReturnSettlementAsync(ReturnSettlement settlement, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task AddReturnReceivableReconciliationAsync(ReturnReceivableReconciliation reconciliation, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class SingleUserRepository(User user) : IUserRepository

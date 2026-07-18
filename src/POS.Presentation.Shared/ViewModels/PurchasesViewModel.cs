@@ -56,7 +56,7 @@ public sealed class PurchasesViewModel : ViewModelBase
         SaveSupplierUseCase saveSupplier,
         SearchSuppliersUseCase searchSuppliers,
         RegisterPurchaseUseCase registerPurchase,
-        Func<Guid> currentOperatorIdProvider,
+        Func<Guid>? currentOperatorIdProvider = null,
         IProductLookupService? productLookup = null,
         GetSupplierCatalogUseCase? catalog = null,
         GetEligibleSupplierCatalogUseCase? eligibleCatalog = null,
@@ -73,7 +73,7 @@ public sealed class PurchasesViewModel : ViewModelBase
         _deleteSupplier = deleteSupplier;
         _deleteCatalogItem = deleteCatalogItem;
         _history = history;
-        NewPurchase = new NewPurchaseViewModel(searchSuppliers, registerPurchase, currentOperatorIdProvider, eligibleCatalog);
+        NewPurchase = new NewPurchaseViewModel(searchSuppliers, registerPurchase, eligibleCatalog);
         NewPurchase.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(NewPurchaseViewModel.Message)) Message = NewPurchase.Message;

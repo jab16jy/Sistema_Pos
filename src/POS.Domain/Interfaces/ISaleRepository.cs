@@ -43,7 +43,9 @@ public sealed record ShiftSalesSummaryData(
     decimal CashPayments,
     decimal DigitalPayments,
     decimal ReceivableSettlementCash = 0m,
-    decimal ReceivableSettlementDigital = 0m)
+    decimal ReceivableSettlementDigital = 0m,
+    decimal CashReturnOutflows = 0m,
+    decimal DigitalReturnOutflows = 0m)
 {
     public static ShiftSalesSummaryData Empty { get; } = new(0m, 0m, 0m);
 }

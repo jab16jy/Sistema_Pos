@@ -28,11 +28,10 @@ public sealed class CreateSaleWithRedemptionTests
         // 1 pt = 100 COP → 10 pts = 1_000 COP discount; balance 50; no minimum.
         var loyalty = new InMemLoyaltyRepo(new LoyaltyAccount(customerId), new LoyaltyRule(0.001m, 100m, 0), balance: 50);
         var redeem = new RedeemLoyaltyPointsUseCase(loyalty, uow);
-        var useCase = new CreateSaleUseCase(products, sales, uow, null, null, redeem);
+        var useCase = new CreateSaleUseCase(products, sales, uow, null, null, redeem, authorizer: TestAuthorizer.Create());
 
         // Cashier pays the net (10_000 - 1_000 = 9_000); the loyalty tender covers the rest.
         var result = await useCase.ExecuteAsync(new CreateSaleRequest(
-            Guid.NewGuid(),
             customerId,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             [new CreateSalePaymentRequest(PaymentMethod.Cash, 9_000m, 9_000m, null)],
@@ -65,10 +64,9 @@ public sealed class CreateSaleWithRedemptionTests
         var sales = new InMemSaleRepo();
         var uow = new CountingUoW();
         var loyalty = new InMemLoyaltyRepo(new LoyaltyAccount(customerId), new LoyaltyRule(0.001m, 100m, 0), balance: 50);
-        var useCase = new CreateSaleUseCase(new InMemProductRepo(product), sales, uow, null, null, new RedeemLoyaltyPointsUseCase(loyalty, uow));
+        var useCase = new CreateSaleUseCase(new InMemProductRepo(product), sales, uow, null, null, new RedeemLoyaltyPointsUseCase(loyalty, uow), authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
-            Guid.NewGuid(),
             customerId,
             [new CreateSaleItemRequest(product.Id, 1m, 0m)],
             new SaleSettlementPlan(5_000m, PaymentMethod.Cash, 5_000m))
@@ -93,11 +91,10 @@ public sealed class CreateSaleWithRedemptionTests
         var sales = new InMemSaleRepo();
         var uow = new CountingUoW();
         var loyalty = new InMemLoyaltyRepo(new LoyaltyAccount(customerId), new LoyaltyRule(0.001m, 100m, 0), balance: 50);
-        var useCase = new CreateSaleUseCase(new InMemProductRepo(product), sales, uow, null, null, new RedeemLoyaltyPointsUseCase(loyalty, uow));
+        var useCase = new CreateSaleUseCase(new InMemProductRepo(product), sales, uow, null, null, new RedeemLoyaltyPointsUseCase(loyalty, uow), authorizer: TestAuthorizer.Create());
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => useCase.ExecuteAsync(new CreateSaleRequest(
-                Guid.NewGuid(),
                 customerId,
                 [new CreateSaleItemRequest(product.Id, 1m, 0m)],
                 [new CreateSalePaymentRequest(PaymentMethod.Cash, 50m, 50m, null)],

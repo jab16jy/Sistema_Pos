@@ -88,12 +88,11 @@ public sealed class QuoteExpirationTests
         var productRepo = new FakeProductRepository(new[] { product });
         var saleRepo = new FakeSaleRepository();
         var uow = new FakeUnitOfWork();
-        var createSale = new CreateSaleUseCase(productRepo, saleRepo, uow);
+        var createSale = new CreateSaleUseCase(productRepo, saleRepo, uow, authorizer: TestAuthorizer.Create());
         var useCase = new ConvertQuoteToSaleUseCase(quoteRepo, createSale, uow);
 
         var request = new ConvertQuoteToSaleRequest(
             quote.Id,
-            Guid.NewGuid(),
             new[] { new CreateSalePaymentRequest(PaymentMethod.Cash, 3_000m, 3_000m, null) });
 
         // WHEN
@@ -124,12 +123,11 @@ public sealed class QuoteExpirationTests
         var productRepo = new FakeProductRepository(new[] { product });
         var saleRepo = new FakeSaleRepository();
         var uow = new FakeUnitOfWork();
-        var createSale = new CreateSaleUseCase(productRepo, saleRepo, uow);
+        var createSale = new CreateSaleUseCase(productRepo, saleRepo, uow, authorizer: TestAuthorizer.Create());
         var useCase = new ConvertQuoteToSaleUseCase(quoteRepo, createSale, uow);
 
         var request = new ConvertQuoteToSaleRequest(
             quote.Id,
-            Guid.NewGuid(),
             new[] { new CreateSalePaymentRequest(PaymentMethod.Cash, 3_000m, 3_000m, null) });
 
         // WHEN & THEN

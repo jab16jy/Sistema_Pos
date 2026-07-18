@@ -46,6 +46,9 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                .HasColumnName("box_price");
         builder.Property(p => p.TaxRate)
                .HasColumnName("tax_rate");
+        builder.Property(p => p.Version)
+               .IsConcurrencyToken()
+               .HasDefaultValue(0);
         builder.HasOne<Category>()
                .WithMany()
                .HasForeignKey(p => p.CategoryId)

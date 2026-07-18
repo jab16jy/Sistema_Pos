@@ -27,7 +27,7 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
 
         var completedSales = await _dbContext.Sales
             .AsNoTracking()
-            .Where(s => s.Status == SaleStatus.Completed)
+            .Where(s => s.Status == SaleStatus.Completed || s.Status == SaleStatus.Returned)
             .Select(s => new
             {
                 s.Items,
@@ -80,6 +80,23 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
             .Where(rs => rs.Method != PaymentMethod.Cash)
             .Sum(rs => rs.Amount.Amount);
         decimal expectedDrawerCash = saleCashCollected + receivableSettlementCash;
+
+        var returnSettlementRows = await _dbContext.ReturnSettlements
+            .AsNoTracking()
+            .Select(rs => new { rs.Amount, rs.PaymentMethod, rs.SettledAt })
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        var filteredReturnSettlements = returnSettlementRows
+            .Where(rs => rs.SettledAt >= request.From && rs.SettledAt <= request.To)
+            .ToList();
+
+        decimal cashReturnOutflows = filteredReturnSettlements
+            .Where(rs => rs.PaymentMethod == PaymentMethod.Cash)
+            .Sum(rs => rs.Amount.Amount);
+        decimal digitalReturnOutflows = filteredReturnSettlements
+            .Where(rs => rs.PaymentMethod is PaymentMethod.DebitCard or PaymentMethod.CreditCard or PaymentMethod.Transfer)
+            .Sum(rs => rs.Amount.Amount);
 
         // Generate chart points based on the date range
         var chartPoints = new List<OperationalReportChartPointDto>();
@@ -162,6 +179,8 @@ public sealed class OperationalReportQueryService : IOperationalReportQueryServi
             ReceivableSettlementDigital: receivableSettlementDigital,
             ReceivableSettlementTotal: receivableSettlementTotal,
             ExpectedDrawerCash: expectedDrawerCash,
-            ChartPoints: chartPoints);
+            ChartPoints: chartPoints,
+            CashReturnOutflows: cashReturnOutflows,
+            DigitalReturnOutflows: digitalReturnOutflows);
     }
 }

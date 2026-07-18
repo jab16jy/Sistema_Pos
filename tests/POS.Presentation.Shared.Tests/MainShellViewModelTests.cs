@@ -2,6 +2,7 @@ using POS.Domain.Interfaces;
 using POS.Application.DTOs.Inventory;
 using POS.Application.DTOs.Products;
 using POS.Application.Interfaces;
+using POS.Application.Services;
 using POS.Application.UseCases.Categories;
 using POS.Application.UseCases.Inventory;
 using POS.Application.UseCases.Products;
@@ -261,8 +262,8 @@ public sealed class MainShellViewModelTests
         var viewModel = new MainShellViewModel
         {
             Shifts = new ShiftsViewModel(
-                new StartShiftUseCase(shiftRepository, new NoOpUnitOfWork()),
-                new CloseShiftUseCase(shiftRepository, new StaticSaleSummaryRepository(new DashboardSummaryData(0m, 0m, 0m, 0, 0)), new NoOpUnitOfWork()),
+                new StartShiftUseCase(shiftRepository, new NoOpUnitOfWork(), CreateAuthorizer()),
+                new CloseShiftUseCase(shiftRepository, new StaticSaleSummaryRepository(new DashboardSummaryData(0m, 0m, 0m, 0, 0)), new NoOpUnitOfWork(), CreateAuthorizer()),
                 new GetShiftsUseCase(shiftRepository),
                 new GetShiftSalesSummaryUseCase(new StaticSaleSummaryRepository(new DashboardSummaryData(0m, 0m, 0m, 0, 0))),
                 new StubOperatorSession(),
@@ -326,6 +327,22 @@ public sealed class MainShellViewModelTests
         public Guid OperatorId { get; } = Guid.NewGuid();
         public string Username { get; } = "cajero";
         public bool IsAuthenticated => true;
+    }
+
+    private static CriticalCommandAuthorizer CreateAuthorizer()
+        => new(new StubOperatorSession(), new StubUserRepository(), new StubRoleRepository());
+
+    private sealed class StubRoleRepository : IRoleRepository
+    {
+        public Task<Role?> GetByIdAsync(Guid id, CancellationToken ct = default) => Task.FromResult<Role?>(new Role("Cashier"));
+        public Task<Role?> GetByNameAsync(string name, CancellationToken ct = default) => Task.FromResult<Role?>(null);
+        public Task<IReadOnlyList<Role>> GetAllAsync(CancellationToken ct = default) => Task.FromResult<IReadOnlyList<Role>>([]);
+        public Task<bool> HasPermissionAsync(Guid roleId, string permissionKey, CancellationToken ct = default) => Task.FromResult(true);
+        public Task<IReadOnlySet<string>> GetPermissionKeysAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult<IReadOnlySet<string>>(new HashSet<string>());
+        public Task AddAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task UpdateAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
+        public Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default) => Task.CompletedTask;
+        public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
     }
 
     private static ProductsViewModel CreateProductsViewModel(

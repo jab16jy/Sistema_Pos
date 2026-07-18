@@ -140,6 +140,53 @@ public sealed class InvoicesViewModelTests
     }
 
     [Fact]
+    public async Task ProcessReturnAsync_GeneratesOperationKeyAndPassesSelectedResolution()
+    {
+        var product = new Product(
+            "Rice",
+            Guid.NewGuid(),
+            new POS.Domain.ValueObjects.Money(1_000m),
+            new POS.Domain.ValueObjects.Money(1_500m),
+            new POS.Domain.ValueObjects.StockQuantity(10m),
+            new POS.Domain.ValueObjects.StockQuantity(0m));
+        var sale = new Sale(Guid.NewGuid());
+        sale.AddItem(product, new POS.Domain.ValueObjects.Quantity(1m), POS.Domain.ValueObjects.Money.Zero);
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new POS.Domain.ValueObjects.Money(1_500m), new POS.Domain.ValueObjects.Money(1_500m)));
+        sale.Complete();
+        var returns = new EmptySaleReturnRepository();
+        var receivables = new RecordingReceivableRepository();
+        var session = new FakeSession();
+        var viewModel = new InvoicesViewModel(
+            new QuerySalesHistoryUseCase(new StaticSalesHistoryQueryService(new SaleHistoryResult(
+                sale.Id, "FAC-RETURN", null, null, SaleStatus.Completed, DateTimeOffset.Now, 1_500m))),
+            new ReprintReceiptUseCase(new EmptySaleRepository(), new NoOpPrintService()),
+            new ProcessReturnUseCase(
+                new SingleSaleRepository(sale),
+                new SingleProductRepository(product),
+                new RecordingInventoryRepository(),
+                returns,
+                new NoOpUnitOfWork(),
+                new EmptyUserRepository(),
+                receivables: receivables,
+                authorizer: CreateAuthorizer(session.OperatorId)),
+            session)
+        {
+            OperatorUserId = session.OperatorId
+        };
+
+        await viewModel.LoadFirstPageAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedInvoice = viewModel.FilteredInvoices.Single();
+        viewModel.ReturnReason = "Otro";
+        viewModel.RefundType = "Transferencia";
+
+        await viewModel.ProcessReturnAsync(TestContext.Current.CancellationToken);
+
+        SaleReturn saleReturn = Assert.Single(returns.Events);
+        Assert.NotEqual(Guid.Empty, saleReturn.OperationId);
+        Assert.Equal(PaymentMethod.Transfer, Assert.Single(receivables.Settlements).PaymentMethod);
+    }
+
+    [Fact]
     public async Task CancelSaleAsync_WhenAdministratorCancelsSelectedInvoice_UpdatesMessageAndRestoresStock()
     {
         var product = new Product(
@@ -440,11 +487,34 @@ public sealed class InvoicesViewModelTests
 
     private sealed class EmptySaleReturnRepository : ISaleReturnRepository
     {
-        public Task AddAsync(SaleReturn saleReturn, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public List<SaleReturn> Events { get; } = [];
 
-        public Task<SaleReturn?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<SaleReturn?>(null);
+        public Task AddAsync(SaleReturn saleReturn, CancellationToken cancellationToken = default)
+        {
+            Events.Add(saleReturn);
+            return Task.CompletedTask;
+        }
 
-        public Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SaleReturn>>([]);
+        public Task<SaleReturn?> GetBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult(Events.SingleOrDefault(saleReturn => saleReturn.OriginalSaleId == saleId));
+
+        public Task<IReadOnlyList<SaleReturn>> GetAllBySaleIdAsync(Guid saleId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<SaleReturn>>(Events.Where(saleReturn => saleReturn.OriginalSaleId == saleId).ToList());
+
+        public Task<SaleReturn?> GetByOperationIdAsync(Guid operationId, CancellationToken cancellationToken = default) => Task.FromResult(Events.SingleOrDefault(saleReturn => saleReturn.OperationId == operationId));
+    }
+
+    private sealed class RecordingReceivableRepository : IReceivableRepository
+    {
+        public List<ReturnSettlement> Settlements { get; } = [];
+
+        public Task AddAsync(Receivable receivable, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<Receivable?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult<Receivable?>(null);
+        public Task UpdateAsync(Receivable receivable, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task AddReturnSettlementAsync(ReturnSettlement settlement, CancellationToken cancellationToken = default)
+        {
+            Settlements.Add(settlement);
+            return Task.CompletedTask;
+        }
+        public Task AddReturnReceivableReconciliationAsync(ReturnReceivableReconciliation reconciliation, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class EmptyUserRepository : IUserRepository
@@ -516,5 +586,20 @@ public sealed class InvoicesViewModelTests
         public IReadOnlySet<string> Permissions { get; } = permissions ?? new HashSet<string>();
         public bool IsAuthenticated => true;
         public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
+    }
+
+    private static POS.Application.Services.CriticalCommandAuthorizer CreateAuthorizer(Guid? operatorId = null)
+    {
+        var id = operatorId ?? Guid.NewGuid();
+        var user = new User("admin", "hash", POS.Domain.Authorization.RoleConstants.AdministratorRoleId);
+        typeof(User).GetProperty(nameof(User.Id))!.SetValue(user, id);
+        return new POS.Application.Services.CriticalCommandAuthorizer(new FakeSessionForAuth(id), new SingleUserRepository(user), new SystemRoleRepository());
+    }
+
+    private sealed class FakeSessionForAuth(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => "admin";
+        public bool IsAuthenticated => true;
     }
 }

@@ -22,5 +22,15 @@ internal sealed class SaleReturnItemConfiguration : IEntityTypeConfiguration<Sal
         builder.Property(i => i.RefundAmount)
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("RefundAmount");
+
+        builder.HasOne<SaleItem>()
+               .WithMany()
+               .HasForeignKey(i => i.SaleItemId)
+               .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Product>()
+               .WithMany()
+               .HasForeignKey(i => i.ProductId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }
