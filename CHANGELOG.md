@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.20.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.19.0...v1.20.0) (2026-07-22)
+
+
+### Features
+
+* **printing:** mirror PDF item discounts, gross total, and loyalty tier on thermal receipt ([74ccc37](https://github.com/jab16jy/Sistema_Pos/commit/74ccc3756340dad52d65a90af6745eb44d117e1f))
+
+
+### Bug Fixes
+
+* **integrity:** fix return outflow attribution, expected drawer cash, and migration preflight cleanup ([5709718](https://github.com/jab16jy/Sistema_Pos/commit/570971863149401ac874253163dcce9b8bb0b938))
+
 ## [1.19.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.18.1...v1.19.0) (2026-07-18)
 
 
