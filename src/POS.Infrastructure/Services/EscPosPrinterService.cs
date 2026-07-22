@@ -78,7 +78,14 @@ public sealed partial class EscPosPrinterService : IPrintService
                 .ConfigureAwait(false)
             : null;
 
-        var receiptBytes = BuildReceiptBytes(sale, settings, customer);
+        LoyaltyTier? loyaltyTier = customer?.LoyaltyTierId is Guid tierId
+            ? await _dbContext.LoyaltyTiers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == tierId, cancellationToken)
+                .ConfigureAwait(false)
+            : null;
+
+        var receiptBytes = BuildReceiptBytes(sale, settings, customer, loyaltyTier);
         ThermalPrinterTarget target = await _printerSettingsResolver.ResolveRequiredAsync(cancellationToken).ConfigureAwait(false);
 
         if (target.SupportsDirectEscPos)
@@ -90,7 +97,7 @@ public sealed partial class EscPosPrinterService : IPrintService
         await PrintViaProcessAsync(target, saleId, cancellationToken).ConfigureAwait(false);
     }
 
-    private static byte[] BuildReceiptBytes(Sale sale, BusinessSettings? settings, Customer? customer)
+    private static byte[] BuildReceiptBytes(Sale sale, BusinessSettings? settings, Customer? customer, LoyaltyTier? loyaltyTier)
     {
         var buf = new List<byte>();
         void Write(byte[] b) => buf.AddRange(b);
@@ -143,6 +150,8 @@ public sealed partial class EscPosPrinterService : IPrintService
                 WriteLine($"Email: {customer.Email}");
             if (!string.IsNullOrWhiteSpace(customer.Address))
                 WriteLine($"Direccion: {customer.Address}");
+            if (loyaltyTier is not null)
+                WriteLine($"Nivel: {loyaltyTier.Name} ({loyaltyTier.DiscountPercent:N0}% dcto)");
             WriteLine();
         }
 
@@ -163,6 +172,8 @@ public sealed partial class EscPosPrinterService : IPrintService
             var line = $"{name,-20}{qty,5} {subtotal,6}";
             WriteLine(line);
             WriteLine($"  {PresentationLabel(item.Presentation, item.UnitsPerPresentation)} · Vr unit: {FormatCurrency(item.UnitPrice.Amount)}");
+            if (item.Discount.Amount > 0)
+                WriteLine($"  Dcto: -{FormatCurrency(item.Discount.Amount)}");
             WriteLine();
         }
 
@@ -170,6 +181,13 @@ public sealed partial class EscPosPrinterService : IPrintService
         WriteLine();
 
         // ── Totals ───────────────────────────────────────────────────────────
+        var itemDiscountTotal = sale.Items.Sum(i => i.Discount.Amount);
+        if (itemDiscountTotal > 0)
+        {
+            var grossTotal = sale.Items.Sum(i => i.UnitPrice.Amount * i.Quantity);
+            WriteLine($"{"Total bruto:",-20}{FormatCurrency(grossTotal),12}");
+            WriteLine($"{"Desc. productos:",-20}{$"-{FormatCurrency(itemDiscountTotal)}",12}");
+        }
         WriteLine($"{"Base gravable:",-20}{FormatCurrency(sale.TaxableBaseTotal().Amount),12}");
         WriteLine($"{"IVA incluido:",-20}{FormatCurrency(sale.TaxTotal().Amount),12}");
         Write(EscPosCommands.BoldOn);
