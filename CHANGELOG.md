@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.20.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.20.0...v1.20.1) (2026-07-27)
+
+
+### Bug Fixes
+
+* **migrations:** repair legacy data instead of blocking or deleting it on upgrade ([9cfafcb](https://github.com/jab16jy/Sistema_Pos/commit/9cfafcbc8d583e45509363b8c05510616bbc2bc2))
+
 ## [1.20.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.19.0...v1.20.0) (2026-07-22)
 
 
