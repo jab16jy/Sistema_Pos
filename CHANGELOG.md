@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.21.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.20.1...v1.21.0) (2026-07-27)
+
+
+### Features
+
+* **printing:** enlarge thermal receipt body text and 6cm tear-off feed ([f4a9ed7](https://github.com/jab16jy/Sistema_Pos/commit/f4a9ed758ab78c261deb31c4a98df3eb5bf54f63))
+
 ## [1.20.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.20.0...v1.20.1) (2026-07-27)
 
 
