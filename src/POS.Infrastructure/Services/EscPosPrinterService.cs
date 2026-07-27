@@ -17,8 +17,23 @@ namespace POS.Infrastructure.Services;
 /// </summary>
 public sealed partial class EscPosPrinterService : IPrintService
 {
-    private static readonly byte[] CmdDoubleSize = [0x1D, 0x21, 0x11];
-    private static readonly byte[] CmdNormalSize = [0x1D, 0x21, 0x00];
+    // ponytail: ESC/POS scales characters by whole multiples only, so "slightly bigger" is double
+    // height with single width — the one step up that keeps 12-dot wide glyphs and therefore the
+    // 32-character line layout every total and separator below is aligned against. Double width
+    // would halve the line to 16 characters and wreck all of it.
+    private static readonly byte[] CmdHeadlineSize = [0x1D, 0x21, 0x11];
+    private static readonly byte[] CmdBodySize = [0x1D, 0x21, 0x01];
+
+    // Body glyphs are 48 dots tall at double height; the printer's ~30 dot default line feed would
+    // clip them. 60 keeps the same character-height-to-leading ratio as the default, a little airier.
+    private const byte BodyLineSpacingDots = 60;
+
+    // The customer tears here and keeps the strip, so this is a physical measurement, not a line count.
+    private const int TrailingFeedMillimetres = 60;
+
+    /// <summary>Characters per line on 58 mm paper in Font A. Every separator, total and item row
+    /// below is laid out against this; exceeding it wraps the overflow onto its own line.</summary>
+    private const int ReceiptColumns = 32;
 
     private static readonly CultureInfo CopCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -103,10 +118,12 @@ public sealed partial class EscPosPrinterService : IPrintService
         void Write(byte[] b) => buf.AddRange(b);
         void WriteText(string text) => buf.AddRange(EscPosCommands.Encode(text));
         void WriteLine(string text = "") => WriteText(text + "\n");
-        void Separator() => WriteLine("--------------------------------");
+        void Separator() => WriteLine(new string('-', ReceiptColumns));
 
         Write(EscPosCommands.Init);
         Write(EscPosCommands.SelectCodePageWpc1252);
+        Write(EscPosCommands.SetLineSpacing(BodyLineSpacingDots));
+        Write(CmdBodySize);
 
         // ── Logo ────────────────────────────────────────────────────────────
         Write(EscPosCommands.CenterAlign);
@@ -117,10 +134,14 @@ public sealed partial class EscPosPrinterService : IPrintService
         }
 
         // ── Header ──────────────────────────────────────────────────────────
+        // Double width halves the line to 16 characters, so a longer business name would wrap and
+        // strand a fragment of itself on the next line. Those keep the double height only — still
+        // clearly the headline against the regular-weight body, but within the paper.
+        string businessName = settings?.BusinessName ?? "POS Local";
         Write(EscPosCommands.BoldOn);
-        Write(CmdDoubleSize);
-        WriteLine(settings?.BusinessName ?? "POS Local");
-        Write(CmdNormalSize);
+        Write(businessName.Length <= ReceiptColumns / 2 ? CmdHeadlineSize : CmdBodySize);
+        WriteLine(businessName);
+        Write(CmdBodySize);
         Write(EscPosCommands.BoldOff);
 
         if (!string.IsNullOrWhiteSpace(settings?.BusinessAddress))
@@ -161,16 +182,19 @@ public sealed partial class EscPosPrinterService : IPrintService
         // ── Line items ───────────────────────────────────────────────────────
         foreach (var item in sale.Items)
         {
-            var name = item.ProductName.Length > 20
-                ? item.ProductName[..20]
-                : item.ProductName;
-
             var qty = $"x{item.Quantity.ToString("0.##", CopCulture)}";
             var subtotal = FormatCurrency(item.Subtotal().Amount);
 
-            // 32-char line: name(20) qty(5) price(7)
-            var line = $"{name,-20}{qty,5} {subtotal,6}";
-            WriteLine(line);
+            // The old fixed layout gave the amount a 6-character slot, but any line total from
+            // $10.000 up needs 7 ("$35.150") and pushed the line to 33 characters, wrapping a lone
+            // digit onto the next line. Quantity and amount are the whole point of the row, so they
+            // are never truncated; the product name absorbs whatever width is left.
+            int nameWidth = Math.Max(ReceiptColumns - qty.Length - subtotal.Length - 2, 8);
+            var name = item.ProductName.Length > nameWidth
+                ? item.ProductName[..nameWidth]
+                : item.ProductName;
+
+            WriteLine($"{name.PadRight(nameWidth)} {qty} {subtotal}");
             WriteLine($"  {PresentationLabel(item.Presentation, item.UnitsPerPresentation)} · Vr unit: {FormatCurrency(item.UnitPrice.Amount)}");
             if (item.Discount.Amount > 0)
                 WriteLine($"  Dcto: -{FormatCurrency(item.Discount.Amount)}");
@@ -230,19 +254,14 @@ public sealed partial class EscPosPrinterService : IPrintService
         // ── Footer ───────────────────────────────────────────────────────────
         Write(EscPosCommands.CenterAlign);
         WriteLine();
-        WriteLine("Acumula y canjea puntos de lealtad");
-        WriteLine("en cada compra.");
+        WriteLine("Acumula y canjea puntos");
+        WriteLine("de lealtad en cada compra.");
         WriteLine();
         WriteLine("¡Gracias por su compra!");
         WriteLine("Conserve su recibo.");
         WriteLine("Generado en EPOS");
 
-        // ponytail: ~10 blank feeds ≈ 4cm at the printer's default ~4mm line spacing — leaves
-        // room for the customer's verification strip. Tune the count if your printer's default
-        // line spacing differs.
-        for (int i = 0; i < 10; i++)
-            WriteLine();
-
+        Write(EscPosCommands.FeedDots(TrailingFeedMillimetres * EscPosCommands.DotsPerMillimetre));
         Write(EscPosCommands.FullCut);
 
         return [.. buf];
