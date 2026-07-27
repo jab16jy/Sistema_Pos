@@ -109,7 +109,45 @@ public sealed class IdentityReceivableMigrationTests
     }
 
     [Fact]
-    public async Task PreExistingOrphanIdentityAndReceivableReferences_AreCleanedUp_WhenAddForeignKeysMigrationRuns()
+    public async Task PreExistingDuplicateUsernames_AreRenamed_SoTheUniqueIndexCanBeCreated()
+    {
+        const string MigrationBeforeUniqueUsername = "20260717040451_AddReturnResolution";
+
+        await using var connection = await OpenConnectionAsync();
+        await using var dbContext = CreateDbContext(connection);
+
+        // AddUniqueIndexToUsername sorts before AddReturnResolution, so migrating to the latter and
+        // dropping the index reproduces a legacy database that never had the uniqueness constraint.
+        await dbContext.GetService<IMigrator>().MigrateAsync(MigrationBeforeUniqueUsername);
+        await dbContext.Database.ExecuteSqlRawAsync("""DROP INDEX "IX_Users_Username";""");
+        await dbContext.Database.ExecuteSqlRawAsync($"""
+            DELETE FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260716183752_AddUniqueIndexToUsername';
+            """);
+
+        var role = Role.CreateSystemRole(Guid.NewGuid(), "Admin");
+        dbContext.Roles.Add(role);
+        await dbContext.SaveChangesAsync();
+
+        Guid originalUserId = Guid.NewGuid();
+        Guid laterUserId = Guid.NewGuid();
+        await dbContext.Database.ExecuteSqlRawAsync($"""
+            INSERT INTO "Users" ("Id", "Username", "PasswordHash", "RoleId", "IsActive", "CreatedAt")
+            VALUES ('{originalUserId}', 'carlos', 'hash-original', '{role.Id}', 1, '2026-01-01 00:00:00');
+            INSERT INTO "Users" ("Id", "Username", "PasswordHash", "RoleId", "IsActive", "CreatedAt")
+            VALUES ('{laterUserId}', 'carlos', 'hash-later', '{role.Id}', 1, '2026-02-01 00:00:00');
+            """);
+
+        await dbContext.Database.MigrateAsync();
+
+        // Both accounts survive: the older one keeps the name it has been logging in with, and the
+        // newer one is renamed just enough to be unique.
+        Assert.Equal(2, await dbContext.Users.CountAsync());
+        Assert.Equal("carlos", (await dbContext.Users.SingleAsync(user => user.Id == originalUserId)).Username);
+        Assert.Equal($"carlos_{laterUserId}", (await dbContext.Users.SingleAsync(user => user.Id == laterUserId)).Username);
+    }
+
+    [Fact]
+    public async Task PreExistingOrphanIdentityReferences_KeepTheirHistory_UnderARecreatedPlaceholderUser()
     {
         const string MigrationBeforeIdentityForeignKeys = "20260716183752_AddUniqueIndexToUsername";
 
@@ -151,12 +189,20 @@ public sealed class IdentityReceivableMigrationTests
             VALUES ('{Guid.NewGuid()}', '{missingCustomerId}', '{missingSaleId}', 100, 100, 0, 0, '2026-01-01');
             """);
 
-        // Migrate past AddIdentityAndReceivableForeignKeys — should clean up dangling rows instead of throwing FK failure
+        // Migrate past AddIdentityAndReceivableForeignKeys — should repair the dangling references
+        // instead of either throwing an FK failure or deleting the financial history behind them.
         await dbContext.Database.MigrateAsync();
 
-        Assert.Equal(0, await dbContext.Sales.CountAsync());
-        Assert.Equal(0, await dbContext.SaleReturns.CountAsync());
-        Assert.Equal(0, await dbContext.CashierShifts.CountAsync());
+        // The missing user is recreated, so the sale, return and shift survive the FK rebuild.
+        Assert.Equal(1, await dbContext.Sales.CountAsync());
+        Assert.Equal(1, await dbContext.SaleReturns.CountAsync());
+        Assert.Equal(1, await dbContext.CashierShifts.CountAsync());
+
+        User placeholder = await dbContext.Users.SingleAsync(user => user.Id == missingUserId);
+        Assert.False(placeholder.IsActive);
+        Assert.Contains(missingUserId.ToString(), placeholder.Username);
+
+        // The receivable still goes: neither its customer nor its sale exists to attach it to.
         Assert.Equal(0, await dbContext.Receivables.CountAsync());
     }
 }

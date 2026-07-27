@@ -19,6 +19,31 @@ namespace POS.Infrastructure.Migrations
                 WHERE "ProductId" NOT IN (SELECT "Id" FROM "PRODUCTS");
                 """);
 
+            // ponytail: recover the reference before deleting the row. Returns created before
+            // AddSaleItemIdToSaleReturnItem got the literal '00000000-...' default, and dropping them
+            // is not neutral: SaleReturn treats an empty Items collection as a FULL return of the
+            // original sale (SaleReturn.cs), so deleting the lines silently turns every partial
+            // return into a total one. The line still carries ProductId and the return still points
+            // at its original sale, which is enough to find the sale item again.
+            migrationBuilder.Sql(
+                """
+                UPDATE "SALE_RETURN_ITEMS"
+                SET "SaleItemId" = (
+                    SELECT si."Id"
+                    FROM "SALE_ITEMS" si
+                    JOIN "SALE_RETURNS" sr ON sr."Id" = "SALE_RETURN_ITEMS"."SaleReturnId"
+                    WHERE si."SaleId" = sr."OriginalSaleId"
+                      AND si."ProductId" = "SALE_RETURN_ITEMS"."ProductId"
+                    LIMIT 1)
+                WHERE "SaleItemId" NOT IN (SELECT "Id" FROM "SALE_ITEMS")
+                  AND EXISTS (
+                    SELECT 1
+                    FROM "SALE_ITEMS" si
+                    JOIN "SALE_RETURNS" sr ON sr."Id" = "SALE_RETURN_ITEMS"."SaleReturnId"
+                    WHERE si."SaleId" = sr."OriginalSaleId"
+                      AND si."ProductId" = "SALE_RETURN_ITEMS"."ProductId");
+                """);
+
             migrationBuilder.Sql(
                 """
                 DELETE FROM "SALE_RETURN_ITEMS"

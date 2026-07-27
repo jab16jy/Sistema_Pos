@@ -18,13 +18,61 @@ public static class DatabaseSchemaRollout
     {
         using IServiceScope scope = serviceProvider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await IntegrityPreflight.VerifyAsync(dbContext, cancellationToken);
+        await SnapshotBeforePendingMigrationsAsync(scope.ServiceProvider, dbContext, cancellationToken);
         await dbContext.Database.MigrateAsync(cancellationToken);
+        // Runs after MigrateAsync, not before: the orphan cleanup that makes a legacy database pass
+        // this check lives inside the migrations themselves, so gating on it first meant a dirty
+        // database could never reach the migration that repairs it. This is the post-migration
+        // verification instead — nothing that survives the cleanup may violate a relationship.
+        await IntegrityPreflight.VerifyAsync(dbContext, cancellationToken);
         await NormalizeLegacyUnixTimestampDateTimesAsync(dbContext, cancellationToken);
         await SeedDefaultRolesAndAdminAsync(scope.ServiceProvider, dbContext, cancellationToken);
         await SeedDefaultLoyaltyProgramAsync(dbContext, cancellationToken);
         await BackfillMissingLoyaltyPointsAsync(dbContext, cancellationToken);
         await CatalogWorkbookBootstrapper.SeedAsync(dbContext, cancellationToken);
+    }
+
+    /// <summary>
+    /// Snapshots the database before an upgrade applies pending migrations.
+    /// </summary>
+    /// <remarks>
+    /// The only backup tool this app has lives behind the login screen, so once an upgrade fails at
+    /// startup the user can no longer take one — the moment a snapshot is still possible is right
+    /// here, before the first migration touches anything. Only runs when migrations are actually
+    /// pending, so a normal launch on an up-to-date database costs nothing. A failure to snapshot
+    /// aborts startup on purpose: migrating irreplaceable data with no way back is the worse outcome.
+    /// </remarks>
+    private static async Task SnapshotBeforePendingMigrationsAsync(IServiceProvider sp, AppDbContext dbContext, CancellationToken ct)
+    {
+        // A database with no applied migrations is a brand-new install with nothing to lose, and
+        // opening the connection above already created its (empty) file — snapshotting it would
+        // leave a useless backup next to every fresh installation.
+        IEnumerable<string> applied = await dbContext.Database.GetAppliedMigrationsAsync(ct).ConfigureAwait(false);
+        if (!applied.Any())
+        {
+            return;
+        }
+
+        IEnumerable<string> pending = await dbContext.Database.GetPendingMigrationsAsync(ct).ConfigureAwait(false);
+        if (!pending.Any())
+        {
+            return;
+        }
+
+        var backupService = sp.GetService<IManualBackupService>();
+        string? databasePath = dbContext.Database.GetDbConnection().DataSource;
+        if (backupService is null || string.IsNullOrWhiteSpace(databasePath) || !File.Exists(databasePath))
+        {
+            return;
+        }
+
+        string? directory = Path.GetDirectoryName(databasePath);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            return;
+        }
+
+        await backupService.CreateBackupAsync(directory, ct).ConfigureAwait(false);
     }
 
     private static async Task SeedDefaultRolesAndAdminAsync(IServiceProvider sp, AppDbContext dbContext, CancellationToken ct)
