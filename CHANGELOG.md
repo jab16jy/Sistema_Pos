@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.21.0...v1.22.0) (2026-07-28)
+
+
+### Features
+
+* **ui/quotes/roles:** role-based dashboard visibility, single quote validation, quote annulment & return styling ([ec5cf50](https://github.com/jab16jy/Sistema_Pos/commit/ec5cf50040c7f3b4cc43255e5ae017be51060f4a))
+
 ## [1.21.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.20.1...v1.21.0) (2026-07-27)
 
 
