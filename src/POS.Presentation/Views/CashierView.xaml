@@ -645,60 +645,77 @@
                   Padding="12"
                   Margin="0,0,0,12"
                   Background="{StaticResource BrushSurfaceContainer}"
-                  Visibility="{Binding HasCustomerLoyaltyInfo, Converter={StaticResource BoolToVisibilityConverter}}">
+                  Visibility="{Binding HasLoyaltyPanel, Converter={StaticResource BoolToVisibilityConverter}}">
             <StackPanel>
-              <TextBlock Text="Canjear puntos" Style="{StaticResource CashHint}" FontWeight="Medium" />
-              <TextBlock Text="{Binding CustomerLoyaltyInfo}"
-                         Style="{StaticResource CashHint}"
-                         TextWrapping="Wrap"
-                         Margin="0,2,0,6" />
-              <Grid>
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBox Text="{Binding LoyaltyPointsToRedeem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         Tag="Puntos a canjear..."
-                         Height="34"
-                         VerticalContentAlignment="Center" />
-                <Button Grid.Column="1"
-                        Content="Canjear"
-                        Style="{StaticResource PrimaryButton}"
-                        Command="{Binding ApplyRedemptionCommand}"
-                        Margin="8,0,0,0"
-                        Padding="10,4" />
-                <Button Grid.Column="2"
-                        Content="Cancelar"
-                        Style="{StaticResource GhostButton}"
-                        Command="{Binding CancelRedemptionCommand}"
-                        Margin="8,0,0,0"
-                        Padding="10,4" />
-              </Grid>
-              <Grid Margin="0,8,0,0"
-                    Visibility="{Binding HasLoyaltyDiscount, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="Descuento por puntos" FontWeight="Medium" />
-                <TextBlock Grid.Column="1"
-                           Text="{Binding LoyaltyDiscountText}"
-                           FontWeight="SemiBold"
-                           Foreground="{StaticResource BrushPrimary}" />
-              </Grid>
-              <Grid Margin="0,8,0,0"
-                    Visibility="{Binding HasTierDiscount, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding TierBenefitText}" FontWeight="Medium" />
-                <TextBlock Grid.Column="1"
-                           Text="{Binding TierDiscountText}"
-                           FontWeight="SemiBold"
-                           Foreground="{StaticResource BrushPrimary}" />
-              </Grid>
+              <!-- Tier benefits lead: redemption is one optional benefit, not the headline. -->
+              <StackPanel Visibility="{Binding HasCurrentTier, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Text="Beneficios del cliente" Style="{StaticResource CashHint}" FontWeight="Medium" />
+                <Grid Margin="0,2,0,0">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="{Binding TierBenefitText}" FontWeight="Medium" TextWrapping="Wrap" />
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding TierDiscountText}"
+                             FontWeight="SemiBold"
+                             Foreground="{StaticResource BrushPrimary}"
+                             Visibility="{Binding HasTierDiscount, Converter={StaticResource BoolToVisibilityConverter}}" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding TierBenefitLines}" Margin="0,4,0,0"
+                              Visibility="{Binding HasTierBenefitLines, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding StringFormat='· {0}'}" Style="{StaticResource CashHint}" TextWrapping="Wrap" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+
+              <!-- Redemption: only rendered when the customer's tier opts into it. -->
+              <StackPanel Margin="0,10,0,0"
+                          Visibility="{Binding HasCustomerLoyaltyInfo, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Text="Canjear puntos" Style="{StaticResource CashHint}" FontWeight="Medium" />
+                <TextBlock Text="{Binding CustomerLoyaltyInfo}"
+                           Style="{StaticResource CashHint}"
+                           TextWrapping="Wrap"
+                           Margin="0,2,0,6" />
+                <Grid>
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBox Text="{Binding LoyaltyPointsToRedeem, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                           Tag="Puntos a canjear..."
+                           Height="34"
+                           VerticalContentAlignment="Center" />
+                  <Button Grid.Column="1"
+                          Content="Canjear"
+                          Style="{StaticResource PrimaryButton}"
+                          Command="{Binding ApplyRedemptionCommand}"
+                          Margin="8,0,0,0"
+                          Padding="10,4" />
+                  <Button Grid.Column="2"
+                          Content="Cancelar"
+                          Style="{StaticResource GhostButton}"
+                          Command="{Binding CancelRedemptionCommand}"
+                          Margin="8,0,0,0"
+                          Padding="10,4" />
+                </Grid>
+                <Grid Margin="0,8,0,0"
+                      Visibility="{Binding HasLoyaltyDiscount, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <TextBlock Text="Descuento por puntos" FontWeight="Medium" />
+                  <TextBlock Grid.Column="1"
+                             Text="{Binding LoyaltyDiscountText}"
+                             FontWeight="SemiBold"
+                             Foreground="{StaticResource BrushPrimary}" />
+                </Grid>
+              </StackPanel>
             </StackPanel>
           </Border>
 

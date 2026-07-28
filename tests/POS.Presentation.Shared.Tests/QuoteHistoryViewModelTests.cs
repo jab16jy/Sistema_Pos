@@ -293,6 +293,34 @@ public sealed class QuoteHistoryViewModelTests
     }
 
     [Fact]
+    public async Task CancelQuoteCommand_FiresConfirmationRequested_AndConfirmsCancellation()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-010", product.Id);
+        quoteRepo.Store(quote);
+
+        var cancelUseCase = new CancelQuoteUseCase(quoteRepo, new InMemoryUnitOfWork());
+        var vm = new QuoteHistoryViewModel(
+            new GetQuoteHistoryUseCase(quoteRepo),
+            new ConvertQuoteToSaleUseCase(quoteRepo, new CreateSaleUseCase(new StaticProductRepository(product), new InMemorySaleRepository(), new InMemoryUnitOfWork()), new InMemoryUnitOfWork()),
+            new SendDocumentUseCase(new FakePdfService(), new FakeEmailService(), new FakeWhatsAppService(), new InMemoryDocumentSendLogRepository(), new InMemoryUnitOfWork()),
+            cancelQuoteUseCase: cancelUseCase);
+
+        var row = new QuoteSummaryRow(quote.Id, "COT-010", "Cliente Test", null, null, 100m, "$100", QuoteStatus.Active, "Activa", "2026-12-31");
+        QuoteSummaryRow? confirmationRequest = null;
+        vm.QuoteCancellationConfirmationRequested += (_, requestedRow) => confirmationRequest = requestedRow;
+
+        vm.CancelQuoteCommand.Execute(row);
+
+        Assert.Same(row, confirmationRequest);
+        Assert.Equal(QuoteStatus.Draft, quote.Status);
+
+        await vm.ConfirmQuoteCancellationAsync(row, TestContext.Current.CancellationToken);
+        Assert.Equal(QuoteStatus.Cancelled, quote.Status);
+    }
+
+    [Fact]
     public async Task ConvertToSale_WithEmptyCashierId_BlocksBeforeCreatingSale()
     {
         var quoteRepo = new InMemoryQuoteRepository();

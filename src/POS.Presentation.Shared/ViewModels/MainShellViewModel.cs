@@ -159,6 +159,8 @@ public sealed class MainShellViewModel : ViewModelBase
 
     public ObservableCollection<ModuleNavigationItem> AdminHubModules { get; }
 
+    public bool HasAdminHubModules => AdminHubModules.Count > 0;
+
     /// <summary>
     /// Usuarios + Auditoría: already-implemented modules (UserManagementView/AuditLogView) that were
     /// unreachable from any shell entry point after the Phase 1 IA rework (funcbar has 5 items,
@@ -166,6 +168,8 @@ public sealed class MainShellViewModel : ViewModelBase
     /// <see cref="AdminHubModules"/> so the 7-module hub-grid contract used by existing tests stays unchanged.
     /// </summary>
     public ObservableCollection<ModuleNavigationItem> AdminHubExtraModules { get; }
+
+    public bool HasAdminHubExtraModules => AdminHubExtraModules.Count > 0;
 
     public ObservableCollection<DashboardMetric> Metrics { get; }
 
@@ -297,6 +301,22 @@ public sealed class MainShellViewModel : ViewModelBase
                     if (Purchases is not null)
                     {
                         RunSafe(Purchases.LoadAsync(), ex => OperatorMessage = $"Error al cargar Compras: {ex.Message}");
+                    }
+                }
+
+                if (IsUsersSelected)
+                {
+                    if (UserManagement is not null)
+                    {
+                        RunSafe(UserManagement.LoadAsync(), ex => OperatorMessage = $"Error al cargar Usuarios: {ex.Message}");
+                    }
+                }
+
+                if (IsRolesSelected)
+                {
+                    if (RolesManagement is not null)
+                    {
+                        RunSafe(RolesManagement.LoadAsync(), ex => OperatorMessage = $"Error al cargar Roles: {ex.Message}");
                     }
                 }
             }
@@ -445,6 +465,7 @@ public sealed class MainShellViewModel : ViewModelBase
     public bool IsAdminSectionSelected => IsAdminHubSelected || AdminHubModuleKeys.Contains(SelectedModule.Key) || AdminHubExtraModuleKeys.Contains(SelectedModule.Key);
 
     public bool IsAdminSubmoduleSelected =>
+        FuncbarModules.Any(m => m.Key == "admin") &&
         (AdminHubModuleKeys.Contains(SelectedModule.Key) || AdminHubExtraModuleKeys.Contains(SelectedModule.Key)) &&
         SelectedModule.Key != "admin";
 

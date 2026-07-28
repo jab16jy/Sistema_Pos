@@ -9,8 +9,16 @@ namespace POS.Presentation.SmokeTests;
 
 public sealed class CashierViewBindingSmokeTests
 {
+    /// <summary>
+    /// Loads the views whose markup pulls resources out of App.xaml, so bad XAML or an unresolvable
+    /// StaticResource fails here instead of at the till.
+    /// </summary>
+    /// <remarks>
+    /// Every view shares one test because WPF allows a single <see cref="Application"/> per
+    /// AppDomain — a second test constructing its own App throws before it can assert anything.
+    /// </remarks>
     [Fact]
-    public void CashierView_LoadsPresentationToggleBindings()
+    public void Views_LoadPresentationBindings()
     {
         Exception? exception = null;
         var thread = new Thread(() =>
@@ -19,21 +27,18 @@ public sealed class CashierViewBindingSmokeTests
             {
                 var application = new App();
                 application.InitializeComponent();
-                var view = new CashierView
+
+                var cashier = new CashierView
                 {
                     DataContext = new CashierViewModel(new PrototypeProductLookupService())
                 };
-                var window = new Window
-                {
-                    Content = view,
-                    Width = 800,
-                    Height = 600,
-                    ShowInTaskbar = false
-                };
+                ShowAndClose(cashier);
 
-                window.Show();
-                window.UpdateLayout();
-                window.Close();
+                // No DataContext: binding paths do not throw, but the tier benefit list and the
+                // redemption checkbox added to the tier editor fail to load if their markup or
+                // resources are wrong.
+                ShowAndClose(new LoyaltyView());
+
                 application.Shutdown();
             }
             catch (Exception ex)
@@ -47,5 +52,20 @@ public sealed class CashierViewBindingSmokeTests
         thread.Join();
 
         Assert.Null(exception);
+    }
+
+    private static void ShowAndClose(UIElement view)
+    {
+        var window = new Window
+        {
+            Content = view,
+            Width = 1200,
+            Height = 800,
+            ShowInTaskbar = false
+        };
+
+        window.Show();
+        window.UpdateLayout();
+        window.Close();
     }
 }

@@ -7,9 +7,13 @@ using POS.Application.Interfaces;
 using POS.Application.UseCases.Settings;
 using POS.Domain.Authorization;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
+using POS.Domain.Interfaces;
 using POS.Presentation.Shared.Commands;
 
 namespace POS.Presentation.Shared.ViewModels;
+
+public sealed record SystemAlertItem(string Message, bool IsWarning);
 
 public sealed class SettingsViewModel : ViewModelBase
 {
@@ -19,6 +23,8 @@ public sealed class SettingsViewModel : ViewModelBase
     private readonly IWhatsAppService? _whatsAppService;
     private readonly IInstalledPrinterProvider? _printerProvider;
     private readonly ICurrentOperatorSession? _session;
+    private readonly IUserRepository? _userRepository;
+    private readonly ICashierShiftRepository? _shiftRepository;
 
     // Virtual/system printers that are never a receipt target — excluded from auto-detection
     // (still listed, so the user can pick one manually if they ever need to).
@@ -36,6 +42,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private ManualBackupMetadata? _lastSuccessfulBackup;
     private string _currencyCode = "COP";
     private decimal _maximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent;
+    private decimal _maximumPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier;
     private decimal _maximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent;
     private string _message = "Carga la configuración del negocio o realiza un backup.";
 
@@ -50,13 +57,18 @@ public sealed class SettingsViewModel : ViewModelBase
     private string _whatsAppStatus = "Listo";
     private string _testWhatsAppNumber = string.Empty;
 
+    private string _activeUsersSummary = "—";
+    private string _currentShiftSummary = "—";
+
     public SettingsViewModel(
         LoadSettingsUseCase loadSettings,
         SaveSettingsUseCase saveSettings,
         IEmailService? emailService = null,
         IWhatsAppService? whatsAppService = null,
         IInstalledPrinterProvider? printerProvider = null,
-        ICurrentOperatorSession? session = null)
+        ICurrentOperatorSession? session = null,
+        IUserRepository? userRepository = null,
+        ICashierShiftRepository? shiftRepository = null)
     {
         _loadSettings = loadSettings;
         _saveSettings = saveSettings;
@@ -64,6 +76,8 @@ public sealed class SettingsViewModel : ViewModelBase
         _whatsAppService = whatsAppService;
         _printerProvider = printerProvider;
         _session = session;
+        _userRepository = userRepository;
+        _shiftRepository = shiftRepository;
 
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar configuración: {ex.Message}"));
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar configuración: {ex.Message}"));
@@ -72,6 +86,7 @@ public sealed class SettingsViewModel : ViewModelBase
         RefreshPrintersCommand = new RelayCommand(_ => RefreshPrinters());
 
         RefreshPrinters();
+        RefreshSystemMetricsAndAlerts();
     }
 
     /// <summary>Gates the SMTP/WhatsApp/backup tabs separately from admin-hub navigation, so reaching the
@@ -79,6 +94,12 @@ public sealed class SettingsViewModel : ViewModelBase
     public bool CanViewIntegrations => _session?.HasPermission(PermissionKeys.Settings.View) ?? false;
 
     public bool CanEditIntegrations => _session?.HasPermission(PermissionKeys.Settings.Edit) ?? false;
+
+    public bool IsAdministrator =>
+        _session is null
+        || string.Equals(_session.RoleName, RoleConstants.AdministratorRoleName, StringComparison.OrdinalIgnoreCase)
+        || _session.RoleId == RoleConstants.AdministratorRoleId
+        || _session.HasPermission(PermissionKeys.Settings.Edit);
 
     public ObservableCollection<SettingsWarning> Warnings { get; } = [];
 
@@ -164,15 +185,19 @@ public sealed class SettingsViewModel : ViewModelBase
         }
     }
 
-    /// <summary>
-    /// "Usuarios activos" KPI. No aggregate use case exposes an active-user count to Presentation today
-    /// (out of scope to add one in this slice) — shown as an explicit "sin datos" placeholder rather than
-    /// a fabricated number.
-    /// </summary>
-    public string ActiveUsersSummary => "—";
+    public ObservableCollection<SystemAlertItem> SystemAlerts { get; } = [];
 
-    /// <summary>"Turno actual" KPI — see <see cref="ActiveUsersSummary"/> remarks; no shift-status query is wired here.</summary>
-    public string CurrentShiftSummary => "—";
+    public string ActiveUsersSummary
+    {
+        get => _activeUsersSummary;
+        private set => SetProperty(ref _activeUsersSummary, value);
+    }
+
+    public string CurrentShiftSummary
+    {
+        get => _currentShiftSummary;
+        private set => SetProperty(ref _currentShiftSummary, value);
+    }
 
     public string LastBackupSummary => _lastSuccessfulBackup is null
         ? "Sin backup exitoso"
@@ -204,6 +229,13 @@ public sealed class SettingsViewModel : ViewModelBase
     {
         get => _maximumDeferredBalancePercent;
         set => SetProperty(ref _maximumDeferredBalancePercent, value);
+    }
+
+    /// <summary>Upper bound for the points multiplier a loyalty tier may grant.</summary>
+    public decimal MaximumPointsMultiplier
+    {
+        get => _maximumPointsMultiplier;
+        set => SetProperty(ref _maximumPointsMultiplier, value);
     }
 
     public string Message
@@ -380,6 +412,7 @@ public sealed class SettingsViewModel : ViewModelBase
             BackupDirectory = settings.BackupDirectory;
             CurrencyCode = settings.CurrencyCode;
             MaximumCashierDiscountPercent = settings.MaximumCashierDiscountPercent;
+            MaximumPointsMultiplier = settings.MaximumPointsMultiplier;
             MaximumDeferredBalancePercent = settings.MaximumDeferredBalancePercent;
             UpdateLastSuccessfulBackup(settings.LastSuccessfulBackup);
 
@@ -391,6 +424,8 @@ public sealed class SettingsViewModel : ViewModelBase
                     Warnings.Add(warning);
                 }
             }
+
+            await RefreshSystemMetricsAndAlertsAsync(cancellationToken).ConfigureAwait(true);
 
             Message = Warnings.Count == 0
                 ? "Configuración cargada exitosamente."
@@ -543,7 +578,8 @@ public sealed class SettingsViewModel : ViewModelBase
             BackupDirectory,
             CurrencyCode,
             MaximumCashierDiscountPercent,
-            MaximumDeferredBalancePercent);
+            MaximumDeferredBalancePercent,
+            MaximumPointsMultiplier);
 
         SettingsResult result = await _saveSettings.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 
@@ -567,5 +603,71 @@ public sealed class SettingsViewModel : ViewModelBase
         OnPropertyChanged(nameof(LastBackupSize));
         OnPropertyChanged(nameof(LastBackupLocation));
         OnPropertyChanged(nameof(LastBackupOperator));
+        RefreshSystemMetricsAndAlerts();
+    }
+
+    public void RefreshSystemMetricsAndAlerts()
+    {
+        RunSafe(RefreshSystemMetricsAndAlertsAsync(), ex => Message = $"Error al actualizar alertas del sistema: {ex.Message}");
+    }
+
+    public async Task RefreshSystemMetricsAndAlertsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_userRepository is not null)
+        {
+            try
+            {
+                var users = await _userRepository.GetAllAsync(cancellationToken).ConfigureAwait(true);
+                int activeCount = users.Count(u => u.IsActive);
+                ActiveUsersSummary = $"{activeCount} activo{(activeCount == 1 ? "" : "s")}";
+            }
+            catch
+            {
+                ActiveUsersSummary = "Sin datos";
+            }
+        }
+
+        if (_shiftRepository is not null)
+        {
+            try
+            {
+                var recentShifts = await _shiftRepository.GetRecentAsync(20, cancellationToken: cancellationToken).ConfigureAwait(true);
+                var openShifts = recentShifts.Where(s => s.Status == ShiftStatus.Open).ToList();
+                CurrentShiftSummary = openShifts.Count > 0
+                    ? $"{openShifts.Count} turno{(openShifts.Count == 1 ? "" : "s")} abierto{(openShifts.Count == 1 ? "" : "s")}"
+                    : "Cerrado (Sin turnos)";
+            }
+            catch
+            {
+                CurrentShiftSummary = "Sin datos";
+            }
+        }
+
+        SystemAlerts.Clear();
+
+        if (!IsPrinterConfigured)
+        {
+            SystemAlerts.Add(new SystemAlertItem("No se ha configurado una impresora de recibos principal.", true));
+        }
+
+        if (!IsSmtpConfigured)
+        {
+            SystemAlerts.Add(new SystemAlertItem("El servicio SMTP de correo no está configurado; no se enviarán comprobantes por email.", true));
+        }
+
+        if (!IsBackupConfigured || _lastSuccessfulBackup is null)
+        {
+            SystemAlerts.Add(new SystemAlertItem("No hay respaldos de base de datos configurados o ejecutados recientemente.", true));
+        }
+
+        if (!IsWhatsAppReady)
+        {
+            SystemAlerts.Add(new SystemAlertItem("WhatsApp Desktop/Web requiere configuración para envíos digitales.", true));
+        }
+
+        if (SystemAlerts.Count == 0)
+        {
+            SystemAlerts.Add(new SystemAlertItem("Sistema operando con normalidad. Integraciones principales activas.", false));
+        }
     }
 }

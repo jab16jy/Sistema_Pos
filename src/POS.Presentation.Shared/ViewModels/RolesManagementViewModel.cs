@@ -179,6 +179,7 @@ public sealed class RolesManagementViewModel : ViewModelBase
     private readonly CreateRoleUseCase _createRole;
     private readonly UpdateRoleUseCase _updateRole;
     private readonly DeactivateRoleUseCase _deactivateRole;
+    private readonly DeleteRoleUseCase _deleteRole;
     private readonly IRoleRepository _roles;
     private readonly ICurrentOperatorSession _session;
     private readonly IReadOnlySet<string> _emptyGrantSet = new HashSet<string>(StringComparer.Ordinal);
@@ -195,6 +196,7 @@ public sealed class RolesManagementViewModel : ViewModelBase
         CreateRoleUseCase createRole,
         UpdateRoleUseCase updateRole,
         DeactivateRoleUseCase deactivateRole,
+        DeleteRoleUseCase deleteRole,
         IRoleRepository roles,
         ICurrentOperatorSession session)
     {
@@ -202,6 +204,7 @@ public sealed class RolesManagementViewModel : ViewModelBase
         _createRole = createRole;
         _updateRole = updateRole;
         _deactivateRole = deactivateRole;
+        _deleteRole = deleteRole;
         _roles = roles;
         _session = session;
 
@@ -216,6 +219,7 @@ public sealed class RolesManagementViewModel : ViewModelBase
         CreateRoleCommand = new RelayCommand(_ => RunSafe(CreateAsync(), ex => SetUnexpectedError($"Error al crear rol: {ex.Message}")), _ => CanCreate);
         SaveRoleCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => SetUnexpectedError($"Error al guardar rol: {ex.Message}")), _ => CanSave);
         DeactivateRoleCommand = new RelayCommand(_ => RunSafe(DeactivateAsync(), ex => SetUnexpectedError($"Error al desactivar rol: {ex.Message}")), _ => CanDeactivate);
+        DeleteRoleCommand = new RelayCommand(_ => RunSafe(DeleteAsync(), ex => SetUnexpectedError($"Error al eliminar rol: {ex.Message}")), _ => CanDelete);
     }
 
     public ObservableCollection<RoleSummary> Roles { get; } = new();
@@ -270,6 +274,7 @@ public sealed class RolesManagementViewModel : ViewModelBase
     public bool CanLoad => _session.HasPermission(PermissionKeys.Roles.View);
     public bool CanCreate => _session.HasPermission(PermissionKeys.Roles.Create);
     public bool CanDeactivate => _session.HasPermission(PermissionKeys.Roles.Deactivate) && SelectedRole is { IsSystem: false };
+    public bool CanDelete => _session.HasPermission(PermissionKeys.Roles.Deactivate) && SelectedRole is { IsSystem: false };
     public bool HasPermissionChanges => !CurrentGrantSet().SetEquals(_loadedGrants);
     public bool CanSave => SelectedRole is not null
         && _session.HasPermission(PermissionKeys.Roles.Edit)
@@ -279,6 +284,7 @@ public sealed class RolesManagementViewModel : ViewModelBase
     public ICommand CreateRoleCommand { get; }
     public ICommand SaveRoleCommand { get; }
     public ICommand DeactivateRoleCommand { get; }
+    public ICommand DeleteRoleCommand { get; }
 
     public async Task LoadAsync(CancellationToken ct = default)
     {
@@ -384,6 +390,25 @@ public sealed class RolesManagementViewModel : ViewModelBase
         await LoadAsync().ConfigureAwait(true);
     }
 
+    private async Task DeleteAsync()
+    {
+        if (!EnsurePermission(CanDelete, "No tienes permiso para eliminar este rol.") || SelectedRole is null)
+        {
+            return;
+        }
+
+        var result = await _deleteRole.ExecuteAsync(SelectedRole.Id, _session.OperatorId).ConfigureAwait(true);
+        if (!result.Success)
+        {
+            SetUnexpectedError(result.Error ?? "No fue posible eliminar el rol.");
+            return;
+        }
+
+        SelectedRole = null;
+        await LoadAsync().ConfigureAwait(true);
+        StatusMessage = "Rol eliminado correctamente.";
+    }
+
     private void PermissionOptionChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName == nameof(PermissionOptionRow.IsGranted))
@@ -424,6 +449,7 @@ public sealed class RolesManagementViewModel : ViewModelBase
         ((RelayCommand)CreateRoleCommand).RaiseCanExecuteChanged();
         ((RelayCommand)SaveRoleCommand).RaiseCanExecuteChanged();
         ((RelayCommand)DeactivateRoleCommand).RaiseCanExecuteChanged();
+        ((RelayCommand)DeleteRoleCommand).RaiseCanExecuteChanged();
     }
 
     private void SetUnexpectedError(string message)

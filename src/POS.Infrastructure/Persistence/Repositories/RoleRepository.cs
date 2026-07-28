@@ -24,4 +24,12 @@ public sealed class RoleRepository : IRoleRepository
         await _dbContext.RolePermissions.AddRangeAsync(keys.Select(key => new RolePermission(roleId, key)), ct);
     }
     public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => _dbContext.Users.CountAsync(user => user.RoleId == roleId, ct);
+    public async Task DeleteAsync(Role role, CancellationToken ct = default)
+    {
+        var existingPermissions = await _dbContext.RolePermissions
+            .Where(permission => permission.RoleId == role.Id)
+            .ToListAsync(ct);
+        _dbContext.RolePermissions.RemoveRange(existingPermissions);
+        _dbContext.Roles.Remove(role);
+    }
 }

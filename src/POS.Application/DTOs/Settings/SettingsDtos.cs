@@ -1,4 +1,4 @@
-using POS.Domain.Entities;
+﻿using POS.Domain.Entities;
 
 namespace POS.Application.DTOs.Settings;
 
@@ -22,7 +22,8 @@ public sealed record SettingsResult(
     IReadOnlyList<SettingsWarning>? Warnings = null,
     ManualBackupMetadata? LastSuccessfulBackup = null,
     decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent,
-    decimal MaximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent);
+    decimal MaximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent,
+    decimal MaximumPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier);
 
 public sealed record SaveSettingsRequest(
     string BusinessName,
@@ -41,7 +42,8 @@ public sealed record SaveSettingsRequest(
     string? BackupDirectory,
     string CurrencyCode,
     decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent,
-    decimal MaximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent);
+    decimal MaximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent,
+    decimal MaximumPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier);
 
 public sealed record SettingsWarning(string Code, string Message);
 

@@ -1,9 +1,10 @@
-namespace POS.Domain.Entities;
+﻿namespace POS.Domain.Entities;
 
 public sealed class BusinessSettings
 {
     public const decimal DefaultMaximumCashierDiscountPercent = 20m;
     public const decimal DefaultMaximumDeferredBalancePercent = 50m;
+    public const decimal DefaultMaximumPointsMultiplier = 5m;
 
     private BusinessSettings()
     {
@@ -11,6 +12,7 @@ public sealed class BusinessSettings
         CurrencyCode = "COP";
         MaximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent;
         MaximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent;
+        MaximumPointsMultiplier = DefaultMaximumPointsMultiplier;
     }
 
     public BusinessSettings(
@@ -30,7 +32,8 @@ public sealed class BusinessSettings
         string? backupDirectory,
         string currencyCode,
         decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent,
-        decimal maximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent)
+        decimal maximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent,
+        decimal maximumPointsMultiplier = DefaultMaximumPointsMultiplier)
     {
         Id = Guid.NewGuid();
         Apply(
@@ -50,7 +53,8 @@ public sealed class BusinessSettings
             backupDirectory,
             currencyCode,
             maximumCashierDiscountPercent,
-            maximumDeferredBalancePercent);
+            maximumDeferredBalancePercent,
+            maximumPointsMultiplier);
     }
 
     public Guid Id { get; private set; }
@@ -76,6 +80,9 @@ public sealed class BusinessSettings
     public decimal MaximumCashierDiscountPercent { get; private set; } = DefaultMaximumCashierDiscountPercent;
     public decimal MaximumDeferredBalancePercent { get; private set; } = DefaultMaximumDeferredBalancePercent;
 
+    /// <summary>Upper bound for the points multiplier a loyalty tier may grant.</summary>
+    public decimal MaximumPointsMultiplier { get; private set; } = DefaultMaximumPointsMultiplier;
+
     public void Update(
         string businessName,
         string? businessAddress,
@@ -93,7 +100,8 @@ public sealed class BusinessSettings
         string? backupDirectory,
         string currencyCode,
         decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent,
-        decimal maximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent)
+        decimal maximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent,
+        decimal maximumPointsMultiplier = DefaultMaximumPointsMultiplier)
     {
         Apply(
             businessName,
@@ -112,7 +120,8 @@ public sealed class BusinessSettings
             backupDirectory,
             currencyCode,
             maximumCashierDiscountPercent,
-            maximumDeferredBalancePercent);
+            maximumDeferredBalancePercent,
+            maximumPointsMultiplier);
     }
 
     public void RecordSuccessfulBackup(
@@ -154,7 +163,8 @@ public sealed class BusinessSettings
         string? backupDirectory,
         string currencyCode,
         decimal maximumCashierDiscountPercent,
-        decimal maximumDeferredBalancePercent)
+        decimal maximumDeferredBalancePercent,
+        decimal maximumPointsMultiplier)
     {
         if (string.IsNullOrWhiteSpace(businessName))
         {
@@ -191,6 +201,15 @@ public sealed class BusinessSettings
                 "Maximum deferred balance must be between 0 and 100 percent.");
         }
 
+        // Lower bound is 1: a cap below 1 would reject every tier, since a tier multiplier of 1
+        // means "no bonus" and is the neutral value tiers default to.
+        if (maximumPointsMultiplier < 1m || maximumPointsMultiplier > 100m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maximumPointsMultiplier),
+                "Maximum points multiplier must be between 1 and 100.");
+        }
+
         BusinessName = businessName.Trim();
         BusinessAddress = TrimToNull(businessAddress);
         TaxId = TrimToNull(taxId);
@@ -208,6 +227,7 @@ public sealed class BusinessSettings
         CurrencyCode = normalizedCurrency;
         MaximumCashierDiscountPercent = maximumCashierDiscountPercent;
         MaximumDeferredBalancePercent = maximumDeferredBalancePercent;
+        MaximumPointsMultiplier = maximumPointsMultiplier;
     }
 
     private static string? TrimToNull(string? value)

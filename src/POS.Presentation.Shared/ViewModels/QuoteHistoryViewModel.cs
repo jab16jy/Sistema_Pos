@@ -17,6 +17,7 @@ namespace POS.Presentation.Shared.ViewModels;
 public sealed class QuoteHistoryViewModel : ViewModelBase
 {
     public const string SaleConversionConfirmationMessage = "¿Está seguro de transformar esta cotización en una venta?";
+    public const string CancelQuoteConfirmationMessage = "¿Está seguro de anular esta cotización?";
 
     private readonly GetQuoteHistoryUseCase _getHistoryUseCase;
     private readonly ConvertQuoteToSaleUseCase _convertUseCase;
@@ -24,6 +25,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     private readonly ICurrentOperatorSession? _operatorSession;
     private readonly IPdfService? _pdfService;
     private readonly GetQuoteDetailUseCase? _getQuoteDetail;
+    private readonly CancelQuoteUseCase? _cancelQuoteUseCase;
     private string _filterCustomerName = string.Empty;
     private QuoteStatus? _filterStatus;
     private DateOnly? _filterFrom;
@@ -41,7 +43,8 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         SendDocumentUseCase sendUseCase,
         ICurrentOperatorSession? operatorSession = null,
         IPdfService? pdfService = null,
-        GetQuoteDetailUseCase? getQuoteDetail = null)
+        GetQuoteDetailUseCase? getQuoteDetail = null,
+        CancelQuoteUseCase? cancelQuoteUseCase = null)
     {
         _getHistoryUseCase = getHistoryUseCase ?? throw new ArgumentNullException(nameof(getHistoryUseCase));
         _convertUseCase = convertUseCase ?? throw new ArgumentNullException(nameof(convertUseCase));
@@ -49,6 +52,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         _operatorSession = operatorSession;
         _pdfService = pdfService;
         _getQuoteDetail = getQuoteDetail;
+        _cancelQuoteUseCase = cancelQuoteUseCase;
 
         Quotes = [];
 
@@ -56,6 +60,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         NextPageCommand = new RelayCommand(_ => RunSafe(NextPageAsync(), ex => StatusMessage = $"Error al paginar cotizaciones: {ex.Message}"));
         PreviousPageCommand = new RelayCommand(_ => RunSafe(PreviousPageAsync(), ex => StatusMessage = $"Error al paginar cotizaciones: {ex.Message}"));
         ConvertToSaleCommand = new RelayCommand(p => RequestSaleConversion(p as QuoteSummaryRow ?? SelectedQuote));
+        CancelQuoteCommand = new RelayCommand(p => RequestQuoteCancellation(p as QuoteSummaryRow ?? SelectedQuote));
         ExportPdfCommand = new RelayCommand(p => RunSafe(ExportPdfAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al generar el PDF: {ex.Message}"));
         SendByEmailCommand = new RelayCommand(p => RunSafe(SendByEmailAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(p => RunSafe(SendByWhatsAppAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
@@ -64,6 +69,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
 
     public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
     public event EventHandler<QuoteSummaryRow>? SaleConversionConfirmationRequested;
+    public event EventHandler<QuoteSummaryRow>? QuoteCancellationConfirmationRequested;
     public event EventHandler<QuoteDetailResult>? QuoteDetailRequested;
 
     public ObservableCollection<QuoteSummaryRow> Quotes { get; }
@@ -72,6 +78,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     public ICommand NextPageCommand { get; }
     public ICommand PreviousPageCommand { get; }
     public ICommand ConvertToSaleCommand { get; }
+    public ICommand CancelQuoteCommand { get; }
     public ICommand ExportPdfCommand { get; }
     public ICommand SendByEmailCommand { get; }
     public ICommand SendByWhatsAppCommand { get; }
@@ -479,5 +486,54 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         }
 
         return true;
+    }
+
+    public void RequestQuoteCancellation(QuoteSummaryRow? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (!row.CanCancel)
+        {
+            StatusMessage = $"La cotización '{row.QuoteNumber}' no se puede anular porque su estado es {row.StatusLabel}.";
+            return;
+        }
+
+        if (QuoteCancellationConfirmationRequested is { } handler)
+        {
+            handler.Invoke(this, row);
+            return;
+        }
+
+        RunSafe(ConfirmQuoteCancellationAsync(row), ex => StatusMessage = $"Error al anular cotización: {ex.Message}");
+    }
+
+    public Task ConfirmQuoteCancellationAsync(QuoteSummaryRow row, CancellationToken cancellationToken = default)
+        => CancelQuoteAsync(row, cancellationToken);
+
+    public async Task CancelQuoteAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (!row.CanCancel)
+        {
+            StatusMessage = $"La cotización '{row.QuoteNumber}' no se puede anular porque su estado es {row.StatusLabel}.";
+            return;
+        }
+
+        if (_cancelQuoteUseCase is null)
+        {
+            StatusMessage = "El servicio para anular cotizaciones no está disponible.";
+            return;
+        }
+
+        await _cancelQuoteUseCase.ExecuteAsync(row.QuoteId, cancellationToken).ConfigureAwait(true);
+        StatusMessage = $"Cotización '{row.QuoteNumber}' anulada correctamente.";
+        await LoadAsync(cancellationToken).ConfigureAwait(true);
     }
 }

@@ -139,6 +139,7 @@ public static class DependencyInjection
         services.AddScoped<SearchPurchaseHistoryUseCase>();
         services.AddScoped<CreateQuoteUseCase>();
         services.AddScoped<ConvertQuoteToSaleUseCase>();
+        services.AddScoped<CancelQuoteUseCase>();
         services.AddScoped<GetCustomerPayableQuotesUseCase>();
         services.AddScoped<GetQuoteHistoryUseCase>();
         services.AddScoped<GetQuoteDetailUseCase>();
@@ -172,6 +173,7 @@ public static class DependencyInjection
         services.AddScoped<CreateRoleUseCase>();
         services.AddScoped<UpdateRoleUseCase>();
         services.AddScoped<DeactivateRoleUseCase>();
+        services.AddScoped<DeleteRoleUseCase>();
 
         // New POS modules use cases
         services.AddScoped<AccumulateLoyaltyPointsUseCase>();
@@ -181,6 +183,7 @@ public static class DependencyInjection
         services.AddScoped<GetLoyaltyProgramOverviewUseCase>();
         services.AddScoped<SetLoyaltyRuleUseCase>();
         services.AddScoped<GetLoyaltyTiersUseCase>();
+        services.AddScoped<GetLoyaltyTierLimitsUseCase>();
         services.AddScoped<CreateLoyaltyTierUseCase>();
         services.AddScoped<UpdateLoyaltyTierUseCase>();
         services.AddScoped<DeleteLoyaltyTierUseCase>();

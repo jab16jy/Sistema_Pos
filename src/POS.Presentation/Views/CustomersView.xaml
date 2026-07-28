@@ -477,6 +477,16 @@
                                 <DataTrigger Binding="{Binding Kind}" Value="Quote">
                                   <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Returned">
+                                  <Setter Property="Background" Value="#F3E8FF" />
+                                </DataTrigger>
+                                <MultiDataTrigger>
+                                  <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding Kind}" Value="Quote" />
+                                    <Condition Binding="{Binding Status}" Value="Cancelled" />
+                                  </MultiDataTrigger.Conditions>
+                                  <Setter Property="Background" Value="{StaticResource BrushDangerSoft}" />
+                                </MultiDataTrigger>
                               </Style.Triggers>
                             </Style>
                           </Border.Style>
@@ -490,13 +500,53 @@
                                     <Setter Property="Kind" Value="FileDocumentOutline" />
                                     <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
                                   </DataTrigger>
+                                  <DataTrigger Binding="{Binding Status}" Value="Returned">
+                                    <Setter Property="Kind" Value="KeyboardReturn" />
+                                    <Setter Property="Foreground" Value="#7C3AED" />
+                                  </DataTrigger>
+                                  <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                      <Condition Binding="{Binding Kind}" Value="Quote" />
+                                      <Condition Binding="{Binding Status}" Value="Cancelled" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Kind" Value="FileCancelOutline" />
+                                    <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                  </MultiDataTrigger>
                                 </Style.Triggers>
                               </Style>
                             </materialDesign:PackIcon.Style>
                           </materialDesign:PackIcon>
                         </Border>
                         <StackPanel Grid.Column="1" Margin="10,0,8,0" VerticalAlignment="Center">
-                          <TextBlock Text="{Binding Reference}" FontWeight="Medium" />
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Reference}" FontWeight="Medium" />
+                            <Border Margin="6,0,0,0" Padding="6,1" CornerRadius="4" Background="{StaticResource BrushDangerSoft}" BorderBrush="{StaticResource BrushDanger}" BorderThickness="1">
+                              <Border.Style>
+                                <Style TargetType="Border">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Border.Style>
+                              <TextBlock Text="Anulada" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushDanger}" />
+                            </Border>
+                            <Border Margin="6,0,0,0" Padding="6,1" CornerRadius="4" Background="#F3E8FF" BorderBrush="#8B5CF6" BorderThickness="1">
+                              <Border.Style>
+                                <Style TargetType="Border">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="Returned">
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Border.Style>
+                              <TextBlock Text="Devuelta" FontSize="9" FontWeight="Bold" Foreground="#7C3AED" />
+                            </Border>
+                          </StackPanel>
                           <TextBlock Style="{StaticResource MutedText}" FontSize="11">
                             <TextBlock.Text>
                               <MultiBinding StringFormat="{}{0:d}">
@@ -520,7 +570,21 @@
                             </TextBlock.Style>
                           </TextBlock>
                         </StackPanel>
-                        <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat={}{0:C0}}" FontWeight="Bold" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat={}{0:C0}}" FontWeight="Bold" VerticalAlignment="Center">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource TextBody}">
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding Status}" Value="Cancelled">
+                                  <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                  <Setter Property="TextDecorations" Value="Strikethrough" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Status}" Value="Returned">
+                                  <Setter Property="Foreground" Value="#7C3AED" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
                       </Grid>
                     </Border>
                   </Button>

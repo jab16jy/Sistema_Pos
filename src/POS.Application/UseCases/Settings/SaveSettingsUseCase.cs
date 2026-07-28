@@ -1,4 +1,4 @@
-using POS.Application.DTOs.Settings;
+﻿using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Auth;
 using POS.Domain.Authorization;
@@ -54,7 +54,8 @@ public sealed class SaveSettingsUseCase
                 request.BackupDirectory,
                 request.CurrencyCode,
                 request.MaximumCashierDiscountPercent,
-                request.MaximumDeferredBalancePercent);
+                request.MaximumDeferredBalancePercent,
+                request.MaximumPointsMultiplier);
         }
         else
         {
@@ -75,7 +76,8 @@ public sealed class SaveSettingsUseCase
                 request.BackupDirectory,
                 request.CurrencyCode,
                 request.MaximumCashierDiscountPercent,
-                request.MaximumDeferredBalancePercent);
+                request.MaximumDeferredBalancePercent,
+                request.MaximumPointsMultiplier);
         }
 
         IReadOnlyList<SettingsWarning> warnings = _printerCommandValidator is null
@@ -111,6 +113,7 @@ public sealed class SaveSettingsUseCase
                     settings.LastBackupLocation,
                     settings.LastBackupUsername),
             settings.MaximumCashierDiscountPercent,
-            settings.MaximumDeferredBalancePercent);
+            settings.MaximumDeferredBalancePercent,
+            settings.MaximumPointsMultiplier);
     }
 }

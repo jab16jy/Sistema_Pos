@@ -45,3 +45,7 @@ dist/
 # Codegraph tool cache
 .codegraph/
 .pi/gentle-ai/
+
+# Graphify tool output
+graphify-out/
+

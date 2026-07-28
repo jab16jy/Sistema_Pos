@@ -122,10 +122,16 @@
                 <TextBlock Text="Guardar cambios" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
-            <Button Command="{Binding DeactivateRoleCommand}" Style="{StaticResource DangerButton}" Height="36" Padding="12,0">
+            <Button Command="{Binding DeactivateRoleCommand}" Style="{StaticResource DangerButton}" Height="36" Padding="12,0" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal">
                 <materialDesign:PackIcon Kind="BlockHelper" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
                 <TextBlock Text="Desactivar" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <Button Command="{Binding DeleteRoleCommand}" Style="{StaticResource DangerButton}" Height="36" Padding="12,0">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="TrashCan" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Text="Eliminar" VerticalAlignment="Center" />
               </StackPanel>
             </Button>
           </StackPanel>

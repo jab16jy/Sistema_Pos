@@ -102,6 +102,20 @@ public static class DatabaseSchemaRollout
 
     private static async Task SeedDefaultLoyaltyProgramAsync(AppDbContext dbContext, CancellationToken ct)
     {
+        // Redemption is granted by a tier, so a program with no tiers at all can never redeem —
+        // including installs that predate tiers and already have a rule. Seeding a base tier keeps
+        // the seeded redemption rule usable and gives the business something to edit in the module.
+        bool hasAnyTier = await dbContext.LoyaltyTiers.AnyAsync(ct).ConfigureAwait(false);
+        if (!hasAnyTier)
+        {
+            dbContext.LoyaltyTiers.Add(new LoyaltyTier(
+                "Base",
+                minPoints: 0m,
+                benefits: "Acumulación de puntos en cada compra",
+                allowsRedemption: true));
+            await dbContext.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+
         bool hasActiveRule = await dbContext.LoyaltyRules.AnyAsync(rule => rule.IsActive, ct).ConfigureAwait(false);
         if (hasActiveRule)
         {

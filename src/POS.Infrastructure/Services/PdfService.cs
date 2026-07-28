@@ -49,7 +49,7 @@ public sealed class PdfService : IPdfService
             .ConfigureAwait(false);
 
         Customer? customer = await FindCustomerAsync(quote.CustomerId, ct).ConfigureAwait(false);
-        LoyaltyTier? loyaltyTier = await FindLoyaltyTierAsync(customer, ct).ConfigureAwait(false);
+        LoyaltyTier? loyaltyTier = await FindLoyaltyTierAsync(quote.CustomerId, ct).ConfigureAwait(false);
 
         var culture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -102,7 +102,9 @@ public sealed class PdfService : IPdfService
         var culture = CultureInfo.GetCultureInfo("es-CO");
 
         Customer? customer = await FindCustomerAsync(sale.CustomerId, ct).ConfigureAwait(false);
-        LoyaltyTier? loyaltyTier = await FindLoyaltyTierAsync(customer, ct).ConfigureAwait(false);
+        LoyaltySaleSnapshot loyalty = await LoyaltySaleSnapshot
+            .LoadAsync(_dbContext, sale.CustomerId, sale.Id, ct)
+            .ConfigureAwait(false);
 
         var pdfBytes = Document.Create(container =>
         {
@@ -118,9 +120,9 @@ public sealed class PdfService : IPdfService
                         customer?.FullName ?? "Cliente consumidor final"));
 
                     col.Item().Element(card => ComposeCustomerCard(card, customer));
-                    if (loyaltyTier is not null || LoyaltyDiscount(sale) > 0m)
+                    if (loyalty.HasContent || LoyaltyDiscount(sale) > 0m)
                     {
-                        col.Item().Element(card => ComposeLoyaltyCard(card, loyaltyTier, LoyaltyDiscount(sale), culture));
+                        col.Item().Element(card => ComposeLoyaltyCard(card, loyalty, LoyaltyDiscount(sale), culture));
                     }
                     col.Item().Element(card => ComposePaymentCard(card, sale, culture));
                     col.Item().Element(table => ComposeItemsTable(table, sale, culture));
@@ -206,14 +208,27 @@ public sealed class PdfService : IPdfService
         });
     }
 
-    private static void ComposeLoyaltyCard(IContainer container, LoyaltyTier? loyaltyTier, decimal loyaltyDiscount, CultureInfo culture)
+    private static void ComposeLoyaltyCard(IContainer container, LoyaltySaleSnapshot loyalty, decimal loyaltyDiscount, CultureInfo culture)
     {
         container.Element(AccentCardStyle).Column(col =>
         {
             col.Spacing(4);
-            col.Item().Text("Beneficios de lealtad").FontSize(9).Bold().FontColor(AccentColor);
-            if (loyaltyTier is not null)
-                col.Item().Text($"Nivel actual: {loyaltyTier.Name} · Beneficio configurado: {loyaltyTier.DiscountPercent:N0}% de descuento").FontSize(10).Bold();
+            col.Item().Text("Puntos y beneficios de lealtad").FontSize(9).Bold().FontColor(AccentColor);
+
+            if (loyalty.PointsEarned != 0)
+                col.Item().Text($"Puntos ganados en esta compra: {loyalty.PointsEarned.ToString("N0", culture)}").FontSize(10).Bold();
+
+            // "a hoy" because a reprint reads the live balance, which has moved on since the sale.
+            col.Item().Text($"Puntos acumulados (a hoy): {loyalty.Balance.ToString("N0", culture)}").FontSize(10).Bold();
+
+            if (loyalty.Tier is { } tier)
+            {
+                col.Item().Text($"Nivel actual: {tier.Name}").FontSize(10).Bold();
+                col.Item().Text($"· {tier.DiscountPercent:N0}% de descuento · x{tier.PointsMultiplier:0.##} puntos").FontSize(9);
+                foreach (var benefit in tier.BenefitLines)
+                    col.Item().Text($"· {benefit}").FontSize(9);
+            }
+
             if (loyaltyDiscount > 0m)
                 col.Item().Text($"Canje de puntos aplicado: -{loyaltyDiscount.ToString("C0", culture)}").FontSize(10).Bold();
         });
@@ -490,9 +505,13 @@ public sealed class PdfService : IPdfService
         ? await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(customer => customer.Id == customerId.Value, ct).ConfigureAwait(false)
         : null;
 
-    private async Task<LoyaltyTier?> FindLoyaltyTierAsync(Customer? customer, CancellationToken ct) => customer?.LoyaltyTierId is Guid tierId
-        ? await _dbContext.LoyaltyTiers.AsNoTracking().FirstOrDefaultAsync(tier => tier.Id == tierId, ct).ConfigureAwait(false)
-        : null;
+    /// <summary>
+    /// Resolves the tier the customer's point balance qualifies for. Quotes have no sale, so the
+    /// snapshot is used purely for its tier — see <see cref="LoyaltySaleSnapshot"/> for why the
+    /// tier is derived from the balance instead of Customer.LoyaltyTierId.
+    /// </summary>
+    private async Task<LoyaltyTier?> FindLoyaltyTierAsync(Guid? customerId, CancellationToken ct) =>
+        (await LoyaltySaleSnapshot.LoadAsync(_dbContext, customerId, Guid.Empty, ct).ConfigureAwait(false)).Tier;
 
     private static decimal GrossTotal(Sale sale) => sale.Items.Sum(item => item.UnitPrice.Amount * item.Quantity);
 

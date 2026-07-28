@@ -25,7 +25,12 @@ public sealed record LoyaltyTransactionResult(
     string? InvoiceNumber = null,
     string? ResponsibleUser = null);
 
-/// <summary>Editable membership tier and its discount/multiplier benefits.</summary>
+/// <summary>Business ceilings a tier's automatic benefits must respect.</summary>
+public sealed record LoyaltyTierLimitsResult(
+    decimal MaximumDiscountPercent,
+    decimal MaximumPointsMultiplier);
+
+/// <summary>Editable membership tier: calculated benefits plus the free-text benefits the business defines.</summary>
 public sealed record LoyaltyTierResult(
     Guid Id,
     string Name,
@@ -33,7 +38,9 @@ public sealed record LoyaltyTierResult(
     decimal DiscountPercent,
     decimal PointsMultiplier,
     string Color,
-    LoyaltyTierTextForeground TextForeground);
+    LoyaltyTierTextForeground TextForeground,
+    string Benefits = "",
+    bool AllowsRedemption = false);
 
 public sealed record CreateLoyaltyTierRequest(
     string Name,
@@ -41,7 +48,9 @@ public sealed record CreateLoyaltyTierRequest(
     decimal DiscountPercent,
     decimal PointsMultiplier,
     string Color = "#64748B",
-    LoyaltyTierTextForeground TextForeground = LoyaltyTierTextForeground.White);
+    LoyaltyTierTextForeground TextForeground = LoyaltyTierTextForeground.White,
+    string? Benefits = null,
+    bool AllowsRedemption = false);
 
 public sealed record UpdateLoyaltyTierRequest(
     Guid Id,
@@ -50,7 +59,9 @@ public sealed record UpdateLoyaltyTierRequest(
     decimal DiscountPercent,
     decimal PointsMultiplier,
     string Color = "#64748B",
-    LoyaltyTierTextForeground TextForeground = LoyaltyTierTextForeground.White);
+    LoyaltyTierTextForeground TextForeground = LoyaltyTierTextForeground.White,
+    string? Benefits = null,
+    bool AllowsRedemption = false);
 
 /// <summary>Request to accumulate points after a sale.</summary>
 public sealed record EarnPointsRequest(

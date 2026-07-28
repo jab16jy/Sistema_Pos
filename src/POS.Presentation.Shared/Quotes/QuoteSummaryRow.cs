@@ -52,19 +52,20 @@ public sealed record QuoteSummaryRow(
         QuoteStatus.Active => "Activa",
         QuoteStatus.Expired => "Expirada",
         QuoteStatus.Converted => "Convertida",
+        QuoteStatus.Cancelled => "Anulada",
         _ => status.ToString()
     };
 
     /// <summary>
     /// Chip color variant for the status badge ("success"/"warning"/"error"/"neutral"). Domain only models
-    /// Draft/Active/Expired/Converted (no separate "enviada"/"aceptada"/"rechazada" states like the wireframe
-    /// mock); Active is the closest equivalent to the wireframe's "aceptada" (ready-to-convert) state.
+    /// Draft/Active/Expired/Converted/Cancelled.
     /// </summary>
     public string StatusChipKind => Status switch
     {
         QuoteStatus.Active => "success",
         QuoteStatus.Draft => "warning",
         QuoteStatus.Expired => "error",
+        QuoteStatus.Cancelled => "error",
         QuoteStatus.Converted => "neutral",
         _ => "neutral"
     };
@@ -83,4 +84,6 @@ public sealed record QuoteSummaryRow(
         : string.Empty;
 
     public bool CanConvertToSale => !IsExpiredByCalendar && Status is QuoteStatus.Draft or QuoteStatus.Active;
+
+    public bool CanCancel => Status is QuoteStatus.Draft or QuoteStatus.Active or QuoteStatus.Expired;
 }

@@ -6,15 +6,52 @@
   <UserControl.Resources>
     <SolidColorBrush x:Key="BrushPrimary" Color="#0284C7" />
     <SolidColorBrush x:Key="BrushAccent" Color="#0D9488" />
+
+    <!-- Segmented tab for switching column 2 between the tier list and the tier editor.
+         IsChecked is one-way from the view model; clicking runs a command instead of toggling,
+         so the two tabs can never both be off (or both on). -->
+    <Style x:Key="TierPaneTab" TargetType="ToggleButton">
+      <Setter Property="Focusable" Value="True" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Padding" Value="10,6" />
+      <Setter Property="Foreground" Value="{StaticResource BrushMuted}" />
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="ToggleButton">
+            <Border x:Name="Chip"
+                    Background="Transparent"
+                    BorderBrush="{StaticResource BrushBorder}"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="{TemplateBinding Padding}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="Chip" Property="Background" Value="{StaticResource BrushPrimaryContainer}" />
+                <Setter TargetName="Chip" Property="BorderBrush" Value="{StaticResource BrushPrimary}" />
+                <Setter Property="Foreground" Value="{StaticResource BrushPrimary}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Chip" Property="BorderBrush" Value="{StaticResource BrushPrimary}" />
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
   </UserControl.Resources>
 
   <Grid>
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="38*" />
+      <!-- Tiers/beneficios (col 2) is the widest: defining benefits is the module's main job now,
+           redemption is one optional benefit configured inside a tier. -->
+      <ColumnDefinition Width="30*" />
+      <ColumnDefinition Width="12" />
+      <ColumnDefinition Width="42*" />
       <ColumnDefinition Width="12" />
       <ColumnDefinition Width="28*" />
-      <ColumnDefinition Width="12" />
-      <ColumnDefinition Width="32*" />
     </Grid.ColumnDefinitions>
 
     <!-- ══ COLUMN 1: Program status + Rules ══ -->
@@ -146,19 +183,53 @@
         </Grid.RowDefinitions>
 
         <Border Padding="16,12" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,0,0,1">
-          <StackPanel Orientation="Horizontal">
-            <materialDesign:PackIcon Kind="MedalOutline" Width="18" Height="18"
-                                     Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
-            <TextBlock Text="Tiers y beneficios" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <StackPanel>
+            <StackPanel Orientation="Horizontal">
+              <materialDesign:PackIcon Kind="MedalOutline" Width="18" Height="18"
+                                       Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <TextBlock Text="Tiers y beneficios" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- The two panes swap instead of stacking, so neither is squeezed into a sliver. -->
+            <Grid Margin="0,10,0,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <ToggleButton Style="{StaticResource TierPaneTab}"
+                            IsChecked="{Binding IsTiersListOpen, Mode=OneWay}"
+                            Command="{Binding ShowTiersListCommand}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <materialDesign:PackIcon Kind="FormatListBulleted" Width="15" Height="15" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Tiers" VerticalAlignment="Center" />
+                </StackPanel>
+              </ToggleButton>
+              <ToggleButton Grid.Column="2"
+                            Style="{StaticResource TierPaneTab}"
+                            IsChecked="{Binding IsTierEditorOpen, Mode=OneWay}"
+                            Command="{Binding ShowTierEditorCommand}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <materialDesign:PackIcon Kind="CogOutline" Width="15" Height="15" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Configuración" VerticalAlignment="Center" />
+                </StackPanel>
+              </ToggleButton>
+            </Grid>
           </StackPanel>
         </Border>
 
         <Grid Grid.Row="1" Margin="16,12">
-          <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-          </Grid.RowDefinitions>
-          <ListBox ItemsSource="{Binding Tiers}" SelectedItem="{Binding SelectedTier, Mode=TwoWay}" BorderThickness="0">
+          <ListBox ItemsSource="{Binding Tiers}" SelectedItem="{Binding SelectedTier, Mode=TwoWay}" BorderThickness="0"
+                   HorizontalContentAlignment="Stretch"
+                   ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                   Visibility="{Binding IsTiersListOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+            <ListBox.ItemContainerStyle>
+              <Style TargetType="ListBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Cursor" Value="Hand" />
+                <EventSetter Event="PreviewMouseLeftButtonUp" Handler="OnTierItemMouseLeftButtonUp" />
+              </Style>
+            </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
               <DataTemplate>
                 <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,8">
@@ -169,21 +240,46 @@
                     </StackPanel>
                     <TextBlock Text="{Binding PointRange}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
                     <TextBlock Text="{Binding BenefitDescription}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" Margin="0,3,0,0" />
+                    <ItemsControl ItemsSource="{Binding BenefitLines}" Margin="0,4,0,0"
+                                  Visibility="{Binding HasBenefitLines, Converter={StaticResource BoolToVisibilityConverter}}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <StackPanel Orientation="Horizontal" Margin="0,1,0,0">
+                            <materialDesign:PackIcon Kind="CheckCircleOutline" Width="12" Height="12"
+                                                     Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Top" Margin="0,2,5,0" />
+                            <TextBlock Text="{Binding}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding RedemptionLabel}" Style="{StaticResource MutedText}" FontSize="11" FontStyle="Italic" Margin="0,4,0,0" />
                   </StackPanel>
                 </Border>
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
 
-          <StackPanel Grid.Row="1" Margin="0,8,0,0">
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                        Visibility="{Binding IsTierEditorOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+          <StackPanel>
             <TextBlock Text="Nombre del tier" Style="{StaticResource MutedText}" FontSize="11" />
             <TextBox Text="{Binding TierName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
             <TextBlock Text="Puntos mínimos" Style="{StaticResource MutedText}" FontSize="11" />
             <TextBox Text="{Binding TierMinimumPoints, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
             <TextBlock Text="Descuento (%)" Style="{StaticResource MutedText}" FontSize="11" />
-            <TextBox Text="{Binding TierDiscountPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
+            <TextBox Text="{Binding TierDiscountPercent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,2" />
+            <TextBlock Text="{Binding TierDiscountHint}" Style="{StaticResource MutedText}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,6" />
             <TextBlock Text="Multiplicador de puntos" Style="{StaticResource MutedText}" FontSize="11" />
-            <TextBox Text="{Binding TierPointsMultiplierText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,8" />
+            <TextBox Text="{Binding TierPointsMultiplierText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,2" />
+            <TextBlock Text="{Binding TierPointsMultiplierHint}" Style="{StaticResource MutedText}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8" />
+            <TextBlock Text="Beneficios del tier (uno por línea)" Style="{StaticResource MutedText}" FontSize="11" />
+            <TextBox Text="{Binding TierBenefits, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                     MinHeight="64" MaxHeight="120" Margin="0,3,0,8"
+                     ToolTip="Ej: Acceso a capacitaciones&#x0a;Envío gratis" />
+            <CheckBox IsChecked="{Binding TierAllowsRedemption, Mode=TwoWay}" Margin="0,0,0,8"
+                      Content="Permitir canje de puntos en caja"
+                      ToolTip="Si está desactivado, los clientes de este tier no verán la opción de canjear puntos al facturar." />
              <TextBlock Text="Color del tier" Style="{StaticResource MutedText}" FontSize="11" />
             <Grid Margin="0,3,0,8">
               <Grid.ColumnDefinitions>
@@ -206,6 +302,29 @@
               <Button Command="{Binding DeleteTierCommand}" Margin="0,0,8,0">Eliminar</Button>
               <Button Command="{Binding SaveTierCommand}" Style="{StaticResource PrimaryButton}">Guardar tier</Button>
             </StackPanel>
+          </StackPanel>
+          </ScrollViewer>
+
+          <!-- Empty state: the editor pane is what opens when there is nothing to list. -->
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24">
+            <StackPanel.Style>
+              <Style TargetType="StackPanel">
+                <Setter Property="Visibility" Value="Collapsed" />
+                <Style.Triggers>
+                  <MultiDataTrigger>
+                    <MultiDataTrigger.Conditions>
+                      <Condition Binding="{Binding IsTiersListOpen}" Value="True" />
+                      <Condition Binding="{Binding HasTiers}" Value="False" />
+                    </MultiDataTrigger.Conditions>
+                    <Setter Property="Visibility" Value="Visible" />
+                  </MultiDataTrigger>
+                </Style.Triggers>
+              </Style>
+            </StackPanel.Style>
+            <materialDesign:PackIcon Kind="MedalOutline" Width="36" Height="36" HorizontalAlignment="Center"
+                                     Foreground="{StaticResource BrushBorder}" />
+            <TextBlock Text="Aún no hay tiers creados" Style="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,8,0,0" />
+            <Button Command="{Binding ShowTierEditorCommand}" Style="{StaticResource PrimaryButton}" Margin="0,10,0,0">Crear el primero</Button>
           </StackPanel>
         </Grid>
 

@@ -727,5 +727,63 @@ public sealed class RoleUseCaseTests
             CountUsersInRoleCalls++;
             return Task.FromResult(_assignedUsers.Count(user => user.RoleId == roleId));
         }
+
+        public int DeleteCalls { get; private set; }
+        public Task DeleteAsync(Role role, CancellationToken ct = default)
+        {
+            DeleteCalls++;
+            _roles.Remove(role.Id);
+            _grants.Remove(role.Id);
+            return Task.CompletedTask;
+        }
+    }
+
+    [Fact]
+    public async Task DeleteRoleAsync_SystemRole_ReturnsError()
+    {
+        var adminRole = CreateAdministratorRole();
+        var adminUser = CreateAdministratorUser();
+        var users = new InMemoryUserRepository([adminUser]);
+        var roles = new InMemoryRoleRepository([adminRole]);
+        var unitOfWork = new CountingUnitOfWork();
+
+        var result = await new DeleteRoleUseCase(users, roles, unitOfWork).ExecuteAsync(adminRole.Id, adminUser.Id, TestContext.Current.CancellationToken);
+
+        Assert.False(result.Success);
+        Assert.Contains("sistema", result.Error);
+        Assert.Equal(0, roles.DeleteCalls);
+    }
+
+    [Fact]
+    public async Task DeleteRoleAsync_RoleWithUsers_ReturnsError()
+    {
+        var customRole = new Role("Custom");
+        var adminUser = CreateAdministratorUser();
+        var userInRole = new User("user1", "hash", customRole.Id);
+        var users = new InMemoryUserRepository([adminUser, userInRole]);
+        var roles = new InMemoryRoleRepository([CreateAdministratorRole(), customRole], assignedUsers: [userInRole]);
+        var unitOfWork = new CountingUnitOfWork();
+
+        var result = await new DeleteRoleUseCase(users, roles, unitOfWork).ExecuteAsync(customRole.Id, adminUser.Id, TestContext.Current.CancellationToken);
+
+        Assert.False(result.Success);
+        Assert.Contains("asignado a usuarios", result.Error);
+        Assert.Equal(0, roles.DeleteCalls);
+    }
+
+    [Fact]
+    public async Task DeleteRoleAsync_ValidCustomRole_DeletesSuccessfully()
+    {
+        var customRole = new Role("Unused Custom");
+        var adminUser = CreateAdministratorUser();
+        var users = new InMemoryUserRepository([adminUser]);
+        var roles = new InMemoryRoleRepository([CreateAdministratorRole(), customRole]);
+        var unitOfWork = new CountingUnitOfWork();
+
+        var result = await new DeleteRoleUseCase(users, roles, unitOfWork).ExecuteAsync(customRole.Id, adminUser.Id, TestContext.Current.CancellationToken);
+
+        Assert.True(result.Success);
+        Assert.Equal(1, roles.DeleteCalls);
+        Assert.Equal(1, unitOfWork.SaveCount);
     }
 }

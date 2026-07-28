@@ -196,4 +196,44 @@ public sealed class LoyaltyTests
     {
         Assert.ThrowsAny<ArgumentOutOfRangeException>(() => new LoyaltyTier("Tier", minPoints, discountPercent, multiplier));
     }
+
+    [Fact]
+    public void LoyaltyTier_NormalisesBenefitsSoEveryReaderCanSplitOnNewline()
+    {
+        var tier = new LoyaltyTier("Oro", 1000, benefits: "  Acceso a capacitaciones \r\n\r\n Envio gratis \n\n");
+
+        Assert.Equal("Acceso a capacitaciones\nEnvio gratis", tier.Benefits);
+        Assert.Equal(["Acceso a capacitaciones", "Envio gratis"], tier.BenefitLines);
+    }
+
+    [Fact]
+    public void LoyaltyTier_WithoutBenefits_ExposesEmptyLinesNotNull()
+    {
+        var tier = new LoyaltyTier("Bronce", 0);
+
+        Assert.Equal(string.Empty, tier.Benefits);
+        Assert.Empty(tier.BenefitLines);
+        Assert.Empty(LoyaltyTier.SplitBenefits(null));
+    }
+
+    [Fact]
+    public void LoyaltyTier_RedemptionIsOptInAndSurvivesThresholdOnlyUpdates()
+    {
+        var tier = new LoyaltyTier("Oro", 1000);
+        Assert.False(tier.AllowsRedemption);
+
+        tier.Update("Oro", 1000, 10m, 2m, "#64748B", LoyaltyTierTextForeground.White, "Capacitaciones", allowsRedemption: true);
+        Assert.True(tier.AllowsRedemption);
+
+        // The threshold-only overload must not silently reset the benefits or the redemption flag.
+        tier.Update(1500, 15m, 2m);
+        Assert.True(tier.AllowsRedemption);
+        Assert.Equal("Capacitaciones", tier.Benefits);
+    }
+
+    [Fact]
+    public void LoyaltyTier_RejectsBenefitsBeyondTheStoredColumnLength()
+    {
+        Assert.Throws<ArgumentException>(() => new LoyaltyTier("Oro", 1000, benefits: new string('x', 1001)));
+    }
 }

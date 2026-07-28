@@ -29,4 +29,24 @@ public sealed class CashierHoldAndDiscountTests
         Assert.Throws<ArgumentOutOfRangeException>(() => new BusinessSettings(
             "Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP", maximum));
     }
+
+    [Theory]
+    [InlineData(0)]     // a cap below 1 would reject every tier, since 1x means "no bonus"
+    [InlineData(0.5)]
+    [InlineData(101)]
+    public void BusinessSettings_RejectsMaximumPointsMultiplierOutsideBounds(decimal maximum)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BusinessSettings(
+            "Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP",
+            maximumCashierDiscountPercent: 20m, maximumDeferredBalancePercent: 50m, maximumPointsMultiplier: maximum));
+    }
+
+    [Fact]
+    public void BusinessSettings_DefaultsMaximumPointsMultiplier()
+    {
+        var settings = new BusinessSettings(
+            "Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP");
+
+        Assert.Equal(BusinessSettings.DefaultMaximumPointsMultiplier, settings.MaximumPointsMultiplier);
+    }
 }

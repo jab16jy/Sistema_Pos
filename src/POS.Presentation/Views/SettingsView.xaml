@@ -54,9 +54,10 @@
           </StackPanel>
         </Border>
 
-        <UniformGrid Columns="4" Margin="0,0,0,12">
-          <controls:KpiCard Label="Usuarios activos" Value="{Binding ActiveUsersSummary}" Hint="Sin consulta agregada en esta fase" Margin="0,0,12,0" />
-          <controls:KpiCard Label="Turno actual" Value="{Binding CurrentShiftSummary}" Hint="Sin consulta agregada en esta fase" Margin="0,0,12,0" />
+        <UniformGrid Columns="4" Margin="0,0,0,12"
+                     Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVisibilityConverter}}">
+          <controls:KpiCard Label="Usuarios activos" Value="{Binding ActiveUsersSummary}" Hint="Usuarios habilitados en sistema" Margin="0,0,12,0" />
+          <controls:KpiCard Label="Turno actual" Value="{Binding CurrentShiftSummary}" Hint="Estado actual de turnos de caja" Margin="0,0,12,0" />
           <controls:KpiCard Label="Último backup" Value="{Binding LastBackupSummary}" Hint="Último respaldo validado" Margin="0,0,12,0" />
           <controls:KpiCard Label="Canales listos" Value="{Binding ReadyChannelsSummary}" Hint="Impresora, SMTP y WhatsApp" />
         </UniformGrid>
@@ -69,7 +70,8 @@
           </Grid.ColumnDefinitions>
 
           <StackPanel>
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12"
+                    Visibility="{Binding DataContext.HasAdminHubModules, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}">
               <StackPanel Margin="14">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                   <materialDesign:PackIcon Kind="Apps" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
@@ -90,7 +92,8 @@
               </StackPanel>
             </Border>
 
-            <Border Style="{StaticResource Card}" Margin="0,0,0,12">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12"
+                    Visibility="{Binding DataContext.HasAdminHubExtraModules, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibilityConverter}}">
               <StackPanel Margin="14">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                   <materialDesign:PackIcon Kind="ViewDashboard" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
@@ -111,7 +114,8 @@
               </StackPanel>
             </Border>
 
-            <Border Style="{StaticResource Card}">
+            <Border Style="{StaticResource Card}" Margin="0,0,0,12"
+                    Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVisibilityConverter}}">
               <StackPanel Margin="14">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
                   <materialDesign:PackIcon Kind="CogSync" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
@@ -155,7 +159,8 @@
                 </Grid>
               </StackPanel>
             </Border>
-            <Border Style="{StaticResource Card}">
+            <Border Style="{StaticResource Card}"
+                    Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVisibilityConverter}}">
               <StackPanel Margin="14">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                   <materialDesign:PackIcon Kind="Backup" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
@@ -169,23 +174,44 @@
             </Border>
           </StackPanel>
 
-          <StackPanel Grid.Column="2">
+          <StackPanel Grid.Column="2"
+                      Visibility="{Binding IsAdministrator, Converter={StaticResource BoolToVisibilityConverter}}">
             <Border Style="{StaticResource Card}" Margin="0,0,0,12">
               <StackPanel Margin="14">
                 <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                   <materialDesign:PackIcon Kind="Alert" Foreground="{StaticResource BrushWarning}" VerticalAlignment="Center" />
-                  <TextBlock Text="Alertas" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
+                  <TextBlock Text="Alertas del sistema" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
-                <Border Background="{StaticResource BrushWarningContainer}" CornerRadius="6" Padding="10" Margin="0,0,0,8">
-                  <TextBlock Foreground="{StaticResource BrushWarning}" Style="{StaticResource TextSmall}" TextWrapping="Wrap">
-                    Falta definir una política única para autorizaciones: devoluciones, anulación de documentos y ajustes manuales de stock deberían pedir rol administrador.
-                  </TextBlock>
-                </Border>
-                <Border Background="{StaticResource BrushWarningContainer}" CornerRadius="6" Padding="10">
-                  <TextBlock Foreground="{StaticResource BrushWarning}" Style="{StaticResource TextSmall}" TextWrapping="Wrap">
-                    WhatsApp debe abrir primero la app de escritorio y, si no está disponible, caer automáticamente a WhatsApp Web sin bloquear la operación.
-                  </TextBlock>
-                </Border>
+                <ItemsControl ItemsSource="{Binding SystemAlerts}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border CornerRadius="6" Padding="10" Margin="0,0,0,8">
+                        <Border.Style>
+                          <Style TargetType="Border">
+                            <Setter Property="Background" Value="{StaticResource BrushSuccessContainer}" />
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding IsWarning}" Value="True">
+                                <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Border.Style>
+                        <TextBlock TextWrapping="Wrap" Text="{Binding Message}">
+                          <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource TextSmall}">
+                              <Setter Property="Foreground" Value="{StaticResource BrushSuccess}" />
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsWarning}" Value="True">
+                                  <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </TextBlock.Style>
+                        </TextBlock>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
               </StackPanel>
             </Border>
 
@@ -373,6 +399,15 @@
                       Tag="50"
                       Margin="0,0,0,4" />
              <TextBlock Text="El saldo diferido de una venta no puede superar este porcentaje del total. Rango permitido: 0–100%."
+                        Style="{StaticResource MutedText}"
+                        FontSize="10"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,12" />
+             <TextBlock Text="Máximo multiplicador de puntos por nivel" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+             <TextBox Text="{Binding MaximumPointsMultiplier, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      Tag="5"
+                      Margin="0,0,0,4" />
+             <TextBlock Text="Ningún nivel de lealtad puede otorgar un multiplicador de puntos mayor a este valor. Rango permitido: 1–100."
                         Style="{StaticResource MutedText}"
                         FontSize="10"
                         TextWrapping="Wrap"

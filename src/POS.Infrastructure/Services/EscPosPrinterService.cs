@@ -93,14 +93,11 @@ public sealed partial class EscPosPrinterService : IPrintService
                 .ConfigureAwait(false)
             : null;
 
-        LoyaltyTier? loyaltyTier = customer?.LoyaltyTierId is Guid tierId
-            ? await _dbContext.LoyaltyTiers
-                .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Id == tierId, cancellationToken)
-                .ConfigureAwait(false)
-            : null;
+        LoyaltySaleSnapshot loyalty = await LoyaltySaleSnapshot
+            .LoadAsync(_dbContext, sale.CustomerId, sale.Id, cancellationToken)
+            .ConfigureAwait(false);
 
-        var receiptBytes = BuildReceiptBytes(sale, settings, customer, loyaltyTier);
+        var receiptBytes = BuildReceiptBytes(sale, settings, customer, loyalty);
         ThermalPrinterTarget target = await _printerSettingsResolver.ResolveRequiredAsync(cancellationToken).ConfigureAwait(false);
 
         if (target.SupportsDirectEscPos)
@@ -112,7 +109,7 @@ public sealed partial class EscPosPrinterService : IPrintService
         await PrintViaProcessAsync(target, saleId, cancellationToken).ConfigureAwait(false);
     }
 
-    private static byte[] BuildReceiptBytes(Sale sale, BusinessSettings? settings, Customer? customer, LoyaltyTier? loyaltyTier)
+    private static byte[] BuildReceiptBytes(Sale sale, BusinessSettings? settings, Customer? customer, LoyaltySaleSnapshot loyalty)
     {
         var buf = new List<byte>();
         void Write(byte[] b) => buf.AddRange(b);
@@ -171,8 +168,8 @@ public sealed partial class EscPosPrinterService : IPrintService
                 WriteLine($"Email: {customer.Email}");
             if (!string.IsNullOrWhiteSpace(customer.Address))
                 WriteLine($"Direccion: {customer.Address}");
-            if (loyaltyTier is not null)
-                WriteLine($"Nivel: {loyaltyTier.Name} ({loyaltyTier.DiscountPercent:N0}% dcto)");
+            if (loyalty.Tier is not null)
+                WriteLine($"Nivel: {loyalty.Tier.Name} ({loyalty.Tier.DiscountPercent:N0}% dcto)");
             WriteLine();
         }
 
@@ -251,11 +248,37 @@ public sealed partial class EscPosPrinterService : IPrintService
         WriteLine();
         Separator();
 
+        // ── Loyalty ──────────────────────────────────────────────────────────
+        if (loyalty.HasContent)
+        {
+            WriteLine();
+            Write(EscPosCommands.BoldOn);
+            WriteLine("PUNTOS DE LEALTAD");
+            Write(EscPosCommands.BoldOff);
+            if (loyalty.PointsEarned != 0)
+                WriteLine($"{"Ganados en esta compra:",-24}{loyalty.PointsEarned,7}");
+            // Labelled "a hoy" because a reprint reads the live balance, which has moved on since
+            // the sale — printing it unqualified would read as a figure belonging to this invoice.
+            WriteLine($"{"Acumulados (a hoy):",-24}{loyalty.Balance,7}");
+
+            if (loyalty.Tier is not null)
+            {
+                WriteLine();
+                WriteLine($"Nivel {loyalty.Tier.Name} · beneficios:");
+                WriteLine($"- {loyalty.Tier.DiscountPercent:N0}% dcto · x{loyalty.Tier.PointsMultiplier:0.##} puntos");
+                foreach (var benefit in loyalty.Tier.BenefitLines)
+                    WriteLine($"- {benefit}");
+            }
+
+            WriteLine();
+            Separator();
+        }
+
         // ── Footer ───────────────────────────────────────────────────────────
         Write(EscPosCommands.CenterAlign);
         WriteLine();
-        WriteLine("Acumula y canjea puntos");
-        WriteLine("de lealtad en cada compra.");
+        WriteLine("Acumula puntos y accede");
+        WriteLine("a beneficios en cada compra.");
         WriteLine();
         WriteLine("¡Gracias por su compra!");
         WriteLine("Conserve su recibo.");

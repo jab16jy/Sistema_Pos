@@ -124,7 +124,7 @@ public sealed class UserManagementViewModel : ViewModelBase
     public ICommand SaveEditCommand { get; }
     public ICommand DeactivateCommand { get; }
 
-    private async Task LoadAsync()
+    public async Task LoadAsync()
     {
         IsLoading = true;
         StatusMessage = string.Empty;

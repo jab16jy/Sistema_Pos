@@ -1,9 +1,10 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Loyalty;
 using POS.Application.UseCases.Loyalty;
+using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Presentation.Shared.Commands;
 
@@ -27,6 +28,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private readonly CreateLoyaltyTierUseCase? _createTier;
     private readonly UpdateLoyaltyTierUseCase? _updateTier;
     private readonly DeleteLoyaltyTierUseCase? _deleteTier;
+    private readonly GetLoyaltyTierLimitsUseCase? _getTierLimits;
 
     private int _balance;
     private CustomerResult? _selectedCustomer;
@@ -49,8 +51,14 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private string _tierPointsMultiplierText = "1";
     private string _tierColor = "#64748B";
     private LoyaltyTierTextForeground _tierTextForeground = LoyaltyTierTextForeground.White;
+    private string _tierBenefits = string.Empty;
+    private bool _tierAllowsRedemption;
     private decimal? _pendingTierPointsMultiplier = 1m;
     private bool _isTierPointsMultiplierTextValid = true;
+    private bool _isTierEditorOpen;
+    private decimal _maximumTierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent;
+    private decimal _maximumTierPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier;
+
 
     public LoyaltyViewModel(
         GetLoyaltyBalanceUseCase getBalance,
@@ -60,7 +68,8 @@ public sealed class LoyaltyViewModel : ViewModelBase
         GetLoyaltyTiersUseCase? getTiers = null,
         CreateLoyaltyTierUseCase? createTier = null,
         UpdateLoyaltyTierUseCase? updateTier = null,
-        DeleteLoyaltyTierUseCase? deleteTier = null)
+        DeleteLoyaltyTierUseCase? deleteTier = null,
+        GetLoyaltyTierLimitsUseCase? getTierLimits = null)
     {
         _getBalance = getBalance ?? throw new ArgumentNullException(nameof(getBalance));
         _redeemPoints = redeemPoints ?? throw new ArgumentNullException(nameof(redeemPoints));
@@ -70,6 +79,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
         _createTier = createTier;
         _updateTier = updateTier;
         _deleteTier = deleteTier;
+        _getTierLimits = getTierLimits;
 
         Transactions = [];
         ProgramTransactions = [];
@@ -83,6 +93,8 @@ public sealed class LoyaltyViewModel : ViewModelBase
         SaveTierCommand = new RelayCommand(_ => RunSafe(SaveTierAsync(), ex => Message = $"Error al guardar tier: {ex.Message}"));
         DeleteTierCommand = new RelayCommand(_ => RunSafe(DeleteTierAsync(), ex => Message = $"Error al eliminar tier: {ex.Message}"));
         NewTierCommand = new RelayCommand(_ => BeginNewTier());
+        ShowTiersListCommand = new RelayCommand(_ => CloseTierEditor());
+        ShowTierEditorCommand = new RelayCommand(_ => IsTierEditorOpen = true);
 
         if (_getProgramOverview is not null)
         {
@@ -108,6 +120,59 @@ public sealed class LoyaltyViewModel : ViewModelBase
     public ICommand SaveTierCommand { get; }
     public ICommand DeleteTierCommand { get; }
     public ICommand NewTierCommand { get; }
+    public ICommand ShowTiersListCommand { get; }
+    public ICommand ShowTierEditorCommand { get; }
+
+    /// <summary>
+    /// Which pane column 2 shows: the tier list (false) or the tier editor (true). They swap rather
+    /// than stack so neither gets squeezed into a sliver.
+    /// </summary>
+    public bool IsTierEditorOpen
+    {
+        get => _isTierEditorOpen;
+        set
+        {
+            if (SetProperty(ref _isTierEditorOpen, value))
+            {
+                OnPropertyChanged(nameof(IsTiersListOpen));
+            }
+        }
+    }
+
+    public bool IsTiersListOpen => !_isTierEditorOpen;
+
+    /// <summary>Ceiling a tier's discount may reach — the same one that caps a manual cashier discount.</summary>
+    public decimal MaximumTierDiscountPercent
+    {
+        get => _maximumTierDiscountPercent;
+        private set
+        {
+            if (SetProperty(ref _maximumTierDiscountPercent, value))
+            {
+                OnPropertyChanged(nameof(TierDiscountHint));
+            }
+        }
+    }
+
+    public decimal MaximumTierPointsMultiplier
+    {
+        get => _maximumTierPointsMultiplier;
+        private set
+        {
+            if (SetProperty(ref _maximumTierPointsMultiplier, value))
+            {
+                OnPropertyChanged(nameof(TierPointsMultiplierHint));
+            }
+        }
+    }
+
+    public string TierDiscountHint =>
+        $"Máximo permitido: {_maximumTierDiscountPercent.ToString("0.##", ColombianCulture)}% (definido en Configuración).";
+
+    public string TierPointsMultiplierHint =>
+        $"Máximo permitido: {_maximumTierPointsMultiplier.ToString("0.##", ColombianCulture)}x (definido en Configuración).";
+
+    public bool HasTiers => Tiers.Count > 0;
 
     public int Balance
     {
@@ -220,6 +285,8 @@ public sealed class LoyaltyViewModel : ViewModelBase
                 TierPointsMultiplier = value.PointsMultiplier;
                 TierColor = value.Color;
                 TierTextForeground = value.TextForeground;
+                TierBenefits = value.Benefits;
+                TierAllowsRedemption = value.AllowsRedemption;
             }
         }
     }
@@ -234,6 +301,20 @@ public sealed class LoyaltyViewModel : ViewModelBase
     {
         get => _tierMinimumPoints;
         set => SetProperty(ref _tierMinimumPoints, value);
+    }
+
+    /// <summary>Free-text benefits unlocked at this tier, one per line.</summary>
+    public string TierBenefits
+    {
+        get => _tierBenefits;
+        set => SetProperty(ref _tierBenefits, value ?? string.Empty);
+    }
+
+    /// <summary>When false, customers on this tier are not offered point redemption at checkout.</summary>
+    public bool TierAllowsRedemption
+    {
+        get => _tierAllowsRedemption;
+        set => SetProperty(ref _tierAllowsRedemption, value);
     }
 
     public decimal TierDiscountPercent
@@ -339,17 +420,35 @@ public sealed class LoyaltyViewModel : ViewModelBase
             return;
         }
 
+        if (_getTierLimits is not null)
+        {
+            LoyaltyTierLimitsResult limits = await _getTierLimits.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+            MaximumTierDiscountPercent = limits.MaximumDiscountPercent;
+            MaximumTierPointsMultiplier = limits.MaximumPointsMultiplier;
+        }
+
         var tiers = await _getTiers.ExecuteAsync(cancellationToken).ConfigureAwait(true);
         var selectedId = SelectedTier?.Id;
+
         Tiers.Clear();
         foreach (var tier in tiers)
         {
             Tiers.Add(LoyaltyTierPresentation.From(tier));
         }
 
-        SelectedTier = selectedId is { } id
-            ? Tiers.FirstOrDefault(tier => tier.Id == id)
-            : Tiers.FirstOrDefault();
+        // Only re-attach an existing selection; never pick one for the user. An auto-selected first
+        // tier would make the list open with a row highlighted and turn "Configuración" into "edit
+        // that tier" instead of "create a new one".
+        SelectedTier = selectedId is { } id ? Tiers.FirstOrDefault(tier => tier.Id == id) : null;
+
+        OnPropertyChanged(nameof(HasTiers));
+
+        // With no tier to look at, the list pane would be an empty box — open the editor so the
+        // first thing the business sees is how to create one.
+        if (Tiers.Count == 0)
+        {
+            IsTierEditorOpen = true;
+        }
     }
 
     public async Task SaveTierAsync(CancellationToken cancellationToken = default)
@@ -358,6 +457,20 @@ public sealed class LoyaltyViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(TierName) || TierMinimumPoints < 0 || TierDiscountPercent is < 0 or > 100 || !_isTierPointsMultiplierTextValid || _pendingTierPointsMultiplier is not > 0m || !hasValidColor)
         {
             Message = "Revisa el tier: nombre obligatorio, mínimo no negativo, descuento entre 0 y 100, multiplicador mayor a cero y color en formato #RRGGBB.";
+            return;
+        }
+
+        // Same ceilings the use case enforces — checked here too so the editor says what is wrong
+        // before a round trip, and keeps the entered values on screen.
+        if (TierDiscountPercent > MaximumTierDiscountPercent)
+        {
+            Message = $"El descuento del nivel no puede superar el máximo configurado de {MaximumTierDiscountPercent.ToString("0.##", ColombianCulture)}%.";
+            return;
+        }
+
+        if (_pendingTierPointsMultiplier.Value > MaximumTierPointsMultiplier)
+        {
+            Message = $"El multiplicador de puntos no puede superar el máximo configurado de {MaximumTierPointsMultiplier.ToString("0.##", ColombianCulture)}x.";
             return;
         }
 
@@ -372,16 +485,18 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             if (SelectedTier is null)
             {
-                await _createTier!.ExecuteAsync(new CreateLoyaltyTierRequest(TierName, TierMinimumPoints, TierDiscountPercent, _pendingTierPointsMultiplier.Value, TierColor, TierTextForeground), cancellationToken).ConfigureAwait(true);
+                await _createTier!.ExecuteAsync(new CreateLoyaltyTierRequest(TierName, TierMinimumPoints, TierDiscountPercent, _pendingTierPointsMultiplier.Value, TierColor, TierTextForeground, TierBenefits, TierAllowsRedemption), cancellationToken).ConfigureAwait(true);
                 Message = "Tier creado correctamente.";
             }
             else
             {
-                await _updateTier!.ExecuteAsync(new UpdateLoyaltyTierRequest(SelectedTier.Id, TierName, TierMinimumPoints, TierDiscountPercent, _pendingTierPointsMultiplier.Value, TierColor, TierTextForeground), cancellationToken).ConfigureAwait(true);
+                await _updateTier!.ExecuteAsync(new UpdateLoyaltyTierRequest(SelectedTier.Id, TierName, TierMinimumPoints, TierDiscountPercent, _pendingTierPointsMultiplier.Value, TierColor, TierTextForeground, TierBenefits, TierAllowsRedemption), cancellationToken).ConfigureAwait(true);
                 Message = "Tier actualizado correctamente.";
             }
 
             await LoadTiersAsync(cancellationToken).ConfigureAwait(true);
+            // Saved successfully: show the result in the list instead of leaving the form open.
+            CloseTierEditor();
         }
         catch (ArgumentException ex)
         {
@@ -411,8 +526,10 @@ public sealed class LoyaltyViewModel : ViewModelBase
         try
         {
             await _deleteTier.ExecuteAsync(SelectedTier.Id, cancellationToken).ConfigureAwait(true);
-            BeginNewTier();
+            ResetTierForm();
             await LoadTiersAsync(cancellationToken).ConfigureAwait(true);
+            // Back to the list unless nothing is left to list.
+            IsTierEditorOpen = Tiers.Count == 0;
             Message = "Tier eliminado correctamente.";
         }
         finally
@@ -421,7 +538,25 @@ public sealed class LoyaltyViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Opens the editor on a blank tier.</summary>
     public void BeginNewTier()
+    {
+        ResetTierForm();
+        IsTierEditorOpen = true;
+    }
+
+    /// <summary>
+    /// Leaves the editor for the list. Clears the selection so the list comes back with nothing
+    /// highlighted and reopening the editor starts a new tier — otherwise the last tier stays
+    /// selected and "Configuración" silently reopens it instead of creating one.
+    /// </summary>
+    public void CloseTierEditor()
+    {
+        ResetTierForm();
+        IsTierEditorOpen = false;
+    }
+
+    private void ResetTierForm()
     {
         SelectedTier = null;
         TierName = string.Empty;
@@ -430,6 +565,8 @@ public sealed class LoyaltyViewModel : ViewModelBase
         TierPointsMultiplier = 1m;
         TierColor = "#64748B";
         TierTextForeground = LoyaltyTierTextForeground.White;
+        TierBenefits = string.Empty;
+        TierAllowsRedemption = false;
     }
 
     private static System.Windows.Media.Brush TryParseBrush(string? hex)
@@ -685,13 +822,25 @@ public sealed record LoyaltyTierPresentation(
     decimal DiscountPercent,
     decimal PointsMultiplier,
     string Color,
-    LoyaltyTierTextForeground TextForeground)
+    LoyaltyTierTextForeground TextForeground,
+    string Benefits = "",
+    bool AllowsRedemption = false)
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
     public string PointRange => $"Desde {MinPoints.ToString("N0", ColombianCulture)} pts";
+
+    /// <summary>The calculated benefits — the ones the engine applies automatically.</summary>
     public string BenefitDescription =>
         $"{DiscountPercent.ToString("0.##", ColombianCulture)}% descuento · {PointsMultiplier.ToString("0.##", ColombianCulture)}x puntos";
+
+    /// <summary>The free-text benefits the business defined for this tier, one per line.</summary>
+    public IReadOnlyList<string> BenefitLines => POS.Domain.Entities.LoyaltyTier.SplitBenefits(Benefits);
+
+    public bool HasBenefitLines => BenefitLines.Count > 0;
+
+    public string RedemptionLabel => AllowsRedemption ? "Canje de puntos habilitado" : "Canje de puntos deshabilitado";
+
     public string ChipKind => DiscountPercent > 0 ? "warning" : PointsMultiplier > 1 ? "primary" : "neutral";
     public System.Windows.Media.Brush ColorBrush => TryParseBrush(Color);
     public System.Windows.Media.Brush TextForegroundBrush => TextForeground == LoyaltyTierTextForeground.Black ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.White;
@@ -703,7 +852,7 @@ public sealed record LoyaltyTierPresentation(
     }
 
     public static LoyaltyTierPresentation From(LoyaltyTierResult tier)
-        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color, tier.TextForeground);
+        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color, tier.TextForeground, tier.Benefits, tier.AllowsRedemption);
 }
 
 /// <summary>Presentation row for real persisted program movements.</summary>

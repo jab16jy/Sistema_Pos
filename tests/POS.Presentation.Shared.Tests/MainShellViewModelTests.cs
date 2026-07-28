@@ -147,6 +147,7 @@ public sealed class MainShellViewModelTests
 
         Assert.True(viewModel.IsShiftsSelected);
         Assert.Equal("shifts", viewModel.CurrentFuncbarModule.Key);
+        Assert.False(viewModel.IsAdminSubmoduleSelected);
     }
 
     [Fact]
@@ -166,8 +167,51 @@ public sealed class MainShellViewModelTests
         Assert.Equal(["cashier", "customers", "quotes", "invoices", "admin"], viewModel.FuncbarModules.Select(module => module.Key));
         Assert.Equal(["products"], viewModel.AdminHubModules.Select(module => module.Key));
         Assert.Empty(viewModel.AdminHubExtraModules);
+        Assert.True(viewModel.HasAdminHubModules);
+        Assert.False(viewModel.HasAdminHubExtraModules);
         Assert.DoesNotContain(viewModel.FuncbarModules, module => module.Key == "shifts");
         Assert.DoesNotContain(viewModel.AdminHubModules, module => module.Key == "shifts");
+    }
+
+    [Fact]
+    public void CashierPlusAuditRole_ExposesBothManagementAndExtraModules()
+    {
+        var permissions = new HashSet<string>(POS.Domain.Authorization.PermissionKeys.CashierDefaults)
+        {
+            POS.Domain.Authorization.PermissionKeys.Audit.View
+        };
+        var viewModel = new MainShellViewModel(
+            new CashierViewModel(new PrototypeProductLookupService()),
+            null,
+            permissions,
+            "CajeroAuditoria",
+            "cajero1");
+
+        Assert.True(viewModel.HasAdminHubModules);
+        Assert.True(viewModel.HasAdminHubExtraModules);
+        Assert.Equal(["shifts"], viewModel.AdminHubModules.Select(m => m.Key));
+        Assert.Equal(["audit"], viewModel.AdminHubExtraModules.Select(m => m.Key));
+    }
+
+    [Fact]
+    public void ManagementOnlyRole_HidesExtraModulesCard()
+    {
+        var permissions = new HashSet<string>
+        {
+            POS.Domain.Authorization.PermissionKeys.Products.View,
+            POS.Domain.Authorization.PermissionKeys.Inventory.View
+        };
+        var viewModel = new MainShellViewModel(
+            new CashierViewModel(new PrototypeProductLookupService()),
+            null,
+            permissions,
+            "Inventariista",
+            "operador1");
+
+        Assert.True(viewModel.HasAdminHubModules);
+        Assert.False(viewModel.HasAdminHubExtraModules);
+        Assert.Equal(["products", "inventory"], viewModel.AdminHubModules.Select(m => m.Key));
+        Assert.Empty(viewModel.AdminHubExtraModules);
     }
 
     [Fact]

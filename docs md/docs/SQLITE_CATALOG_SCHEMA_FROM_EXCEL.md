@@ -253,3 +253,9 @@ Con este esquema, el POS puede:
 - vender desde Caja,
 - mantener trazabilidad del origen,
 - y evolucionar después sin romper datos ni relaciones.
+
+---
+
+## Documentos relacionados
+
+[[04_diseno_modelo_datos_sqlite]] · [[03_diseno_modelo_dominio]] · [[modulos]]

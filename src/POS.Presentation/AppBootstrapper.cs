@@ -106,7 +106,8 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<POS.Application.UseCases.Communication.SendDocumentUseCase>(),
                 session,
                 TryResolveOptional<POS.Application.Interfaces.IPdfService>(sp),
-                TryResolveOptional<GetQuoteDetailUseCase>(sp)),
+                TryResolveOptional<GetQuoteDetailUseCase>(sp),
+                TryResolveOptional<CancelQuoteUseCase>(sp)),
             moduleWarnings);
 
         QuoteViewModel? quote = TryCreateOptionalModule(
@@ -222,7 +223,9 @@ internal static class AppBootstrapper
                 TryResolveOptional<POS.Application.Interfaces.IEmailService>(sp),
                 TryResolveOptional<POS.Application.Interfaces.IWhatsAppService>(sp),
                 TryResolveOptional<POS.Application.Interfaces.IInstalledPrinterProvider>(sp),
-                session),
+                session,
+                TryResolveOptional<POS.Domain.Interfaces.IUserRepository>(sp),
+                TryResolveOptional<POS.Domain.Interfaces.ICashierShiftRepository>(sp)),
             moduleWarnings);
 
         BackupViewModel? backup = TryCreateOptionalModule(
@@ -244,7 +247,8 @@ internal static class AppBootstrapper
                 TryResolveOptional<GetLoyaltyTiersUseCase>(sp),
                 TryResolveOptional<CreateLoyaltyTierUseCase>(sp),
                 TryResolveOptional<UpdateLoyaltyTierUseCase>(sp),
-                TryResolveOptional<DeleteLoyaltyTierUseCase>(sp)),
+                TryResolveOptional<DeleteLoyaltyTierUseCase>(sp),
+                TryResolveOptional<GetLoyaltyTierLimitsUseCase>(sp)),
             moduleWarnings);
 
         UserManagementViewModel? userManagement = TryCreateOptionalModule(
@@ -265,6 +269,7 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<CreateRoleUseCase>(),
                 sp.GetRequiredService<UpdateRoleUseCase>(),
                 sp.GetRequiredService<DeactivateRoleUseCase>(),
+                sp.GetRequiredService<DeleteRoleUseCase>(),
                 sp.GetRequiredService<POS.Domain.Interfaces.IRoleRepository>(),
                 session),
             moduleWarnings);

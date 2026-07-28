@@ -69,6 +69,8 @@ public sealed class LoyaltyViewModelTests
 
         // After redemption, balance drops from 100 to 50
         var repo = new FakeLoyaltyRepository(account, [], balance: 50, activeRule: rule);
+        // Redemption only runs for customers whose tier grants it.
+        repo.Tiers.Add(new LoyaltyTier("Base", minPoints: 0, allowsRedemption: true));
         var getBalance = new GetLoyaltyBalanceUseCase(repo);
         var redeem = new RedeemLoyaltyPointsUseCase(repo, new FakeUnitOfWork());
         var vm = new LoyaltyViewModel(getBalance, redeem)
@@ -197,6 +199,119 @@ public sealed class LoyaltyViewModelTests
         var updated = Assert.Single(vm.Tiers);
         Assert.Equal("#00AAFF", updated.Color);
         Assert.Contains("actualizado", vm.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task TierPane_OpensEditorWhenEmpty_AndSwapsWithSelectionAndSave()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var unitOfWork = new FakeUnitOfWork();
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, unitOfWork),
+            getTiers: new GetLoyaltyTiersUseCase(repo),
+            createTier: new CreateLoyaltyTierUseCase(repo, unitOfWork),
+            updateTier: new UpdateLoyaltyTierUseCase(repo, unitOfWork),
+            deleteTier: new DeleteLoyaltyTierUseCase(repo, unitOfWork));
+
+        // No tiers yet: the editor is what the business needs to see first.
+        await vm.LoadTiersAsync(TestContext.Current.CancellationToken);
+        Assert.True(vm.IsTierEditorOpen);
+        Assert.False(vm.HasTiers);
+
+        vm.TierName = "Oro";
+        vm.TierMinimumPoints = 1_000;
+        await vm.SaveTierAsync(TestContext.Current.CancellationToken);
+
+        // Saved: back to the list, with nothing selected and the form cleared.
+        Assert.False(vm.IsTierEditorOpen);
+        Assert.True(vm.IsTiersListOpen);
+        Assert.True(vm.HasTiers);
+        Assert.Null(vm.SelectedTier);
+
+        // A refresh must never pick a tier on the user's behalf.
+        await vm.LoadTiersAsync(TestContext.Current.CancellationToken);
+        Assert.False(vm.IsTierEditorOpen);
+        Assert.Null(vm.SelectedTier);
+
+        // Picking a tier and opening the editor loads that tier (the view raises the open, since
+        // clicking an already-selected row produces no selection change).
+        vm.SelectedTier = vm.Tiers[0];
+        vm.ShowTierEditorCommand.Execute(null);
+        Assert.True(vm.IsTierEditorOpen);
+        Assert.Equal("Oro", vm.TierName);
+
+        // Leaving the editor drops the selection and blanks the form...
+        vm.ShowTiersListCommand.Execute(null);
+        Assert.True(vm.IsTiersListOpen);
+        Assert.Null(vm.SelectedTier);
+        Assert.Equal(string.Empty, vm.TierName);
+
+        // ...so reopening "Configuración" starts a new tier instead of re-editing the last one.
+        vm.ShowTierEditorCommand.Execute(null);
+        Assert.True(vm.IsTierEditorOpen);
+        Assert.Null(vm.SelectedTier);
+        Assert.Equal(string.Empty, vm.TierName);
+
+        vm.NewTierCommand.Execute(null);
+        Assert.True(vm.IsTierEditorOpen);
+        Assert.Null(vm.SelectedTier);
+    }
+
+    [Fact]
+    public async Task SaveTierAsync_RejectsDiscountAndMultiplierAboveConfiguredLimits()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var unitOfWork = new FakeUnitOfWork();
+        var settings = new LimitsSettingsRepository(maximumDiscountPercent: 15m, maximumPointsMultiplier: 2m);
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, unitOfWork),
+            getTiers: new GetLoyaltyTiersUseCase(repo),
+            createTier: new CreateLoyaltyTierUseCase(repo, unitOfWork, settings),
+            updateTier: new UpdateLoyaltyTierUseCase(repo, unitOfWork, settings),
+            deleteTier: new DeleteLoyaltyTierUseCase(repo, unitOfWork),
+            getTierLimits: new GetLoyaltyTierLimitsUseCase(settings));
+
+        await vm.LoadTiersAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(15m, vm.MaximumTierDiscountPercent);
+        Assert.Equal(2m, vm.MaximumTierPointsMultiplier);
+
+        vm.TierName = "Oro";
+        vm.TierMinimumPoints = 1_000;
+        vm.TierDiscountPercent = 20m;
+        await vm.SaveTierAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(vm.Tiers);
+        Assert.Contains("descuento", vm.Message, StringComparison.OrdinalIgnoreCase);
+
+        vm.TierDiscountPercent = 10m;
+        vm.TierPointsMultiplierText = "3";
+        await vm.SaveTierAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(vm.Tiers);
+        Assert.Contains("multiplicador", vm.Message, StringComparison.OrdinalIgnoreCase);
+
+        vm.TierPointsMultiplierText = "2";
+        await vm.SaveTierAsync(TestContext.Current.CancellationToken);
+        Assert.Single(vm.Tiers);
+    }
+
+    /// <summary>Settings repository that only needs to answer the two tier ceilings.</summary>
+    private sealed class LimitsSettingsRepository(decimal maximumDiscountPercent, decimal maximumPointsMultiplier)
+        : POS.Domain.Interfaces.ISettingsRepository
+    {
+        private readonly BusinessSettings _settings = new(
+            "Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP",
+            maximumCashierDiscountPercent: maximumDiscountPercent,
+            maximumDeferredBalancePercent: 50m,
+            maximumPointsMultiplier: maximumPointsMultiplier);
+
+        public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<BusinessSettings?>(_settings);
+
+        public Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     [Theory]

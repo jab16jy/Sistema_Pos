@@ -83,4 +83,19 @@ public sealed class Quote
             Status = QuoteStatus.Expired;
         }
     }
+
+    public void Cancel()
+    {
+        if (Status == QuoteStatus.Converted)
+        {
+            throw new InvalidOperationException($"La cotización '{QuoteNumber}' ya fue convertida a venta y no se puede anular.");
+        }
+
+        if (Status == QuoteStatus.Cancelled)
+        {
+            return;
+        }
+
+        Status = QuoteStatus.Cancelled;
+    }
 }

@@ -1,4 +1,4 @@
-using POS.Application.DTOs.Settings;
+﻿using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Auth;
 using POS.Domain.Authorization;
@@ -56,5 +56,6 @@ public sealed class LoadSettingsUseCase
                     settings.LastBackupLocation,
                     settings.LastBackupUsername),
         settings.MaximumCashierDiscountPercent,
-        settings.MaximumDeferredBalancePercent);
+        settings.MaximumDeferredBalancePercent,
+        settings.MaximumPointsMultiplier);
 }

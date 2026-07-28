@@ -132,8 +132,21 @@ public sealed class QuoteExpirationTests
 
         // WHEN & THEN
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(request, CancellationToken.None));
-        Assert.Contains("está vencida", exception.Message);
+        Assert.Contains("vencida", exception.Message);
         Assert.Equal(QuoteStatus.Expired, quote.Status);
+    }
+
+    [Fact]
+    public async Task CancelQuoteUseCase_CancelsActiveQuote()
+    {
+        var quote = new Quote("COT-CANCEL", "Customer", 5, Guid.NewGuid());
+        var quoteRepo = new FakeQuoteRepository(new[] { quote });
+        var uow = new FakeUnitOfWork();
+        var useCase = new CancelQuoteUseCase(quoteRepo, uow);
+
+        await useCase.ExecuteAsync(quote.Id, CancellationToken.None);
+
+        Assert.Equal(QuoteStatus.Cancelled, quote.Status);
     }
 
     private sealed class FakeQuoteRepository : IQuoteRepository

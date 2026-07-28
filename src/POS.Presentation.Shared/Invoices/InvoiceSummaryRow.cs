@@ -67,7 +67,7 @@ public sealed record InvoiceSummaryRow(
     {
         SaleStatus.Completed => "success",
         SaleStatus.Cancelled => "error",
-        SaleStatus.Returned => "warning",
+        SaleStatus.Returned => "returned",
         _ => "neutral"
     };
 

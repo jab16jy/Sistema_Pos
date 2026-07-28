@@ -42,6 +42,7 @@ public partial class QuoteView : UserControl
         {
             oldViewModel.FileExportRequested -= view.OnFileExportRequested;
             oldViewModel.SaleConversionConfirmationRequested -= view.OnSaleConversionConfirmationRequested;
+            oldViewModel.QuoteCancellationConfirmationRequested -= view.OnQuoteCancellationConfirmationRequested;
             oldViewModel.QuoteDetailRequested -= view.OnQuoteDetailRequested;
         }
 
@@ -49,6 +50,7 @@ public partial class QuoteView : UserControl
         {
             newViewModel.FileExportRequested += view.OnFileExportRequested;
             newViewModel.SaleConversionConfirmationRequested += view.OnSaleConversionConfirmationRequested;
+            newViewModel.QuoteCancellationConfirmationRequested += view.OnQuoteCancellationConfirmationRequested;
             newViewModel.QuoteDetailRequested += view.OnQuoteDetailRequested;
         }
     }
@@ -93,5 +95,24 @@ public partial class QuoteView : UserControl
         }
 
         await viewModel.ConfirmSaleConversionAsync(quote);
+    }
+
+    private async void OnQuoteCancellationConfirmationRequested(object? sender, POS.Presentation.Shared.Quotes.QuoteSummaryRow quote)
+    {
+        if (sender is not QuoteHistoryViewModel viewModel)
+        {
+            return;
+        }
+
+        if (MessageBox.Show(
+                $"¿Está seguro de anular la cotización '{quote.QuoteNumber}'?",
+                "Anular cotización",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        await viewModel.ConfirmQuoteCancellationAsync(quote);
     }
 }

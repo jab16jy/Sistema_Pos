@@ -185,6 +185,10 @@
                             <Setter Property="Background" Value="{StaticResource BrushSuccessContainer}" />
                             <Setter Property="BorderBrush" Value="{StaticResource BrushSuccess}" />
                           </DataTrigger>
+                          <DataTrigger Binding="{Binding StatusChipKind}" Value="returned">
+                            <Setter Property="Background" Value="#F3E8FF" />
+                            <Setter Property="BorderBrush" Value="#8B5CF6" />
+                          </DataTrigger>
                           <DataTrigger Binding="{Binding StatusChipKind}" Value="warning">
                             <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
                             <Setter Property="BorderBrush" Value="{StaticResource BrushWarning}" />
@@ -196,7 +200,17 @@
                         </Style.Triggers>
                       </Style>
                     </Border.Style>
-                    <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource TextCaption}" FontWeight="Medium" />
+                    <TextBlock Text="{Binding StatusLabel}" FontWeight="Medium">
+                      <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                          <Style.Triggers>
+                            <DataTrigger Binding="{Binding StatusChipKind}" Value="returned">
+                              <Setter Property="Foreground" Value="#7C3AED" />
+                            </DataTrigger>
+                          </Style.Triggers>
+                        </Style>
+                      </TextBlock.Style>
+                    </TextBlock>
                   </Border>
                   <TextBlock Grid.Column="5" Text="{Binding DateFormatted}" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
                 </Grid>
@@ -307,9 +321,43 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                       </Grid.ColumnDefinitions>
-                      <StackPanel>
+                       <StackPanel>
                         <TextBlock Text="Estado" Style="{StaticResource MutedText}" FontSize="11" />
-                        <TextBlock Text="{Binding SelectedInvoice.StatusLabel}" FontWeight="SemiBold" />
+                        <Border VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,2,0,0">
+                          <Border.Style>
+                            <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
+                              <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedInvoice.StatusChipKind}" Value="success">
+                                  <Setter Property="Background" Value="{StaticResource BrushSuccessContainer}" />
+                                  <Setter Property="BorderBrush" Value="{StaticResource BrushSuccess}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SelectedInvoice.StatusChipKind}" Value="returned">
+                                  <Setter Property="Background" Value="#F3E8FF" />
+                                  <Setter Property="BorderBrush" Value="#8B5CF6" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SelectedInvoice.StatusChipKind}" Value="warning">
+                                  <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
+                                  <Setter Property="BorderBrush" Value="{StaticResource BrushWarning}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SelectedInvoice.StatusChipKind}" Value="error">
+                                  <Setter Property="Background" Value="{StaticResource BrushDangerSoft}" />
+                                  <Setter Property="BorderBrush" Value="{StaticResource BrushDanger}" />
+                                </DataTrigger>
+                              </Style.Triggers>
+                            </Style>
+                          </Border.Style>
+                          <TextBlock Text="{Binding SelectedInvoice.StatusLabel}" FontWeight="Medium">
+                            <TextBlock.Style>
+                              <Style TargetType="TextBlock" BasedOn="{StaticResource TextCaption}">
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding SelectedInvoice.StatusChipKind}" Value="returned">
+                                    <Setter Property="Foreground" Value="#7C3AED" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
+                        </Border>
                       </StackPanel>
                       <StackPanel Grid.Column="1">
                         <TextBlock Text="Trabajador" Style="{StaticResource MutedText}" FontSize="11" />

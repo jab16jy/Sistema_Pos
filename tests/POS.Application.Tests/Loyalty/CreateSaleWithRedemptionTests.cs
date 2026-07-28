@@ -154,6 +154,11 @@ public sealed class CreateSaleWithRedemptionTests
             _balance = balance;
         }
 
+        // Redemption is gated on a tier that grants it; this fixture supplies one so the tests stay
+        // about the sale/redemption wiring.
+        public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTier>>([new LoyaltyTier("Base", minPoints: 0, allowsRedemption: true)]);
+
         public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
             => Task.FromResult(_account.CustomerId == customerId ? _account : null);
         public Task AddAccountAsync(LoyaltyAccount account, CancellationToken ct = default) => Task.CompletedTask;

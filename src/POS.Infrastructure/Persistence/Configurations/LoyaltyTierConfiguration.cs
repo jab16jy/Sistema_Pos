@@ -18,5 +18,8 @@ internal sealed class LoyaltyTierConfiguration : IEntityTypeConfiguration<Loyalt
         builder.Property(t => t.PointsMultiplier).HasColumnType("TEXT").HasDefaultValue(1.0m);
         builder.Property(t => t.Color).IsRequired().HasMaxLength(9).HasDefaultValue("#64748B");
         builder.Property(t => t.TextForeground).HasConversion<int>().IsRequired().HasDefaultValue(LoyaltyTierTextForeground.White);
+        builder.Property(t => t.Benefits).IsRequired().HasMaxLength(1000).HasDefaultValue(string.Empty);
+        builder.Property(t => t.AllowsRedemption).IsRequired().HasDefaultValue(false);
+        builder.Ignore(t => t.BenefitLines);
     }
 }

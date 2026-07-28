@@ -99,6 +99,19 @@ public sealed class RedeemLoyaltyPointsUseCase
                 $"Insufficient loyalty balance. Available: {balance}, requested: {request.PointsToRedeem}.");
         }
 
+        // Redemption is an opt-in tier benefit, not a program-wide default: the checkout UI hides it
+        // for tiers that do not grant it, and this is the matching server-side rule so no other entry
+        // point (manual redemption in the loyalty module, quote conversion) can bypass the setting.
+        // Same balance-derived tier the rest of the program uses.
+        var tiers = await _loyalty.GetTiersAsync(cancellationToken).ConfigureAwait(false);
+        var tier = tiers.Where(t => t.MinPoints <= balance).OrderByDescending(t => t.MinPoints).FirstOrDefault();
+        if (tier is null || !tier.AllowsRedemption)
+        {
+            throw new InvalidOperationException(tier is null
+                ? "El canje de puntos requiere un nivel de lealtad que lo habilite y este cliente aún no alcanza ninguno."
+                : $"El canje de puntos no está habilitado para el nivel {tier.Name}.");
+        }
+
         // Guard: cap the discount to the sale total to prevent negative totals.
         // When the computed discount exceeds the sale total, reduce the redeemed points
         // so the discount fits within the sale total.

@@ -180,20 +180,61 @@ public sealed class RedeemLoyaltyPointsUseCaseTests
         Assert.Equal(0, uow.SaveCount);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenTierDoesNotAllowRedemption_ThrowsAndSavesNothing()
+    {
+        var customerId = Guid.NewGuid();
+        var account = new LoyaltyAccount(customerId);
+        var rule = new LoyaltyRule(0.001m, 1000m, 0);
+        var repo = new InMemLoyaltyRepository(account, rule, balance: 500,
+            tiers: [new LoyaltyTier("Plata", minPoints: 100, allowsRedemption: false)]);
+        var uow = new CountingUow();
+
+        var useCase = new RedeemLoyaltyPointsUseCase(repo, uow);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10, SaleTotal: 100_000m), TestContext.Current.CancellationToken));
+        Assert.Empty(repo.Transactions);
+        Assert.Equal(0, uow.SaveCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenCustomerReachesNoTier_ThrowsBecauseRedemptionIsATierBenefit()
+    {
+        var customerId = Guid.NewGuid();
+        var account = new LoyaltyAccount(customerId);
+        var rule = new LoyaltyRule(0.001m, 1000m, 0);
+        var repo = new InMemLoyaltyRepository(account, rule, balance: 50,
+            tiers: [new LoyaltyTier("Oro", minPoints: 1000, allowsRedemption: true)]);
+
+        var useCase = new RedeemLoyaltyPointsUseCase(repo, new CountingUow());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(new RedeemPointsRequest(customerId, 10, SaleTotal: 100_000m), TestContext.Current.CancellationToken));
+        Assert.Empty(repo.Transactions);
+    }
+
     private sealed class InMemLoyaltyRepository : ILoyaltyRepository
     {
         private readonly LoyaltyAccount? _account;
         private readonly LoyaltyRule? _activeRule;
         private readonly int _balance;
+        private readonly IReadOnlyList<LoyaltyTier> _tiers;
 
         public List<LoyaltyTransaction> Transactions { get; } = [];
 
-        public InMemLoyaltyRepository(LoyaltyAccount? account, LoyaltyRule? activeRule, int balance)
+        public InMemLoyaltyRepository(LoyaltyAccount? account, LoyaltyRule? activeRule, int balance, IReadOnlyList<LoyaltyTier>? tiers = null)
         {
             _account = account;
             _activeRule = activeRule;
             _balance = balance;
+            // Redemption is gated on a tier that allows it, so the default fixture supplies one that
+            // does — tests about capping, minimums, and balances stay about those rules.
+            _tiers = tiers ?? [new LoyaltyTier("Base", minPoints: 0, allowsRedemption: true)];
         }
+
+        public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(_tiers);
 
         public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
             => Task.FromResult(_account?.CustomerId == customerId ? _account : null);

@@ -13,4 +13,5 @@ public interface IRoleRepository
     Task UpdateAsync(Role role, CancellationToken ct = default);
     Task ReplacePermissionsAsync(Guid roleId, IReadOnlySet<string> keys, CancellationToken ct = default);
     Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default);
+    Task DeleteAsync(Role role, CancellationToken ct = default) => Task.CompletedTask;
 }

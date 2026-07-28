@@ -117,6 +117,11 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue(50m);
 
+                    b.Property<decimal>("MaximumPointsMultiplier")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue(5m);
+
                     b.Property<string>("PrinterCommand")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
@@ -501,6 +506,18 @@ namespace POS.Infrastructure.Migrations
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("AllowsRedemption")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Benefits")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
 
                     b.Property<string>("Color")
                         .IsRequired()

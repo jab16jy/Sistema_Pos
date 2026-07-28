@@ -225,7 +225,9 @@ public sealed class CashierViewModelTests
             => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>([]);
 
         public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<LoyaltyTier>>([new LoyaltyTier("Oro", 100, _discountPercent, 1m)]);
+            // allowsRedemption: the checkout redemption panel only renders for tiers that grant it.
+            => Task.FromResult<IReadOnlyList<LoyaltyTier>>(
+                [new LoyaltyTier("Oro", 100, _discountPercent, 1m, allowsRedemption: true)]);
     }
 
     [Theory]
@@ -1285,6 +1287,29 @@ public sealed class CashierViewModelTests
     {
         var user = new User("test-cashier", "hash", RoleConstants.AdministratorRoleId);
         return new CriticalCommandAuthorizer(new TestSession(user.Id), new TestUsers(user), new TestRoles());
+    }
+
+    [Fact]
+    public async Task LoadCustomerQuoteAsync_WhenQuoteAlreadyLoaded_BlocksSecondQuote()
+    {
+        var customerId = Guid.NewGuid();
+        var item1 = new CustomerPayableQuoteItem(Guid.NewGuid(), "Prod A", 1m, 100m, 0m, 100m);
+        var item2 = new CustomerPayableQuoteItem(Guid.NewGuid(), "Prod B", 1m, 200m, 0m, 200m);
+        var quote1 = new CustomerPayableQuote(Guid.NewGuid(), "COT-001", "Cliente Test", 100m, DateTime.UtcNow.AddDays(1), [item1]);
+        var quote2 = new CustomerPayableQuote(Guid.NewGuid(), "COT-002", "Cliente Test", 200m, DateTime.UtcNow.AddDays(1), [item2]);
+
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SelectedCustomer = new CustomerSearchResult(customerId, "Cliente Test", "123", "300", null, null, true)
+        };
+
+        await viewModel.LoadCustomerQuoteAsync(quote1, TestContext.Current.CancellationToken);
+        Assert.True(viewModel.IsQuoteLoaded);
+        Assert.Equal("COT-001", viewModel.LoadedQuoteNumber);
+
+        await viewModel.LoadCustomerQuoteAsync(quote2, TestContext.Current.CancellationToken);
+        Assert.Equal("COT-001", viewModel.LoadedQuoteNumber);
+        Assert.Contains("Solo se permite cargar una cotización a la vez", viewModel.Message);
     }
 
     private sealed class TestSession(Guid operatorId) : ICurrentOperatorSession

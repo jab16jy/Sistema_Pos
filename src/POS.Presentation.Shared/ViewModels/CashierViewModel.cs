@@ -98,6 +98,8 @@ public sealed class CashierViewModel : ViewModelBase
     private decimal _currentTierPointsMultiplier = 1m;
     private Guid? _resumedSaleId;
     private string? _currentTierName;
+    private string _currentTierBenefits = string.Empty;
+    private bool _currentTierAllowsRedemption;
     private string? _currentTierColorHex;
     private POS.Domain.Enums.LoyaltyTierTextForeground _currentTierTextForeground = POS.Domain.Enums.LoyaltyTierTextForeground.White;
 
@@ -364,6 +366,7 @@ public sealed class CashierViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(CustomerLoyaltyInfo));
                 OnPropertyChanged(nameof(HasCustomerLoyaltyInfo));
+                OnPropertyChanged(nameof(HasLoyaltyPanel));
             }
         }
     }
@@ -381,8 +384,16 @@ public sealed class CashierViewModel : ViewModelBase
         }
     }
 
-    /// <summary>True when the assigned customer has enough points to reach the minimum redeemable threshold.</summary>
-    public bool HasCustomerLoyaltyInfo => _customerLoyaltyBalance is { } balance && balance >= _minimumRedeemPoints && _minimumRedeemPoints > 0;
+    /// <summary>
+    /// True when the assigned customer has enough points to reach the minimum redeemable threshold
+    /// AND their tier grants redemption. Redemption is an opt-in tier benefit: a tier with the flag
+    /// off never offers it at checkout, no matter how many points the customer has.
+    /// </summary>
+    public bool HasCustomerLoyaltyInfo => _currentTierAllowsRedemption
+        && _customerLoyaltyBalance is { } balance && balance >= _minimumRedeemPoints && _minimumRedeemPoints > 0;
+
+    /// <summary>True when the loyalty panel has anything to show — redemption, a tier, or both.</summary>
+    public bool HasLoyaltyPanel => HasCustomerLoyaltyInfo || HasCurrentTier;
 
     /// <summary>Human-readable summary of the assigned customer's loyalty points and their money value.</summary>
     public string CustomerLoyaltyInfo
@@ -536,6 +547,11 @@ public sealed class CashierViewModel : ViewModelBase
         ? string.Empty
         : $"Tier {_currentTierName}: {_currentTierDiscountPercent.ToString("0.##", ColombianCulture)}% dto. · x{_currentTierPointsMultiplier.ToString("0.##", ColombianCulture)} puntos";
 
+    /// <summary>The free-text benefits the business defined for the customer's current tier.</summary>
+    public IReadOnlyList<string> TierBenefitLines => POS.Domain.Entities.LoyaltyTier.SplitBenefits(_currentTierBenefits);
+
+    public bool HasTierBenefitLines => TierBenefitLines.Count > 0;
+
     private static System.Windows.Media.Brush TryParseBrush(string? hex)
     {
         if (string.IsNullOrWhiteSpace(hex))
@@ -554,9 +570,14 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(CurrentTierColorBrush));
         OnPropertyChanged(nameof(CurrentTierTextForegroundBrush));
         OnPropertyChanged(nameof(TierBenefitText));
+        OnPropertyChanged(nameof(TierBenefitLines));
+        OnPropertyChanged(nameof(HasTierBenefitLines));
         OnPropertyChanged(nameof(TierDiscount));
         OnPropertyChanged(nameof(TierDiscountText));
         OnPropertyChanged(nameof(HasTierDiscount));
+        // Redemption availability rides on the tier, so the panel gates must refresh with it.
+        OnPropertyChanged(nameof(HasCustomerLoyaltyInfo));
+        OnPropertyChanged(nameof(HasLoyaltyPanel));
         OnPropertyChanged(nameof(NetPayable));
         OnPropertyChanged(nameof(NetPayableText));
         NotifyPaymentBalanceChanged();
@@ -1435,6 +1456,8 @@ public sealed class CashierViewModel : ViewModelBase
             _currentTierDiscountPercent = balance.CurrentTier?.DiscountPercent ?? 0m;
             _currentTierPointsMultiplier = balance.CurrentTier?.PointsMultiplier ?? 1m;
             _currentTierName = balance.CurrentTier?.Name;
+            _currentTierBenefits = balance.CurrentTier?.Benefits ?? string.Empty;
+            _currentTierAllowsRedemption = balance.CurrentTier?.AllowsRedemption ?? false;
             _currentTierColorHex = balance.CurrentTier?.Color;
             _currentTierTextForeground = balance.CurrentTier?.TextForeground ?? POS.Domain.Enums.LoyaltyTierTextForeground.White;
             NotifyTierChanged();
@@ -1453,6 +1476,8 @@ public sealed class CashierViewModel : ViewModelBase
         _currentTierDiscountPercent = 0m;
         _currentTierPointsMultiplier = 1m;
         _currentTierName = null;
+        _currentTierBenefits = string.Empty;
+        _currentTierAllowsRedemption = false;
         _currentTierColorHex = null;
         _currentTierTextForeground = POS.Domain.Enums.LoyaltyTierTextForeground.White;
         NotifyTierChanged();
@@ -1475,6 +1500,12 @@ public sealed class CashierViewModel : ViewModelBase
         if (CustomerId is null)
         {
             Message = "Asigna el cliente antes de cargar una cotización.";
+            return Task.CompletedTask;
+        }
+
+        if (IsQuoteLoaded && _loadedQuote?.QuoteNumber != quote.QuoteNumber)
+        {
+            Message = $"Ya hay una cotización cargada en Caja ({LoadedQuoteNumber}). Solo se permite cargar una cotización a la vez; quita la cotización actual antes de cargar otra.";
             return Task.CompletedTask;
         }
 

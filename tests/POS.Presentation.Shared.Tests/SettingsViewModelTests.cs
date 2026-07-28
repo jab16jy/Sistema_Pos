@@ -77,6 +77,23 @@ public sealed class SettingsViewModelTests
         Assert.True(viewModel.IsPrinterConfigured);
     }
 
+    [Fact]
+    public async Task LoadAsync_GeneratesDynamicSystemAlerts()
+    {
+        var settings = new SettingsResult(
+            Guid.NewGuid(),
+            "Store",
+            null, null, null, null, null, null, null, false, null, null, null, null, null, "COP");
+        var viewModel = new SettingsViewModel(
+            new LoadSettingsUseCase(new StubSettingsRepository(settings), new StubOperatorSession()),
+            new SaveSettingsUseCase(new StubMutableSettingsRepository(), new StubUnitOfWork(), new StubOperatorSession()));
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.NotEmpty(viewModel.SystemAlerts);
+        Assert.Contains(viewModel.SystemAlerts, a => a.IsWarning && a.Message.Contains("impresora"));
+    }
+
     private sealed class StubSettingsRepository : POS.Domain.Interfaces.ISettingsRepository
     {
         private readonly SettingsResult _settings;

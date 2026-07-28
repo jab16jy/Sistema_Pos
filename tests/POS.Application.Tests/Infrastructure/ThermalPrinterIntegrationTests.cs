@@ -125,12 +125,18 @@ public sealed class ThermalPrinterIntegrationTests
         fixture.DbContext.BusinessSettings.Add(new BusinessSettings(
             "Negocio", null, null, null, null, null, null, null, false, null, "COM7", null, null, null, "COP"));
 
-        var tier = new LoyaltyTier("Oro", minPoints: 100m, discountPercent: 10m);
+        var tier = new LoyaltyTier("Oro", minPoints: 100m, discountPercent: 10m, benefits: "Acceso a capacitaciones\nEnvio gratis");
         fixture.DbContext.LoyaltyTiers.Add(tier);
 
         var customer = new Customer("Maria Perez", "123456789");
-        customer.SetLoyaltyTier(tier.Id);
         fixture.DbContext.Customers.Add(customer);
+
+        // The tier is resolved from the point balance, not from Customer.LoyaltyTierId (which nothing
+        // outside tests ever writes), so the account must actually hold enough points to reach it.
+        var account = new LoyaltyAccount(customer.Id);
+        fixture.DbContext.LoyaltyAccounts.Add(account);
+        fixture.DbContext.LoyaltyTransactions.Add(
+            new LoyaltyTransaction(account.Id, LoyaltyTransactionType.Earned, 150, null, "Saldo previo"));
         await fixture.DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         Product product = await TestProductFactory.CreateAndPersistAsync(
@@ -160,6 +166,57 @@ public sealed class ThermalPrinterIntegrationTests
         Assert.Contains("Dcto: -$1.000", text);
         Assert.Contains("Total bruto:", text);
         Assert.Contains("Desc. productos:", text);
+
+        // Points block: balance the customer holds plus the tier benefits it unlocks.
+        Assert.Contains("PUNTOS DE LEALTAD", text);
+        Assert.Contains("Acumulados (a hoy):", text);
+        Assert.Contains("150", text);
+        Assert.Contains("Acceso a capacitaciones", text);
+        Assert.Contains("Envio gratis", text);
+    }
+
+    [Fact]
+    public async Task EscPosPrinterService_PrintsPointsEarnedOnThisSale()
+    {
+        await using var fixture = await TestDbContextFactory.CreateAsync();
+        fixture.DbContext.BusinessSettings.Add(new BusinessSettings(
+            "Negocio", null, null, null, null, null, null, null, false, null, "COM7", null, null, null, "COP"));
+
+        var customer = new Customer("Maria Perez", "123456789");
+        fixture.DbContext.Customers.Add(customer);
+        await fixture.DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Product product = await TestProductFactory.CreateAndPersistAsync(
+            fixture.DbContext, "Crema facial", new Money(1_000m), new Money(10_000m),
+            new StockQuantity(5m), new StockQuantity(1m), TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(
+            new ProductRepository(fixture.DbContext),
+            new SaleRepository(fixture.DbContext),
+            fixture.DbContext,
+            authorizer: TestAuthorizer.Create(dbContext: fixture.DbContext));
+        var sale = await saleUseCase.ExecuteAsync(
+            new CreateSaleRequest(
+                customer.Id,
+                [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+                [new CreateSalePaymentRequest(PaymentMethod.Cash, 10_000m, 10_000m, null)]),
+            TestContext.Current.CancellationToken);
+
+        var account = new LoyaltyAccount(customer.Id);
+        fixture.DbContext.LoyaltyAccounts.Add(account);
+        fixture.DbContext.LoyaltyTransactions.Add(
+            new LoyaltyTransaction(account.Id, LoyaltyTransactionType.Earned, 10, sale.SaleId, "Puntos de la venta"));
+        await fixture.DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var resolver = new PrinterSettingsResolver(new PrinterRuntimeOptions(), fixture.DbContext);
+        var transport = new FakeThermalPrinterTransport();
+        var service = new EscPosPrinterService(resolver, transport, fixture.DbContext);
+
+        await service.PrintReceiptAsync(sale.SaleId, TestContext.Current.CancellationToken);
+
+        string text = Encoding.Latin1.GetString(transport.LastPayload!);
+        Assert.Contains("Ganados en esta compra:", text);
+        Assert.Contains("PUNTOS DE LEALTAD", text);
     }
 
     // The trailing gap is what the customer tears off and keeps, so it is specified in centimetres.

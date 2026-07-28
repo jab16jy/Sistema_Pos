@@ -46,7 +46,26 @@ public sealed class RolesManagementViewModelTests
         viewModel.SelectedRole = viewModel.Roles.Single(role => role.Id == RoleConstants.CashierRoleId);
         await Task.Delay(50, TestContext.Current.CancellationToken);
         Assert.False(viewModel.DeactivateRoleCommand.CanExecute(null));
-        Assert.Null(typeof(RolesManagementViewModel).GetProperty("DeleteRoleCommand"));
+        Assert.False(viewModel.DeleteRoleCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task DeleteRoleCommand_CustomRole_RemovesRoleSuccessfully()
+    {
+        var fixture = new Fixture(new HashSet<string>(PermissionKeys.All));
+        var customRole = new Role("Temporal");
+        fixture.Roles.Add(customRole, new HashSet<string> { PermissionKeys.Reports.View });
+        var viewModel = fixture.CreateViewModel();
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedRole = viewModel.Roles.Single(role => role.Id == customRole.Id);
+        Assert.True(viewModel.DeleteRoleCommand.CanExecute(null));
+
+        viewModel.DeleteRoleCommand.Execute(null);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Contains("eliminado", viewModel.StatusMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(viewModel.Roles, role => role.Id == customRole.Id);
     }
 
     [Fact]
@@ -82,6 +101,7 @@ public sealed class RolesManagementViewModelTests
                 new CreateRoleUseCase(Users, Roles, new NoOpUnitOfWork()),
                 new UpdateRoleUseCase(Users, Roles, new NoOpUnitOfWork()),
                 new DeactivateRoleUseCase(Users, Roles, new NoOpUnitOfWork()),
+                new DeleteRoleUseCase(Users, Roles, new NoOpUnitOfWork()),
                 Roles,
                 Session);
         }
@@ -135,6 +155,12 @@ public sealed class RolesManagementViewModelTests
         }
 
         public Task<int> CountUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(0);
+        public Task DeleteAsync(Role role, CancellationToken ct = default)
+        {
+            _roles.Remove(role.Id);
+            _grants.Remove(role.Id);
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class NoOpUnitOfWork : IUnitOfWork
