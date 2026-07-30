@@ -408,6 +408,126 @@ public sealed class AuthPersistenceTests
         Assert.Equal(0, await checkContext.Users.CountAsync(TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task ActivateUserUseCase_ReactivatesDeactivatedUser()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var repository = new UserRepository(dbContext);
+        var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
+        var deactivate = new DeactivateUserUseCase(repository, new RoleRepository(dbContext), dbContext);
+        var activate = new ActivateUserUseCase(repository, new RoleRepository(dbContext), dbContext);
+
+        var cashier = new User("cajero-desactivar", "hash", POS.Domain.Authorization.RoleConstants.CashierRoleId);
+        await repository.AddAsync(cashier, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        (bool deactivateOk, _) = await deactivate.ExecuteAsync(cashier.Id, admin.Id, TestContext.Current.CancellationToken);
+        Assert.True(deactivateOk);
+
+        var deactivatedUser = await repository.GetByIdAsync(cashier.Id, TestContext.Current.CancellationToken);
+        Assert.NotNull(deactivatedUser);
+        Assert.False(deactivatedUser.IsActive);
+
+        (bool activateOk, string? activateError) = await activate.ExecuteAsync(cashier.Id, admin.Id, TestContext.Current.CancellationToken);
+        Assert.True(activateOk, activateError);
+
+        var reactivatedUser = await repository.GetByIdAsync(cashier.Id, TestContext.Current.CancellationToken);
+        Assert.NotNull(reactivatedUser);
+        Assert.True(reactivatedUser.IsActive);
+    }
+
+    [Fact]
+    public async Task DeleteUserUseCase_RemovesUserFromDatabase()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var repository = new UserRepository(dbContext);
+        var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
+        var deleteUseCase = new DeleteUserUseCase(repository, new RoleRepository(dbContext), dbContext);
+
+        var cashier = new User("cajero-eliminar", "hash", POS.Domain.Authorization.RoleConstants.CashierRoleId);
+        await repository.AddAsync(cashier, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        (bool ok, string? error) = await deleteUseCase.ExecuteAsync(cashier.Id, admin.Id, TestContext.Current.CancellationToken);
+        Assert.True(ok, error);
+
+        var deletedUser = await repository.GetByIdAsync(cashier.Id, TestContext.Current.CancellationToken);
+        Assert.Null(deletedUser);
+    }
+
+    [Fact]
+    public async Task DeleteUserUseCase_CannotDeleteSelf()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var repository = new UserRepository(dbContext);
+        var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
+        var deleteUseCase = new DeleteUserUseCase(repository, new RoleRepository(dbContext), dbContext);
+
+        (bool ok, string? error) = await deleteUseCase.ExecuteAsync(admin.Id, admin.Id, TestContext.Current.CancellationToken);
+        Assert.False(ok);
+        Assert.Contains("propio usuario", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task DeleteUserUseCase_RemovesUserWithCustomNonSystemRole()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var repository = new UserRepository(dbContext);
+        var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
+        var roleRepo = new RoleRepository(dbContext);
+
+        var customRole = new Role("Supervisora Personalizada");
+        await roleRepo.AddAsync(customRole, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var customUser = new User("supervisor1", "hash", customRole.Id);
+        await repository.AddAsync(customUser, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var deleteUseCase = new DeleteUserUseCase(repository, roleRepo, dbContext);
+        (bool ok, string? error) = await deleteUseCase.ExecuteAsync(customUser.Id, admin.Id, TestContext.Current.CancellationToken);
+
+        Assert.True(ok, error);
+        Assert.Null(await repository.GetByIdAsync(customUser.Id, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task DeleteUserUseCase_WhenUserHasLinkedShift_ReturnsFriendlyError()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+        var repository = new UserRepository(dbContext);
+        var admin = await SeedAdminAsync(dbContext, repository, TestContext.Current.CancellationToken);
+        var roleRepo = new RoleRepository(dbContext);
+
+        var cashier = new User("cajero-con-turno", "hash", POS.Domain.Authorization.RoleConstants.CashierRoleId);
+        await repository.AddAsync(cashier, TestContext.Current.CancellationToken);
+
+        var shift = new CashierShift(cashier.Id, cashier.Username, new Money(100m));
+        dbContext.CashierShifts.Add(shift);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var deleteUseCase = new DeleteUserUseCase(repository, roleRepo, dbContext);
+        (bool ok, string? error) = await deleteUseCase.ExecuteAsync(cashier.Id, admin.Id, TestContext.Current.CancellationToken);
+
+        Assert.False(ok);
+        Assert.Contains("historial registrado", error, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class FailingUnitOfWork : IUnitOfWork
     {
         public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

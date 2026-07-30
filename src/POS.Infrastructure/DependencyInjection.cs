@@ -167,6 +167,8 @@ public static class DependencyInjection
         services.AddScoped<CreateUserUseCase>();
         services.AddScoped<UpdateUserUseCase>();
         services.AddScoped<DeactivateUserUseCase>();
+        services.AddScoped<ActivateUserUseCase>();
+        services.AddScoped<DeleteUserUseCase>();
 
         // Roles and permissions use cases
         services.AddScoped<GetAllRolesUseCase>();

@@ -127,6 +127,9 @@ public sealed class UserManagementViewModelTests
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
         public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default)
             => Task.FromResult(0);
     }
@@ -183,6 +186,7 @@ public sealed class UserManagementViewModelTests
         public Task AddAsync(User user, CancellationToken cancellationToken = default) { Add(user); return Task.CompletedTask; }
         public Task<IReadOnlyList<User>> GetAllAsync(CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<User>>(_users.Values.ToList());
         public Task UpdateAsync(User user, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task DeleteAsync(User user, CancellationToken cancellationToken = default) { _users.Remove(user.Id); return Task.CompletedTask; }
         public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default) => Task.FromResult(_users.Values.Count(user => user.RoleId == roleId && user.IsActive));
     }
 

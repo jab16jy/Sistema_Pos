@@ -277,6 +277,8 @@ internal static class AppBootstrapper
                 sp.GetRequiredService<CreateUserUseCase>(),
                 sp.GetRequiredService<UpdateUserUseCase>(),
                 sp.GetRequiredService<DeactivateUserUseCase>(),
+                sp.GetRequiredService<ActivateUserUseCase>(),
+                sp.GetRequiredService<DeleteUserUseCase>(),
                 sp.GetRequiredService<GetAllRolesUseCase>(),
                 session),
             moduleWarnings);
