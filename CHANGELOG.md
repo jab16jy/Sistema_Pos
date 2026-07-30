@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.23.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.22.0...v1.23.0) (2026-07-30)
+
+
+### Features
+
+* **customers/ui:** claim and track point redemptions from Clientes ([3345703](https://github.com/jab16jy/Sistema_Pos/commit/33457036ead17defd94ed6823b2907f53d0be708))
+* **customers:** agregar alerta de confirmacion al anular beneficios ([29bff98](https://github.com/jab16jy/Sistema_Pos/commit/29bff98d4b6c0af1f546b7d5c384f8d0194cf982))
+* **loyalty/ui:** add a Beneficios pane to the Puntos module ([fa9da7a](https://github.com/jab16jy/Sistema_Pos/commit/fa9da7a457c5f282b5117269eefdd579380937c1))
+* **loyalty:** claim, deliver and cancel catalogue benefits ([124fead](https://github.com/jab16jy/Sistema_Pos/commit/124fead5eaaa0a67c5f1a6e0271254edabe360c9))
+* **loyalty:** consolidate tier benefits into LoyaltyBenefit module and update PDF/ESC-POS receipts ([9738553](https://github.com/jab16jy/Sistema_Pos/commit/9738553a2058106ded24c6f5e6e71643a4ab4365))
+* **loyalty:** model a points-priced benefit catalogue and its claims ([8a24661](https://github.com/jab16jy/Sistema_Pos/commit/8a24661b2062c4b947f948e8b6e46db66f92d74c))
+* **loyalty:** persist the benefit catalogue and add its permissions ([a496c1c](https://github.com/jab16jy/Sistema_Pos/commit/a496c1c020ef4de601112ad56ef6771a9bfa3310))
+* **loyalty:** redesign tier navigation, tier cards with subtle badges, and conditional customer benefit redemption ([d57a371](https://github.com/jab16jy/Sistema_Pos/commit/d57a371ca3ca5d9b5986314905411c451c3ffcbe))
+* **users:** activate and delete users from user management ([83e02ce](https://github.com/jab16jy/Sistema_Pos/commit/83e02cec29a2cd44f2c1a68131b53b224689d36b))
+
 ## [1.22.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.21.0...v1.22.0) (2026-07-28)
 
 
