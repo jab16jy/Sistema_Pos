@@ -322,6 +322,8 @@ public sealed class CustomersViewModel : ViewModelBase
                     OutstandingBalance = 0m;
                     HistoryEntries.Clear();
                     OpenReceivables.Clear();
+                    AvailableBenefits.Clear();
+                    OnPropertyChanged(nameof(HasAvailableBenefits));
                     SelectedReceivable = null;
                     AbonoAmount = 0m;
                 }
@@ -411,10 +413,17 @@ public sealed class CustomersViewModel : ViewModelBase
             {
                 // The balance is half of whether a reward is affordable.
                 OnPropertyChanged(nameof(CanClaimSelectedBenefit));
+                OnPropertyChanged(nameof(HasPoints));
                 (ClaimBenefitCommand as RelayCommand)?.RaiseCanExecuteChanged();
             }
         }
     }
+
+    /// <summary>True when the selected customer has loyalty points (> 0).</summary>
+    public bool HasPoints => LoyaltyPoints > 0;
+
+    /// <summary>True when there is at least one benefit available in the catalogue for the customer.</summary>
+    public bool HasAvailableBenefits => AvailableBenefits.Count > 0;
 
     /// <summary>Name of the selected customer's current loyalty tier, empty when none applies.</summary>
     public string CurrentTierName
@@ -819,6 +828,8 @@ public sealed class CustomersViewModel : ViewModelBase
     {
         if (_getBenefits is null)
         {
+            AvailableBenefits.Clear();
+            OnPropertyChanged(nameof(HasAvailableBenefits));
             return;
         }
 
@@ -837,12 +848,20 @@ public sealed class CustomersViewModel : ViewModelBase
                     continue;
                 }
             }
+            else if (benefit.RequiredTierId.HasValue)
+            {
+                if (_currentTier is null || _currentTier.Id != benefit.RequiredTierId.Value)
+                {
+                    continue;
+                }
+            }
 
             AvailableBenefits.Add(LoyaltyBenefitPresentation.From(benefit));
         }
 
         // Clearing an ItemsSource drops the selection, so put it back when the reward still exists.
         SelectedBenefit = AvailableBenefits.FirstOrDefault(benefit => benefit.Id == benefitId);
+        OnPropertyChanged(nameof(HasAvailableBenefits));
     }
 
     public async Task ClaimBenefitAsync(CancellationToken cancellationToken = default)
@@ -980,6 +999,8 @@ public sealed class CustomersViewModel : ViewModelBase
         OutstandingBalance = 0m;
         HistoryEntries.Clear();
         OpenReceivables.Clear();
+        AvailableBenefits.Clear();
+        OnPropertyChanged(nameof(HasAvailableBenefits));
         SelectedReceivable = null;
         AbonoAmount = 0m;
         HistoryFilter = "all";

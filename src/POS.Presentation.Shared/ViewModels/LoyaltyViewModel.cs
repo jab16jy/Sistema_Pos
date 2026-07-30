@@ -421,8 +421,27 @@ public sealed class LoyaltyViewModel : ViewModelBase
                 TierBenefits = value.Benefits;
                 TierAllowsRedemption = value.AllowsRedemption;
             }
+
+            OnPropertyChanged(nameof(SelectedTierAssignedBenefits));
+            OnPropertyChanged(nameof(HasSelectedTierAssignedBenefits));
         }
     }
+
+    public IReadOnlyList<LoyaltyBenefitPresentation> SelectedTierAssignedBenefits
+    {
+        get
+        {
+            if (SelectedTier is null || BenefitsViewModel is null)
+            {
+                return [];
+            }
+            return BenefitsViewModel.Benefits
+                .Where(b => b.RequiredTierId == SelectedTier.Id && b.IsActive)
+                .ToList();
+        }
+    }
+
+    public bool HasSelectedTierAssignedBenefits => SelectedTierAssignedBenefits.Count > 0;
 
     public string TierName
     {
@@ -696,6 +715,15 @@ public sealed class LoyaltyViewModel : ViewModelBase
     {
         ResetTierForm();
         IsTierEditorOpen = false;
+    }
+
+    /// <summary>
+    /// Resets the view state to its initial default when navigating to this screen.
+    /// Shows the Tiers list, closes the editor, and clears the selected tier.
+    /// </summary>
+    public void ResetViewOnNavigate()
+    {
+        CloseTierEditor();
     }
 
     private void ResetTierForm()
@@ -1044,6 +1072,9 @@ public sealed record LoyaltyTierPresentation(
         : POS.Domain.Entities.LoyaltyTier.SplitBenefits(Benefits);
 
     public bool HasBenefitLines => BenefitLines.Count > 0;
+
+    public bool HasDiscount => DiscountPercent > 0m;
+    public bool HasMultiplier => PointsMultiplier > 1m;
 
     public string RedemptionLabel => AllowsRedemption ? "Canje de puntos habilitado" : "Canje de puntos deshabilitado";
 

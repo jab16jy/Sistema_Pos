@@ -9,6 +9,15 @@ public partial class LoyaltyView
     public LoyaltyView()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is LoyaltyViewModel viewModel)
+        {
+            viewModel.ResetViewOnNavigate();
+        }
     }
 
     /// <summary>

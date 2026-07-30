@@ -379,6 +379,65 @@
           </Border>
         </Grid>
 
+        <!-- Panel de Canjeo de Beneficios: Puntos de Lealtad -> Tier -> Canjeo de Beneficios -->
+        <Border Margin="0,10,0,10" Padding="14,12" CornerRadius="8"
+                Background="{StaticResource BrushWarningContainer}"
+                BorderBrush="{StaticResource BrushWarning}" BorderThickness="1">
+          <Border.Style>
+            <Style TargetType="Border">
+              <Setter Property="Visibility" Value="Collapsed" />
+              <Style.Triggers>
+                <MultiDataTrigger>
+                  <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding CanClaimBenefits}" Value="True" />
+                    <Condition Binding="{Binding HasSelectedCustomer}" Value="True" />
+                    <Condition Binding="{Binding HasPoints}" Value="True" />
+                    <Condition Binding="{Binding HasAvailableBenefits}" Value="True" />
+                  </MultiDataTrigger.Conditions>
+                  <Setter Property="Visibility" Value="Visible" />
+                </MultiDataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+          <StackPanel>
+            <Grid Margin="0,0,0,8">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <materialDesign:PackIcon Kind="GiftOutline" Width="18" Height="18"
+                                         Foreground="{StaticResource BrushWarning}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                <TextBlock Text="CANJEO DE BENEFICIOS" Style="{StaticResource TextBody}" FontWeight="Bold" VerticalAlignment="Center" />
+              </StackPanel>
+            </Grid>
+
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ComboBox ItemsSource="{Binding AvailableBenefits}"
+                        SelectedItem="{Binding SelectedBenefit, Mode=TwoWay}"
+                        DisplayMemberPath="DisplayLabel"
+                        materialDesign:HintAssist.Hint="Selecciona un beneficio a canjear"
+                        VerticalAlignment="Center" />
+              <Button Grid.Column="1" Margin="10,0,0,0"
+                      Style="{StaticResource PrimaryButton}"
+                      Command="{Binding ClaimBenefitCommand}">
+                <Button.ContentTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                      <materialDesign:PackIcon Kind="CheckCircleOutline" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
+                      <TextBlock Text="Canjear" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </DataTemplate>
+                </Button.ContentTemplate>
+              </Button>
+            </Grid>
+          </StackPanel>
+        </Border>
+
         <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,8">
           <RadioButton x:Name="HistFilterAll" GroupName="HistFilter" IsChecked="True" Style="{StaticResource SubtabItemStyle}" Content="Todo"
                        Command="{Binding SetHistoryFilterCommand}" CommandParameter="all" />
@@ -391,42 +450,6 @@
         </StackPanel>
 
         <StackPanel Grid.Row="3">
-
-        <!-- Canjear beneficio: sólo con permiso y con un cliente seleccionado. -->
-        <Border Margin="0,0,0,8" Padding="12,10" CornerRadius="6"
-                Background="{StaticResource BrushWarningContainer}">
-          <Border.Style>
-            <Style TargetType="Border">
-              <Setter Property="Visibility" Value="Collapsed" />
-              <Style.Triggers>
-                <MultiDataTrigger>
-                  <MultiDataTrigger.Conditions>
-                    <Condition Binding="{Binding CanClaimBenefits}" Value="True" />
-                    <Condition Binding="{Binding HasSelectedCustomer}" Value="True" />
-                    <Condition Binding="{Binding HistoryFilter}" Value="redemption" />
-                  </MultiDataTrigger.Conditions>
-                  <Setter Property="Visibility" Value="Visible" />
-                </MultiDataTrigger>
-              </Style.Triggers>
-            </Style>
-          </Border.Style>
-          <StackPanel>
-            <TextBlock Text="CANJEAR BENEFICIO" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6" />
-            <Grid>
-              <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-              </Grid.ColumnDefinitions>
-              <ComboBox ItemsSource="{Binding AvailableBenefits}"
-                        SelectedItem="{Binding SelectedBenefit, Mode=TwoWay}"
-                        DisplayMemberPath="DisplayLabel"
-                        materialDesign:HintAssist.Hint="Elige un beneficio" />
-              <Button Grid.Column="1" Content="Canjear" Margin="8,0,0,0"
-                      Style="{StaticResource PrimaryButton}"
-                      Command="{Binding ClaimBenefitCommand}" />
-            </Grid>
-          </StackPanel>
-        </Border>
 
         <!-- Registrar abono: visible solo cuando el cliente tiene saldo pendiente -->
         <Border Margin="0,0,0,8" Padding="12,10" CornerRadius="6"

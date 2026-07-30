@@ -198,8 +198,6 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="8" />
-                <ColumnDefinition Width="*" />
               </Grid.ColumnDefinitions>
               <ToggleButton Style="{StaticResource TierPaneTab}"
                             IsChecked="{Binding IsTiersListOpen, Mode=OneWay}"
@@ -210,15 +208,6 @@
                 </StackPanel>
               </ToggleButton>
               <ToggleButton Grid.Column="2"
-                            Style="{StaticResource TierPaneTab}"
-                            IsChecked="{Binding IsTierEditorOpen, Mode=OneWay}"
-                            Command="{Binding ShowTierEditorCommand}">
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                  <materialDesign:PackIcon Kind="CogOutline" Width="15" Height="15" VerticalAlignment="Center" Margin="0,0,6,0" />
-                  <TextBlock Text="Configuración" VerticalAlignment="Center" />
-                </StackPanel>
-              </ToggleButton>
-              <ToggleButton Grid.Column="4"
                             Style="{StaticResource TierPaneTab}"
                             IsChecked="{Binding IsBenefitsOpen, Mode=OneWay}"
                             Command="{Binding ShowBenefitsCommand}"
@@ -246,28 +235,64 @@
             </ListBox.ItemContainerStyle>
             <ListBox.ItemTemplate>
               <DataTemplate>
-                <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,8">
-                  <StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                      <Border Width="12" Height="12" CornerRadius="6" Background="{Binding ColorBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
-                      <TextBlock Text="{Binding Name}" FontWeight="Bold" Style="{StaticResource TextH3}" />
-                    </StackPanel>
-                    <TextBlock Text="{Binding PointRange}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,3,0,0" />
-                    <TextBlock Text="{Binding BenefitDescription}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" Margin="0,3,0,0" />
-                    <ItemsControl ItemsSource="{Binding BenefitLines}" Margin="0,4,0,0"
-                                  Visibility="{Binding HasBenefitLines, Converter={StaticResource BoolToVisibilityConverter}}">
-                      <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                          <StackPanel Orientation="Horizontal" Margin="0,1,0,0">
-                            <materialDesign:PackIcon Kind="CheckCircleOutline" Width="12" Height="12"
-                                                     Foreground="{StaticResource BrushSuccess}" VerticalAlignment="Top" Margin="0,2,5,0" />
-                            <TextBlock Text="{Binding}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" />
+                <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="8" Margin="0,0,0,10" Background="White" ClipToBounds="True">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="Auto" />
+                      <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Border Grid.Row="0" Height="5" Background="{Binding ColorBrush}" />
+
+                    <Grid Grid.Row="1" Margin="14">
+                      <StackPanel>
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="12" Height="12" CornerRadius="6" Background="{Binding ColorBrush}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Style="{StaticResource TextH3}" VerticalAlignment="Center" />
                           </StackPanel>
-                        </DataTemplate>
-                      </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Text="{Binding RedemptionLabel}" Style="{StaticResource MutedText}" FontSize="11" FontStyle="Italic" Margin="0,4,0,0" />
-                  </StackPanel>
+                          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Background="{StaticResource BrushSuccessContainer}" CornerRadius="10" Padding="8,3" Margin="0,0,6,0"
+                                    Visibility="{Binding HasDiscount, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    ToolTip="Descuento en compras">
+                              <TextBlock Text="{Binding DiscountPercent, StringFormat='{}{0:0.##}% dcto'}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushSuccess}" />
+                            </Border>
+                            <Border Background="{StaticResource BrushPrimaryContainer}" CornerRadius="10" Padding="8,3" Margin="0,0,6,0"
+                                    Visibility="{Binding HasMultiplier, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    ToolTip="Multiplicador de puntos">
+                              <TextBlock Text="{Binding PointsMultiplier, StringFormat='{}x{0:0.##} pts'}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" />
+                            </Border>
+                            <Border Background="{StaticResource BrushSurfaceContainer}" BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="10" Padding="8,3">
+                              <TextBlock Text="{Binding PointRange}" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushText}" />
+                            </Border>
+                          </StackPanel>
+                        </Grid>
+
+                        <ItemsControl ItemsSource="{Binding BenefitLines}" Margin="0,10,0,0"
+                                      Visibility="{Binding HasBenefitLines, Converter={StaticResource BoolToVisibilityConverter}}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                              <WrapPanel />
+                            </ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                              <materialDesign:Chip Content="{Binding}"
+                                                   Icon="{materialDesign:PackIcon Kind=GiftOutline}"
+                                                   Margin="0,0,6,6"
+                                                   Style="{StaticResource MaterialDesignOutlineChip}" />
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <TextBlock Text="{Binding RedemptionLabel}" Style="{StaticResource MutedText}" FontSize="11" FontStyle="Italic" Margin="0,6,0,0" />
+                      </StackPanel>
+                    </Grid>
+                  </Grid>
                 </Border>
               </DataTemplate>
             </ListBox.ItemTemplate>
@@ -276,6 +301,18 @@
           <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                         Visibility="{Binding IsTierEditorOpen, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel>
+            <Grid Margin="0,0,0,12">
+              <Button Command="{Binding ShowTiersListCommand}" Style="{StaticResource MaterialDesignOutlinedButton}"
+                      HorizontalAlignment="Left" Padding="10,4" Height="28">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="ArrowLeft" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,4,0" />
+                  <TextBlock Text="Volver a Tiers" FontSize="11" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <TextBlock Text="Configuración del Tier" Style="{StaticResource TextBody}" FontWeight="Bold"
+                         HorizontalAlignment="Right" VerticalAlignment="Center" />
+            </Grid>
+
             <TextBlock Text="Nombre del tier" Style="{StaticResource MutedText}" FontSize="11" />
             <TextBox Text="{Binding TierName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6" />
             <TextBlock Text="Puntos mínimos" Style="{StaticResource MutedText}" FontSize="11" />
@@ -290,7 +327,46 @@
             <CheckBox IsChecked="{Binding TierAllowsRedemption, Mode=TwoWay}" Margin="0,0,0,8"
                       Content="Permitir canje de puntos en caja"
                       ToolTip="Si está desactivado, los clientes de este tier no verán la opción de canjear puntos al facturar." />
-             <TextBlock Text="Color del tier" Style="{StaticResource MutedText}" FontSize="11" />
+
+            <!-- Beneficios asignados del catálogo -->
+            <Border Margin="0,4,0,12" Padding="10" CornerRadius="6" Background="{StaticResource BrushPrimaryContainer}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                  <materialDesign:PackIcon Kind="GiftOutline" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Beneficios vinculados desde el catálogo" FontSize="11" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
+                </StackPanel>
+                
+                <ItemsControl ItemsSource="{Binding SelectedTierAssignedBenefits}"
+                              Visibility="{Binding HasSelectedTierAssignedBenefits, Converter={StaticResource BoolToVisibilityConverter}}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                      <WrapPanel />
+                    </ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <materialDesign:Chip Content="{Binding Name}"
+                                           Icon="{materialDesign:PackIcon Kind=GiftOutline}"
+                                           Margin="0,0,6,4"
+                                           ToolTip="{Binding Description}" />
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Visibility="{Binding HasSelectedTierAssignedBenefits, Converter={StaticResource BooleanNegationToVisibilityConverter}}">
+                  <TextBlock Text="Aún no hay beneficios asignados a este nivel." Style="{StaticResource MutedText}" FontSize="11" Margin="0,2,0,4" />
+                  <Button Command="{Binding ShowBenefitsCommand}" Style="{StaticResource MaterialDesignOutlinedButton}"
+                          HorizontalAlignment="Left" Padding="8,2" Height="26" Margin="0,2,0,0">
+                    <StackPanel Orientation="Horizontal">
+                      <materialDesign:PackIcon Kind="Plus" Width="12" Height="12" VerticalAlignment="Center" Margin="0,0,4,0" />
+                      <TextBlock Text="Asignar en Beneficios" FontSize="10" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <TextBlock Text="Color del tier" Style="{StaticResource MutedText}" FontSize="11" />
             <Grid Margin="0,3,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -440,10 +516,10 @@
         </Grid>
 
         <Border Grid.Row="2" Padding="16,12" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0">
-          <Button Command="{Binding LoadTiersCommand}" Background="Transparent" BorderThickness="0" HorizontalAlignment="Stretch">
+          <Button Command="{Binding NewTierCommand}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-              <materialDesign:PackIcon Kind="Refresh" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,4,0" />
-              <TextBlock Text="Actualizar tiers" />
+              <materialDesign:PackIcon Kind="PlusCircle" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+              <TextBlock Text="Nuevo tier" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
         </Border>

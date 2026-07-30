@@ -259,6 +259,26 @@ public sealed class LoyaltyViewModelTests
     }
 
     [Fact]
+    public void ResetViewOnNavigate_ResetsTierListAndClosesEditorAndClearsSelection()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, new FakeUnitOfWork()));
+
+        vm.BeginNewTier();
+        vm.TierName = "Silver";
+        Assert.True(vm.IsTierEditorOpen);
+
+        vm.ResetViewOnNavigate();
+
+        Assert.True(vm.IsTiersListOpen);
+        Assert.False(vm.IsTierEditorOpen);
+        Assert.Null(vm.SelectedTier);
+        Assert.Equal(string.Empty, vm.TierName);
+    }
+
+    [Fact]
     public async Task SaveTierAsync_RejectsDiscountAndMultiplierAboveConfiguredLimits()
     {
         var repo = new FakeLoyaltyRepository(null, [], balance: 0);

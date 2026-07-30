@@ -159,6 +159,30 @@ public sealed class CustomersViewModelBenefitClaimTests
         Assert.Contains("volvieron al saldo", vm.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task BenefitRedemptionPanelVisibilityProperties_EvaluatedCorrectly()
+    {
+        CustomersViewModel vm = BuildViewModel(out FakeLoyaltyRepository loyalty, out _, balance: 500);
+        loyalty.Benefits.Add(new LoyaltyBenefit("Descuento VIP", 200));
+
+        Assert.False(vm.HasSelectedCustomer);
+        Assert.False(vm.HasPoints);
+        Assert.False(vm.HasAvailableBenefits);
+
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+        vm.SelectedCustomer = vm.Customers.Single();
+        await vm.OpenHistoryAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(vm.HasSelectedCustomer);
+        Assert.True(vm.HasPoints);
+        Assert.True(vm.HasAvailableBenefits);
+
+        vm.SelectedCustomer = null;
+        Assert.False(vm.HasSelectedCustomer);
+        Assert.False(vm.HasPoints);
+        Assert.False(vm.HasAvailableBenefits);
+    }
+
     private static CustomersViewModel BuildViewModel(
         out FakeLoyaltyRepository loyalty,
         out Guid customerId,
