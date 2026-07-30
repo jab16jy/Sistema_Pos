@@ -4,7 +4,7 @@ namespace POS.Domain.Authorization;
 
 public static class PermissionKeys
 {
-    public static class Users { public const string View = "Users.View"; public const string Create = "Users.Create"; public const string Edit = "Users.Edit"; public const string Deactivate = "Users.Deactivate"; }
+    public static class Users { public const string View = "Users.View"; public const string Create = "Users.Create"; public const string Edit = "Users.Edit"; public const string Deactivate = "Users.Deactivate"; public const string Activate = "Users.Activate"; public const string Delete = "Users.Delete"; }
     public static class Roles { public const string View = "Roles.View"; public const string Create = "Roles.Create"; public const string Edit = "Roles.Edit"; public const string Deactivate = "Roles.Deactivate"; public const string AssignPermissions = "Roles.AssignPermissions"; }
     public static class Audit { public const string View = "Audit.View"; }
     public static class Settings { public const string View = "Settings.View"; public const string Edit = "Settings.Edit"; }

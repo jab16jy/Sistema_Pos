@@ -11,7 +11,18 @@ public partial class UserManagementView : UserControl
         DataContextChanged += (_, e) =>
         {
             if (e.NewValue is UserManagementViewModel vm)
+            {
+                vm.ConfirmDeletionAsync = (title, message) =>
+                {
+                    var result = System.Windows.MessageBox.Show(
+                        message,
+                        title,
+                        System.Windows.MessageBoxButton.YesNo,
+                        System.Windows.MessageBoxImage.Warning);
+                    return System.Threading.Tasks.Task.FromResult(result == System.Windows.MessageBoxResult.Yes);
+                };
                 vm.LoadUsersCommand.Execute(null);
+            }
         };
     }
 

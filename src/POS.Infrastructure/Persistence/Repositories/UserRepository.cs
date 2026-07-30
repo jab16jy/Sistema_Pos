@@ -41,6 +41,12 @@ public sealed class UserRepository : IUserRepository
         return Task.CompletedTask;
     }
 
+    public Task DeleteAsync(User user, CancellationToken ct = default)
+    {
+        _dbContext.Users.Remove(user);
+        return Task.CompletedTask;
+    }
+
     public Task<int> CountActiveUsersInRoleAsync(Guid roleId, CancellationToken ct = default)
         => _dbContext.Users.CountAsync(user => user.RoleId == roleId && user.IsActive, ct);
 }

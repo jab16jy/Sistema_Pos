@@ -177,20 +177,42 @@
               </ComboBox.ItemTemplate>
             </ComboBox>
 
-            <StackPanel Orientation="Horizontal">
-              <Button Command="{Binding SaveEditCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,8,0" Height="36" Padding="12,0">
+            <WrapPanel Orientation="Horizontal">
+              <Button Command="{Binding SaveEditCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,6,6" Height="36" Padding="10,0">
                 <StackPanel Orientation="Horizontal">
                   <materialDesign:PackIcon Kind="ContentSave" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
                   <TextBlock Text="Guardar" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
-              <Button Command="{Binding DeactivateCommand}" Style="{StaticResource DangerButton}" Height="36" Padding="12,0">
+              <Button Command="{Binding DeactivateCommand}" 
+                      Style="{StaticResource DangerButton}" 
+                      Margin="0,0,6,6" 
+                      Height="36" 
+                      Padding="10,0"
+                      Visibility="{Binding SelectedUser.IsActive, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel Orientation="Horizontal">
                   <materialDesign:PackIcon Kind="AccountOff" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
                   <TextBlock Text="Desactivar" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
-            </StackPanel>
+              <Button Command="{Binding ActivateCommand}" 
+                      Style="{StaticResource PrimaryButton}" 
+                      Margin="0,0,6,6" 
+                      Height="36" 
+                      Padding="10,0"
+                      Visibility="{Binding SelectedUser.IsActive, Converter={StaticResource BooleanNegationToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="AccountCheck" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Activar" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Command="{Binding DeleteCommand}" Style="{StaticResource DangerButton}" Margin="0,0,6,6" Height="36" Padding="10,0">
+                <StackPanel Orientation="Horizontal">
+                  <materialDesign:PackIcon Kind="Delete" Width="16" Height="16" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Eliminar" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </WrapPanel>
           </StackPanel>
         </Border>
 
