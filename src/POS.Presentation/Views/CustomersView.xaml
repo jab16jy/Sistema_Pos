@@ -710,8 +710,7 @@
                             </Button>
                             <!-- Anular devuelve puntos, así que va detrás de su propio permiso. -->
                             <Button Content="Anular" FontSize="10"
-                                    Command="{Binding DataContext.CancelClaimCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                    CommandParameter="{Binding}">
+                                    Click="AnularBeneficioButton_OnClick">
                               <Button.Style>
                                 <Style TargetType="Button" BasedOn="{StaticResource ClientesLinkButton}">
                                   <Setter Property="Visibility" Value="Collapsed" />

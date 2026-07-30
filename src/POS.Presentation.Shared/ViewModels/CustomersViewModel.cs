@@ -739,8 +739,12 @@ public sealed class CustomersViewModel : ViewModelBase
         InvoiceOpenRequested?.Invoke(entry.SaleId.Value);
     }
 
+    // Redemption rows must stay enabled even though they have no invoice: this command backs the
+    // Button that wraps the whole history row, and WPF coerces IsEnabled down to its nested
+    // "Marcar entregado"/"Anular" buttons — disabling the row here would silently disable those too.
     private static bool CanOpenInvoiceFromHistory(object? parameter)
-        => parameter is CustomerHistoryEntry entry && IsSaleKind(entry.Kind) && entry.SaleId.HasValue;
+        => parameter is CustomerHistoryEntry entry
+            && ((IsSaleKind(entry.Kind) && entry.SaleId.HasValue) || IsRedemptionKind(entry.Kind));
 
     public void ResetView()
     {

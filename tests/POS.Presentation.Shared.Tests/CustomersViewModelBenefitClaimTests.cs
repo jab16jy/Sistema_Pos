@@ -160,6 +160,21 @@ public sealed class CustomersViewModelBenefitClaimTests
     }
 
     [Fact]
+    public void OpenInvoiceCommand_StaysEnabledOnRedemptionRows_SoTheirNestedDeliverAndCancelButtonsAreNotCoercedDisabled()
+    {
+        // The row is a Button bound to OpenInvoiceCommand; WPF coerces IsEnabled down to the nested
+        // "Marcar entregado"/"Anular" buttons, so this command must never disable a Redemption row.
+        CustomersViewModel vm = BuildViewModel(out _, out _);
+        var redemption = new CustomerHistoryEntry(
+            DateTimeOffset.UtcNow, "Redemption", "Asesoría — 1.000 pts", 0m, "RedemptionPending", null, Guid.NewGuid());
+        Assert.True(vm.OpenInvoiceCommand.CanExecute(redemption));
+
+        // Rows that truly have nothing to open stay disabled (unchanged behavior).
+        var quote = new CustomerHistoryEntry(DateTimeOffset.UtcNow, "Quote", "C-001", 5_000m, "Open");
+        Assert.False(vm.OpenInvoiceCommand.CanExecute(quote));
+    }
+
+    [Fact]
     public async Task BenefitRedemptionPanelVisibilityProperties_EvaluatedCorrectly()
     {
         CustomersViewModel vm = BuildViewModel(out FakeLoyaltyRepository loyalty, out _, balance: 500);
