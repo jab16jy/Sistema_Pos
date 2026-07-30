@@ -54,6 +54,8 @@ public sealed class AppDbContext : DbContext, IUnitOfWork
     public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
     public DbSet<ProductSupplier> ProductSuppliers => Set<ProductSupplier>();
     public DbSet<LoyaltyTier> LoyaltyTiers => Set<LoyaltyTier>();
+    public DbSet<LoyaltyBenefit> LoyaltyBenefits => Set<LoyaltyBenefit>();
+    public DbSet<LoyaltyBenefitClaim> LoyaltyBenefitClaims => Set<LoyaltyBenefitClaim>();
     public DbSet<ProductImportBatch> ProductImportBatches => Set<ProductImportBatch>();
     public DbSet<ProductImportLine> ProductImportLines => Set<ProductImportLine>();
 
