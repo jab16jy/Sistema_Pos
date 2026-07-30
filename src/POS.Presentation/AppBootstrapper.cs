@@ -251,7 +251,8 @@ internal static class AppBootstrapper
                 () => new LoyaltyBenefitsViewModel(
                     getBenefits,
                     TryResolveOptional<SaveLoyaltyBenefitUseCase>(sp),
-                    TryResolveOptional<DeleteLoyaltyBenefitUseCase>(sp)),
+                    TryResolveOptional<DeleteLoyaltyBenefitUseCase>(sp),
+                    TryResolveOptional<GetLoyaltyTiersUseCase>(sp)),
                 moduleWarnings);
 
         LoyaltyViewModel? loyalty = TryCreateOptionalModule(

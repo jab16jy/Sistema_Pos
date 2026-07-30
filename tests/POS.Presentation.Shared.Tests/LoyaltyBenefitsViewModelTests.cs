@@ -132,6 +132,25 @@ public sealed class LoyaltyBenefitsViewModelTests
     }
 
     [Fact]
+    public async Task LoadAsync_PopulatesAvailableTiers_WhenGetTiersProvided()
+    {
+        var repo = new FakeLoyaltyRepository();
+        repo.Tiers.Add(new LoyaltyTier("Oro", 500));
+        var uow = new NoOpUnitOfWork();
+        var vm = new LoyaltyBenefitsViewModel(
+            new GetLoyaltyBenefitsUseCase(repo),
+            new SaveLoyaltyBenefitUseCase(repo, uow),
+            new DeleteLoyaltyBenefitUseCase(repo, uow),
+            new GetLoyaltyTiersUseCase(repo));
+
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, vm.AvailableTiers.Count);
+        Assert.Equal("Todos los niveles", vm.AvailableTiers[0].Name);
+        Assert.Equal("Oro", vm.AvailableTiers[1].Name);
+    }
+
+    [Fact]
     public void LoyaltyModule_ExposesThreeMutuallyExclusivePanes()
     {
         var repo = new FakeLoyaltyRepository();
@@ -189,6 +208,13 @@ public sealed class LoyaltyBenefitsViewModelTests
     {
         public List<LoyaltyBenefit> Benefits { get; } = [];
         public HashSet<Guid> ClaimedBenefitIds { get; } = [];
+        public List<LoyaltyTier> Tiers { get; } = [];
+
+        public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken ct = default)
+            => Task.FromResult<IReadOnlyList<LoyaltyTier>>(Tiers);
+
+        public Task<LoyaltyTier?> GetTierByIdAsync(Guid tierId, CancellationToken ct = default)
+            => Task.FromResult(Tiers.FirstOrDefault(t => t.Id == tierId));
 
         public Task<LoyaltyAccount?> GetAccountByCustomerIdAsync(Guid customerId, CancellationToken ct = default)
             => Task.FromResult<LoyaltyAccount?>(null);

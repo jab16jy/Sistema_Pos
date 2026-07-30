@@ -450,8 +450,11 @@ public sealed class CustomersViewModel : ViewModelBase
         catch { return System.Windows.Media.Brushes.Gray; }
     }
 
+    private LoyaltyTierResult? _currentTier;
+
     private void ApplyCurrentTier(LoyaltyTierResult? tier)
     {
+        _currentTier = tier;
         CurrentTierName = tier?.Name ?? string.Empty;
         CurrentTierBenefit = tier is null
             ? string.Empty
@@ -827,6 +830,14 @@ public sealed class CustomersViewModel : ViewModelBase
         AvailableBenefits.Clear();
         foreach (LoyaltyBenefitResult benefit in benefits)
         {
+            if (benefit.RequiredTierMinPoints.HasValue)
+            {
+                if (_currentTier is null || _currentTier.MinPoints < benefit.RequiredTierMinPoints.Value)
+                {
+                    continue;
+                }
+            }
+
             AvailableBenefits.Add(LoyaltyBenefitPresentation.From(benefit));
         }
 

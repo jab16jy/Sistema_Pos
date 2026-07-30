@@ -140,16 +140,18 @@
 
           <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="16,12">
-              <TextBlock Text="Puntos por cada $1 vendido" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <TextBox Text="{Binding PointsPerCurrencyUnit, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=0.####}" Margin="0,0,0,4" />
-              <TextBlock Text="{Binding AccumulationRate}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,12" />
+              <TextBlock Text="Monto en compras para acumular 1 punto ($ COP)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding AccumulationCurrencyAmountText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,2" />
+              <TextBlock Text="{Binding AccumulationRate}" Style="{StaticResource TextBody}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushPrimary}" Margin="0,0,0,2" />
+              <TextBlock Text="{Binding AccumulationExampleHint}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,12" />
 
-              <TextBlock Text="Valor en pesos de cada punto" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <TextBox Text="{Binding RedemptionValuePerPoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,4" />
-              <TextBlock Text="{Binding RedemptionRate}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,12" />
+              <TextBlock Text="Valor en pesos de descuento por cada 1 punto ($ COP)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding RedemptionValuePerPointText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,2" />
+              <TextBlock Text="{Binding RedemptionRate}" Style="{StaticResource TextBody}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource BrushSuccess}" Margin="0,0,0,2" />
+              <TextBlock Text="{Binding RedemptionExampleHint}" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,12" />
 
-              <TextBlock Text="M&#237;nimo de puntos para canjear" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <TextBox Text="{Binding MinimumRedeemPoints, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
+              <TextBlock Text="M&#237;nimo de puntos requeridos para canjear" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+              <TextBox Text="{Binding MinimumRedeemPointsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,12" />
 
               <TextBlock Text="Descripci&#243;n de la regla" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
               <TextBox Text="{Binding RuleDescription, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" AcceptsReturn="True" MinHeight="56" Margin="0,0,0,12" />
@@ -284,11 +286,7 @@
             <TextBlock Text="Multiplicador de puntos" Style="{StaticResource MutedText}" FontSize="11" />
             <TextBox Text="{Binding TierPointsMultiplierText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,2" />
             <TextBlock Text="{Binding TierPointsMultiplierHint}" Style="{StaticResource MutedText}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,8" />
-            <TextBlock Text="Beneficios del tier (uno por línea)" Style="{StaticResource MutedText}" FontSize="11" />
-            <TextBox Text="{Binding TierBenefits, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
-                     MinHeight="64" MaxHeight="120" Margin="0,3,0,8"
-                     ToolTip="Ej: Acceso a capacitaciones&#x0a;Envío gratis" />
+
             <CheckBox IsChecked="{Binding TierAllowsRedemption, Mode=TwoWay}" Margin="0,0,0,8"
                       Content="Permitir canje de puntos en caja"
                       ToolTip="Si está desactivado, los clientes de este tier no verán la opción de canjear puntos al facturar." />
@@ -347,6 +345,11 @@
                           <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding Name}" FontWeight="Bold" Style="{StaticResource TextBody}" VerticalAlignment="Center" />
                             <Border Margin="6,0,0,0" Padding="6,1" CornerRadius="4"
+                                    Background="{StaticResource BrushPrimaryContainer}" BorderBrush="{StaticResource BrushPrimary}" BorderThickness="1"
+                                    VerticalAlignment="Center">
+                              <TextBlock Text="{Binding RequiredTierLabel}" FontSize="9" FontWeight="SemiBold" Foreground="{StaticResource BrushPrimary}" />
+                            </Border>
+                            <Border Margin="6,0,0,0" Padding="6,1" CornerRadius="4"
                                     Background="{StaticResource BrushDangerSoft}" BorderBrush="{StaticResource BrushDanger}" BorderThickness="1"
                                     VerticalAlignment="Center">
                               <Border.Style>
@@ -396,6 +399,8 @@
                   <TextBlock Text="Costo en puntos" Style="{StaticResource MutedText}" FontSize="11" />
                   <TextBox Text="{Binding PointsCostText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6"
                            materialDesign:HintAssist.Hint="Ej: 1.000" />
+                  <TextBlock Text="Nivel requerido" Style="{StaticResource MutedText}" FontSize="11" />
+                  <ComboBox ItemsSource="{Binding AvailableTiers}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedRequiredTier, Mode=TwoWay}" Margin="0,3,0,6" />
                   <CheckBox IsChecked="{Binding IsActive, Mode=TwoWay}" Margin="0,0,0,8"
                             Content="Disponible para canje"
                             ToolTip="Si está desactivado, el beneficio deja de ofrecerse pero se conserva en el historial de quienes ya lo canjearon." />

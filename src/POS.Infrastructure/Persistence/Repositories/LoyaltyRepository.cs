@@ -244,6 +244,9 @@ public sealed class LoyaltyRepository : ILoyaltyRepository
         }
     }
 
+    public Task<bool> HasBenefitsRequiringTierAsync(Guid tierId, CancellationToken cancellationToken = default)
+        => _dbContext.LoyaltyBenefits.AnyAsync(benefit => benefit.RequiredTierId == tierId, cancellationToken);
+
     public async Task<IReadOnlyList<LoyaltyBenefit>> GetBenefitsAsync(bool activeOnly = false, CancellationToken cancellationToken = default)
     {
         IQueryable<LoyaltyBenefit> query = _dbContext.LoyaltyBenefits.AsNoTracking();

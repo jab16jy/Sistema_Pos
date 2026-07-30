@@ -16,12 +16,17 @@ namespace POS.Infrastructure.Services;
 /// always returned null and the tier line never printed. Balance-derived tiers also match what
 /// AccumulateLoyaltyPointsUseCase and GetLoyaltyBalanceUseCase already do.
 /// </remarks>
-internal sealed record LoyaltySaleSnapshot(int PointsEarned, int Balance, LoyaltyTier? Tier)
+internal sealed record LoyaltySaleSnapshot(int PointsEarned, int Balance, LoyaltyTier? Tier, IReadOnlyList<string>? BenefitNames = null)
 {
-    public static readonly LoyaltySaleSnapshot Empty = new(0, 0, null);
+    public static readonly LoyaltySaleSnapshot Empty = new(0, 0, null, []);
 
     /// <summary>True when there is any loyalty figure worth printing.</summary>
     public bool HasContent => PointsEarned != 0 || Balance != 0 || Tier is not null;
+
+    /// <summary>Benefit lines to print for the customer's tier, resolved from LoyaltyBenefit catalogue or legacy tier text.</summary>
+    public IReadOnlyList<string> TierBenefitNames => (BenefitNames is not null && BenefitNames.Count > 0)
+        ? BenefitNames
+        : Tier?.BenefitLines ?? [];
 
     public static async Task<LoyaltySaleSnapshot> LoadAsync(
         AppDbContext dbContext, Guid? customerId, Guid saleId, CancellationToken cancellationToken)
@@ -70,6 +75,17 @@ internal sealed record LoyaltySaleSnapshot(int PointsEarned, int Balance, Loyalt
             .OrderByDescending(t => t.MinPoints)
             .FirstOrDefault();
 
-        return new LoyaltySaleSnapshot(pointsEarned, balance, tier);
+        List<string> benefitNames = [];
+        if (tier is not null)
+        {
+            benefitNames = await dbContext.LoyaltyBenefits
+                .AsNoTracking()
+                .Where(b => b.IsActive && b.RequiredTierId == tier.Id)
+                .Select(b => b.Name)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        return new LoyaltySaleSnapshot(pointsEarned, balance, tier, benefitNames);
     }
 }

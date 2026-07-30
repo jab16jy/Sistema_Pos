@@ -41,6 +41,22 @@ public sealed class ClaimLoyaltyBenefitUseCase(ILoyaltyRepository loyalty, IUnit
                 $"Puntos insuficientes. Disponibles: {balance}, requeridos: {benefit.PointsCost}.");
         }
 
+        if (benefit.RequiredTierId is { } requiredTierId)
+        {
+            LoyaltyTier requiredTier = await loyalty.GetTierByIdAsync(requiredTierId, cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("El nivel requerido para este beneficio ya no existe.");
+
+            var tiers = await loyalty.GetTiersAsync(cancellationToken).ConfigureAwait(false);
+            var currentTier = LoyaltyTierMapper.ResolveCurrentTier(tiers, balance);
+
+            if (currentTier is null || currentTier.MinPoints < requiredTier.MinPoints)
+            {
+                string currentTierName = currentTier?.Name ?? "Sin nivel";
+                throw new InvalidOperationException(
+                    $"Tu nivel actual ({currentTierName}) no cumple con el nivel mínimo requerido ({requiredTier.Name}) para canjear este beneficio.");
+            }
+        }
+
         // The spend and the claim commit in one unit of work: points must never leave the account
         // without a claim to show for them, and a claim must never exist without its spend.
         var spend = new LoyaltyTransaction(

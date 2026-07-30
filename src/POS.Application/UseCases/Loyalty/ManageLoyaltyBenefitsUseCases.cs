@@ -7,33 +7,45 @@ namespace POS.Application.UseCases.Loyalty;
 public sealed class GetLoyaltyBenefitsUseCase(ILoyaltyRepository loyalty)
 {
     public async Task<IReadOnlyList<LoyaltyBenefitResult>> ExecuteAsync(bool activeOnly = false, CancellationToken cancellationToken = default)
-        => (await loyalty.GetBenefitsAsync(activeOnly, cancellationToken).ConfigureAwait(false))
-            .Select(LoyaltyBenefitMapper.ToResult)
+    {
+        var benefits = await loyalty.GetBenefitsAsync(activeOnly, cancellationToken).ConfigureAwait(false);
+        var tiers = await loyalty.GetTiersAsync(cancellationToken).ConfigureAwait(false);
+        var tiersDict = tiers.ToDictionary(t => t.Id);
+        return benefits
+            .Select(b => LoyaltyBenefitMapper.ToResult(b, tiersDict))
             .ToList();
+    }
 }
 
 public sealed class SaveLoyaltyBenefitUseCase(ILoyaltyRepository loyalty, IUnitOfWork unitOfWork)
 {
     public async Task<LoyaltyBenefitResult> ExecuteAsync(SaveLoyaltyBenefitRequest request, CancellationToken cancellationToken = default)
     {
+        LoyaltyTier? requiredTier = null;
+        if (request.RequiredTierId is { } tierId)
+        {
+            requiredTier = await loyalty.GetTierByIdAsync(tierId, cancellationToken).ConfigureAwait(false)
+                ?? throw new InvalidOperationException("El nivel requerido especificado no existe.");
+        }
+
         LoyaltyBenefit benefit;
         if (request.BenefitId is { } benefitId)
         {
             benefit = await loyalty.GetBenefitByIdAsync(benefitId, cancellationToken).ConfigureAwait(false)
                 ?? throw new InvalidOperationException("El beneficio seleccionado ya no existe.");
-            benefit.Update(request.Name, request.PointsCost, request.Description);
+            benefit.Update(request.Name, request.PointsCost, request.Description, request.RequiredTierId);
             ApplyActiveFlag(benefit, request.IsActive);
             await loyalty.UpdateBenefitAsync(benefit, cancellationToken).ConfigureAwait(false);
         }
         else
         {
-            benefit = new LoyaltyBenefit(request.Name, request.PointsCost, request.Description);
+            benefit = new LoyaltyBenefit(request.Name, request.PointsCost, request.Description, request.RequiredTierId);
             ApplyActiveFlag(benefit, request.IsActive);
             await loyalty.AddBenefitAsync(benefit, cancellationToken).ConfigureAwait(false);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-        return LoyaltyBenefitMapper.ToResult(benefit);
+        return LoyaltyBenefitMapper.ToResult(benefit, requiredTier);
     }
 
     private static void ApplyActiveFlag(LoyaltyBenefit benefit, bool isActive)
@@ -79,8 +91,22 @@ public sealed class DeleteLoyaltyBenefitUseCase(ILoyaltyRepository loyalty, IUni
 
 internal static class LoyaltyBenefitMapper
 {
-    public static LoyaltyBenefitResult ToResult(LoyaltyBenefit benefit)
-        => new(benefit.Id, benefit.Name, benefit.Description, benefit.PointsCost, benefit.IsActive);
+    public static LoyaltyBenefitResult ToResult(LoyaltyBenefit benefit, LoyaltyTier? tier = null)
+        => new(
+            benefit.Id,
+            benefit.Name,
+            benefit.Description,
+            benefit.PointsCost,
+            benefit.IsActive,
+            benefit.RequiredTierId,
+            tier?.Name,
+            tier?.MinPoints);
+
+    public static LoyaltyBenefitResult ToResult(LoyaltyBenefit benefit, IReadOnlyDictionary<Guid, LoyaltyTier> tiers)
+    {
+        LoyaltyTier? tier = benefit.RequiredTierId.HasValue && tiers.TryGetValue(benefit.RequiredTierId.Value, out var found) ? found : null;
+        return ToResult(benefit, tier);
+    }
 
     public static LoyaltyBenefitClaimResult ToResult(LoyaltyBenefitClaim claim)
         => new(

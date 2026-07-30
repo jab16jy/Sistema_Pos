@@ -102,6 +102,50 @@ public sealed class LoyaltyBenefitClaimUseCaseTests
     }
 
     [Fact]
+    public async Task ClaimAsync_WithRequiredTier_IneligibleCustomer_Throws()
+    {
+        var customerId = Guid.NewGuid();
+        var repo = new InMemLoyaltyRepository(customerId, balance: 100);
+        var goldTier = new LoyaltyTier("Oro", 500);
+        repo.Tiers.Add(goldTier);
+        var benefit = new LoyaltyBenefit("Descuento VIP", 50, "Solo Oro", goldTier.Id);
+        repo.Benefits.Add(benefit);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new ClaimLoyaltyBenefitUseCase(repo, new CountingUow())
+            .ExecuteAsync(new ClaimLoyaltyBenefitRequest(customerId, benefit.Id), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ClaimAsync_WithRequiredTier_EligibleCustomer_Succeeds()
+    {
+        var customerId = Guid.NewGuid();
+        var repo = new InMemLoyaltyRepository(customerId, balance: 600);
+        var goldTier = new LoyaltyTier("Oro", 500);
+        repo.Tiers.Add(goldTier);
+        var benefit = new LoyaltyBenefit("Descuento VIP", 50, "Solo Oro", goldTier.Id);
+        repo.Benefits.Add(benefit);
+
+        LoyaltyBenefitClaimResult claim = await new ClaimLoyaltyBenefitUseCase(repo, new CountingUow())
+            .ExecuteAsync(new ClaimLoyaltyBenefitRequest(customerId, benefit.Id), TestContext.Current.CancellationToken);
+
+        Assert.Equal(50, claim.PointsSpent);
+        Assert.Equal(550, repo.Balance);
+    }
+
+    [Fact]
+    public async Task DeleteTierAsync_WithAssignedBenefits_Throws()
+    {
+        var repo = new InMemLoyaltyRepository(Guid.NewGuid(), balance: 0);
+        var goldTier = new LoyaltyTier("Oro", 500);
+        repo.Tiers.Add(goldTier);
+        var benefit = new LoyaltyBenefit("Descuento VIP", 50, "Solo Oro", goldTier.Id);
+        repo.Benefits.Add(benefit);
+
+        var useCase = new DeleteLoyaltyTierUseCase(repo, new CountingUow());
+        await Assert.ThrowsAsync<InvalidOperationException>(() => useCase.ExecuteAsync(goldTier.Id, TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
     public async Task DeliverAsync_MovesThePendingClaimToDelivered_AndRefusesASecondDelivery()
     {
         var customerId = Guid.NewGuid();
@@ -285,6 +329,12 @@ public sealed class LoyaltyBenefitClaimUseCaseTests
 
         public Task<IReadOnlyList<LoyaltyTransaction>> GetRecentProgramTransactionsAsync(int maxCount = 20, CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<LoyaltyTransaction>>(Transactions.Take(maxCount).ToList());
+
+        public Task<LoyaltyTier?> GetTierByIdAsync(Guid tierId, CancellationToken ct = default)
+            => Task.FromResult(Tiers.FirstOrDefault(t => t.Id == tierId));
+
+        public Task<bool> HasBenefitsRequiringTierAsync(Guid tierId, CancellationToken ct = default)
+            => Task.FromResult(Benefits.Any(b => b.RequiredTierId == tierId));
 
         public Task<IReadOnlyList<LoyaltyTier>> GetTiersAsync(CancellationToken ct = default)
             => Task.FromResult<IReadOnlyList<LoyaltyTier>>(Tiers);

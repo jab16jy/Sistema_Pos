@@ -403,6 +403,7 @@
                   <MultiDataTrigger.Conditions>
                     <Condition Binding="{Binding CanClaimBenefits}" Value="True" />
                     <Condition Binding="{Binding HasSelectedCustomer}" Value="True" />
+                    <Condition Binding="{Binding HistoryFilter}" Value="redemption" />
                   </MultiDataTrigger.Conditions>
                   <Setter Property="Visibility" Value="Visible" />
                 </MultiDataTrigger>

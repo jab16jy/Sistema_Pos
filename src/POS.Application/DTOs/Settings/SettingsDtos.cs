@@ -1,4 +1,4 @@
-﻿using POS.Domain.Entities;
+using POS.Domain.Entities;
 
 namespace POS.Application.DTOs.Settings;
 

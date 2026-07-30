@@ -15,5 +15,11 @@ internal sealed class LoyaltyBenefitConfiguration : IEntityTypeConfiguration<Loy
         builder.Property(b => b.Description).IsRequired().HasMaxLength(500).HasDefaultValue(string.Empty);
         builder.Property(b => b.PointsCost).IsRequired();
         builder.Property(b => b.IsActive).IsRequired().HasDefaultValue(true);
+        builder.Property(b => b.RequiredTierId).HasColumnName("REQUIRED_TIER_ID").HasConversion<string?>();
+
+        builder.HasOne<LoyaltyTier>()
+               .WithMany()
+               .HasForeignKey(b => b.RequiredTierId)
+               .OnDelete(DeleteBehavior.Restrict);
     }
 }

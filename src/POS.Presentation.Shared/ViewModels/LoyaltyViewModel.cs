@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Input;
 using POS.Application.DTOs.Customers;
@@ -38,6 +38,9 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private decimal _pointsPerCurrencyUnit = 0.001m;
     private decimal _redemptionValuePerPoint = 10m;
     private int _minimumRedeemPoints = 100;
+    private string _accumulationCurrencyAmountText = "1.000";
+    private string _redemptionValuePerPointText = "10";
+    private string _minimumRedeemPointsText = "100";
     private string _ruleDescription = "1 punto por cada $1.000 vendidos; cada punto descuenta $10.";
     private string _totalPointsIssued = "0";
     private string _enrolledCustomers = "0";
@@ -267,6 +270,25 @@ public sealed class LoyaltyViewModel : ViewModelBase
         private set => SetProperty(ref _redemptionsThisMonth, value);
     }
 
+    public string AccumulationCurrencyAmountText
+    {
+        get => _accumulationCurrencyAmountText;
+        set
+        {
+            if (SetProperty(ref _accumulationCurrencyAmountText, value ?? string.Empty))
+            {
+                if (TryParseCurrencyAmount(value, out decimal amount) && amount > 0m)
+                {
+                    _pointsPerCurrencyUnit = 1m / amount;
+                }
+                OnPropertyChanged(nameof(PointsPerCurrencyUnit));
+                OnPropertyChanged(nameof(AccumulationRate));
+                OnPropertyChanged(nameof(AccumulationExampleHint));
+                OnPropertyChanged(nameof(IsAccumulationCurrencyAmountValid));
+            }
+        }
+    }
+
     public decimal PointsPerCurrencyUnit
     {
         get => _pointsPerCurrencyUnit;
@@ -274,7 +296,34 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             if (SetProperty(ref _pointsPerCurrencyUnit, value))
             {
+                if (value > 0m)
+                {
+                    decimal amount = Math.Round(1m / value);
+                    _accumulationCurrencyAmountText = amount.ToString("N0", ColombianCulture);
+                    OnPropertyChanged(nameof(AccumulationCurrencyAmountText));
+                }
                 OnPropertyChanged(nameof(AccumulationRate));
+                OnPropertyChanged(nameof(AccumulationExampleHint));
+                OnPropertyChanged(nameof(IsAccumulationCurrencyAmountValid));
+            }
+        }
+    }
+
+    public string RedemptionValuePerPointText
+    {
+        get => _redemptionValuePerPointText;
+        set
+        {
+            if (SetProperty(ref _redemptionValuePerPointText, value ?? string.Empty))
+            {
+                if (TryParseCurrencyAmount(value, out decimal val) && val > 0m)
+                {
+                    _redemptionValuePerPoint = val;
+                }
+                OnPropertyChanged(nameof(RedemptionValuePerPoint));
+                OnPropertyChanged(nameof(RedemptionRate));
+                OnPropertyChanged(nameof(RedemptionExampleHint));
+                OnPropertyChanged(nameof(IsRedemptionValueValid));
             }
         }
     }
@@ -286,7 +335,28 @@ public sealed class LoyaltyViewModel : ViewModelBase
         {
             if (SetProperty(ref _redemptionValuePerPoint, value))
             {
+                _redemptionValuePerPointText = value.ToString("N0", ColombianCulture);
+                OnPropertyChanged(nameof(RedemptionValuePerPointText));
                 OnPropertyChanged(nameof(RedemptionRate));
+                OnPropertyChanged(nameof(RedemptionExampleHint));
+                OnPropertyChanged(nameof(IsRedemptionValueValid));
+            }
+        }
+    }
+
+    public string MinimumRedeemPointsText
+    {
+        get => _minimumRedeemPointsText;
+        set
+        {
+            if (SetProperty(ref _minimumRedeemPointsText, value ?? string.Empty))
+            {
+                if (TryParseNonNegativeInt(value, out int minPoints))
+                {
+                    _minimumRedeemPoints = minPoints;
+                }
+                OnPropertyChanged(nameof(MinimumRedeemPoints));
+                OnPropertyChanged(nameof(IsMinimumRedeemPointsValid));
             }
         }
     }
@@ -294,7 +364,15 @@ public sealed class LoyaltyViewModel : ViewModelBase
     public int MinimumRedeemPoints
     {
         get => _minimumRedeemPoints;
-        set => SetProperty(ref _minimumRedeemPoints, value);
+        set
+        {
+            if (SetProperty(ref _minimumRedeemPoints, value))
+            {
+                _minimumRedeemPointsText = value.ToString();
+                OnPropertyChanged(nameof(MinimumRedeemPointsText));
+                OnPropertyChanged(nameof(IsMinimumRedeemPointsValid));
+            }
+        }
     }
 
     public string RuleDescription
@@ -303,9 +381,25 @@ public sealed class LoyaltyViewModel : ViewModelBase
         set => SetProperty(ref _ruleDescription, value ?? string.Empty);
     }
 
-    public string AccumulationRate => $"{PointsPerCurrencyUnit.ToString("0.####", ColombianCulture)} punto(s) por cada $1 vendido";
+    public string AccumulationRate => TryParseCurrencyAmount(AccumulationCurrencyAmountText, out decimal amount) && amount > 0m
+        ? $"1 punto por cada ${amount.ToString("N0", ColombianCulture)} vendidos"
+        : "Monto inválido para acumulación";
 
-    public string RedemptionRate => $"Cada punto descuenta ${RedemptionValuePerPoint.ToString("N0", ColombianCulture)}";
+    public string AccumulationExampleHint => TryParseCurrencyAmount(AccumulationCurrencyAmountText, out decimal amount) && amount > 0m
+        ? $"Ejemplo: Una compra de ${(amount * 10m).ToString("N0", ColombianCulture)} otorga 10 puntos básicos."
+        : "Ingresa un monto en pesos mayor a cero (ej. 8.000).";
+
+    public string RedemptionRate => TryParseCurrencyAmount(RedemptionValuePerPointText, out decimal value) && value > 0m
+        ? $"Cada 1 punto descuenta ${value.ToString("N0", ColombianCulture)}"
+        : "Valor de canje inválido";
+
+    public string RedemptionExampleHint => TryParseCurrencyAmount(RedemptionValuePerPointText, out decimal value) && value > 0m
+        ? $"Ejemplo: 100 puntos otorgan ${(value * 100m).ToString("N0", ColombianCulture)} de descuento."
+        : "Ingresa un valor en pesos mayor a cero (ej. 10).";
+
+    public bool IsAccumulationCurrencyAmountValid => TryParseCurrencyAmount(AccumulationCurrencyAmountText, out decimal amount) && amount > 0m;
+    public bool IsRedemptionValueValid => TryParseCurrencyAmount(RedemptionValuePerPointText, out decimal val) && val > 0m;
+    public bool IsMinimumRedeemPointsValid => TryParseNonNegativeInt(MinimumRedeemPointsText, out int minPoints);
 
     public string CheckoutUsageMode => "Caja acumula y canjea usando la regla activa guardada.";
 
@@ -472,7 +566,16 @@ public sealed class LoyaltyViewModel : ViewModelBase
         Tiers.Clear();
         foreach (var tier in tiers)
         {
-            Tiers.Add(LoyaltyTierPresentation.From(tier));
+            List<string> tierBenefits = [];
+            if (BenefitsViewModel is not null)
+            {
+                tierBenefits = BenefitsViewModel.Benefits
+                    .Where(b => b.IsActive && b.RequiredTierId == tier.Id)
+                    .Select(b => b.Name)
+                    .ToList();
+            }
+
+            Tiers.Add(LoyaltyTierPresentation.From(tier, tierBenefits.Count > 0 ? tierBenefits : null));
         }
 
         // Only re-attach an existing selection; never pick one for the user. An auto-selected first
@@ -619,6 +722,54 @@ public sealed class LoyaltyViewModel : ViewModelBase
         catch { return System.Windows.Media.Brushes.Gray; }
     }
 
+    private static bool TryParseCurrencyAmount(string? input, out decimal result)
+    {
+        result = 0m;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        string text = input.Trim().Replace("$", string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        if (decimal.TryParse(text, NumberStyles.Currency | NumberStyles.Number, ColombianCulture, out decimal colVal) && colVal > 0m)
+        {
+            result = colVal;
+            return true;
+        }
+
+        if (decimal.TryParse(text, NumberStyles.Currency | NumberStyles.Number, CultureInfo.InvariantCulture, out decimal invVal) && invVal > 0m)
+        {
+            result = invVal;
+            return true;
+        }
+
+        string normalized = text.Replace(".", string.Empty).Replace(',', '.');
+        if (decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal fallbackVal) && fallbackVal > 0m)
+        {
+            result = fallbackVal;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryParseNonNegativeInt(string? input, out int result)
+    {
+        result = 0;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return false;
+        }
+
+        string cleaned = input.Trim().Replace("$", string.Empty).Replace(".", string.Empty).Replace(",", string.Empty).Trim();
+        return int.TryParse(cleaned, NumberStyles.Integer, CultureInfo.InvariantCulture, out result) && result >= 0;
+    }
+
     private static bool TryParsePositiveDecimal(string? input, out decimal result)
     {
         result = 0m;
@@ -641,9 +792,21 @@ public sealed class LoyaltyViewModel : ViewModelBase
             return;
         }
 
-        if (PointsPerCurrencyUnit <= 0m || RedemptionValuePerPoint <= 0m || MinimumRedeemPoints < 0)
+        if (!TryParseCurrencyAmount(AccumulationCurrencyAmountText, out decimal accumulationAmount) || accumulationAmount <= 0m)
         {
-            Message = "Revisa la regla: acumulación y redención deben ser mayores a cero, y el mínimo no puede ser negativo.";
+            Message = "El monto en pesos para ganar 1 punto debe ser mayor a $0 (ej. 8.000).";
+            return;
+        }
+
+        if (!TryParseCurrencyAmount(RedemptionValuePerPointText, out decimal redemptionVal) || redemptionVal <= 0m)
+        {
+            Message = "El valor en pesos por cada punto de canje debe ser mayor a $0 (ej. 10).";
+            return;
+        }
+
+        if (!TryParseNonNegativeInt(MinimumRedeemPointsText, out int minPoints) || minPoints < 0)
+        {
+            Message = "El mínimo de puntos para canjear no puede ser negativo.";
             return;
         }
 
@@ -652,8 +815,9 @@ public sealed class LoyaltyViewModel : ViewModelBase
 
         try
         {
+            decimal pointsPerCurrencyUnit = 1m / accumulationAmount;
             var saved = await _setLoyaltyRule.ExecuteAsync(
-                new SetLoyaltyRuleRequest(PointsPerCurrencyUnit, RedemptionValuePerPoint, MinimumRedeemPoints, RuleDescription),
+                new SetLoyaltyRuleRequest(pointsPerCurrencyUnit, redemptionVal, minPoints, RuleDescription),
                 cancellationToken).ConfigureAwait(true);
 
             ApplyRule(saved);
@@ -863,7 +1027,8 @@ public sealed record LoyaltyTierPresentation(
     string Color,
     LoyaltyTierTextForeground TextForeground,
     string Benefits = "",
-    bool AllowsRedemption = false)
+    bool AllowsRedemption = false,
+    IReadOnlyList<string>? DynamicBenefitLines = null)
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -873,8 +1038,10 @@ public sealed record LoyaltyTierPresentation(
     public string BenefitDescription =>
         $"{DiscountPercent.ToString("0.##", ColombianCulture)}% descuento · {PointsMultiplier.ToString("0.##", ColombianCulture)}x puntos";
 
-    /// <summary>The free-text benefits the business defined for this tier, one per line.</summary>
-    public IReadOnlyList<string> BenefitLines => POS.Domain.Entities.LoyaltyTier.SplitBenefits(Benefits);
+    /// <summary>The benefit lines defined for this tier from the catalogue or legacy text.</summary>
+    public IReadOnlyList<string> BenefitLines => (DynamicBenefitLines is not null && DynamicBenefitLines.Count > 0)
+        ? DynamicBenefitLines
+        : POS.Domain.Entities.LoyaltyTier.SplitBenefits(Benefits);
 
     public bool HasBenefitLines => BenefitLines.Count > 0;
 
@@ -890,8 +1057,8 @@ public sealed record LoyaltyTierPresentation(
         catch { return System.Windows.Media.Brushes.Gray; }
     }
 
-    public static LoyaltyTierPresentation From(LoyaltyTierResult tier)
-        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color, tier.TextForeground, tier.Benefits, tier.AllowsRedemption);
+    public static LoyaltyTierPresentation From(LoyaltyTierResult tier, IReadOnlyList<string>? benefitLines = null)
+        => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color, tier.TextForeground, tier.Benefits, tier.AllowsRedemption, benefitLines);
 }
 
 /// <summary>Presentation row for real persisted program movements.</summary>

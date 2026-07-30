@@ -103,7 +103,10 @@ public sealed record LoyaltyBenefitResult(
     string Name,
     string Description,
     int PointsCost,
-    bool IsActive);
+    bool IsActive,
+    Guid? RequiredTierId = null,
+    string? RequiredTierName = null,
+    decimal? RequiredTierMinPoints = null);
 
 /// <summary>Creates a benefit when <see cref="BenefitId"/> is null, updates it otherwise.</summary>
 public sealed record SaveLoyaltyBenefitRequest(
@@ -111,7 +114,8 @@ public sealed record SaveLoyaltyBenefitRequest(
     int PointsCost,
     string? Description = null,
     bool IsActive = true,
-    Guid? BenefitId = null);
+    Guid? BenefitId = null,
+    Guid? RequiredTierId = null);
 
 /// <summary>Request to spend a customer's points on a catalogue benefit.</summary>
 public sealed record ClaimLoyaltyBenefitRequest(

@@ -12,12 +12,12 @@ public sealed class LoyaltyBenefit
         Description = string.Empty;
     }
 
-    public LoyaltyBenefit(string name, int pointsCost, string? description = null)
+    public LoyaltyBenefit(string name, int pointsCost, string? description = null, Guid? requiredTierId = null)
     {
         Id = Guid.NewGuid();
         CreatedAt = DateTimeOffset.UtcNow;
         IsActive = true;
-        Update(name, pointsCost, description);
+        Update(name, pointsCost, description, requiredTierId);
     }
 
     private const int MaxNameLength = 100;
@@ -33,9 +33,12 @@ public sealed class LoyaltyBenefit
     /// <summary>Inactive benefits stay in the catalogue for history but can no longer be claimed.</summary>
     public bool IsActive { get; private set; }
 
+    /// <summary>Optional tier required to claim this benefit.</summary>
+    public Guid? RequiredTierId { get; private set; }
+
     public DateTimeOffset CreatedAt { get; private set; }
 
-    public void Update(string name, int pointsCost, string? description = null)
+    public void Update(string name, int pointsCost, string? description = null, Guid? requiredTierId = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -62,6 +65,7 @@ public sealed class LoyaltyBenefit
         Name = trimmedName;
         PointsCost = pointsCost;
         Description = trimmedDescription;
+        RequiredTierId = requiredTierId;
     }
 
     public void Activate() => IsActive = true;

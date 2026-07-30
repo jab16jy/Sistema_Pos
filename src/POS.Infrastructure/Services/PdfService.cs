@@ -225,7 +225,7 @@ public sealed class PdfService : IPdfService
             {
                 col.Item().Text($"Nivel actual: {tier.Name}").FontSize(10).Bold();
                 col.Item().Text($"· {tier.DiscountPercent:N0}% de descuento · x{tier.PointsMultiplier:0.##} puntos").FontSize(9);
-                foreach (var benefit in tier.BenefitLines)
+                foreach (var benefit in loyalty.TierBenefitNames)
                     col.Item().Text($"· {benefit}").FontSize(9);
             }
 

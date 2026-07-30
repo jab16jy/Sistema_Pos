@@ -14,13 +14,24 @@ namespace POS.Presentation.Shared.ViewModels;
 /// A child view model rather than more properties on <see cref="LoyaltyViewModel"/>, which already
 /// carries nine optional dependencies — the parent only needs to expose this one property.
 /// </remarks>
+public sealed record LoyaltyTierOption(Guid? Id, string Name);
+
+/// <summary>
+/// Benefit catalogue pane of the Loyalty module: what a reward is called and what it costs in points.
+/// </summary>
+/// <remarks>
+/// A child view model rather than more properties on <see cref="LoyaltyViewModel"/>, which already
+/// carries nine optional dependencies — the parent only needs to expose this one property.
+/// </remarks>
 public sealed class LoyaltyBenefitsViewModel : ViewModelBase
 {
     private readonly GetLoyaltyBenefitsUseCase _getBenefits;
     private readonly SaveLoyaltyBenefitUseCase? _saveBenefit;
     private readonly DeleteLoyaltyBenefitUseCase? _deleteBenefit;
+    private readonly GetLoyaltyTiersUseCase? _getTiers;
 
     private LoyaltyBenefitPresentation? _selectedBenefit;
+    private LoyaltyTierOption? _selectedRequiredTier;
     private string _name = string.Empty;
     private string _description = string.Empty;
     private string _pointsCostText = string.Empty;
@@ -31,14 +42,20 @@ public sealed class LoyaltyBenefitsViewModel : ViewModelBase
     public LoyaltyBenefitsViewModel(
         GetLoyaltyBenefitsUseCase getBenefits,
         SaveLoyaltyBenefitUseCase? saveBenefit = null,
-        DeleteLoyaltyBenefitUseCase? deleteBenefit = null)
+        DeleteLoyaltyBenefitUseCase? deleteBenefit = null,
+        GetLoyaltyTiersUseCase? getTiers = null)
     {
         _getBenefits = getBenefits ?? throw new ArgumentNullException(nameof(getBenefits));
         _saveBenefit = saveBenefit;
         _deleteBenefit = deleteBenefit;
+        _getTiers = getTiers;
 
         Benefits = [];
         Benefits.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasBenefits));
+
+        AvailableTiers = [];
+        AvailableTiers.Add(new LoyaltyTierOption(null, "Todos los niveles"));
+        _selectedRequiredTier = AvailableTiers[0];
 
         LoadCommand = new RelayCommand(_ => RunSafe(LoadAsync(), ex => Message = $"Error al cargar beneficios: {ex.Message}"));
         SaveCommand = new RelayCommand(_ => RunSafe(SaveAsync(), ex => Message = $"Error al guardar beneficio: {ex.Message}"));
@@ -49,6 +66,7 @@ public sealed class LoyaltyBenefitsViewModel : ViewModelBase
     }
 
     public ObservableCollection<LoyaltyBenefitPresentation> Benefits { get; }
+    public ObservableCollection<LoyaltyTierOption> AvailableTiers { get; }
 
     public ICommand LoadCommand { get; }
     public ICommand SaveCommand { get; }
@@ -74,10 +92,18 @@ public sealed class LoyaltyBenefitsViewModel : ViewModelBase
                 Description = value.Description;
                 PointsCostText = value.PointsCost.ToString("N0", LoyaltyBenefitPresentation.ColombianCulture);
                 IsActive = value.IsActive;
+                SelectedRequiredTier = AvailableTiers.FirstOrDefault(t => t.Id == value.RequiredTierId)
+                    ?? AvailableTiers.FirstOrDefault();
             }
 
             OnPropertyChanged(nameof(IsEditingExistingBenefit));
         }
+    }
+
+    public LoyaltyTierOption? SelectedRequiredTier
+    {
+        get => _selectedRequiredTier;
+        set => SetProperty(ref _selectedRequiredTier, value);
     }
 
     public bool IsEditingExistingBenefit => _selectedBenefit is not null;
@@ -127,6 +153,19 @@ public sealed class LoyaltyBenefitsViewModel : ViewModelBase
         IsLoading = true;
         try
         {
+            if (_getTiers is not null)
+            {
+                Guid? selectedTierId = SelectedRequiredTier?.Id;
+                IReadOnlyList<LoyaltyTierResult> tiers = await _getTiers.ExecuteAsync(cancellationToken).ConfigureAwait(true);
+                AvailableTiers.Clear();
+                AvailableTiers.Add(new LoyaltyTierOption(null, "Todos los niveles"));
+                foreach (LoyaltyTierResult tier in tiers)
+                {
+                    AvailableTiers.Add(new LoyaltyTierOption(tier.Id, tier.Name));
+                }
+                SelectedRequiredTier = AvailableTiers.FirstOrDefault(t => t.Id == selectedTierId) ?? AvailableTiers.FirstOrDefault();
+            }
+
             IReadOnlyList<LoyaltyBenefitResult> benefits = await _getBenefits
                 .ExecuteAsync(activeOnly: false, cancellationToken)
                 .ConfigureAwait(true);
@@ -168,7 +207,7 @@ public sealed class LoyaltyBenefitsViewModel : ViewModelBase
         {
             string savedName = Name.Trim();
             await _saveBenefit
-                .ExecuteAsync(new SaveLoyaltyBenefitRequest(Name, pointsCost, Description, IsActive, SelectedBenefit?.Id), cancellationToken)
+                .ExecuteAsync(new SaveLoyaltyBenefitRequest(Name, pointsCost, Description, IsActive, SelectedBenefit?.Id, SelectedRequiredTier?.Id), cancellationToken)
                 .ConfigureAwait(true);
 
             await LoadAsync(cancellationToken).ConfigureAwait(true);
@@ -223,6 +262,7 @@ public sealed class LoyaltyBenefitsViewModel : ViewModelBase
         Description = string.Empty;
         PointsCostText = string.Empty;
         IsActive = true;
+        SelectedRequiredTier = AvailableTiers.FirstOrDefault();
     }
 
     private static bool TryParsePointsCost(string? text, out int pointsCost)
@@ -238,7 +278,15 @@ public sealed class LoyaltyBenefitsViewModel : ViewModelBase
     }
 }
 
-public sealed record LoyaltyBenefitPresentation(Guid Id, string Name, string Description, int PointsCost, bool IsActive)
+public sealed record LoyaltyBenefitPresentation(
+    Guid Id,
+    string Name,
+    string Description,
+    int PointsCost,
+    bool IsActive,
+    Guid? RequiredTierId = null,
+    string? RequiredTierName = null,
+    decimal? RequiredTierMinPoints = null)
 {
     internal static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -249,11 +297,21 @@ public sealed record LoyaltyBenefitPresentation(Guid Id, string Name, string Des
 
     public string StatusLabel => IsActive ? "Activo" : "Inactivo";
 
+    public string RequiredTierLabel => string.IsNullOrWhiteSpace(RequiredTierName) ? "Todos los niveles" : $"Nivel: {RequiredTierName}";
+
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
 
     public static LoyaltyBenefitPresentation From(LoyaltyBenefitResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
-        return new LoyaltyBenefitPresentation(result.Id, result.Name, result.Description, result.PointsCost, result.IsActive);
+        return new LoyaltyBenefitPresentation(
+            result.Id,
+            result.Name,
+            result.Description,
+            result.PointsCost,
+            result.IsActive,
+            result.RequiredTierId,
+            result.RequiredTierName,
+            result.RequiredTierMinPoints);
     }
 }

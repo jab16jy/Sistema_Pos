@@ -266,7 +266,7 @@ public sealed partial class EscPosPrinterService : IPrintService
                 WriteLine();
                 WriteLine($"Nivel {loyalty.Tier.Name} · beneficios:");
                 WriteLine($"- {loyalty.Tier.DiscountPercent:N0}% dcto · x{loyalty.Tier.PointsMultiplier:0.##} puntos");
-                foreach (var benefit in loyalty.Tier.BenefitLines)
+                foreach (var benefit in loyalty.TierBenefitNames)
                     WriteLine($"- {benefit}");
             }
 

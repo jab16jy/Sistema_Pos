@@ -79,6 +79,9 @@ public interface ILoyaltyRepository
     Task DeleteTierAsync(Guid tierId, CancellationToken cancellationToken = default)
         => Task.FromException(new NotSupportedException("Loyalty tier persistence is not implemented."));
 
+    Task<bool> HasBenefitsRequiringTierAsync(Guid tierId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
     // Benefit catalogue and claims follow the same default-implementation shape as the tier CRUD
     // above: every test file defines its own private in-memory ILoyaltyRepository fake, and without
     // defaults each of them would have to implement all of this just to keep compiling.

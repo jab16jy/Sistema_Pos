@@ -499,7 +499,13 @@ namespace POS.Infrastructure.Migrations
                     b.Property<int>("PointsCost")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("RequiredTierId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("REQUIRED_TIER_ID");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("RequiredTierId");
 
                     b.ToTable("LOYALTY_BENEFITS", (string)null);
                 });
@@ -1772,6 +1778,14 @@ namespace POS.Infrastructure.Migrations
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyBenefit", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.LoyaltyTier", null)
+                        .WithMany()
+                        .HasForeignKey("RequiredTierId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.LoyaltyBenefitClaim", b =>

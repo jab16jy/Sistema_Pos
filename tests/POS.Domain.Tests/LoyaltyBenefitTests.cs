@@ -17,6 +17,16 @@ public sealed class LoyaltyBenefitTests
         Assert.Equal("Una hora con un asesor", benefit.Description);
         Assert.Equal(1_000, benefit.PointsCost);
         Assert.True(benefit.IsActive);
+        Assert.Null(benefit.RequiredTierId);
+    }
+
+    [Fact]
+    public void LoyaltyBenefit_WithRequiredTier_StoresRequiredTierId()
+    {
+        var tierId = Guid.NewGuid();
+        var benefit = new LoyaltyBenefit("Asesoría VIP", 1_000, "Asesoría para nivel VIP", tierId);
+
+        Assert.Equal(tierId, benefit.RequiredTierId);
     }
 
     [Fact]
