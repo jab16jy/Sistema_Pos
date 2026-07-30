@@ -237,6 +237,19 @@ internal static class AppBootstrapper
                 TryResolveOptional<RestoreBackupUseCase>(sp)),
             moduleWarnings);
 
+        // Null when the catalogue use cases cannot be resolved: the Loyalty module then hides the
+        // Beneficios tab instead of opening an empty pane.
+        GetLoyaltyBenefitsUseCase? getBenefits = TryResolveOptional<GetLoyaltyBenefitsUseCase>(sp);
+        LoyaltyBenefitsViewModel? loyaltyBenefits = getBenefits is null
+            ? null
+            : TryCreateOptionalModule(
+                "Beneficios de puntos",
+                () => new LoyaltyBenefitsViewModel(
+                    getBenefits,
+                    TryResolveOptional<SaveLoyaltyBenefitUseCase>(sp),
+                    TryResolveOptional<DeleteLoyaltyBenefitUseCase>(sp)),
+                moduleWarnings);
+
         LoyaltyViewModel? loyalty = TryCreateOptionalModule(
             "Puntos",
             () => new LoyaltyViewModel(
@@ -248,7 +261,8 @@ internal static class AppBootstrapper
                 TryResolveOptional<CreateLoyaltyTierUseCase>(sp),
                 TryResolveOptional<UpdateLoyaltyTierUseCase>(sp),
                 TryResolveOptional<DeleteLoyaltyTierUseCase>(sp),
-                TryResolveOptional<GetLoyaltyTierLimitsUseCase>(sp)),
+                TryResolveOptional<GetLoyaltyTierLimitsUseCase>(sp),
+                loyaltyBenefits),
             moduleWarnings);
 
         UserManagementViewModel? userManagement = TryCreateOptionalModule(

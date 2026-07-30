@@ -190,9 +190,11 @@
               <TextBlock Text="Tiers y beneficios" Style="{StaticResource TextBody}" FontWeight="SemiBold" VerticalAlignment="Center" />
             </StackPanel>
 
-            <!-- The two panes swap instead of stacking, so neither is squeezed into a sliver. -->
+            <!-- The panes swap instead of stacking, so none is squeezed into a sliver. -->
             <Grid Margin="0,10,0,0">
               <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="8" />
                 <ColumnDefinition Width="*" />
@@ -212,6 +214,16 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                   <materialDesign:PackIcon Kind="CogOutline" Width="15" Height="15" VerticalAlignment="Center" Margin="0,0,6,0" />
                   <TextBlock Text="Configuración" VerticalAlignment="Center" />
+                </StackPanel>
+              </ToggleButton>
+              <ToggleButton Grid.Column="4"
+                            Style="{StaticResource TierPaneTab}"
+                            IsChecked="{Binding IsBenefitsOpen, Mode=OneWay}"
+                            Command="{Binding ShowBenefitsCommand}"
+                            Visibility="{Binding HasBenefitsModule, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                  <materialDesign:PackIcon Kind="GiftOutline" Width="15" Height="15" VerticalAlignment="Center" Margin="0,0,6,0" />
+                  <TextBlock Text="Beneficios" VerticalAlignment="Center" />
                 </StackPanel>
               </ToggleButton>
             </Grid>
@@ -304,6 +316,100 @@
             </StackPanel>
           </StackPanel>
           </ScrollViewer>
+
+          <!-- Benefit catalogue. Visibility is bound on the outer grid because the inner one swaps
+               DataContext to the child view model. -->
+          <Grid Visibility="{Binding IsBenefitsOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid DataContext="{Binding BenefitsViewModel}">
+              <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+
+              <ListBox ItemsSource="{Binding Benefits}" SelectedItem="{Binding SelectedBenefit, Mode=TwoWay}"
+                       BorderThickness="0" HorizontalContentAlignment="Stretch"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemContainerStyle>
+                  <Style TargetType="ListBoxItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    <Setter Property="Cursor" Value="Hand" />
+                  </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Border BorderBrush="{StaticResource BrushBorder}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                      <Grid>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="*" />
+                          <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                          <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Style="{StaticResource TextBody}" VerticalAlignment="Center" />
+                            <Border Margin="6,0,0,0" Padding="6,1" CornerRadius="4"
+                                    Background="{StaticResource BrushDangerSoft}" BorderBrush="{StaticResource BrushDanger}" BorderThickness="1"
+                                    VerticalAlignment="Center">
+                              <Border.Style>
+                                <Style TargetType="Border">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsActive}" Value="False">
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Border.Style>
+                              <TextBlock Text="Inactivo" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushDanger}" />
+                            </Border>
+                          </StackPanel>
+                          <TextBlock Text="{Binding Description}" Style="{StaticResource MutedText}" FontSize="12" TextWrapping="Wrap" Margin="0,3,0,0"
+                                     Visibility="{Binding HasDescription, Converter={StaticResource BoolToVisibilityConverter}}" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding PointsCostLabel}" FontWeight="Bold"
+                                   Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" Margin="8,0,0,0" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+
+              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24"
+                          Visibility="{Binding HasBenefits, Converter={StaticResource BooleanNegationToVisibilityConverter}}">
+                <materialDesign:PackIcon Kind="GiftOutline" Width="36" Height="36" HorizontalAlignment="Center"
+                                         Foreground="{StaticResource BrushBorder}" />
+                <TextBlock Text="Aún no hay beneficios en el catálogo" Style="{StaticResource MutedText}"
+                           HorizontalAlignment="Center" Margin="0,8,0,0" />
+                <TextBlock Text="Define un premio y cuántos puntos cuesta. Los clientes lo canjean desde Clientes."
+                           Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" TextAlignment="Center"
+                           MaxWidth="240" Margin="0,4,0,0" />
+              </StackPanel>
+
+              <Border Grid.Row="1" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+                <StackPanel>
+                  <TextBlock Text="Nombre del beneficio" Style="{StaticResource MutedText}" FontSize="11" />
+                  <TextBox Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6"
+                           materialDesign:HintAssist.Hint="Ej: Asesoría personalizada" />
+                  <TextBlock Text="Descripción (opcional)" Style="{StaticResource MutedText}" FontSize="11" />
+                  <TextBox Text="{Binding Description, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                           AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                           MinHeight="40" MaxHeight="72" Margin="0,3,0,6" />
+                  <TextBlock Text="Costo en puntos" Style="{StaticResource MutedText}" FontSize="11" />
+                  <TextBox Text="{Binding PointsCostText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,3,0,6"
+                           materialDesign:HintAssist.Hint="Ej: 1.000" />
+                  <CheckBox IsChecked="{Binding IsActive, Mode=TwoWay}" Margin="0,0,0,8"
+                            Content="Disponible para canje"
+                            ToolTip="Si está desactivado, el beneficio deja de ofrecerse pero se conserva en el historial de quienes ya lo canjearon." />
+                  <TextBlock Text="{Binding Message}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,8"
+                             Visibility="{Binding Message, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}" />
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Command="{Binding NewCommand}" Margin="0,0,8,0">Nuevo</Button>
+                    <Button Command="{Binding DeleteCommand}" Margin="0,0,8,0">Eliminar</Button>
+                    <Button Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}">Guardar beneficio</Button>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </Grid>
+          </Grid>
 
           <!-- Empty state: the editor pane is what opens when there is nothing to list. -->
           <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24">

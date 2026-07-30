@@ -55,7 +55,7 @@ public sealed class LoyaltyViewModel : ViewModelBase
     private bool _tierAllowsRedemption;
     private decimal? _pendingTierPointsMultiplier = 1m;
     private bool _isTierPointsMultiplierTextValid = true;
-    private bool _isTierEditorOpen;
+    private LoyaltyPane _pane = LoyaltyPane.TiersList;
     private decimal _maximumTierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent;
     private decimal _maximumTierPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier;
 
@@ -69,8 +69,10 @@ public sealed class LoyaltyViewModel : ViewModelBase
         CreateLoyaltyTierUseCase? createTier = null,
         UpdateLoyaltyTierUseCase? updateTier = null,
         DeleteLoyaltyTierUseCase? deleteTier = null,
-        GetLoyaltyTierLimitsUseCase? getTierLimits = null)
+        GetLoyaltyTierLimitsUseCase? getTierLimits = null,
+        LoyaltyBenefitsViewModel? benefitsViewModel = null)
     {
+        BenefitsViewModel = benefitsViewModel;
         _getBalance = getBalance ?? throw new ArgumentNullException(nameof(getBalance));
         _redeemPoints = redeemPoints ?? throw new ArgumentNullException(nameof(redeemPoints));
         _getProgramOverview = getProgramOverview;
@@ -95,6 +97,17 @@ public sealed class LoyaltyViewModel : ViewModelBase
         NewTierCommand = new RelayCommand(_ => BeginNewTier());
         ShowTiersListCommand = new RelayCommand(_ => CloseTierEditor());
         ShowTierEditorCommand = new RelayCommand(_ => IsTierEditorOpen = true);
+        // Guarded inside the action too: RelayCommand.Execute does not consult CanExecute, and the
+        // pane must never open without a view model to fill it.
+        ShowBenefitsCommand = new RelayCommand(
+            _ =>
+            {
+                if (BenefitsViewModel is not null)
+                {
+                    ShowPane(LoyaltyPane.Benefits);
+                }
+            },
+            _ => BenefitsViewModel is not null);
 
         if (_getProgramOverview is not null)
         {
@@ -122,24 +135,50 @@ public sealed class LoyaltyViewModel : ViewModelBase
     public ICommand NewTierCommand { get; }
     public ICommand ShowTiersListCommand { get; }
     public ICommand ShowTierEditorCommand { get; }
+    public ICommand ShowBenefitsCommand { get; }
 
     /// <summary>
-    /// Which pane column 2 shows: the tier list (false) or the tier editor (true). They swap rather
-    /// than stack so neither gets squeezed into a sliver.
+    /// Benefit catalogue pane. Null when the catalogue use cases could not be resolved, in which
+    /// case the tab is hidden rather than opening an empty pane.
+    /// </summary>
+    public LoyaltyBenefitsViewModel? BenefitsViewModel { get; }
+
+    public bool HasBenefitsModule => BenefitsViewModel is not null;
+
+    /// <summary>
+    /// Which pane column 2 shows. They swap rather than stack so none gets squeezed into a sliver,
+    /// and exactly one is always open.
     /// </summary>
     public bool IsTierEditorOpen
     {
-        get => _isTierEditorOpen;
-        set
-        {
-            if (SetProperty(ref _isTierEditorOpen, value))
-            {
-                OnPropertyChanged(nameof(IsTiersListOpen));
-            }
-        }
+        get => _pane == LoyaltyPane.TierEditor;
+        set => ShowPane(value ? LoyaltyPane.TierEditor : LoyaltyPane.TiersList);
     }
 
-    public bool IsTiersListOpen => !_isTierEditorOpen;
+    public bool IsTiersListOpen => _pane == LoyaltyPane.TiersList;
+
+    /// <summary>Benefit catalogue pane. Its own state lives in <see cref="BenefitsViewModel"/>.</summary>
+    public bool IsBenefitsOpen => _pane == LoyaltyPane.Benefits;
+
+    private void ShowPane(LoyaltyPane pane)
+    {
+        if (_pane == pane)
+        {
+            return;
+        }
+
+        _pane = pane;
+        OnPropertyChanged(nameof(IsTierEditorOpen));
+        OnPropertyChanged(nameof(IsTiersListOpen));
+        OnPropertyChanged(nameof(IsBenefitsOpen));
+    }
+
+    private enum LoyaltyPane
+    {
+        TiersList,
+        TierEditor,
+        Benefits
+    }
 
     /// <summary>Ceiling a tier's discount may reach — the same one that caps a manual cashier discount.</summary>
     public decimal MaximumTierDiscountPercent
