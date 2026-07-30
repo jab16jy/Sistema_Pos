@@ -187,6 +187,13 @@ public static class DependencyInjection
         services.AddScoped<CreateLoyaltyTierUseCase>();
         services.AddScoped<UpdateLoyaltyTierUseCase>();
         services.AddScoped<DeleteLoyaltyTierUseCase>();
+        services.AddScoped<GetLoyaltyBenefitsUseCase>();
+        services.AddScoped<SaveLoyaltyBenefitUseCase>();
+        services.AddScoped<DeleteLoyaltyBenefitUseCase>();
+        services.AddScoped<ClaimLoyaltyBenefitUseCase>();
+        services.AddScoped<DeliverLoyaltyBenefitClaimUseCase>();
+        services.AddScoped<CancelLoyaltyBenefitClaimUseCase>();
+        services.AddScoped<GetCustomerBenefitClaimsUseCase>();
         services.AddScoped<CreateCategoryUseCase>();
         services.AddScoped<UpdateCategoryUseCase>();
         services.AddScoped<SearchCategoriesUseCase>();

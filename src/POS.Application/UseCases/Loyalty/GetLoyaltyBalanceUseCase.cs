@@ -29,7 +29,7 @@ public sealed class GetLoyaltyBalanceUseCase
         var activeRule = await _loyalty.GetActiveRuleAsync(cancellationToken).ConfigureAwait(false);
 
         var tiers = await _loyalty.GetTiersAsync(cancellationToken).ConfigureAwait(false);
-        var currentTierEntity = tiers.Where(t => t.MinPoints <= balance).OrderByDescending(t => t.MinPoints).FirstOrDefault();
+        var currentTierEntity = LoyaltyTierMapper.ResolveCurrentTier(tiers, balance);
         var currentTier = currentTierEntity is null ? null : LoyaltyTierMapper.ToResult(currentTierEntity);
 
         var transactionResults = transactions

@@ -44,6 +44,7 @@
   <SolidColorBrush x:Key="BrushDangerSoft" Color="{StaticResource ColorDangerSoft}" />
   <SolidColorBrush x:Key="BrushSuccess" Color="{StaticResource ColorSuccess}" />
   <SolidColorBrush x:Key="BrushSuccessContainer" Color="{StaticResource ColorSuccessContainer}" />
+  <SolidColorBrush x:Key="BrushSuccessSoft" Color="{StaticResource ColorSuccessContainer}" />
   <SolidColorBrush x:Key="BrushWarning" Color="{StaticResource ColorWarning}" />
   <SolidColorBrush x:Key="BrushWarningContainer" Color="{StaticResource ColorWarningContainer}" />
   <SolidColorBrush x:Key="BrushCard" Color="{StaticResource ColorCard}" />

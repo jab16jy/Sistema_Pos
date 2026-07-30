@@ -259,6 +259,26 @@ public sealed class LoyaltyViewModelTests
     }
 
     [Fact]
+    public void ResetViewOnNavigate_ResetsTierListAndClosesEditorAndClearsSelection()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, new FakeUnitOfWork()));
+
+        vm.BeginNewTier();
+        vm.TierName = "Silver";
+        Assert.True(vm.IsTierEditorOpen);
+
+        vm.ResetViewOnNavigate();
+
+        Assert.True(vm.IsTiersListOpen);
+        Assert.False(vm.IsTierEditorOpen);
+        Assert.Null(vm.SelectedTier);
+        Assert.Equal(string.Empty, vm.TierName);
+    }
+
+    [Fact]
     public async Task SaveTierAsync_RejectsDiscountAndMultiplierAboveConfiguredLimits()
     {
         var repo = new FakeLoyaltyRepository(null, [], balance: 0);
@@ -375,6 +395,72 @@ public sealed class LoyaltyViewModelTests
     // ─────────────────────────────────────────────────────
     // Fakes
     // ─────────────────────────────────────────────────────
+
+    [Fact]
+    public void AccumulationCurrencyAmountText_UpdatesPointsPerCurrencyUnit_AndExampleHint()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var unitOfWork = new FakeUnitOfWork();
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, unitOfWork))
+        {
+            AccumulationCurrencyAmountText = "8.000"
+        };
+
+        Assert.Equal(0.000125m, vm.PointsPerCurrencyUnit);
+        Assert.Equal("1 punto por cada $8.000 vendidos", vm.AccumulationRate);
+        Assert.Contains("Una compra de $80.000 otorga 10 puntos", vm.AccumulationExampleHint);
+    }
+
+    [Fact]
+    public async Task SaveRulesAsync_WithCopCurrencyFormat_SavesSuccessfully()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var unitOfWork = new FakeUnitOfWork();
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, unitOfWork),
+            new GetLoyaltyProgramOverviewUseCase(repo),
+            new SetLoyaltyRuleUseCase(repo, unitOfWork))
+        {
+            AccumulationCurrencyAmountText = "$ 8.000",
+            RedemptionValuePerPointText = "$10",
+            MinimumRedeemPointsText = "100",
+            RuleDescription = "Regla de $8.000 COP por punto"
+        };
+
+        await vm.SaveRulesAsync(TestContext.Current.CancellationToken);
+
+        var saved = Assert.Single(repo.Rules);
+        Assert.Equal(0.000125m, saved.PointsPerCurrencyUnit);
+        Assert.Equal(10m, saved.RedemptionValuePerPoint);
+        Assert.Equal(100, saved.MinimumRedeemPoints);
+        Assert.Equal("Regla de $8.000 COP por punto", saved.Description);
+        Assert.Contains("guardadas", vm.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task SaveRulesAsync_WithInvalidAmount_ShowsValidationErrorMessage()
+    {
+        var repo = new FakeLoyaltyRepository(null, [], balance: 0);
+        var unitOfWork = new FakeUnitOfWork();
+        var vm = new LoyaltyViewModel(
+            new GetLoyaltyBalanceUseCase(repo),
+            new RedeemLoyaltyPointsUseCase(repo, unitOfWork),
+            new GetLoyaltyProgramOverviewUseCase(repo),
+            new SetLoyaltyRuleUseCase(repo, unitOfWork))
+        {
+            AccumulationCurrencyAmountText = "0",
+            RedemptionValuePerPointText = "10",
+            MinimumRedeemPointsText = "100"
+        };
+
+        await vm.SaveRulesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(repo.Rules);
+        Assert.Contains("mayor a $0", vm.Message);
+    }
 
     private sealed class FakeLoyaltyRepository : ILoyaltyRepository
     {

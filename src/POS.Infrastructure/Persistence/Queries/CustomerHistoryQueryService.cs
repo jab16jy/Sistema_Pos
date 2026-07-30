@@ -6,6 +6,8 @@ namespace POS.Infrastructure.Persistence.Queries;
 
 public sealed class CustomerHistoryQueryService : ICustomerHistoryQueryService
 {
+    private static readonly System.Globalization.CultureInfo ColombianCulture = System.Globalization.CultureInfo.GetCultureInfo("es-CO");
+
     private readonly AppDbContext _dbContext;
 
     public CustomerHistoryQueryService(AppDbContext dbContext)
@@ -32,6 +34,12 @@ public sealed class CustomerHistoryQueryService : ICustomerHistoryQueryService
             .Where(receivable => receivable.CustomerId == customerId)
             .ToListAsync(cancellationToken);
 
+        var benefitClaims = await (
+            from account in _dbContext.LoyaltyAccounts.AsNoTracking()
+            join claim in _dbContext.LoyaltyBenefitClaims.AsNoTracking() on account.Id equals claim.LoyaltyAccountId
+            where account.CustomerId == customerId
+            select claim).ToListAsync(cancellationToken);
+
         List<CustomerHistoryEntry> entries = [
             .. customerSales.Select(sale => new CustomerHistoryEntry(
                 sale.CreatedAt,
@@ -51,7 +59,18 @@ public sealed class CustomerHistoryQueryService : ICustomerHistoryQueryService
                 "Receivable",
                 $"Saldo venta {receivable.SaleId:N}",
                 receivable.OutstandingBalance.Amount,
-                receivable.IsCancelled ? "Cancelled" : receivable.IsPaidOff ? "Paid" : "Pending"))];
+                receivable.IsCancelled ? "Cancelled" : receivable.IsPaidOff ? "Paid" : "Pending")),
+            // Amount stays 0: a claim is priced in points, and every reader formats Amount as COP.
+            // The cost goes in the reference instead. Status is prefixed so the Sale/Quote status
+            // triggers ("Anulada", "Devuelta") never fire on a redemption row.
+            .. benefitClaims.Select(claim => new CustomerHistoryEntry(
+                claim.ClaimedAt,
+                "Redemption",
+                $"{claim.BenefitName} — {claim.PointsSpent.ToString("N0", ColombianCulture)} pts",
+                0m,
+                $"Redemption{claim.Status}",
+                null,
+                claim.Id))];
 
         entries = [.. entries.OrderByDescending(entry => entry.OccurredAt)];
 

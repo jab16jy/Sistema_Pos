@@ -97,6 +97,44 @@ public sealed record LoyaltyRuleResult(
     bool IsActive,
     DateTimeOffset CreatedAt);
 
+/// <summary>A reward from the catalogue, priced in points.</summary>
+public sealed record LoyaltyBenefitResult(
+    Guid Id,
+    string Name,
+    string Description,
+    int PointsCost,
+    bool IsActive,
+    Guid? RequiredTierId = null,
+    string? RequiredTierName = null,
+    decimal? RequiredTierMinPoints = null);
+
+/// <summary>Creates a benefit when <see cref="BenefitId"/> is null, updates it otherwise.</summary>
+public sealed record SaveLoyaltyBenefitRequest(
+    string Name,
+    int PointsCost,
+    string? Description = null,
+    bool IsActive = true,
+    Guid? BenefitId = null,
+    Guid? RequiredTierId = null);
+
+/// <summary>Request to spend a customer's points on a catalogue benefit.</summary>
+public sealed record ClaimLoyaltyBenefitRequest(
+    Guid CustomerId,
+    Guid BenefitId,
+    Guid? ClaimedByUserId = null);
+
+/// <summary>A customer's benefit claim and its delivery state.</summary>
+public sealed record LoyaltyBenefitClaimResult(
+    Guid Id,
+    Guid BenefitId,
+    string BenefitName,
+    int PointsSpent,
+    LoyaltyBenefitClaimStatus Status,
+    DateTimeOffset ClaimedAt,
+    DateTimeOffset? DeliveredAt = null,
+    DateTimeOffset? CancelledAt = null,
+    string? CancellationReason = null);
+
 /// <summary>Real program-wide loyalty metrics, derived from persisted accounts and transactions.</summary>
 public sealed record LoyaltyProgramOverviewResult(
     LoyaltyRuleResult? ActiveRule,

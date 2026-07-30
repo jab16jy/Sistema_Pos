@@ -243,4 +243,90 @@ public sealed class LoyaltyRepository : ILoyaltyRepository
             _dbContext.LoyaltyTiers.Remove(tier);
         }
     }
+
+    public Task<bool> HasBenefitsRequiringTierAsync(Guid tierId, CancellationToken cancellationToken = default)
+        => _dbContext.LoyaltyBenefits.AnyAsync(benefit => benefit.RequiredTierId == tierId, cancellationToken);
+
+    public async Task<IReadOnlyList<LoyaltyBenefit>> GetBenefitsAsync(bool activeOnly = false, CancellationToken cancellationToken = default)
+    {
+        IQueryable<LoyaltyBenefit> query = _dbContext.LoyaltyBenefits.AsNoTracking();
+        if (activeOnly)
+        {
+            query = query.Where(benefit => benefit.IsActive);
+        }
+
+        return await query
+            .OrderBy(benefit => benefit.PointsCost)
+            .ThenBy(benefit => benefit.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public Task<LoyaltyBenefit?> GetBenefitByIdAsync(Guid benefitId, CancellationToken cancellationToken = default)
+        => _dbContext.LoyaltyBenefits.FirstOrDefaultAsync(benefit => benefit.Id == benefitId, cancellationToken);
+
+    public async Task AddBenefitAsync(LoyaltyBenefit benefit, CancellationToken cancellationToken = default)
+        => await _dbContext.LoyaltyBenefits.AddAsync(benefit, cancellationToken).ConfigureAwait(false);
+
+    public Task UpdateBenefitAsync(LoyaltyBenefit benefit, CancellationToken cancellationToken = default)
+    {
+        LoyaltyBenefit? tracked = _dbContext.LoyaltyBenefits.Local.FirstOrDefault(existing => existing.Id == benefit.Id);
+        if (tracked is not null && !ReferenceEquals(tracked, benefit))
+        {
+            _dbContext.Entry(tracked).CurrentValues.SetValues(benefit);
+        }
+        else
+        {
+            _dbContext.LoyaltyBenefits.Update(benefit);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public async Task DeleteBenefitAsync(Guid benefitId, CancellationToken cancellationToken = default)
+    {
+        LoyaltyBenefit? benefit = _dbContext.LoyaltyBenefits.Local.FirstOrDefault(existing => existing.Id == benefitId)
+            ?? await _dbContext.LoyaltyBenefits.FirstOrDefaultAsync(existing => existing.Id == benefitId, cancellationToken).ConfigureAwait(false);
+        if (benefit is not null)
+        {
+            _dbContext.LoyaltyBenefits.Remove(benefit);
+        }
+    }
+
+    public Task<bool> HasClaimsForBenefitAsync(Guid benefitId, CancellationToken cancellationToken = default)
+        => _dbContext.LoyaltyBenefitClaims.AnyAsync(claim => claim.LoyaltyBenefitId == benefitId, cancellationToken);
+
+    public async Task AddClaimAsync(LoyaltyBenefitClaim claim, CancellationToken cancellationToken = default)
+        => await _dbContext.LoyaltyBenefitClaims.AddAsync(claim, cancellationToken).ConfigureAwait(false);
+
+    public Task UpdateClaimAsync(LoyaltyBenefitClaim claim, CancellationToken cancellationToken = default)
+    {
+        LoyaltyBenefitClaim? tracked = _dbContext.LoyaltyBenefitClaims.Local.FirstOrDefault(existing => existing.Id == claim.Id);
+        if (tracked is not null && !ReferenceEquals(tracked, claim))
+        {
+            _dbContext.Entry(tracked).CurrentValues.SetValues(claim);
+        }
+        else
+        {
+            _dbContext.LoyaltyBenefitClaims.Update(claim);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<LoyaltyBenefitClaim?> GetClaimByIdAsync(Guid claimId, CancellationToken cancellationToken = default)
+        => _dbContext.LoyaltyBenefitClaims.FirstOrDefaultAsync(claim => claim.Id == claimId, cancellationToken);
+
+    public async Task<IReadOnlyList<LoyaltyBenefitClaim>> GetClaimsByAccountAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default)
+        // SQLite can't ORDER BY DateTimeOffset — sort client-side.
+        => (await _dbContext.LoyaltyBenefitClaims
+            .AsNoTracking()
+            .Where(claim => claim.LoyaltyAccountId == loyaltyAccountId)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false))
+            .OrderByDescending(claim => claim.ClaimedAt)
+            .ToList();
+
+    public Task<LoyaltyTransaction?> GetTransactionByIdAsync(Guid transactionId, CancellationToken cancellationToken = default)
+        => _dbContext.LoyaltyTransactions.FirstOrDefaultAsync(transaction => transaction.Id == transactionId, cancellationToken);
 }

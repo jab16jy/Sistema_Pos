@@ -1,4 +1,4 @@
-﻿using POS.Application.DTOs.Settings;
+using POS.Application.DTOs.Settings;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Auth;
 using POS.Domain.Authorization;

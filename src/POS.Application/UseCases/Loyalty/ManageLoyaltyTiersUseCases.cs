@@ -70,6 +70,11 @@ public sealed class DeleteLoyaltyTierUseCase(ILoyaltyRepository loyalty, IUnitOf
             throw new ArgumentException("A tier must be selected.", nameof(tierId));
         }
 
+        if (await loyalty.HasBenefitsRequiringTierAsync(tierId, cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException("No puedes eliminar este nivel: tiene beneficios del catálogo asignados.");
+        }
+
         await loyalty.DeleteTierAsync(tierId, cancellationToken).ConfigureAwait(false);
         await unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -79,4 +84,7 @@ internal static class LoyaltyTierMapper
 {
     public static LoyaltyTierResult ToResult(LoyaltyTier tier)
         => new(tier.Id, tier.Name, tier.MinPoints, tier.DiscountPercent, tier.PointsMultiplier, tier.Color, tier.TextForeground, tier.Benefits, tier.AllowsRedemption);
+
+    internal static LoyaltyTier? ResolveCurrentTier(IEnumerable<LoyaltyTier> tiers, decimal balance)
+        => tiers.Where(t => t.MinPoints <= balance).OrderByDescending(t => t.MinPoints).FirstOrDefault();
 }

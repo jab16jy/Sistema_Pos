@@ -470,6 +470,109 @@ namespace POS.Infrastructure.Migrations
                     b.ToTable("LOYALTY_ACCOUNTS", (string)null);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyBenefit", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PointsCost")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RequiredTierId")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("REQUIRED_TIER_ID");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RequiredTierId");
+
+                    b.ToTable("LOYALTY_BENEFITS", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyBenefitClaim", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BenefitName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CancelledByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("ClaimedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClaimedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeliveredByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LoyaltyAccountId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LoyaltyBenefitId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PointsSpent")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RedeemTransactionId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoyaltyAccountId");
+
+                    b.HasIndex("LoyaltyBenefitId");
+
+                    b.HasIndex("RedeemTransactionId")
+                        .IsUnique();
+
+                    b.ToTable("LOYALTY_BENEFIT_CLAIMS", (string)null);
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.LoyaltyRule", b =>
                 {
                     b.Property<string>("Id")
@@ -1674,6 +1777,35 @@ namespace POS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("CustomerId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyBenefit", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.LoyaltyTier", null)
+                        .WithMany()
+                        .HasForeignKey("RequiredTierId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.LoyaltyBenefitClaim", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.LoyaltyAccount", null)
+                        .WithMany()
+                        .HasForeignKey("LoyaltyAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("POS.Domain.Entities.LoyaltyBenefit", null)
+                        .WithMany()
+                        .HasForeignKey("LoyaltyBenefitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("POS.Domain.Entities.LoyaltyTransaction", null)
+                        .WithMany()
+                        .HasForeignKey("RedeemTransactionId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

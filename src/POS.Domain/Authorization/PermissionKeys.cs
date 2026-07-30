@@ -22,7 +22,7 @@ public static class PermissionKeys
     public static class Reports { public const string View = "Reports.View"; }
     public static class CashRegister { public const string Close = "CashRegister.Close"; }
     public static class Shifts { public const string View = "Shifts.View"; public const string Open = "Shifts.Open"; public const string Close = "Shifts.Close"; }
-    public static class Loyalty { public const string View = "Loyalty.View"; public const string Redeem = "Loyalty.Redeem"; public const string ConfigureRules = "Loyalty.ConfigureRules"; public const string ManageTiers = "Loyalty.ManageTiers"; }
+    public static class Loyalty { public const string View = "Loyalty.View"; public const string Redeem = "Loyalty.Redeem"; public const string ConfigureRules = "Loyalty.ConfigureRules"; public const string ManageTiers = "Loyalty.ManageTiers"; public const string ManageBenefits = "Loyalty.ManageBenefits"; public const string ClaimBenefits = "Loyalty.ClaimBenefits"; public const string CancelBenefitClaims = "Loyalty.CancelBenefitClaims"; }
     public static class Barcode { public const string View = "Barcode.View"; public const string Print = "Barcode.Print"; }
     public static class Documents { public const string Send = "Documents.Send"; }
 
