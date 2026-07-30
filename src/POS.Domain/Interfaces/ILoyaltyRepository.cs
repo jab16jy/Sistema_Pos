@@ -78,6 +78,45 @@ public interface ILoyaltyRepository
 
     Task DeleteTierAsync(Guid tierId, CancellationToken cancellationToken = default)
         => Task.FromException(new NotSupportedException("Loyalty tier persistence is not implemented."));
+
+    // Benefit catalogue and claims follow the same default-implementation shape as the tier CRUD
+    // above: every test file defines its own private in-memory ILoyaltyRepository fake, and without
+    // defaults each of them would have to implement all of this just to keep compiling.
+
+    Task<IReadOnlyList<LoyaltyBenefit>> GetBenefitsAsync(bool activeOnly = false, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<LoyaltyBenefit>>([]);
+
+    Task<LoyaltyBenefit?> GetBenefitByIdAsync(Guid benefitId, CancellationToken cancellationToken = default)
+        => Task.FromResult<LoyaltyBenefit?>(null);
+
+    Task AddBenefitAsync(LoyaltyBenefit benefit, CancellationToken cancellationToken = default)
+        => Task.FromException(new NotSupportedException("Loyalty benefit persistence is not implemented."));
+
+    Task UpdateBenefitAsync(LoyaltyBenefit benefit, CancellationToken cancellationToken = default)
+        => Task.FromException(new NotSupportedException("Loyalty benefit persistence is not implemented."));
+
+    Task DeleteBenefitAsync(Guid benefitId, CancellationToken cancellationToken = default)
+        => Task.FromException(new NotSupportedException("Loyalty benefit persistence is not implemented."));
+
+    /// <summary>True when the benefit has already been claimed, so it must be deactivated instead of deleted.</summary>
+    Task<bool> HasClaimsForBenefitAsync(Guid benefitId, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
+
+    Task AddClaimAsync(LoyaltyBenefitClaim claim, CancellationToken cancellationToken = default)
+        => Task.FromException(new NotSupportedException("Loyalty benefit claim persistence is not implemented."));
+
+    Task UpdateClaimAsync(LoyaltyBenefitClaim claim, CancellationToken cancellationToken = default)
+        => Task.FromException(new NotSupportedException("Loyalty benefit claim persistence is not implemented."));
+
+    Task<LoyaltyBenefitClaim?> GetClaimByIdAsync(Guid claimId, CancellationToken cancellationToken = default)
+        => Task.FromResult<LoyaltyBenefitClaim?>(null);
+
+    Task<IReadOnlyList<LoyaltyBenefitClaim>> GetClaimsByAccountAsync(Guid loyaltyAccountId, CancellationToken cancellationToken = default)
+        => Task.FromResult<IReadOnlyList<LoyaltyBenefitClaim>>([]);
+
+    /// <summary>Loads the movement a claim cancellation must compensate from.</summary>
+    Task<LoyaltyTransaction?> GetTransactionByIdAsync(Guid transactionId, CancellationToken cancellationToken = default)
+        => Task.FromResult<LoyaltyTransaction?>(null);
 }
 
 /// <summary>Program-history projection that keeps persistence joins outside Presentation.</summary>

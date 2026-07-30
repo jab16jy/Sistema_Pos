@@ -20,7 +20,7 @@ public sealed class LoyaltyTransaction
         string? description = null)
         : this(loyaltyAccountId, type, points, saleId, description, null, null)
     {
-        if (type is LoyaltyTransactionType.EarnReversed or LoyaltyTransactionType.RedemptionRestored)
+        if (type is LoyaltyTransactionType.EarnReversed or LoyaltyTransactionType.RedemptionRestored or LoyaltyTransactionType.BenefitRestored)
             throw new ArgumentException("Compensation transactions must be created from their source transaction.", nameof(type));
     }
 
@@ -58,15 +58,19 @@ public sealed class LoyaltyTransaction
         Guid? saleReturnId = null)
     {
         ArgumentNullException.ThrowIfNull(source);
-        if (source.SaleId is null)
-            throw new ArgumentException("Only sale-linked transactions can be compensated.", nameof(source));
 
         var type = source.Type switch
         {
             LoyaltyTransactionType.Earned => LoyaltyTransactionType.EarnReversed,
             LoyaltyTransactionType.Redeemed => LoyaltyTransactionType.RedemptionRestored,
-            _ => throw new ArgumentException("Only original earned or redeemed transactions can be compensated.", nameof(source))
+            LoyaltyTransactionType.BenefitRedeemed => LoyaltyTransactionType.BenefitRestored,
+            _ => throw new ArgumentException("Only original earned, redeemed, or benefit-redeemed transactions can be compensated.", nameof(source))
         };
+
+        // Sale-driven movements must keep their sale evidence, so the original guard still applies
+        // to them. A benefit claim has no sale by design — its evidence is the claim row itself.
+        if (type is not LoyaltyTransactionType.BenefitRestored && source.SaleId is null)
+            throw new ArgumentException("Only sale-linked transactions can be compensated.", nameof(source));
 
         int magnitude = pointsToCompensate ?? Math.Abs(source.Points);
         if (magnitude <= 0 || magnitude > Math.Abs(source.Points))
@@ -104,8 +108,8 @@ public sealed class LoyaltyTransaction
 
         bool valid = type switch
         {
-            LoyaltyTransactionType.Earned or LoyaltyTransactionType.RedemptionRestored => points > 0,
-            LoyaltyTransactionType.Redeemed or LoyaltyTransactionType.EarnReversed => points < 0,
+            LoyaltyTransactionType.Earned or LoyaltyTransactionType.RedemptionRestored or LoyaltyTransactionType.BenefitRestored => points > 0,
+            LoyaltyTransactionType.Redeemed or LoyaltyTransactionType.EarnReversed or LoyaltyTransactionType.BenefitRedeemed => points < 0,
             _ => false
         };
 
