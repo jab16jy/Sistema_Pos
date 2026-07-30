@@ -79,7 +79,11 @@ internal static class AppBootstrapper
                 TryResolveOptional<IReceivableQueryService>(sp),
                 TryResolveOptional<IApplyReceivablePaymentUseCase>(sp),
                 session,
-                sp.GetRequiredService<POS.Domain.Interfaces.ICashierShiftRepository>()),
+                sp.GetRequiredService<POS.Domain.Interfaces.ICashierShiftRepository>(),
+                TryResolveOptional<GetLoyaltyBenefitsUseCase>(sp),
+                TryResolveOptional<ClaimLoyaltyBenefitUseCase>(sp),
+                TryResolveOptional<DeliverLoyaltyBenefitClaimUseCase>(sp),
+                TryResolveOptional<CancelLoyaltyBenefitClaimUseCase>(sp)),
             moduleWarnings);
 
         PurchasesViewModel? purchases = TryCreateOptionalModule(

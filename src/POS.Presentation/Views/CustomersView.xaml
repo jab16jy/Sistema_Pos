@@ -386,10 +386,49 @@
                        Command="{Binding SetHistoryFilterCommand}" CommandParameter="sale" />
           <RadioButton x:Name="HistFilterQuote" GroupName="HistFilter" Style="{StaticResource SubtabItemStyle}" Content="Cotizaciones"
                        Command="{Binding SetHistoryFilterCommand}" CommandParameter="quote" />
+          <RadioButton x:Name="HistFilterRedemption" GroupName="HistFilter" Style="{StaticResource SubtabItemStyle}" Content="Redención de puntos"
+                       Command="{Binding SetHistoryFilterCommand}" CommandParameter="redemption" />
         </StackPanel>
 
+        <StackPanel Grid.Row="3">
+
+        <!-- Canjear beneficio: sólo con permiso y con un cliente seleccionado. -->
+        <Border Margin="0,0,0,8" Padding="12,10" CornerRadius="6"
+                Background="{StaticResource BrushWarningContainer}">
+          <Border.Style>
+            <Style TargetType="Border">
+              <Setter Property="Visibility" Value="Collapsed" />
+              <Style.Triggers>
+                <MultiDataTrigger>
+                  <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding CanClaimBenefits}" Value="True" />
+                    <Condition Binding="{Binding HasSelectedCustomer}" Value="True" />
+                  </MultiDataTrigger.Conditions>
+                  <Setter Property="Visibility" Value="Visible" />
+                </MultiDataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+          <StackPanel>
+            <TextBlock Text="CANJEAR BENEFICIO" Style="{StaticResource MutedText}" FontSize="10" FontWeight="SemiBold" Margin="0,0,0,6" />
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <ComboBox ItemsSource="{Binding AvailableBenefits}"
+                        SelectedItem="{Binding SelectedBenefit, Mode=TwoWay}"
+                        DisplayMemberPath="DisplayLabel"
+                        materialDesign:HintAssist.Hint="Elige un beneficio" />
+              <Button Grid.Column="1" Content="Canjear" Margin="8,0,0,0"
+                      Style="{StaticResource PrimaryButton}"
+                      Command="{Binding ClaimBenefitCommand}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
         <!-- Registrar abono: visible solo cuando el cliente tiene saldo pendiente -->
-        <Border Grid.Row="3" Margin="0,0,0,8" Padding="12,10" CornerRadius="6"
+        <Border Margin="0,0,0,8" Padding="12,10" CornerRadius="6"
                 Background="{StaticResource BrushPrimaryContainer}"
                 Visibility="{Binding HasOutstandingBalance, Converter={StaticResource BoolToVisibilityConverter}}">
           <StackPanel>
@@ -434,6 +473,8 @@
           </StackPanel>
         </Border>
 
+        </StackPanel>
+
         <Grid Grid.Row="4">
           <StackPanel VerticalAlignment="Center"
                       HorizontalAlignment="Center"
@@ -477,6 +518,9 @@
                                 <DataTrigger Binding="{Binding Kind}" Value="Quote">
                                   <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
                                 </DataTrigger>
+                                <DataTrigger Binding="{Binding Kind}" Value="Redemption">
+                                  <Setter Property="Background" Value="{StaticResource BrushWarningContainer}" />
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding Status}" Value="Returned">
                                   <Setter Property="Background" Value="#F3E8FF" />
                                 </DataTrigger>
@@ -498,6 +542,10 @@
                                 <Style.Triggers>
                                   <DataTrigger Binding="{Binding Kind}" Value="Quote">
                                     <Setter Property="Kind" Value="FileDocumentOutline" />
+                                    <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
+                                  </DataTrigger>
+                                  <DataTrigger Binding="{Binding Kind}" Value="Redemption">
+                                    <Setter Property="Kind" Value="GiftOutline" />
                                     <Setter Property="Foreground" Value="{StaticResource BrushWarning}" />
                                   </DataTrigger>
                                   <DataTrigger Binding="{Binding Status}" Value="Returned">
@@ -546,6 +594,47 @@
                               </Border.Style>
                               <TextBlock Text="Devuelta" FontSize="9" FontWeight="Bold" Foreground="#7C3AED" />
                             </Border>
+                            <!-- Redemption statuses carry their own prefix so the Anulada/Devuelta
+                                 chips above never fire on a points row. -->
+                            <Border Margin="6,0,0,0" Padding="6,1" CornerRadius="4" Background="{StaticResource BrushWarningContainer}" BorderBrush="{StaticResource BrushWarning}" BorderThickness="1">
+                              <Border.Style>
+                                <Style TargetType="Border">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="RedemptionPending">
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Border.Style>
+                              <TextBlock Text="Pendiente" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushWarning}" />
+                            </Border>
+                            <Border Margin="6,0,0,0" Padding="6,1" CornerRadius="4" Background="{StaticResource BrushSuccessContainer}" BorderBrush="{StaticResource BrushSuccess}" BorderThickness="1">
+                              <Border.Style>
+                                <Style TargetType="Border">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="RedemptionDelivered">
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Border.Style>
+                              <TextBlock Text="Entregado" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushSuccess}" />
+                            </Border>
+                            <Border Margin="6,0,0,0" Padding="6,1" CornerRadius="4" Background="{StaticResource BrushDangerSoft}" BorderBrush="{StaticResource BrushDanger}" BorderThickness="1">
+                              <Border.Style>
+                                <Style TargetType="Border">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="RedemptionCancelled">
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Border.Style>
+                              <TextBlock Text="Anulado" FontSize="9" FontWeight="Bold" Foreground="{StaticResource BrushDanger}" />
+                            </Border>
                           </StackPanel>
                           <TextBlock Style="{StaticResource MutedText}" FontSize="11">
                             <TextBlock.Text>
@@ -569,6 +658,60 @@
                               </Style>
                             </TextBlock.Style>
                           </TextBlock>
+
+                          <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <StackPanel.Style>
+                              <Style TargetType="StackPanel">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding Kind}" Value="Redemption">
+                                    <Setter Property="Visibility" Value="Visible" />
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </StackPanel.Style>
+                            <Button Content="Marcar entregado" FontSize="10" Margin="0,0,12,0"
+                                    Command="{Binding DataContext.DeliverClaimCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}">
+                              <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource ClientesLinkButton}">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                  <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="RedemptionPending">
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Button.Style>
+                            </Button>
+                            <!-- Anular devuelve puntos, así que va detrás de su propio permiso. -->
+                            <Button Content="Anular" FontSize="10"
+                                    Command="{Binding DataContext.CancelClaimCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}">
+                              <Button.Style>
+                                <Style TargetType="Button" BasedOn="{StaticResource ClientesLinkButton}">
+                                  <Setter Property="Visibility" Value="Collapsed" />
+                                  <Setter Property="Foreground" Value="{StaticResource BrushDanger}" />
+                                  <Style.Triggers>
+                                    <MultiDataTrigger>
+                                      <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding DataContext.CanCancelClaims, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True" />
+                                        <Condition Binding="{Binding Status}" Value="RedemptionPending" />
+                                      </MultiDataTrigger.Conditions>
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                    <MultiDataTrigger>
+                                      <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding DataContext.CanCancelClaims, RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True" />
+                                        <Condition Binding="{Binding Status}" Value="RedemptionDelivered" />
+                                      </MultiDataTrigger.Conditions>
+                                      <Setter Property="Visibility" Value="Visible" />
+                                    </MultiDataTrigger>
+                                  </Style.Triggers>
+                                </Style>
+                              </Button.Style>
+                            </Button>
+                          </StackPanel>
                         </StackPanel>
                         <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat={}{0:C0}}" FontWeight="Bold" VerticalAlignment="Center">
                           <TextBlock.Style>
@@ -580,6 +723,10 @@
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding Status}" Value="Returned">
                                   <Setter Property="Foreground" Value="#7C3AED" />
+                                </DataTrigger>
+                                <!-- A claim is priced in points, not pesos; the cost is in the reference. -->
+                                <DataTrigger Binding="{Binding Kind}" Value="Redemption">
+                                  <Setter Property="Visibility" Value="Collapsed" />
                                 </DataTrigger>
                               </Style.Triggers>
                             </Style>

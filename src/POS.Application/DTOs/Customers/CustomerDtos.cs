@@ -50,4 +50,6 @@ public sealed record CustomerHistoryEntry(
     string Reference,
     decimal Amount,
     string Status,
-    Guid? SaleId = null);
+    Guid? SaleId = null,
+    /// <summary>Set on "Redemption" rows so the UI can deliver or cancel the claim in place.</summary>
+    Guid? LoyaltyClaimId = null);

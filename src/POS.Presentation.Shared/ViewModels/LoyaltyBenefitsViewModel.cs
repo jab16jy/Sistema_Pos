@@ -244,6 +244,9 @@ public sealed record LoyaltyBenefitPresentation(Guid Id, string Name, string Des
 
     public string PointsCostLabel => $"{PointsCost.ToString("N0", ColombianCulture)} pts";
 
+    /// <summary>One-line label for pickers, e.g. "Asesoría personalizada — 1.000 pts".</summary>
+    public string DisplayLabel => $"{Name} — {PointsCostLabel}";
+
     public string StatusLabel => IsActive ? "Activo" : "Inactivo";
 
     public bool HasDescription => !string.IsNullOrWhiteSpace(Description);

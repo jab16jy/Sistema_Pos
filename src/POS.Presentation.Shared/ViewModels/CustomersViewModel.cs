@@ -9,6 +9,7 @@ using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Loyalty;
 using POS.Application.Common;
+using POS.Domain.Authorization;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
@@ -53,6 +54,12 @@ public sealed class CustomersViewModel : ViewModelBase
     private int _activeCustomersCount;
     private string _historyFilter = "all";
     private decimal _outstandingBalance;
+    private readonly GetLoyaltyBenefitsUseCase? _getBenefits;
+    private readonly ClaimLoyaltyBenefitUseCase? _claimBenefit;
+    private readonly DeliverLoyaltyBenefitClaimUseCase? _deliverClaim;
+    private readonly CancelLoyaltyBenefitClaimUseCase? _cancelClaim;
+    private readonly ICurrentOperatorSession? _session;
+    private LoyaltyBenefitPresentation? _selectedBenefit;
 
     public CustomersViewModel(
         SaveCustomerUseCase saveCustomer,
@@ -62,7 +69,11 @@ public sealed class CustomersViewModel : ViewModelBase
         IReceivableQueryService? receivableQuery = null,
         IApplyReceivablePaymentUseCase? applyPayment = null,
         ICurrentOperatorSession? session = null,
-        ICashierShiftRepository? cashierShifts = null)
+        ICashierShiftRepository? cashierShifts = null,
+        GetLoyaltyBenefitsUseCase? getBenefits = null,
+        ClaimLoyaltyBenefitUseCase? claimBenefit = null,
+        DeliverLoyaltyBenefitClaimUseCase? deliverClaim = null,
+        CancelLoyaltyBenefitClaimUseCase? cancelClaim = null)
     {
         _saveCustomer = saveCustomer;
         _getHistory = getHistory;
@@ -70,6 +81,11 @@ public sealed class CustomersViewModel : ViewModelBase
         _getLoyaltyBalance = getLoyaltyBalance;
         _receivableQuery = receivableQuery;
         _applyPayment = applyPayment;
+        _session = session;
+        _getBenefits = getBenefits;
+        _claimBenefit = claimBenefit;
+        _deliverClaim = deliverClaim;
+        _cancelClaim = cancelClaim;
 
         SettlementPaymentMethods =
         [
@@ -92,6 +108,15 @@ public sealed class CustomersViewModel : ViewModelBase
         OpenHistoryCommand = new RelayCommand(_ => RunSafe(OpenHistoryAsync(), ex => Message = $"Error al cargar historial: {ex.Message}"), _ => SelectedCustomer is not null);
         OpenInvoiceCommand = new RelayCommand(OpenInvoiceFromHistory, CanOpenInvoiceFromHistory);
         SetHistoryFilterCommand = new RelayCommand(filter => HistoryFilter = filter as string ?? "all");
+        ClaimBenefitCommand = new RelayCommand(
+            _ => RunSafe(ClaimBenefitAsync(), ex => Message = $"Error al canjear beneficio: {ex.Message}"),
+            _ => CanClaimSelectedBenefit);
+        DeliverClaimCommand = new RelayCommand(
+            entry => RunSafe(DeliverClaimAsync(entry as CustomerHistoryEntry), ex => Message = $"Error al marcar la entrega: {ex.Message}"),
+            _ => _deliverClaim is not null);
+        CancelClaimCommand = new RelayCommand(
+            entry => RunSafe(CancelClaimAsync(entry as CustomerHistoryEntry), ex => Message = $"Error al anular el canje: {ex.Message}"),
+            _ => CanCancelClaims);
     }
 
     public event Action<Guid>? InvoiceOpenRequested;
@@ -101,8 +126,11 @@ public sealed class CustomersViewModel : ViewModelBase
     /// <summary>Full, unfiltered history for the selected customer. Kept for backward compatibility with existing consumers/tests.</summary>
     public ObservableCollection<CustomerHistoryEntry> HistoryEntries { get; } = [];
 
-    /// <summary>History entries restricted by <see cref="HistoryFilter"/> ("all" / "sale" / "quote") for display.</summary>
+    /// <summary>History entries restricted by <see cref="HistoryFilter"/> ("all" / "sale" / "quote" / "redemption") for display.</summary>
     public ObservableCollection<CustomerHistoryEntry> FilteredHistoryEntries { get; } = [];
+
+    /// <summary>Active catalogue rewards the selected customer could claim with their points.</summary>
+    public ObservableCollection<LoyaltyBenefitPresentation> AvailableBenefits { get; } = [];
 
     /// <summary>Open (unpaid) receivables for the selected customer — the user picks one to register a payment against.</summary>
     public ObservableCollection<ReceivableSummary> OpenReceivables { get; } = [];
@@ -162,6 +190,40 @@ public sealed class CustomersViewModel : ViewModelBase
     public ICommand AbonarCommand { get; }
 
     public ICommand PagarTodoSaldoCommand { get; }
+
+    public ICommand ClaimBenefitCommand { get; }
+
+    public ICommand DeliverClaimCommand { get; }
+
+    public ICommand CancelClaimCommand { get; }
+
+    /// <summary>Reward the claim button will spend points on.</summary>
+    public LoyaltyBenefitPresentation? SelectedBenefit
+    {
+        get => _selectedBenefit;
+        set
+        {
+            if (SetProperty(ref _selectedBenefit, value))
+            {
+                OnPropertyChanged(nameof(CanClaimSelectedBenefit));
+                (ClaimBenefitCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    /// <summary>Whether the claim panel is offered at all — needs the use case and the permission.</summary>
+    public bool CanClaimBenefits
+        => _claimBenefit is not null && HasPermission(PermissionKeys.Loyalty.ClaimBenefits);
+
+    /// <summary>Cancelling gives points back, so it is gated separately from claiming.</summary>
+    public bool CanCancelClaims
+        => _cancelClaim is not null && HasPermission(PermissionKeys.Loyalty.CancelBenefitClaims);
+
+    public bool CanClaimSelectedBenefit
+        => CanClaimBenefits
+        && SelectedCustomer is not null
+        && SelectedBenefit is not null
+        && LoyaltyPoints >= SelectedBenefit.PointsCost;
 
     /// <summary>Receivable the payment will be applied to. Defaults to the newest open one when history loads.</summary>
     public ReceivableSummary? SelectedReceivable
@@ -275,6 +337,8 @@ public sealed class CustomersViewModel : ViewModelBase
                 }
 
                 OnPropertyChanged(nameof(HasSelectedCustomer));
+                OnPropertyChanged(nameof(CanClaimSelectedBenefit));
+                (ClaimBenefitCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 RaiseAbonarCanExecuteChanged();
             }
         }
@@ -341,7 +405,15 @@ public sealed class CustomersViewModel : ViewModelBase
     public int LoyaltyPoints
     {
         get => _loyaltyPoints;
-        private set => SetProperty(ref _loyaltyPoints, value);
+        private set
+        {
+            if (SetProperty(ref _loyaltyPoints, value))
+            {
+                // The balance is half of whether a reward is affordable.
+                OnPropertyChanged(nameof(CanClaimSelectedBenefit));
+                (ClaimBenefitCommand as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     /// <summary>Name of the selected customer's current loyalty tier, empty when none applies.</summary>
@@ -563,6 +635,9 @@ public sealed class CustomersViewModel : ViewModelBase
             await LoadLoyaltyPointsAsync(customerId, cancellationToken).ConfigureAwait(true);
             if (SelectedCustomer?.Id != customerId) return;
 
+            await LoadAvailableBenefitsAsync(cancellationToken).ConfigureAwait(true);
+            if (SelectedCustomer?.Id != customerId) return;
+
             Message = HistoryEntries.Count == 0
                 ? "Este cliente aún no tiene ventas o movimientos registrados."
                 : $"Historial cargado: {HistoryEntries.Count} movimiento(s).";
@@ -733,12 +808,122 @@ public sealed class CustomersViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Refreshes the reward picker. Loaded per customer rather than once per session so a benefit
+    /// the admin just published shows up without restarting the module.
+    /// </summary>
+    private async Task LoadAvailableBenefitsAsync(CancellationToken cancellationToken = default)
+    {
+        if (_getBenefits is null)
+        {
+            return;
+        }
+
+        Guid? benefitId = SelectedBenefit?.Id;
+        IReadOnlyList<LoyaltyBenefitResult> benefits = await _getBenefits
+            .ExecuteAsync(activeOnly: true, cancellationToken)
+            .ConfigureAwait(true);
+
+        AvailableBenefits.Clear();
+        foreach (LoyaltyBenefitResult benefit in benefits)
+        {
+            AvailableBenefits.Add(LoyaltyBenefitPresentation.From(benefit));
+        }
+
+        // Clearing an ItemsSource drops the selection, so put it back when the reward still exists.
+        SelectedBenefit = AvailableBenefits.FirstOrDefault(benefit => benefit.Id == benefitId);
+    }
+
+    public async Task ClaimBenefitAsync(CancellationToken cancellationToken = default)
+    {
+        if (_claimBenefit is null || SelectedCustomer is null || SelectedBenefit is null)
+        {
+            Message = "Selecciona un cliente y un beneficio para canjear.";
+            return;
+        }
+
+        Guid customerId = SelectedCustomer.Id;
+        LoyaltyBenefitPresentation benefit = SelectedBenefit;
+
+        try
+        {
+            await _claimBenefit
+                .ExecuteAsync(new ClaimLoyaltyBenefitRequest(customerId, benefit.Id, _session?.OperatorId), cancellationToken)
+                .ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Domain refusals (insufficient points, benefit retired mid-session) are expected
+            // outcomes here, not defects — show the reason rather than an "Error al canjear" wrapper.
+            Message = ex.Message;
+            return;
+        }
+
+        await OpenHistoryAsync(cancellationToken).ConfigureAwait(true);
+        HistoryFilter = "redemption";
+        Message = $"Canje registrado: {benefit.Name}. Queda pendiente de entrega.";
+    }
+
+    public async Task DeliverClaimAsync(CustomerHistoryEntry? entry, CancellationToken cancellationToken = default)
+    {
+        if (_deliverClaim is null || entry?.LoyaltyClaimId is not { } claimId)
+        {
+            return;
+        }
+
+        try
+        {
+            await _deliverClaim.ExecuteAsync(claimId, _session?.OperatorId, cancellationToken).ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+            return;
+        }
+
+        await OpenHistoryAsync(cancellationToken).ConfigureAwait(true);
+        HistoryFilter = "redemption";
+        Message = "Beneficio marcado como entregado.";
+    }
+
+    public async Task CancelClaimAsync(CustomerHistoryEntry? entry, string? reason = null, CancellationToken cancellationToken = default)
+    {
+        if (!CanCancelClaims || _cancelClaim is null)
+        {
+            Message = "No tienes permiso para anular canjes.";
+            return;
+        }
+
+        if (entry?.LoyaltyClaimId is not { } claimId)
+        {
+            return;
+        }
+
+        try
+        {
+            await _cancelClaim.ExecuteAsync(claimId, reason, _session?.OperatorId, cancellationToken).ConfigureAwait(true);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+            return;
+        }
+
+        await OpenHistoryAsync(cancellationToken).ConfigureAwait(true);
+        HistoryFilter = "redemption";
+        Message = "Canje anulado. Los puntos volvieron al saldo del cliente.";
+    }
+
     private static bool IsSaleKind(string kind) => string.Equals(kind, "Sale", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsCompletedSale(CustomerHistoryEntry entry)
         => IsSaleKind(entry.Kind) && string.Equals(entry.Status, "Completed", StringComparison.OrdinalIgnoreCase);
 
     private static bool IsQuoteKind(string kind) => string.Equals(kind, "Quote", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsRedemptionKind(string kind) => string.Equals(kind, "Redemption", StringComparison.OrdinalIgnoreCase);
+
+    private bool HasPermission(string permissionKey) => _session?.HasPermission(permissionKey) ?? false;
 
     private void OnCustomersCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -760,6 +945,7 @@ public sealed class CustomersViewModel : ViewModelBase
         {
             "sale" => HistoryEntries.Where(entry => IsSaleKind(entry.Kind)),
             "quote" => HistoryEntries.Where(entry => IsQuoteKind(entry.Kind)),
+            "redemption" => HistoryEntries.Where(entry => IsRedemptionKind(entry.Kind)),
             _ => HistoryEntries
         };
 

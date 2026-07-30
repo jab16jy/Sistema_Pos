@@ -225,6 +225,43 @@ public sealed class CustomerUseCaseTests
     }
 
     [Fact]
+    public async Task GetCustomerHistoryAsync_IncludesBenefitClaimsPricedInPointsNotPesos()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        await using var dbContext = CreateDbContext(connection);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var customer = new Customer("Ana Gomez", "123");
+        var account = new LoyaltyAccount(customer.Id);
+        var benefit = new LoyaltyBenefit("Asesoría personalizada", 1_000);
+        var spend = new LoyaltyTransaction(account.Id, Domain.Enums.LoyaltyTransactionType.BenefitRedeemed, -1_000, null);
+        var claim = new LoyaltyBenefitClaim(benefit.Id, account.Id, benefit.Name, benefit.PointsCost, spend.Id);
+        dbContext.AddRange(customer, account, benefit, spend, claim);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var useCase = new GetCustomerHistoryUseCase(new CustomerHistoryQueryService(dbContext));
+        CustomerHistoryResult history = await useCase.ExecuteAsync(customer.Id, TestContext.Current.CancellationToken);
+
+        CustomerHistoryEntry entry = Assert.Single(history.Entries, candidate => candidate.Kind == "Redemption");
+        Assert.Equal("Asesoría personalizada — 1.000 pts", entry.Reference);
+        Assert.Equal(0m, entry.Amount);
+        Assert.Equal("RedemptionPending", entry.Status);
+        Assert.Equal(claim.Id, entry.LoyaltyClaimId);
+
+        // Another customer's claims must never leak into this history.
+        var other = new Customer("Beto Ruiz", "456");
+        var otherAccount = new LoyaltyAccount(other.Id);
+        var otherSpend = new LoyaltyTransaction(otherAccount.Id, Domain.Enums.LoyaltyTransactionType.BenefitRedeemed, -1_000, null);
+        dbContext.AddRange(other, otherAccount, otherSpend,
+            new LoyaltyBenefitClaim(benefit.Id, otherAccount.Id, benefit.Name, benefit.PointsCost, otherSpend.Id));
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        history = await useCase.ExecuteAsync(customer.Id, TestContext.Current.CancellationToken);
+        Assert.Single(history.Entries, candidate => candidate.Kind == "Redemption");
+    }
+
+    [Fact]
     public async Task DatabaseSchemaRolloutAsync_CreatesCustomersTableForExistingLocalDatabase()
     {
         string dbPath = Path.Combine(Path.GetTempPath(), $"pos-schema-{Guid.NewGuid():N}.db");

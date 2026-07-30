@@ -34,10 +34,13 @@ public sealed class CashierViewBindingSmokeTests
                 };
                 ShowAndClose(cashier);
 
-                // No DataContext: binding paths do not throw, but the tier benefit list and the
-                // redemption checkbox added to the tier editor fail to load if their markup or
+                // No DataContext: binding paths do not throw, but the tier benefit list, the
+                // redemption checkbox and the benefit catalogue pane fail to load if their markup or
                 // resources are wrong.
                 ShowAndClose(new LoyaltyView());
+
+                // Same for the benefit claim panel and the redemption history rows.
+                ShowAndClose(new CustomersView());
 
                 application.Shutdown();
             }
