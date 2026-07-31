@@ -49,3 +49,11 @@ dist/
 # Graphify tool output
 graphify-out/
 
+# MCP Servers & configurations
+.mcp.json
+mcp.json
+*.mcp.json
+.mcp/
+mcp/
+mcp-servers/
+
