@@ -99,9 +99,11 @@
                    BorderBrush="{StaticResource BrushPrimary}"
                    BorderThickness="2" />
 
-          <xctk:IntegerUpDown Grid.Column="1"
+          <xctk:DecimalUpDown Grid.Column="1"
                               Value="{Binding Quantity, Mode=TwoWay}"
-                              Minimum="1"
+                              Minimum="0.01"
+                              Increment="1"
+                              FormatString="0.##"
                               Margin="8,0,0,0"
                               Height="44"
                               HorizontalContentAlignment="Center"
@@ -370,11 +372,11 @@
 
                       <xctk:DecimalUpDown Grid.Column="1"
                                           Value="{Binding Quantity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          Minimum="1"
+                                          Minimum="0.01"
                                           Width="56"
                                           Height="28"
                                           Increment="1"
-                                          FormatString="N0"
+                                          FormatString="0.##"
                                           HorizontalContentAlignment="Center"
                                           HorizontalAlignment="Center" />
 

@@ -662,7 +662,7 @@ public sealed class CashierViewModel : ViewModelBase
         get => _quantity;
         set
         {
-            decimal normalized = value < 1m ? 1m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+            decimal normalized = value < 0.01m ? 0.01m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
             if (SetProperty(ref _quantity, normalized))
             {
                 UpdateCommandState();

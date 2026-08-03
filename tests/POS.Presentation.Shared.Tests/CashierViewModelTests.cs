@@ -338,6 +338,48 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task AddingHalfABox_ChargesHalfBoxPrice_AndDecrementsHalfTheBaseUnits()
+    {
+        var product = new Product(
+            "Ampolla 350",
+            Guid.NewGuid(),
+            new Money(6_000m),
+            new Money(10_000m),
+            new StockQuantity(24m),
+            new StockQuantity(0m),
+            unitsPerBox: 12,
+            boxPrice: new Money(110_000m));
+        var sales = new InMemorySaleRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(
+                product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock, 0m, 12, 110_000m)),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, authorizer: CreateAuthorizer()))
+        {
+            SearchText = "ampolla",
+            Quantity = 0.5m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.SellSelectedAsBox = true;
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        CashierCartItemViewModel line = Assert.Single(viewModel.CartItems);
+        Assert.Equal(0.5m, line.Quantity);
+        Assert.Equal(55_000m, line.Subtotal);
+        Assert.Equal(6m, line.InventoryUnits);
+
+        viewModel.ReceivedAmount = 55_000m;
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+
+        Sale sale = Assert.Single(sales.Sales);
+        Assert.Equal(55_000m, sale.Total().Amount);
+        Assert.Equal(18m, product.CurrentStock);
+    }
+
+    [Fact]
     public async Task ConfirmSaleAsync_WhenCartIsEmpty_DoesNotPersistAndShowsRecoverableMessage()
     {
         var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
