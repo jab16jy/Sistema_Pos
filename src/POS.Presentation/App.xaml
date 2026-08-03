@@ -26,6 +26,7 @@
       <converters:StockBarWidthConverter x:Key="StockBarWidthConverter" />
       <converters:PercentToWidthConverter x:Key="PercentToWidthConverter" />
       <converters:ModuleKeyToIconConverter x:Key="ModuleKeyToIconConverter" />
+      <converters:FlexibleDecimalConverter x:Key="FlexibleDecimalConverter" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>
