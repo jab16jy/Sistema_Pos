@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.24.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.23.0...v1.24.0) (2026-08-03)
+
+
+### Features
+
+* **cashier:** accept decimal discounts with comma or dot ([f41e957](https://github.com/jab16jy/Sistema_Pos/commit/f41e957c39ceed49b031445ab4d7df58f5dac2b2))
+* **cashier:** allow fractional box quantities (half boxes) ([afb5af3](https://github.com/jab16jy/Sistema_Pos/commit/afb5af32972af6dae62ae301c31ade192e4ab537))
+* **cashier:** support split payments across multiple methods ([f65e856](https://github.com/jab16jy/Sistema_Pos/commit/f65e8561b999cc2472bd77512f7173074709956a))
+
+
+### Bug Fixes
+
+* **security:** untrack .mcp.json and update .gitignore to exclude MCP server configs ([7a6d954](https://github.com/jab16jy/Sistema_Pos/commit/7a6d954b3abfa70639d31566c2333c1ea699cf64))
+
 ## [1.23.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.22.0...v1.23.0) (2026-07-30)
 
 
