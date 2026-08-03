@@ -810,16 +810,60 @@
            </StackPanel>
 
            <TextBlock Text="Monto recibido" Style="{StaticResource CashHint}" FontWeight="Medium" />
-          <xctk:DecimalUpDown Value="{Binding ReceivedAmount, Mode=TwoWay}"
-                              Minimum="0"
-                              Margin="0,4,0,12"
-                              Height="36"
-                              FontSize="15"
-                              FormatString="N0"
-                              PreviewTextInput="ReceivedAmount_PreviewTextInput"
-                               PreviewKeyDown="ReceivedAmount_PreviewKeyDown"
-                               DataObject.Pasting="ReceivedAmount_Pasting"
-                               LostFocus="ReceivedAmount_LostFocus" />
+           <Grid Margin="0,4,0,4">
+             <Grid.ColumnDefinitions>
+               <ColumnDefinition Width="*" />
+               <ColumnDefinition Width="Auto" />
+             </Grid.ColumnDefinitions>
+             <xctk:DecimalUpDown Grid.Column="0"
+                                 Value="{Binding ReceivedAmount, Mode=TwoWay}"
+                                 Minimum="0"
+                                 Height="36"
+                                 FontSize="15"
+                                 FormatString="N0"
+                                 PreviewTextInput="ReceivedAmount_PreviewTextInput"
+                                 PreviewKeyDown="ReceivedAmount_PreviewKeyDown"
+                                 DataObject.Pasting="ReceivedAmount_Pasting"
+                                 LostFocus="ReceivedAmount_LostFocus" />
+             <Button Grid.Column="1"
+                     Content="Agregar pago"
+                     Style="{StaticResource GhostButton}"
+                     Command="{Binding AddTenderCommand}"
+                     Margin="8,0,0,0"
+                     Padding="10,4"
+                     ToolTip="Registra este método y monto como uno de varios pagos de la venta." />
+           </Grid>
+
+           <ItemsControl ItemsSource="{Binding Tenders}"
+                         Visibility="{Binding HasTenders, Converter={StaticResource BoolToVisibilityConverter}}"
+                         Margin="0,0,0,4">
+             <ItemsControl.ItemTemplate>
+               <DataTemplate>
+                 <Grid Margin="0,2,0,2">
+                   <Grid.ColumnDefinitions>
+                     <ColumnDefinition Width="*" />
+                     <ColumnDefinition Width="Auto" />
+                     <ColumnDefinition Width="Auto" />
+                   </Grid.ColumnDefinitions>
+                   <TextBlock Grid.Column="0" Text="{Binding DisplayText}" VerticalAlignment="Center" />
+                   <TextBlock Grid.Column="1" Text="{Binding AmountText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0" />
+                   <Button Grid.Column="2"
+                           Content="✕"
+                           Style="{StaticResource GhostButton}"
+                           Padding="6,2"
+                           Margin="8,0,0,0"
+                           Command="{Binding DataContext.RemoveTenderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                           CommandParameter="{Binding}" />
+                 </Grid>
+               </DataTemplate>
+             </ItemsControl.ItemTemplate>
+           </ItemsControl>
+
+           <TextBlock Text="{Binding RemainingToPayText, StringFormat='Falta por pagar: {0}'}"
+                      Style="{StaticResource CashHint}"
+                      FontWeight="Medium"
+                      Margin="0,0,0,12"
+                      Visibility="{Binding HasTenders, Converter={StaticResource BoolToVisibilityConverter}}" />
 
            <StackPanel Margin="0,0,0,12"
                        Visibility="{Binding IsDeferredAmountVisible, Converter={StaticResource BoolToVisibilityConverter}}">

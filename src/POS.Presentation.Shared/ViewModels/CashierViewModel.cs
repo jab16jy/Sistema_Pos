@@ -62,6 +62,8 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _cancelRedemptionCommand;
     private readonly RelayCommand _applyCartDiscountCommand;
     private readonly RelayCommand _clearCartDiscountCommand;
+    private readonly RelayCommand _addTenderCommand;
+    private readonly RelayCommand _removeTenderCommand;
     private CancellationTokenSource? _autocompleteSearchCts;
     private readonly SemaphoreSlim _querySemaphore = new(1, 1);
     private int _scannerInputInProgress;
@@ -181,6 +183,7 @@ public sealed class CashierViewModel : ViewModelBase
         CartItems = [];
         CustomerSearchResults = [];
         CustomerQuotes = [];
+        Tenders = [];
         CartItems.CollectionChanged += OnCartItemsChanged;
 
         SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => Message = $"Error al buscar productos: {ex.Message}"));
@@ -193,6 +196,8 @@ public sealed class CashierViewModel : ViewModelBase
         _removeCartItemCommand = new RelayCommand(RemoveCartItem, parameter => parameter is CashierCartItemViewModel && CanEditCart);
         _applyCartDiscountCommand = new RelayCommand(_ => ApplyCartDiscount(), _ => HasCartItems && CanEditCart);
         _clearCartDiscountCommand = new RelayCommand(_ => ClearCartDiscount(), _ => HasManualDiscount && CanEditCart);
+        _addTenderCommand = new RelayCommand(_ => AddTender(), _ => CanAddTender);
+        _removeTenderCommand = new RelayCommand(p => RemoveTender(p as PaymentTenderViewModel), p => p is PaymentTenderViewModel);
         _associateCustomerCommand = new RelayCommand(_ => AssociateCustomer());
         _holdSaleCommand = new RelayCommand(_ => RunSafe(HoldSaleAsync(), ex => Message = $"Error al poner la venta en espera: {ex.Message}"), _ => CanHoldSale);
         _confirmPrototypeSaleCommand = new RelayCommand(_ => ConfirmPrototypeSale());
@@ -212,6 +217,8 @@ public sealed class CashierViewModel : ViewModelBase
         RemoveCartItemCommand = _removeCartItemCommand;
         ApplyCartDiscountCommand = _applyCartDiscountCommand;
         ClearCartDiscountCommand = _clearCartDiscountCommand;
+        AddTenderCommand = _addTenderCommand;
+        RemoveTenderCommand = _removeTenderCommand;
         AssociateCustomerCommand = _associateCustomerCommand;
         HoldSaleCommand = _holdSaleCommand;
         ConfirmPrototypeSaleCommand = _confirmPrototypeSaleCommand;
@@ -283,6 +290,28 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand ApplyCartDiscountCommand { get; }
 
     public ICommand ClearCartDiscountCommand { get; }
+
+    public ObservableCollection<PaymentTenderViewModel> Tenders { get; }
+
+    public ICommand AddTenderCommand { get; }
+
+    public ICommand RemoveTenderCommand { get; }
+
+    public decimal TenderedTotal => Tenders.Sum(t => t.Amount);
+
+    public string TenderedTotalText => FormatCurrency(TenderedTotal);
+
+    public decimal RemainingToPay => Math.Max(0m, NetPayable - TenderedTotal);
+
+    public string RemainingToPayText => FormatCurrency(RemainingToPay);
+
+    public bool HasTenders => Tenders.Count > 0;
+
+    private bool CanAddTender =>
+        HasCartItems &&
+        ReceivedAmount > 0m &&
+        RemainingToPay > 0m &&
+        !(SelectedPaymentMethod.Method == PaymentMethod.Cash && Tenders.Any(t => t.Method == PaymentMethod.Cash));
 
     public ICommand AssociateCustomerCommand { get; }
 
@@ -713,8 +742,10 @@ public sealed class CashierViewModel : ViewModelBase
     /// leaves against NetPayable, so it only appears once the cashier underpays.
     /// When DeferredAmount > 0, a CustomerId is required and
     /// CollectedAmount + DeferredAmount must equal TotalAmount for CanConfirm to be true.
+    /// Always zero while a split payment (Tenders) is in progress: ReceivedAmount is reset to 0
+    /// after each "Agregar pago" and would otherwise read as a false full-amount deferred balance.
     /// </summary>
-    public decimal DeferredAmount => Math.Max(0m, NetPayable - ReceivedAmount);
+    public decimal DeferredAmount => HasTenders ? 0m : Math.Max(0m, NetPayable - ReceivedAmount);
 
     /// <summary>
     /// Shows the saldo diferido panel. Only becomes true when the cashier commits the received
@@ -1059,6 +1090,7 @@ public sealed class CashierViewModel : ViewModelBase
     {
         CartItems.Clear();
         ReceivedAmount = 0m;
+        Tenders.Clear();
         CartDiscountPercentInput = 0m;
         ClearCustomerAssignment(resetReviewedFlag: true);
         ClearCustomerQuoteCandidates();
@@ -1110,6 +1142,7 @@ public sealed class CashierViewModel : ViewModelBase
             CreateSaleResult result = await _createSaleUseCase.ExecuteAsync(BuildCreateSaleRequest(), cancellationToken).ConfigureAwait(true);
             CartItems.Clear();
             ReceivedAmount = 0m;
+            Tenders.Clear();
             ClearCustomerAssignment(resetReviewedFlag: true);
             ClearCustomerQuoteCandidates();
             RefreshTotals(updateMessage: false);
@@ -1248,6 +1281,57 @@ public sealed class CashierViewModel : ViewModelBase
         }
 
         Message = "Descuento removido del carrito.";
+    }
+
+    /// <summary>
+    /// Moves the currently entered method/amount into a fixed payment tender — a split payment is
+    /// built from one or more tenders that must sum to NetPayable exactly (see BuildCreateSaleRequest).
+    /// Only one Cash tender is allowed: mixing several cash entries would need to decide which one
+    /// receives change, which the UI doesn't expose.
+    /// </summary>
+    private void AddTender()
+    {
+        string? bankOrPlatform = SelectedPaymentMethod.Method == PaymentMethod.Transfer
+            ? BankOrPlatform
+            : null;
+
+        try
+        {
+            PaymentPlatforms.Validate(SelectedPaymentMethod.Method, bankOrPlatform);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Message = ex.Message;
+            return;
+        }
+
+        Tenders.Add(new PaymentTenderViewModel(SelectedPaymentMethod.Method, SelectedPaymentMethod.Label, ReceivedAmount, bankOrPlatform));
+        ReceivedAmount = 0m;
+        BankOrPlatform = string.Empty;
+        NotifyTendersChanged();
+    }
+
+    private void RemoveTender(PaymentTenderViewModel? tender)
+    {
+        if (tender is null)
+        {
+            return;
+        }
+
+        Tenders.Remove(tender);
+        NotifyTendersChanged();
+    }
+
+    private void NotifyTendersChanged()
+    {
+        OnPropertyChanged(nameof(TenderedTotal));
+        OnPropertyChanged(nameof(TenderedTotalText));
+        OnPropertyChanged(nameof(RemainingToPay));
+        OnPropertyChanged(nameof(RemainingToPayText));
+        OnPropertyChanged(nameof(HasTenders));
+        _addTenderCommand.RaiseCanExecuteChanged();
+        _removeTenderCommand.RaiseCanExecuteChanged();
+        RefreshPaymentPreview();
     }
 
     private void AssociateCustomer()
@@ -1848,6 +1932,30 @@ public sealed class CashierViewModel : ViewModelBase
         // it must be converted here, not passed through raw.
         IReadOnlyCollection<CreateSaleItemRequest> items = BuildLineRequests();
 
+        // Split-payment path: one CreateSalePaymentRequest per tender. Non-cash tenders apply their
+        // full amount as-is; the (at most one) cash tender caps its Amount to what's still owed so
+        // Sale.Complete()'s exact TotalPaid == Total invariant holds even if the cashier overpaid in
+        // cash for change — ReceivedAmount keeps the raw amount so ChangeAmount() still reports it.
+        if (HasTenders)
+        {
+            decimal nonCashTotal = Tenders.Where(t => t.Method != PaymentMethod.Cash).Sum(t => t.Amount);
+            var splitPayments = new List<CreateSalePaymentRequest>();
+            foreach (PaymentTenderViewModel tender in Tenders.Where(t => t.Method != PaymentMethod.Cash))
+            {
+                splitPayments.Add(new CreateSalePaymentRequest(tender.Method, tender.Amount, null, tender.BankOrPlatform));
+            }
+
+            PaymentTenderViewModel? cashTender = Tenders.FirstOrDefault(t => t.Method == PaymentMethod.Cash);
+            if (cashTender is not null)
+            {
+                decimal appliedCash = Math.Min(cashTender.Amount, Math.Max(0m, NetPayable - nonCashTotal));
+                splitPayments.Add(new CreateSalePaymentRequest(PaymentMethod.Cash, appliedCash, cashTender.Amount, null));
+            }
+
+            int splitRedeemPoints = LoyaltyDiscount > 0m ? LoyaltyPointsToRedeem : 0;
+            return new CreateSaleRequest(CustomerId, items, splitPayments, splitRedeemPoints);
+        }
+
         // Use settlement plan when a deferred amount is set; otherwise use legacy full-payment path
         if (DeferredAmount > 0m)
         {
@@ -1937,6 +2045,7 @@ public sealed class CashierViewModel : ViewModelBase
 
             CartItems.Clear();
             ReceivedAmount = 0m;
+            Tenders.Clear();
             ClearCustomerAssignment(resetReviewedFlag: true);
             RefreshTotals(updateMessage: false);
             Message = $"Cotización {quote.QuoteNumber} facturada con factura {result.InvoiceNumber}.";
@@ -2013,6 +2122,26 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void RefreshPaymentPreview(bool updateMessage = true)
     {
+        // Split-payment path: several tenders already added, no deferred balance involved.
+        if (HasTenders)
+        {
+            PaymentPreviewResult splitPreview = _previewPaymentUseCase.Execute(new PaymentPreviewRequest(
+                NetPayable,
+                SelectedPaymentMethod.Method,
+                0m,
+                Tenders: Tenders.Select(t => new PaymentTender(t.Method, t.Amount, t.BankOrPlatform)).ToList()));
+
+            ChangeAmount = splitPreview.ChangeAmount;
+            CanConfirm = splitPreview.CanConfirm;
+            NotifyPaymentBalanceChanged();
+            if (updateMessage)
+            {
+                Message = splitPreview.Message;
+            }
+
+            return;
+        }
+
         // Deferred balance requires an identified customer — block confirmation without one
         if (DeferredAmount > 0m && CustomerId is null)
         {
@@ -2109,6 +2238,9 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(PaymentBalanceLabel));
         OnPropertyChanged(nameof(PaymentBalanceText));
         OnPropertyChanged(nameof(DeferredAmount));
+        OnPropertyChanged(nameof(RemainingToPay));
+        OnPropertyChanged(nameof(RemainingToPayText));
+        _addTenderCommand.RaiseCanExecuteChanged();
         IsDeferredAmountVisible = false;
     }
 

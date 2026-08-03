@@ -1,3 +1,4 @@
+using System.Linq;
 using POS.Application.DTOs.Sales;
 using POS.Application.Common;
 using POS.Domain.Enums;
@@ -17,6 +18,35 @@ public sealed class PreviewPaymentUseCase
         }
 
         var deferred = request.DeferredAmount > 0m ? new Money(request.DeferredAmount) : Money.Zero;
+
+        // Split-payment path: several tenders covering the full total (no deferred balance).
+        if (request.Tenders is { Count: > 0 } tenders && deferred.Amount == 0m)
+        {
+            foreach (PaymentTender tender in tenders)
+            {
+                try
+                {
+                    PaymentPlatforms.Validate(tender.Method, tender.BankOrPlatform);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    return new PaymentPreviewResult(false, 0m, exception.Message);
+                }
+            }
+
+            decimal nonCashCovered = tenders.Where(t => t.Method != PaymentMethod.Cash).Sum(t => t.Amount);
+            decimal cashReceived = tenders.Where(t => t.Method == PaymentMethod.Cash).Sum(t => t.Amount);
+            decimal covered = nonCashCovered + cashReceived;
+
+            if (covered < total.Amount)
+            {
+                decimal missing = total.Amount - covered;
+                return new PaymentPreviewResult(false, 0m, $"Faltan ${missing:N0} para completar el total.");
+            }
+
+            decimal splitChange = Math.Max(0m, cashReceived - (total.Amount - nonCashCovered));
+            return new PaymentPreviewResult(true, splitChange, "Pagos combinados. Verifica el detalle antes de confirmar.");
+        }
 
         // Settlement plan path: collected + deferred must cover total
         if (deferred.Amount > 0m)

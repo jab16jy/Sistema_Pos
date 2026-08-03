@@ -112,4 +112,72 @@ public sealed class PreviewPaymentUseCaseTests
         Assert.Equal(2_500m, result.ChangeAmount);
         Assert.Equal(0m, result.DeferredBalance);
     }
+
+    // --- Split-payment (multiple tenders) preview tests ---
+
+    [Fact]
+    public void Execute_WithTenders_CashPlusTransferCoveringTotal_CanConfirm()
+    {
+        var useCase = new PreviewPaymentUseCase();
+        var tenders = new[]
+        {
+            new PaymentTender(PaymentMethod.Cash, 30_000m),
+            new PaymentTender(PaymentMethod.Transfer, 70_000m, "Nequi")
+        };
+
+        var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
+
+        Assert.True(result.CanConfirm);
+        Assert.Equal(0m, result.ChangeAmount);
+    }
+
+    [Fact]
+    public void Execute_WithTenders_TransferWithoutPlatform_DisablesConfirmation()
+    {
+        var useCase = new PreviewPaymentUseCase();
+        var tenders = new[]
+        {
+            new PaymentTender(PaymentMethod.Cash, 30_000m),
+            new PaymentTender(PaymentMethod.Transfer, 70_000m)
+        };
+
+        var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
+
+        Assert.False(result.CanConfirm);
+        Assert.Contains("platform", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Execute_WithTenders_OverpaidInCash_CalculatesChangeOnCashLegOnly()
+    {
+        var useCase = new PreviewPaymentUseCase();
+        var tenders = new[]
+        {
+            new PaymentTender(PaymentMethod.Transfer, 70_000m, "Nequi"),
+            new PaymentTender(PaymentMethod.Cash, 40_000m)
+        };
+
+        // Total 100000, transfer covers 70000, cash tendered 40000 for the remaining 30000 -> 10000 change
+        var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
+
+        Assert.True(result.CanConfirm);
+        Assert.Equal(10_000m, result.ChangeAmount);
+    }
+
+    [Fact]
+    public void Execute_WithTenders_SumBelowTotal_DisablesConfirmationWithShortfall()
+    {
+        var useCase = new PreviewPaymentUseCase();
+        var tenders = new[]
+        {
+            new PaymentTender(PaymentMethod.Cash, 30_000m),
+            new PaymentTender(PaymentMethod.Transfer, 50_000m, "Nequi")
+        };
+
+        var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
+
+        Assert.False(result.CanConfirm);
+        Assert.Equal(0m, result.ChangeAmount);
+        Assert.Contains("Faltan", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
 }

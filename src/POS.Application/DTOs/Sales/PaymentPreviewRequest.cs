@@ -7,4 +7,8 @@ public sealed record PaymentPreviewRequest(
     PaymentMethod PaymentMethod,
     decimal ReceivedAmount,
     decimal DeferredAmount = 0m,
-    string? BankOrPlatform = null);
+    string? BankOrPlatform = null,
+    IReadOnlyList<PaymentTender>? Tenders = null);
+
+/// <summary>One leg of a split (multi-method) full payment — e.g. part cash, part transfer.</summary>
+public sealed record PaymentTender(PaymentMethod Method, decimal Amount, string? BankOrPlatform = null);

@@ -293,6 +293,48 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task ConfirmSaleAsync_WithSplitPayment_PersistsOnePaymentPerTender()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(5_000m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var unitOfWork = new InMemoryUnitOfWork();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, authorizer: CreateAuthorizer()))
+        {
+            SearchText = "rice",
+            Quantity = 2m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        // Total is 10,000 — pay 4,000 cash and 6,000 by transfer.
+        viewModel.ReceivedAmount = 4_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Transfer);
+        viewModel.BankOrPlatform = "Nequi";
+        viewModel.ReceivedAmount = 6_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        Assert.True(viewModel.CanConfirm);
+        Assert.Equal(0m, viewModel.RemainingToPay);
+
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("guardada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Sale sale = Assert.Single(sales.Sales);
+        Assert.Equal(10_000m, sale.Total().Amount);
+        Assert.Equal(10_000m, sale.TotalPaid().Amount);
+        Assert.Equal(4_000m, sale.CashInDrawer().Amount);
+        Assert.Equal(2, sale.Payments.Count);
+        Assert.Empty(viewModel.Tenders);
+    }
+
+    [Fact]
     public async Task AddingAsBox_ChargesBoxPrice_AndDecrementsStockInBaseUnits()
     {
         // Ampolla 350 (doc example): 1 unit = 10.000, but 1 box of 12 = 110.000 (not 120.000).
