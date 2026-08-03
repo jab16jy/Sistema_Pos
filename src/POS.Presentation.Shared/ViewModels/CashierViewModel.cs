@@ -309,9 +309,12 @@ public sealed class CashierViewModel : ViewModelBase
 
     private bool CanAddTender =>
         HasCartItems &&
+        CanEditCart &&
+        !IsQuoteLoaded &&
         ReceivedAmount > 0m &&
         RemainingToPay > 0m &&
-        !(SelectedPaymentMethod.Method == PaymentMethod.Cash && Tenders.Any(t => t.Method == PaymentMethod.Cash));
+        !(SelectedPaymentMethod.Method == PaymentMethod.Cash && Tenders.Any(t => t.Method == PaymentMethod.Cash)) &&
+        (SelectedPaymentMethod.Method == PaymentMethod.Cash || ReceivedAmount <= RemainingToPay);
 
     public ICommand AssociateCustomerCommand { get; }
 
@@ -1291,6 +1294,18 @@ public sealed class CashierViewModel : ViewModelBase
     /// </summary>
     private void AddTender()
     {
+        if (!CanEditCart)
+        {
+            Message = "Los pagos combinados no están disponibles en una venta retomada. Completa la venta con un solo método de pago.";
+            return;
+        }
+
+        if (IsQuoteLoaded)
+        {
+            Message = "Los pagos combinados no están disponibles al facturar una cotización. Completa con un solo método de pago.";
+            return;
+        }
+
         string? bankOrPlatform = SelectedPaymentMethod.Method == PaymentMethod.Transfer
             ? BankOrPlatform
             : null;
@@ -1593,7 +1608,12 @@ public sealed class CashierViewModel : ViewModelBase
             return Task.CompletedTask;
         }
 
+        // A loaded quote is a fresh full-payment context: tenders from a previous new sale must
+        // not survive into it. Completion ignores Tenders (single-payment path), so a stale
+        // non-cash tender would either gate confirmation on a split the operator can never edit
+        // or silently record the sale as Cash while the panel showed a digital tender.
         CartItems.Clear();
+        Tenders.Clear();
         foreach (CustomerPayableQuoteItem item in quote.Items)
         {
             CartItems.Add(new CashierCartItemViewModel(
@@ -1740,6 +1760,8 @@ public sealed class CashierViewModel : ViewModelBase
 
         ClearCustomerAssignment(resetReviewedFlag: true);
         CartItems.Clear();
+        // Split payments apply only to new full sales — never carry tenders into a resumed sale.
+        Tenders.Clear();
         foreach (HeldSaleItem item in resumed.Items)
         {
             decimal gross = item.UnitPrice * item.Quantity;

@@ -180,4 +180,39 @@ public sealed class PreviewPaymentUseCaseTests
         Assert.Equal(0m, result.ChangeAmount);
         Assert.Contains("Faltan", result.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Fact]
+    public void Execute_WithTenders_NonCashOverpay_DisablesConfirmation()
+    {
+        var useCase = new PreviewPaymentUseCase();
+        var tenders = new[]
+        {
+            new PaymentTender(PaymentMethod.Transfer, 120_000m, "Nequi"),
+            new PaymentTender(PaymentMethod.Cash, 10_000m)
+        };
+
+        // Total 100000 — the digital tender alone over-covers the total. Non-cash legs persist at
+        // their full amount (only cash is capped), so confirming would make Sale.Complete() reject
+        // the sale with TotalPaid != Total. The preview must refuse up front.
+        var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
+
+        Assert.False(result.CanConfirm);
+        Assert.Equal(0m, result.ChangeAmount);
+        Assert.Contains("superan el total", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Execute_WithTenders_DigitalExactlyCoversTotal_CanConfirm()
+    {
+        var useCase = new PreviewPaymentUseCase();
+        var tenders = new[]
+        {
+            new PaymentTender(PaymentMethod.Transfer, 100_000m, "Nequi")
+        };
+
+        var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
+
+        Assert.True(result.CanConfirm);
+        Assert.Equal(0m, result.ChangeAmount);
+    }
 }

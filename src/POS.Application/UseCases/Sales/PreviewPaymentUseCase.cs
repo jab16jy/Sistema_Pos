@@ -36,6 +36,17 @@ public sealed class PreviewPaymentUseCase
 
             decimal nonCashCovered = tenders.Where(t => t.Method != PaymentMethod.Cash).Sum(t => t.Amount);
             decimal cashReceived = tenders.Where(t => t.Method == PaymentMethod.Cash).Sum(t => t.Amount);
+
+            // Invariant: payment legs may not over-cover the total. Non-cash legs are persisted
+            // at their full amount (only the cash leg is capped for change), so an over-covering
+            // digital tender would make Sale.Complete()'s exact TotalPaid == Total check fail.
+            if (nonCashCovered > total.Amount)
+            {
+                decimal excess = nonCashCovered - total.Amount;
+                return new PaymentPreviewResult(false, 0m,
+                    $"Los pagos digitales superan el total por ${excess:N0}. Reduce los pagos para que no superen el total.");
+            }
+
             decimal covered = nonCashCovered + cashReceived;
 
             if (covered < total.Amount)

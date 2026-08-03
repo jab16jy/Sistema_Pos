@@ -2,6 +2,7 @@ using POS.Application.DTOs.Customers;
 using POS.Application.Common;
 using POS.Application.DTOs.Products;
 using POS.Application.DTOs.Quotes;
+using POS.Application.DTOs.Sales;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Customers;
 using POS.Application.UseCases.Loyalty;
@@ -332,6 +333,81 @@ public sealed class CashierViewModelTests
         Assert.Equal(4_000m, sale.CashInDrawer().Amount);
         Assert.Equal(2, sale.Payments.Count);
         Assert.Empty(viewModel.Tenders);
+    }
+
+    [Fact]
+    public async Task AddTenderCommand_NonCashAmountAboveRemaining_IsDisabled()
+    {
+        // Regression: a digital tender larger than the remaining balance over-covers the total.
+        // Non-cash legs persist at their full amount, so the sale would never complete
+        // (Sale.Complete() requires TotalPaid == Total exactly) — the UI must not offer it.
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        Assert.Equal(2_500m, viewModel.NetPayable);
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Transfer);
+        viewModel.BankOrPlatform = "Nequi";
+        viewModel.ReceivedAmount = 5_000m;
+
+        Assert.False(viewModel.AddTenderCommand.CanExecute(null));
+
+        // A tender within the remaining balance is still accepted.
+        viewModel.ReceivedAmount = 2_500m;
+        Assert.True(viewModel.AddTenderCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task ResumeHeldSaleAsync_ClearsStaleTendersAndDisablesSplitPayment()
+    {
+        // Regression: tenders added before resuming a held sale used to survive into the resumed
+        // sale, where completion ignores them (single-payment path) and can crash with
+        // "Cash received amount cannot be lower than payment amount." Split payments apply only
+        // to new full sales.
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        Guid cashierId = Guid.NewGuid();
+        var sale = new Sale(cashierId);
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+        sale.Hold();
+        sales.Sales.Add(sale);
+
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            holdSaleUseCase: null,
+            getHeldSalesUseCase: new GetHeldSalesUseCase(sales),
+            resumeHeldSaleUseCase: new ResumeHeldSaleUseCase(sales, new InMemoryUnitOfWork()),
+            completeHeldSaleUseCase: null,
+            cancelHeldSaleUseCase: null)
+        {
+            CashierUserId = cashierId
+        };
+
+        // Stale tender from a previous new sale — must not survive into the resumed sale.
+        viewModel.Tenders.Add(new PaymentTenderViewModel(PaymentMethod.Transfer, "Transferencia", 2_500m, "Nequi"));
+
+        var held = new HeldSaleSummary(
+            sale.Id, cashierId, null, sale.InvoiceNumber, sale.CreatedAt, 2_500m,
+            [new HeldSaleItem(product.Id, product.Name, 1m, 2_500m, 0m, ProductPresentation.Unit, 1)]);
+
+        await viewModel.ResumeHeldSaleAsync(held, TestContext.Current.CancellationToken);
+
+        Assert.True(viewModel.IsResumedSale);
+        Assert.Empty(viewModel.Tenders);
+        Assert.False(viewModel.AddTenderCommand.CanExecute(null));
     }
 
     [Fact]
@@ -981,6 +1057,43 @@ public sealed class CashierViewModelTests
         Assert.Equal(1_800m, viewModel.TotalAmount);
         Assert.True(viewModel.IsQuoteLoaded);
         Assert.Contains("COT-CAJA-002", viewModel.LoadedQuoteBanner, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task LoadCustomerQuoteAsync_ClearsStaleTendersAndQuoteIsConfirmable()
+    {
+        // Regression: tenders added before loading a customer quote used to survive into the
+        // quote. Completion ignores Tenders (single-payment path), so a stale non-cash tender
+        // either gated confirmation on a split the operator can never edit (CanConfirm=false
+        // dead-end on a partially covering tender) or silently recorded the sale as Cash while
+        // the tender panel showed a digital tender.
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var productId = Guid.NewGuid();
+        var quote = CreateCustomerQuote("COT-CAJA-CLEAR", customer.Id, productId, discount: 0m);
+        var quoteRepo = new InMemoryQuoteRepository(quote);
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(productId, "Serum", "SER-1", 2_000m, 10m)),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            new GetCustomerPayableQuotesUseCase(quoteRepo),
+            null);
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+
+        // Stale tender from a previous new sale — must not survive into the loaded quote.
+        viewModel.Tenders.Add(new PaymentTenderViewModel(PaymentMethod.Transfer, "Transferencia", 1_000m, "Nequi"));
+
+        await viewModel.LoadCustomerQuoteAsync(viewModel.CustomerQuotes.Single(), TestContext.Current.CancellationToken);
+
+        Assert.True(viewModel.IsQuoteLoaded);
+        Assert.Empty(viewModel.Tenders);
+        Assert.False(viewModel.HasTenders);
+        // The quote covers its own total with received cash — no split tenders required.
+        Assert.Equal(2_000m, viewModel.TotalAmount);
+        Assert.True(viewModel.CanConfirm);
     }
 
     [Fact]
