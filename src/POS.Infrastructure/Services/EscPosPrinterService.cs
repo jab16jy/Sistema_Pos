@@ -231,19 +231,26 @@ public sealed partial class EscPosPrinterService : IPrintService
                 WriteLine($"{"Cambio:",-20}{FormatCurrency(change),12}");
         }
 
-        var methods = sale.Payments
-            .Select(p => p.Method switch
-            {
-                PaymentMethod.Cash => "Efectivo",
-                PaymentMethod.DebitCard => "Tarjeta Débito",
-                PaymentMethod.CreditCard => "Tarjeta Crédito",
-                PaymentMethod.Transfer => "Transferencia",
-                PaymentMethod.LoyaltyPoints => "Puntos de lealtad",
-                _ => p.Method.ToString()
-            })
-            .Distinct();
+        // One line per payment leg. Listing only distinct method names hid both how much each
+        // method covered in a split payment and which platform received a transfer. Loyalty
+        // points are a discount, already printed above as "Desc. puntos".
         WriteLine();
-        WriteLine($"Método: {string.Join(", ", methods)}");
+        WriteLine("FORMA DE PAGO");
+        foreach (var payment in sale.Payments.Where(p => p.Method != PaymentMethod.LoyaltyPoints))
+        {
+            var label = PaymentMethodLabel.For(payment.Method);
+            var amount = FormatCurrency(payment.Amount.Amount);
+            int labelWidth = Math.Max(ReceiptColumns - amount.Length - 1, 8);
+            if (label.Length > labelWidth)
+                label = label[..labelWidth];
+
+            WriteLine($"{label.PadRight(labelWidth)} {amount}");
+
+            // The platform gets its own indented line: "Transferencia · Bancolombia" plus an
+            // amount does not fit in 32 columns.
+            if (!string.IsNullOrWhiteSpace(payment.BankOrPlatform))
+                WriteLine($"  {payment.BankOrPlatform}");
+        }
 
         WriteLine();
         Separator();

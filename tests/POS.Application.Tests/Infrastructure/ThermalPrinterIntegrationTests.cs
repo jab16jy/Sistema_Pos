@@ -119,6 +119,77 @@ public sealed class ThermalPrinterIntegrationTests
     }
 
     [Fact]
+    public async Task EscPosPrinterService_PrintsEachPaymentLegWithItsPlatformAndTheSoldPresentation()
+    {
+        await using var fixture = await TestDbContextFactory.CreateAsync();
+        fixture.DbContext.BusinessSettings.Add(new BusinessSettings(
+            "Negocio", null, null, null, null, null, null, null, false, null, "COM7", null, null, null, "COP"));
+
+        // Half box priced on its own: 6 base units for 300.000.
+        var category = new Category($"Test category {Guid.NewGuid():N}");
+        var product = new Product(
+            "Aceite", category.Id, new Money(20_000m), new Money(60_000m),
+            new StockQuantity(50m), new StockQuantity(2m),
+            halfBoxUnits: 6, halfBoxPrice: new Money(300_000m));
+        fixture.DbContext.Categories.Add(category);
+        fixture.DbContext.Products.Add(product);
+        await fixture.DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(
+            new ProductRepository(fixture.DbContext),
+            new SaleRepository(fixture.DbContext),
+            fixture.DbContext,
+            authorizer: TestAuthorizer.Create(dbContext: fixture.DbContext));
+
+        // 300.000 half box settled as 200.000 by Bancolombia transfer plus 100.000 cash.
+        var sale = await saleUseCase.ExecuteAsync(
+            new CreateSaleRequest(
+                null,
+                [new CreateSaleItemRequest(product.Id, 1m, 0m, ProductPresentation.HalfBox)],
+                [
+                    new CreateSalePaymentRequest(PaymentMethod.Transfer, 200_000m, null, "Bancolombia"),
+                    new CreateSalePaymentRequest(PaymentMethod.Cash, 100_000m, 100_000m, null)
+                ]),
+            TestContext.Current.CancellationToken);
+
+        var resolver = new PrinterSettingsResolver(new PrinterRuntimeOptions(), fixture.DbContext);
+        var transport = new FakeThermalPrinterTransport();
+        var service = new EscPosPrinterService(resolver, transport, fixture.DbContext);
+
+        await service.PrintReceiptAsync(sale.SaleId, TestContext.Current.CancellationToken);
+
+        string text = Encoding.Latin1.GetString(transport.LastPayload!);
+
+        // The presentation the cashier picked, with its own unit count.
+        Assert.Contains("Media caja x6", text);
+
+        // Every leg, its own amount, and the platform that received the transfer.
+        Assert.Contains("FORMA DE PAGO", text);
+        Assert.Contains("Transferencia", text);
+        Assert.Contains("$200.000", text);
+        Assert.Contains("Bancolombia", text);
+        Assert.Contains("Efectivo", text);
+        Assert.Contains("$100.000", text);
+
+        // 32-column paper: the payment block is built by padding a label against an amount, so a
+        // long label would wrap a lone digit onto the next line. Only the text lines this block
+        // emits are checked — the rest of the payload carries ESC/POS control bytes and the logo
+        // raster, which are not text at all. The protocol writes LF (10) as the line break.
+        string[] paymentLines = text
+            .Split((char)10)
+            .SkipWhile(line => !line.Contains("FORMA DE PAGO", StringComparison.Ordinal))
+            .Skip(1)
+            .TakeWhile(line => line.Trim().Length > 0)
+            .ToArray();
+
+        Assert.NotEmpty(paymentLines);
+        foreach (string line in paymentLines)
+        {
+            Assert.True(line.Length <= 32, $"Payment line exceeds the 32-column receipt: '{line}'");
+        }
+    }
+
+    [Fact]
     public async Task EscPosPrinterService_PrintsItemDiscountGrossTotalAndLoyaltyTier()
     {
         await using var fixture = await TestDbContextFactory.CreateAsync();

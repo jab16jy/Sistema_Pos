@@ -45,6 +45,10 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly RelayCommand _printReceiptYesCommand;
     private readonly RelayCommand _printReceiptNoCommand;
     private Guid? _pendingPrintSaleId;
+    private readonly RelayCommand _confirmSaleYesCommand;
+    private readonly RelayCommand _confirmSaleNoCommand;
+    private bool _isAwaitingSaleConfirmation;
+    private bool _saleConfirmationAcknowledged;
     private readonly RelayCommand _addSelectedProductCommand;
     private readonly RelayCommand _appendReceivedAmountCommand;
     private readonly RelayCommand _backspaceReceivedAmountCommand;
@@ -206,6 +210,14 @@ public sealed class CashierViewModel : ViewModelBase
         _clearLoadedQuoteCommand = new RelayCommand(_ => ClearLoadedQuote(), _ => IsQuoteLoaded);
         _printReceiptYesCommand = new RelayCommand(_ => RunSafe(PrintPendingReceiptAsync(), ex => Message = $"Error al imprimir el recibo: {ex.Message}"), _ => IsAwaitingPrintChoice);
         _printReceiptNoCommand = new RelayCommand(_ => DeclinePendingReceipt(), _ => IsAwaitingPrintChoice);
+        _confirmSaleYesCommand = new RelayCommand(
+            _ => RunSafe(AcknowledgeSaleConfirmationAsync(), ex =>
+            {
+                _saleConfirmationAcknowledged = false;
+                Message = $"Error al confirmar la venta: {ex.Message}";
+            }),
+            _ => IsAwaitingSaleConfirmation);
+        _confirmSaleNoCommand = new RelayCommand(_ => DeclineSaleConfirmation(), _ => IsAwaitingSaleConfirmation);
         AddSelectedProductCommand = _addSelectedProductCommand;
         SelectUnitPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.Unit);
         SelectBoxPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.Box, _ => CanSellSelectedAsBox);
@@ -230,6 +242,8 @@ public sealed class CashierViewModel : ViewModelBase
         CancelRedemptionCommand = _cancelRedemptionCommand;
         PrintReceiptYesCommand = _printReceiptYesCommand;
         PrintReceiptNoCommand = _printReceiptNoCommand;
+        ConfirmSaleYesCommand = _confirmSaleYesCommand;
+        ConfirmSaleNoCommand = _confirmSaleNoCommand;
         SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => Message = $"Error al buscar clientes: {ex.Message}"));
         SelectCustomerCommand = new RelayCommand(parameter => RunSafe(SelectCustomerFromCommandAsync(parameter), ex => Message = $"Error al asignar cliente: {ex.Message}"), parameter => parameter is CustomerSearchResult);
         ConfirmCustomerSelectionCommand = new RelayCommand(_ => RunSafe(ConfirmCustomerSelectionAsync(), ex => Message = $"Error al asignar cliente: {ex.Message}"), _ => SelectedCustomerSearchResult is not null);
@@ -627,6 +641,27 @@ public sealed class CashierViewModel : ViewModelBase
 
     /// <summary>True right after a sale is confirmed, while the cashier decides whether to print the thermal receipt.</summary>
     public bool IsAwaitingPrintChoice => _pendingPrintSaleId is not null;
+
+    public ICommand ConfirmSaleYesCommand { get; }
+
+    public ICommand ConfirmSaleNoCommand { get; }
+
+    /// <summary>
+    /// True while the cashier is being asked to confirm the sale. Raised only once every other
+    /// check has passed, so the prompt never appears for a sale that would be rejected anyway.
+    /// </summary>
+    public bool IsAwaitingSaleConfirmation
+    {
+        get => _isAwaitingSaleConfirmation;
+        private set
+        {
+            if (SetProperty(ref _isAwaitingSaleConfirmation, value))
+            {
+                _confirmSaleYesCommand.RaiseCanExecuteChanged();
+                _confirmSaleNoCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
 
     public string SearchText
     {
@@ -1146,6 +1181,7 @@ public sealed class CashierViewModel : ViewModelBase
         CartDiscountPercentInput = 0m;
         ClearCustomerAssignment(resetReviewedFlag: true);
         ClearCustomerQuoteCandidates();
+        DeclineSaleConfirmation();
         RefreshTotals(updateMessage: false);
         Message = "Carrito limpio. Puedes iniciar una nueva venta.";
     }
@@ -1170,6 +1206,18 @@ public sealed class CashierViewModel : ViewModelBase
             OpenCustomerAssignment(confirmAfterSelection: true);
             return;
         }
+
+        // Last gate before anything is persisted: a sale is money changing hands and the register
+        // is driven by a single keystroke (F5), so the cashier gets one explicit yes/no.
+        if (!_saleConfirmationAcknowledged)
+        {
+            IsAwaitingSaleConfirmation = true;
+            Message = $"¿Deseas confirmar esta compra por {FormatCurrency(NetPayable)}?";
+            return;
+        }
+
+        // The acknowledgement is one-shot: it covers this attempt only, so the next sale asks again.
+        _saleConfirmationAcknowledged = false;
 
         if (IsQuoteLoaded)
         {
@@ -1253,6 +1301,26 @@ public sealed class CashierViewModel : ViewModelBase
         {
             ClearPendingPrintChoice();
         }
+    }
+
+    /// <summary>The cashier answered "yes" to the confirmation prompt: replays the sale for real.</summary>
+    public async Task AcknowledgeSaleConfirmationAsync(CancellationToken cancellationToken = default)
+    {
+        if (!IsAwaitingSaleConfirmation)
+        {
+            return;
+        }
+
+        _saleConfirmationAcknowledged = true;
+        IsAwaitingSaleConfirmation = false;
+        await ConfirmSaleAsync(cancellationToken).ConfigureAwait(true);
+    }
+
+    private void DeclineSaleConfirmation()
+    {
+        _saleConfirmationAcknowledged = false;
+        IsAwaitingSaleConfirmation = false;
+        Message = "Compra no confirmada. Puedes seguir editando la venta.";
     }
 
     private void DeclinePendingReceipt()

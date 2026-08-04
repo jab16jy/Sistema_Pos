@@ -137,6 +137,7 @@ public sealed class CashierViewModelTests
         viewModel.ReceivedAmount = viewModel.NetPayable;
 
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Sale sale = Assert.Single(sales.Sales);
         SaleItem line = Assert.Single(sale.Items);
@@ -182,6 +183,7 @@ public sealed class CashierViewModelTests
 
         viewModel.ReceivedAmount = viewModel.NetPayable;
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Sale sale = Assert.Single(sales.Sales);
         SaleItem line = Assert.Single(sale.Items);
@@ -280,6 +282,7 @@ public sealed class CashierViewModelTests
 
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
         await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(viewModel.CartItems);
         Assert.Equal(0m, viewModel.TotalAmount);
@@ -332,6 +335,7 @@ public sealed class CashierViewModelTests
 
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
         await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Sale sale = Assert.Single(sales.Sales);
         Assert.Equal(5_000m, sale.TotalPaid().Amount);
@@ -371,6 +375,7 @@ public sealed class CashierViewModelTests
 
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
         await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("guardada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
         Sale sale = Assert.Single(sales.Sales);
@@ -379,6 +384,71 @@ public sealed class CashierViewModelTests
         Assert.Equal(4_000m, sale.CashInDrawer().Amount);
         Assert.Equal(2, sale.Payments.Count);
         Assert.Empty(viewModel.Tenders);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_AsksForConfirmationAndPersistsNothingUntilTheCashierAgrees()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()))
+        {
+            SearchText = "rice",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        viewModel.ReceivedAmount = 2_500m;
+
+        // The customer question is answered first — the confirmation is the last gate before persisting.
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(viewModel.IsAwaitingSaleConfirmation);
+        Assert.Empty(sales.Sales);
+        Assert.Contains("confirmar esta compra", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(viewModel.IsAwaitingSaleConfirmation);
+        Assert.Single(sales.Sales);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WhenDeclined_KeepsTheCartAndAsksAgainOnTheNextAttempt()
+    {
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()))
+        {
+            SearchText = "rice",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        viewModel.ReceivedAmount = 2_500m;
+
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+        viewModel.ConfirmSaleNoCommand.Execute(null);
+
+        Assert.False(viewModel.IsAwaitingSaleConfirmation);
+        Assert.Empty(sales.Sales);
+        Assert.Single(viewModel.CartItems);
+
+        // Declining must not leave a spent acknowledgement behind that skips the next prompt.
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(viewModel.IsAwaitingSaleConfirmation);
+        Assert.Empty(sales.Sales);
     }
 
     [Fact]
@@ -567,6 +637,7 @@ public sealed class CashierViewModelTests
         viewModel.ReceivedAmount = 110_000m;
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
         await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Sale sale = Assert.Single(sales.Sales);
         Assert.Equal(110_000m, sale.Total().Amount);
@@ -612,6 +683,7 @@ public sealed class CashierViewModelTests
         viewModel.ReceivedAmount = 114_000m;
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
         await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Sale sale = Assert.Single(sales.Sales);
         Assert.Equal(114_000m, sale.Total().Amount);
@@ -676,6 +748,7 @@ public sealed class CashierViewModelTests
         };
 
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Assert.Empty(sales.Sales);
         Assert.Contains("El carrito está vacío", viewModel.Message, StringComparison.OrdinalIgnoreCase);
@@ -837,7 +910,9 @@ public sealed class CashierViewModelTests
         Assert.True(viewModel.IsCustomerAssignmentOpen);
         Assert.Contains("Antes de facturar", viewModel.Message, StringComparison.OrdinalIgnoreCase);
 
+        // The customer question comes first; only then is the sale offered for confirmation.
         await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Sale sale = Assert.Single(sales.Sales);
         Assert.Null(sale.CustomerId);
@@ -872,6 +947,7 @@ public sealed class CashierViewModelTests
         CustomerSearchResult selected = Assert.Single(viewModel.CustomerSearchResults);
 
         await viewModel.SelectCustomerAsync(selected, TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Sale sale = Assert.Single(sales.Sales);
         Assert.Equal(customer.Id, sale.CustomerId);
@@ -930,6 +1006,7 @@ public sealed class CashierViewModelTests
         };
 
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("El carrito está vacío", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -1287,6 +1364,7 @@ public sealed class CashierViewModelTests
         await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
         await viewModel.LoadCustomerQuoteAsync(viewModel.CustomerQuotes.Single(), TestContext.Current.CancellationToken);
         await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
 
         Sale sale = Assert.Single(sales.Sales);
         Assert.Equal(QuoteStatus.Converted, quote.Status);

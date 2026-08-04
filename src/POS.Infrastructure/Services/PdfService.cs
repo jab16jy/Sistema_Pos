@@ -263,8 +263,12 @@ public sealed class PdfService : IPdfService
 
     private static void ComposePaymentCard(IContainer container, Sale sale, CultureInfo culture)
     {
-        var paymentMethods = sale.Payments.Select(p => PaymentMethodName(p.Method)).Distinct();
-        var cashPayment = sale.Payments.FirstOrDefault(p => p.Method == Domain.Enums.PaymentMethod.Cash);
+        // Loyalty points are a discount, not money the customer handed over — they get their own
+        // card, so the tender list covers only the real payment legs.
+        var tenders = sale.Payments
+            .Where(payment => payment.Method != Domain.Enums.PaymentMethod.LoyaltyPoints)
+            .ToList();
+        var cashPayment = tenders.FirstOrDefault(p => p.Method == Domain.Enums.PaymentMethod.Cash);
         decimal loyaltyDiscount = LoyaltyDiscount(sale);
         decimal totalPaid = sale.TotalPaid().Amount - loyaltyDiscount;
 
@@ -272,11 +276,21 @@ public sealed class PdfService : IPdfService
         {
             col.Spacing(4);
             col.Item().Text("Forma de pago").FontSize(9).Bold().FontColor(LabelColor);
-            col.Item().Row(row =>
+
+            // One row per leg: a split payment has to say how much went to each method, and a
+            // transfer has to name the platform that received it.
+            foreach (var payment in tenders)
             {
-                row.RelativeItem().Text(string.Join(", ", paymentMethods.Where(method => method != "Puntos de lealtad"))).FontSize(12).Bold();
-                row.ConstantItem(120).AlignRight().Text(totalPaid.ToString("C0", culture)).FontSize(12).Bold();
-            });
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem()
+                        .Text(Domain.Enums.PaymentMethodLabel.For(payment.Method, payment.BankOrPlatform))
+                        .FontSize(12).Bold();
+                    row.ConstantItem(120).AlignRight()
+                        .Text(payment.Amount.Amount.ToString("C0", culture))
+                        .FontSize(12).Bold();
+                });
+            }
 
             if (cashPayment is not null)
             {
@@ -488,15 +502,6 @@ public sealed class PdfService : IPdfService
     private static IContainer CellStyle(IContainer container) =>
         container.BorderBottom(0.5f).BorderColor("#ECECEC").PaddingVertical(6).PaddingHorizontal(6);
 
-    private static string PaymentMethodName(Domain.Enums.PaymentMethod method) => method switch
-    {
-        Domain.Enums.PaymentMethod.Cash => "Efectivo",
-        Domain.Enums.PaymentMethod.DebitCard => "Tarjeta débito",
-        Domain.Enums.PaymentMethod.CreditCard => "Tarjeta crédito",
-        Domain.Enums.PaymentMethod.Transfer => "Transferencia",
-        Domain.Enums.PaymentMethod.LoyaltyPoints => "Puntos de lealtad",
-        _ => method.ToString()
-    };
 
     private static string PresentationLabel(Domain.Enums.ProductPresentation presentation, int unitsPerPresentation) =>
         Domain.Enums.ProductPresentationLabel.For(presentation, unitsPerPresentation);
