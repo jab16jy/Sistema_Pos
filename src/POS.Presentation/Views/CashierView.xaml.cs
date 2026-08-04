@@ -14,6 +14,39 @@ public partial class CashierView : UserControl
     public CashierView()
     {
         InitializeComponent();
+        DataContextChanged += CashierView_DataContextChanged;
+    }
+
+    private void CashierView_DataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.OldValue is CashierViewModel oldVm)
+        {
+            oldVm.PropertyChanged -= ViewModel_PropertyChanged;
+        }
+
+        if (e.NewValue is CashierViewModel newVm)
+        {
+            newVm.PropertyChanged += ViewModel_PropertyChanged;
+        }
+    }
+
+    private void ViewModel_PropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(CashierViewModel.IsAwaitingSaleConfirmation) or nameof(CashierViewModel.IsAwaitingPrintChoice))
+        {
+            if (sender is CashierViewModel vm && (vm.IsAwaitingSaleConfirmation || vm.IsAwaitingPrintChoice))
+            {
+                ScrollRightPanelToBottom();
+            }
+        }
+    }
+
+    private void ScrollRightPanelToBottom()
+    {
+        Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+        {
+            RightPanelScrollViewer?.ScrollToBottom();
+        }));
     }
 
     private async void CashierView_OnLoaded(object sender, RoutedEventArgs e)
@@ -21,6 +54,10 @@ public partial class CashierView : UserControl
         if (DataContext is CashierViewModel viewModel)
         {
             await viewModel.LoadHeldSalesAsync();
+            if (viewModel.IsAwaitingSaleConfirmation || viewModel.IsAwaitingPrintChoice)
+            {
+                ScrollRightPanelToBottom();
+            }
         }
     }
 

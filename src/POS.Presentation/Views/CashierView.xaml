@@ -475,7 +475,7 @@
     </Border>
 
     <Border Grid.Column="2" Style="{StaticResource Card}" Padding="16">
-      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <ScrollViewer x:Name="RightPanelScrollViewer" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel>
            <Border Background="{StaticResource BrushSecondaryContainer}"
                   CornerRadius="6"
