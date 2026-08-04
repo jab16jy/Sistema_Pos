@@ -3,14 +3,14 @@ namespace POS.Domain.Enums;
 /// <summary>
 /// Single source for how a sold presentation reads on screens, receipts, invoices and quotes,
 /// so the cart, the printed ticket and the PDF never disagree about what was sold.
+/// A blank name is the loose base unit.
 /// </summary>
 public static class ProductPresentationLabel
 {
-    public static string For(ProductPresentation presentation, int unitsPerPresentation) => presentation switch
-    {
-        ProductPresentation.Box => $"Caja x{unitsPerPresentation}",
-        ProductPresentation.HalfBox => $"Media caja x{unitsPerPresentation}",
-        ProductPresentation.QuarterBox => $"Cuarto de caja x{unitsPerPresentation}",
-        _ => "Unidad"
-    };
+    public const string UnitLabel = "Unidad";
+
+    public static string For(string? presentationName, int unitsPerPresentation) =>
+        string.IsNullOrWhiteSpace(presentationName)
+            ? UnitLabel
+            : $"{presentationName.Trim()} x{unitsPerPresentation}";
 }

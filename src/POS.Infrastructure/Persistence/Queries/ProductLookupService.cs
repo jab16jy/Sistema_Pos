@@ -50,12 +50,9 @@ public sealed class ProductLookupService : IProductLookupService
                 SalePrice = product.SalePrice.Amount,
                 product.CurrentStock,
                 product.MinimumStock,
-                product.UnitsPerBox,
-                BoxPrice = product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : (decimal?)null,
-                product.HalfBoxUnits,
-                HalfBoxPrice = product.HalfBoxPrice.HasValue ? product.HalfBoxPrice.Value.Amount : (decimal?)null,
-                product.QuarterBoxUnits,
-                QuarterBoxPrice = product.QuarterBoxPrice.HasValue ? product.QuarterBoxPrice.Value.Amount : (decimal?)null
+                Presentations = product.Presentations
+                    .Select(p => new ProductPresentationDto(p.Name, p.Units, p.Price.Amount))
+                    .ToList()
             })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -76,12 +73,7 @@ public sealed class ProductLookupService : IProductLookupService
                 product.SalePrice,
                 product.CurrentStock,
                 product.MinimumStock,
-                product.UnitsPerBox,
-                product.BoxPrice,
-                product.HalfBoxUnits,
-                product.HalfBoxPrice,
-                product.QuarterBoxUnits,
-                product.QuarterBoxPrice))
+                product.Presentations))
             .ToList();
     }
 
@@ -105,12 +97,9 @@ public sealed class ProductLookupService : IProductLookupService
                 product.SalePrice.Amount,
                 product.CurrentStock,
                 product.MinimumStock,
-                product.UnitsPerBox,
-                product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : null,
-                product.HalfBoxUnits,
-                product.HalfBoxPrice.HasValue ? product.HalfBoxPrice.Value.Amount : null,
-                product.QuarterBoxUnits,
-                product.QuarterBoxPrice.HasValue ? product.QuarterBoxPrice.Value.Amount : null))
+                product.Presentations
+                    .Select(p => new ProductPresentationDto(p.Name, p.Units, p.Price.Amount))
+                    .ToList()))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
     }

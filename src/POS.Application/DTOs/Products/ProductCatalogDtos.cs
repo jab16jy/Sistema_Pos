@@ -10,12 +10,7 @@ public sealed record UpdateProductRequest(
     string? Description,
     string? Barcode,
     decimal TaxRate = 19m,
-    int? UnitsPerBox = null,
-    decimal? BoxPrice = null,
-    int? HalfBoxUnits = null,
-    decimal? HalfBoxPrice = null,
-    int? QuarterBoxUnits = null,
-    decimal? QuarterBoxPrice = null);
+    IReadOnlyList<ProductPresentationDto>? Presentations = null);
 
 public sealed record ProductResult(
     Guid Id,
@@ -29,12 +24,7 @@ public sealed record ProductResult(
     string? Description,
     string? Barcode,
     bool IsActive,
-    int? UnitsPerBox = null,
-    decimal? BoxPrice = null,
-    int? HalfBoxUnits = null,
-    decimal? HalfBoxPrice = null,
-    int? QuarterBoxUnits = null,
-    decimal? QuarterBoxPrice = null);
+    IReadOnlyList<ProductPresentationDto>? Presentations = null);
 
 public sealed record SearchProductsRequest(
     string? SearchText,
@@ -54,12 +44,7 @@ public sealed record ProductSearchResult(
     string? Description,
     string? Barcode,
     bool IsActive,
-    int? UnitsPerBox = null,
-    decimal? BoxPrice = null,
-    int? HalfBoxUnits = null,
-    decimal? HalfBoxPrice = null,
-    int? QuarterBoxUnits = null,
-    decimal? QuarterBoxPrice = null)
+    IReadOnlyList<ProductPresentationDto>? Presentations = null)
 {
     public bool IsOutOfStock => CurrentStock <= 0m;
 

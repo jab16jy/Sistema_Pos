@@ -192,7 +192,7 @@ public sealed partial class EscPosPrinterService : IPrintService
                 : item.ProductName;
 
             WriteLine($"{name.PadRight(nameWidth)} {qty} {subtotal}");
-            WriteLine($"  {PresentationLabel(item.Presentation, item.UnitsPerPresentation)} · Vr unit: {FormatCurrency(item.UnitPrice.Amount)}");
+            WriteLine($"  {PresentationLabel(item.PresentationName, item.UnitsPerPresentation)} · Vr unit: {FormatCurrency(item.UnitPrice.Amount)}");
             if (item.Discount.Amount > 0)
                 WriteLine($"  Dcto: -{FormatCurrency(item.Discount.Amount)}");
             WriteLine();
@@ -313,8 +313,8 @@ public sealed partial class EscPosPrinterService : IPrintService
     private static string FormatCurrency(decimal amount) =>
         $"${amount.ToString("N0", CopCulture)}";
 
-    private static string PresentationLabel(ProductPresentation presentation, int unitsPerPresentation) =>
-        ProductPresentationLabel.For(presentation, unitsPerPresentation);
+    private static string PresentationLabel(string? presentationName, int unitsPerPresentation) =>
+        ProductPresentationLabel.For(presentationName, unitsPerPresentation);
 
     private static async Task PrintViaProcessAsync(ThermalPrinterTarget target, Guid saleId, CancellationToken ct)
     {

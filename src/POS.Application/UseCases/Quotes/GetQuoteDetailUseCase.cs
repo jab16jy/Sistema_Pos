@@ -28,7 +28,7 @@ public sealed class GetQuoteDetailUseCase
                 i.UnitPrice.Amount,
                 i.Discount,
                 i.Subtotal().Amount,
-                i.Presentation,
+                i.PresentationName,
                 i.UnitsPerPresentation))
             .ToList();
 

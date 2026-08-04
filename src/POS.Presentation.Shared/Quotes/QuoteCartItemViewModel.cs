@@ -1,4 +1,4 @@
-using POS.Domain.Enums;
+
 using POS.Presentation.Shared.ViewModels;
 
 namespace POS.Presentation.Shared.Quotes;
@@ -13,15 +13,15 @@ public sealed class QuoteCartItemViewModel : ViewModelBase
         string productName,
         decimal unitPrice,
         decimal availableStock = 1000m,
-        ProductPresentation presentation = ProductPresentation.Unit,
+        string? presentationName = null,
         int unitsPerPresentation = 1)
     {
         ProductId = productId;
         ProductName = productName;
         UnitPrice = unitPrice;
         AvailableStock = availableStock;
-        Presentation = presentation;
-        UnitsPerPresentation = presentation == ProductPresentation.Unit ? 1 : Math.Max(2, unitsPerPresentation);
+        PresentationName = string.IsNullOrWhiteSpace(presentationName) ? null : presentationName.Trim();
+        UnitsPerPresentation = PresentationName is null ? 1 : Math.Max(2, unitsPerPresentation);
         _quantity = 1m;
         _discount = 0m;
     }
@@ -30,9 +30,9 @@ public sealed class QuoteCartItemViewModel : ViewModelBase
     public string ProductName { get; }
     public decimal UnitPrice { get; }
     public decimal AvailableStock { get; }
-    public ProductPresentation Presentation { get; }
+    public string? PresentationName { get; }
     public int UnitsPerPresentation { get; }
-    public string PresentationLabel => ProductPresentationLabel.For(Presentation, UnitsPerPresentation);
+    public string PresentationLabel => Domain.Enums.ProductPresentationLabel.For(PresentationName, UnitsPerPresentation);
     public decimal InventoryUnits => Quantity * UnitsPerPresentation;
 
     public decimal Quantity

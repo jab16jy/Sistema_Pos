@@ -108,9 +108,10 @@
                               FontSize="15" />
 
           <Button Grid.Column="2"
-                  Content="Buscar"
-                  Command="{Binding SearchCommand}"
-                  Style="{StaticResource PrimaryButton}"
+                  Content="Limpiar"
+                  ToolTip="Vacía el buscador para empezar de nuevo"
+                  Command="{Binding ClearSearchCommand}"
+                  Style="{StaticResource SecondaryOutlineButton}"
                   Height="44"
                   Margin="8,0,0,0" />
         </Grid>
@@ -149,10 +150,12 @@
                        BorderThickness="0"
                        Background="Transparent"
                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                       MaxHeight="180">
+                       MaxHeight="380">
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <Border Padding="12,10"
+                  <!-- Compact row: the cashier scans by sight, so more products at once beats
+                       breathing room per product. -->
+                  <Border Padding="8,5"
                           BorderBrush="{StaticResource BrushBorder}"
                           BorderThickness="0,0,0,1">
                     <Grid>
@@ -163,17 +166,18 @@
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
 
-                      <Border Width="32"
-                              Height="32"
+                      <Border Width="22"
+                              Height="22"
                               CornerRadius="4"
+                              VerticalAlignment="Center"
                               Background="{StaticResource BrushPrimaryContainer}"
-                              Margin="0,0,12,0">
-                        <materialDesign:PackIcon Kind="Pill" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                              Margin="0,0,8,0">
+                        <materialDesign:PackIcon Kind="Pill" Width="13" Height="13" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                       </Border>
 
-                      <StackPanel Grid.Column="1">
-                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                        <TextBlock Style="{StaticResource CashHint}">
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Style="{StaticResource CashHint}" FontSize="10">
                           <TextBlock.Text>
                             <MultiBinding StringFormat="COD: {0} · {1}">
                               <Binding Path="Barcode" />
@@ -185,9 +189,9 @@
 
                       <Border Grid.Column="2"
                               CornerRadius="3"
-                              Padding="6,2"
+                              Padding="5,1"
                               VerticalAlignment="Center"
-                              Margin="16,0,12,0">
+                              Margin="10,0,10,0">
                         <Border.Style>
                           <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
                             <Setter Property="Background" Value="{StaticResource BrushSuccessContainer}" />
@@ -205,7 +209,7 @@
                           </Style>
                         </Border.Style>
                         <TextBlock Text="{Binding StockStatusLabel}"
-                                   FontSize="11"
+                                   FontSize="10"
                                    FontWeight="Medium">
                           <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -226,6 +230,7 @@
                       <TextBlock Grid.Column="3"
                                  Text="{Binding UnitPriceText}"
                                  FontWeight="SemiBold"
+                                 FontSize="13"
                                  Foreground="{StaticResource BrushPrimary}"
                                  VerticalAlignment="Center" />
                     </Grid>
@@ -240,43 +245,26 @@
                      Margin="2,6,0,0"
                      Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-           <StackPanel Orientation="Horizontal" Margin="2,6,0,0">
-             <TextBlock Text="Presentación:" Style="{StaticResource CashHint}" VerticalAlignment="Center" Margin="0,0,8,0" />
-              <RadioButton Content="Unidad"
-                           IsChecked="{Binding IsUnitPresentationSelected, Mode=OneWay}"
-                           Command="{Binding SelectUnitPresentationCommand}"
-                           VerticalAlignment="Center" />
-              <RadioButton Command="{Binding SelectBoxPresentationCommand}"
-                           IsChecked="{Binding IsBoxPresentationSelected, Mode=OneWay}"
-                           IsEnabled="{Binding CanSellSelectedAsBox}"
-                           VerticalAlignment="Center"
-                           Margin="12,0,0,0">
-               <StackPanel Orientation="Horizontal">
-                 <TextBlock Text="Caja" />
-                 <TextBlock Text="{Binding SelectedBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
-               </StackPanel>
-             </RadioButton>
-              <RadioButton Command="{Binding SelectHalfBoxPresentationCommand}"
-                           IsChecked="{Binding IsHalfBoxPresentationSelected, Mode=OneWay}"
-                           IsEnabled="{Binding CanSellSelectedAsHalfBox}"
-                           VerticalAlignment="Center"
-                           Margin="12,0,0,0">
-               <StackPanel Orientation="Horizontal">
-                 <TextBlock Text="Media caja" />
-                 <TextBlock Text="{Binding SelectedHalfBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
-               </StackPanel>
-             </RadioButton>
-              <RadioButton Command="{Binding SelectQuarterBoxPresentationCommand}"
-                           IsChecked="{Binding IsQuarterBoxPresentationSelected, Mode=OneWay}"
-                           IsEnabled="{Binding CanSellSelectedAsQuarterBox}"
-                           VerticalAlignment="Center"
-                           Margin="12,0,0,0">
-               <StackPanel Orientation="Horizontal">
-                 <TextBlock Text="Cuarto de caja" />
-                 <TextBlock Text="{Binding SelectedQuarterBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
-               </StackPanel>
-             </RadioButton>
-           </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="2,6,0,0">
+              <TextBlock Text="Presentación:" Style="{StaticResource CashHint}" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <ItemsControl ItemsSource="{Binding AvailablePresentations}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <RadioButton Content="{Binding DisplayText}"
+                                 IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                 Command="{Binding DataContext.SelectPresentationCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                 CommandParameter="{Binding}"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,12,0" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
           </StackPanel>
 
           <Button Grid.Column="1"

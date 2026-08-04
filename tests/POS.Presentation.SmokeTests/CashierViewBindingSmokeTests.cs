@@ -42,6 +42,12 @@ public sealed class CashierViewBindingSmokeTests
                 // Same for the benefit claim panel and the redemption history rows.
                 ShowAndClose(new CustomersView());
 
+                // The product form and the quote lines render the user-defined presentation rows;
+                // a missing StaticResource or a single-child panel given two children only shows up
+                // when the markup is actually loaded.
+                ShowAndClose(new ProductsView());
+                ShowAndClose(new QuoteView());
+
                 application.Shutdown();
             }
             catch (Exception ex)

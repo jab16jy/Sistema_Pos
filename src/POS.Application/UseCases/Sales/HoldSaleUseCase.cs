@@ -63,12 +63,12 @@ public sealed class HoldSaleUseCase
                     throw new ArgumentException("A sale line snapshot requires both price and units per presentation.", nameof(request));
                 }
 
-                sale.AddItem(product, new Quantity(item.Quantity), item.Presentation, new Money(item.Discount),
+                sale.AddItem(product, new Quantity(item.Quantity), item.PresentationName, new Money(item.Discount),
                     new Money(item.UnitPriceOverride.Value), item.UnitsPerPresentationOverride.Value);
             }
             else
             {
-                sale.AddItem(product, new Quantity(item.Quantity), item.Presentation, new Money(item.Discount));
+                sale.AddItem(product, new Quantity(item.Quantity), item.PresentationName, new Money(item.Discount));
             }
         }
 

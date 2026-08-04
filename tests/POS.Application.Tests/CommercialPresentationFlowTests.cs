@@ -26,7 +26,7 @@ public sealed class CommercialPresentationFlowTests
             new Money(110_000m),
             new Quantity(1m),
             10m,
-            ProductPresentation.Box,
+            "Caja",
             12));
 
         var products = new SingleProductRepository(product);
@@ -43,7 +43,7 @@ public sealed class CommercialPresentationFlowTests
             TestContext.Current.CancellationToken);
 
         SaleItem line = Assert.Single(Assert.Single(sales.Sales).Items);
-        Assert.Equal(ProductPresentation.Box, line.Presentation);
+        Assert.Equal("Caja", line.PresentationName);
         Assert.Equal(12, line.UnitsPerPresentation);
         Assert.Equal(110_000m, line.UnitPrice.Amount);
         Assert.Equal(99_000m, line.Subtotal().Amount);
@@ -57,7 +57,7 @@ public sealed class CommercialPresentationFlowTests
     {
         var product = MakeBoxProduct(stock: 24m, unitsPerBox: 12, boxPrice: 110_000m);
         var sale = new Sale(Guid.NewGuid());
-        sale.AddItem(product, new Quantity(2m), ProductPresentation.Box, Money.Zero);
+        sale.AddItem(product, new Quantity(2m), "Caja", Money.Zero);
         sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(220_000m), new Money(220_000m)));
         sale.Complete();
 
@@ -115,15 +115,14 @@ public sealed class CommercialPresentationFlowTests
         Assert.Null(result.Items.Single(item => item.QuoteId == notEmailed.Id).ReminderLabel);
     }
 
-    private static Product MakeBoxProduct(decimal stock, int unitsPerBox, decimal boxPrice) => new(
-        "Ampolla 350",
+    private static Product MakeBoxProduct(decimal stock, int unitsPerBox = 12, decimal boxPrice = 110_000m) => new(
+        "Product Box Test",
         Guid.NewGuid(),
         new Money(6_000m),
         new Money(10_000m),
         new StockQuantity(stock),
         new StockQuantity(0m),
-        unitsPerBox: unitsPerBox,
-        boxPrice: new Money(boxPrice));
+        presentations: [("Caja", unitsPerBox, new Money(boxPrice))]);
 
     private static Quote MakeQuote(string quoteNumber, DateTime expiresAt)
     {

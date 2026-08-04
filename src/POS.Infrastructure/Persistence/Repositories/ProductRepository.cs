@@ -15,7 +15,11 @@ public sealed class ProductRepository : IProductRepository
 
     public Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return _dbContext.Products.FirstOrDefaultAsync(product => product.Id == id && product.IsActive, cancellationToken);
+        // Presentations must be loaded with the product: editing one calls ReplacePresentations, and
+        // rows the change tracker never saw can neither be updated nor removed.
+        return _dbContext.Products
+                         .Include(product => product.Presentations)
+                         .FirstOrDefaultAsync(product => product.Id == id && product.IsActive, cancellationToken);
     }
 
     public Task<Product?> GetByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)

@@ -37,32 +37,20 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.SalePrice)
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("sale_price");
-        builder.Property(p => p.UnitsPerBox)
-               .HasColumnName("units_per_box");
-        builder.Property(p => p.BoxPrice)
-               .HasConversion(
-                    value => value.HasValue ? value.Value.Amount : (decimal?)null,
-                    value => value.HasValue ? new Money(value.Value) : null)
-               .HasColumnName("box_price");
-        builder.Property(p => p.HalfBoxUnits)
-               .HasColumnName("half_box_units");
-        builder.Property(p => p.HalfBoxPrice)
-               .HasConversion(
-                    value => value.HasValue ? value.Value.Amount : (decimal?)null,
-                    value => value.HasValue ? new Money(value.Value) : null)
-               .HasColumnName("half_box_price");
-        builder.Property(p => p.QuarterBoxUnits)
-               .HasColumnName("quarter_box_units");
-        builder.Property(p => p.QuarterBoxPrice)
-               .HasConversion(
-                    value => value.HasValue ? value.Value.Amount : (decimal?)null,
-                    value => value.HasValue ? new Money(value.Value) : null)
-               .HasColumnName("quarter_box_price");
         builder.Property(p => p.TaxRate)
                .HasColumnName("tax_rate");
         builder.Property(p => p.Version)
                .IsConcurrencyToken()
                .HasDefaultValue(0);
+        // Product.Presentations is a computed projection over the private list, so EF must read and
+        // write the backing field; going through the getter would hand it a detached copy.
+        builder.HasMany(p => p.Presentations)
+               .WithOne()
+               .HasForeignKey(pp => pp.ProductId)
+               .OnDelete(DeleteBehavior.Cascade);
+        builder.Metadata
+               .FindNavigation(nameof(Product.Presentations))!
+               .SetPropertyAccessMode(PropertyAccessMode.Field);
         builder.HasOne<Category>()
                .WithMany()
                .HasForeignKey(p => p.CategoryId)

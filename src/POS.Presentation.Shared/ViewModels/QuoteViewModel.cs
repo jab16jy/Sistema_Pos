@@ -57,9 +57,14 @@ public sealed class QuoteViewModel : ViewModelBase
         SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => ValidationMessage = $"Error al buscar productos: {ex.Message}"));
         SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => ValidationMessage = $"Error al buscar clientes: {ex.Message}"));
         SelectCustomerCommand = new RelayCommand(p => SelectCustomer(p as CustomerSearchResult));
-        AddToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel));
-        AddUnitToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, ProductPresentation.Unit));
-        AddBoxToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, ProductPresentation.Box));
+        AddToCartCommand = new RelayCommand(p => {
+            if (p is PresentationOptionViewModel opt)
+                AddToCart(opt.Product, opt.Name);
+            else if (p is CashierProductSearchResultViewModel prod)
+                AddToCart(prod, null);
+        });
+        AddUnitToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, null));
+        AddBoxToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, "Caja"));
         RemoveFromCartCommand = new RelayCommand(p => RemoveFromCart(p as QuoteCartItemViewModel));
         ConfirmCommand = new RelayCommand(_ => RunSafe(ConfirmAsync(), ex => ValidationMessage = $"Error al crear la cotización: {ex.Message}"));
         SendByEmailCommand = new RelayCommand(_ => RunSafe(SendByEmailAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
@@ -314,23 +319,24 @@ public sealed class QuoteViewModel : ViewModelBase
         ValidationMessage = "Cliente registrado vinculado a la cotización.";
     }
 
-    private void AddToCart(CashierProductSearchResultViewModel? product, ProductPresentation presentation = ProductPresentation.Unit)
+    public void AddToCart(CashierProductSearchResultViewModel? product, string? presentationName = null)
     {
         if (product is null)
         {
             return;
         }
 
-        if (presentation == ProductPresentation.Box && !product.SupportsBox)
+        (int Units, decimal Price)? package = product.PackageFor(presentationName);
+        if (!product.Supports(presentationName))
         {
-            ValidationMessage = $"{product.Name} no está configurado para venta por caja.";
+            ValidationMessage = $"{product.Name} no está configurado para la presentación '{presentationName}'.";
             return;
         }
 
-        int unitsPerPresentation = presentation == ProductPresentation.Box ? product.UnitsPerBox!.Value : 1;
-        decimal unitPrice = presentation == ProductPresentation.Box ? product.BoxPrice!.Value : product.UnitPrice;
+        int unitsPerPresentation = package?.Units ?? 1;
+        decimal unitPrice = package?.Price ?? product.UnitPrice;
         QuoteCartItemViewModel? existing = CartItems.FirstOrDefault(i =>
-            i.ProductId == product.ProductId && i.Presentation == presentation);
+            i.ProductId == product.ProductId && string.Equals(i.PresentationName, presentationName, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
             existing.Quantity += 1m;
@@ -342,7 +348,7 @@ public sealed class QuoteViewModel : ViewModelBase
                 product.Name,
                 unitPrice,
                 product.AvailableStock,
-                presentation,
+                presentationName,
                 unitsPerPresentation);
             item.PropertyChanged += (_, _) => RecalculateTotal();
             CartItems.Add(item);
@@ -515,7 +521,7 @@ public sealed class QuoteViewModel : ViewModelBase
         }
 
         IReadOnlyCollection<CreateQuoteItemRequest> items = CartItems
-            .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount, i.Presentation))
+            .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount, i.PresentationName))
             .ToList();
 
         CreateQuoteRequest request = new(

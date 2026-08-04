@@ -228,17 +228,22 @@
                             </TextBlock.Style>
                           </TextBlock>
                         </Border>
-                         <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
-                           <Button Content="Unidad"
-                                   Style="{StaticResource GhostQuoteButton}"
-                                   Command="{Binding DataContext.AddUnitToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                   CommandParameter="{Binding}" />
-                           <Button Content="{Binding BoxLabel}"
-                                   Style="{StaticResource GhostQuoteButton}"
-                                   Visibility="{Binding SupportsBox, Converter={StaticResource BoolToVisibilityConverter}}"
-                                   Command="{Binding DataContext.AddBoxToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                   CommandParameter="{Binding}" />
-                         </StackPanel>
+                         <ItemsControl Grid.Column="3" ItemsSource="{Binding AvailablePresentations}" VerticalAlignment="Center">
+                           <ItemsControl.ItemsPanel>
+                             <ItemsPanelTemplate>
+                               <WrapPanel Orientation="Horizontal" />
+                             </ItemsPanelTemplate>
+                           </ItemsControl.ItemsPanel>
+                           <ItemsControl.ItemTemplate>
+                             <DataTemplate>
+                               <Button Content="{Binding Label}"
+                                       Style="{StaticResource GhostQuoteButton}"
+                                       Command="{Binding DataContext.AddToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                       CommandParameter="{Binding}"
+                                       Margin="0,0,4,0" />
+                             </DataTemplate>
+                           </ItemsControl.ItemTemplate>
+                         </ItemsControl>
                       </Grid>
                     </Border>
                   </DataTemplate>

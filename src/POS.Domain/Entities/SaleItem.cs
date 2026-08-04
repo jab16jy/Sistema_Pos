@@ -18,7 +18,7 @@ public sealed class SaleItem
         Money discount,
         Money unitCost = default,
         decimal taxRate = 19m,
-        ProductPresentation presentation = ProductPresentation.Unit,
+        string? presentationName = null,
         int unitsPerPresentation = 1)
     {
         Id = Guid.NewGuid();
@@ -29,8 +29,8 @@ public sealed class SaleItem
         Discount = discount;
         UnitCost = unitCost;
         TaxRate = ValidateTaxRate(taxRate);
-        Presentation = presentation;
-        UnitsPerPresentation = ValidateUnitsPerPresentation(presentation, unitsPerPresentation);
+        PresentationName = string.IsNullOrWhiteSpace(presentationName) ? null : presentationName.Trim();
+        UnitsPerPresentation = ValidateUnitsPerPresentation(PresentationName, unitsPerPresentation);
     }
 
     public Guid Id { get; private set; }
@@ -41,7 +41,13 @@ public sealed class SaleItem
     public Money UnitPrice { get; private set; }
     public Money Discount { get; private set; }
     public decimal TaxRate { get; private set; }
-    public ProductPresentation Presentation { get; private set; }
+    /// <summary>
+    /// Name snapshot of the presentation sold, copied at sale time. Null means the loose base unit.
+    /// Deliberately a copy and not a foreign key: renaming or deleting a presentation in the
+    /// catalogue must never rewrite what a past invoice says was sold.
+    /// </summary>
+    public string? PresentationName { get; private set; }
+
     public int UnitsPerPresentation { get; private set; }
 
     /// <summary>
@@ -106,9 +112,9 @@ public sealed class SaleItem
         return taxRate;
     }
 
-    private static int ValidateUnitsPerPresentation(ProductPresentation presentation, int unitsPerPresentation)
+    private static int ValidateUnitsPerPresentation(string? presentationName, int unitsPerPresentation)
     {
-        if (presentation == ProductPresentation.Unit)
+        if (presentationName is null)
         {
             return 1;
         }

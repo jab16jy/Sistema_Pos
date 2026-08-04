@@ -72,8 +72,7 @@ public sealed class CreateQuoteUseCaseTests
             new Money(1_000m),
             new StockQuantity(20m),
             new StockQuantity(2m),
-            unitsPerBox: 6,
-            boxPrice: new Money(5_400m));
+            presentations: [("Caja", 6, new Money(5_400m))]);
         var products = new InMemoryProductRepository(product);
         var quotes = new InMemoryQuoteRepository("COT-2026-0002");
         var useCase = new CreateQuoteUseCase(quotes, products, new InMemoryUnitOfWork());
@@ -85,11 +84,11 @@ public sealed class CreateQuoteUseCaseTests
             null,
             30,
             null,
-            [new CreateQuoteItemRequest(product.Id, 2m, 0m, ProductPresentation.Box)]),
+            [new CreateQuoteItemRequest(product.Id, 2m, 0m, "Caja")]),
             TestContext.Current.CancellationToken);
 
         QuoteItem item = Assert.Single(Assert.Single(quotes.Quotes).Items);
-        Assert.Equal(ProductPresentation.Box, item.Presentation);
+        Assert.Equal("Caja", item.PresentationName);
         Assert.Equal(6, item.UnitsPerPresentation);
         Assert.Equal(5_400m, item.UnitPrice.Amount);
         Assert.Equal(20m, product.CurrentStock);

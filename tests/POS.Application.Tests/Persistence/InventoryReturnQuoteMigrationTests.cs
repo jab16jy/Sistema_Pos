@@ -166,10 +166,18 @@ public sealed class InventoryReturnQuoteMigrationTests
         dbContext.InventoryMovements.Add(orphanMovement);
 
         // Orphan SaleReturnItem: ProductId and SaleItemId both point at rows that no longer exist.
-        var sale = new Sale(cashier.Id);
-        sale.AddItem(product, new Quantity(1m), Money.Zero);
-        dbContext.Sales.Add(sale);
-        var saleReturn = new SaleReturn(sale.Id, cashier.Id, "Orphan return", Guid.NewGuid());
+        Guid saleId = Guid.NewGuid();
+        Guid saleItemId = Guid.NewGuid();
+        await dbContext.Database.ExecuteSqlRawAsync($"""
+            INSERT INTO "SALES" ("Id", "InvoiceNumber", "CashierUserId", "Status", "CreatedAt")
+            VALUES ('{saleId}', 'INV-TEST-002', '{cashier.Id}', 3, '2026-01-01');
+            """);
+        await dbContext.Database.ExecuteSqlRawAsync($"""
+            INSERT INTO "SALE_ITEMS" ("Id", "SaleId", "ProductId", "ProductName", "Quantity", "unit_price", "discount", "UnitCost", "tax_rate", "presentation", "units_per_presentation")
+            VALUES ('{saleItemId}', '{saleId}', '{product.Id}', '{product.Name}', 1, 20, 0, 10, 19, 1, 1);
+            """);
+
+        var saleReturn = new SaleReturn(saleId, cashier.Id, "Orphan return", Guid.NewGuid());
         var orphanReturnItem = new SaleReturnItem(saleReturn.Id, Guid.NewGuid(), Guid.NewGuid(), "Ghost product", 1, new Money(20m), new Money(20m));
         saleReturn.AddItem(orphanReturnItem);
         dbContext.SaleReturns.Add(saleReturn);

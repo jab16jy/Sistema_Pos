@@ -589,7 +589,7 @@ public sealed class CashierViewModelTests
 
         var held = new HeldSaleSummary(
             sale.Id, cashierId, null, sale.InvoiceNumber, sale.CreatedAt, 2_500m,
-            [new HeldSaleItem(product.Id, product.Name, 1m, 2_500m, 0m, ProductPresentation.Unit, 1)]);
+            [new HeldSaleItem(product.Id, product.Name, 1m, 2_500m, 0m, null, 1)]);
 
         await viewModel.ResumeHeldSaleAsync(held, TestContext.Current.CancellationToken);
 
@@ -601,7 +601,6 @@ public sealed class CashierViewModelTests
     [Fact]
     public async Task AddingAsBox_ChargesBoxPrice_AndDecrementsStockInBaseUnits()
     {
-        // Ampolla 350 (doc example): 1 unit = 10.000, but 1 box of 12 = 110.000 (not 120.000).
         var product = new Product(
             "Ampolla 350",
             Guid.NewGuid(),
@@ -609,13 +608,13 @@ public sealed class CashierViewModelTests
             new Money(10_000m),
             new StockQuantity(24m),
             new StockQuantity(0m),
-            unitsPerBox: 12,
-            boxPrice: new Money(110_000m));
+            presentations: [("Caja", 12, new Money(110_000m))]);
         var sales = new InMemorySaleRepository();
         var unitOfWork = new InMemoryUnitOfWork();
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(
-                product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock, 0m, 12, 110_000m)),
+                product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock, 0m,
+                [new ProductPresentationDto("Caja", 12, 110_000m)])),
             new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, authorizer: CreateAuthorizer()))
         {
             SearchText = "ampolla",
@@ -624,14 +623,12 @@ public sealed class CashierViewModelTests
         };
 
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
-        Assert.True(viewModel.CanSellSelectedAsBox);
-
-        viewModel.SelectedPresentation = ProductPresentation.Box;
+        viewModel.SelectedPresentationOption = viewModel.AvailablePresentations.First(p => p.Name == "Caja");
         viewModel.AddSelectedProductCommand.Execute(null);
 
         CashierCartItemViewModel line = Assert.Single(viewModel.CartItems);
         Assert.Equal(110_000m, line.UnitPrice);
-        Assert.Equal(ProductPresentation.Box, line.Presentation);
+        Assert.Equal("Caja", line.PresentationName);
         Assert.Equal(12m, line.InventoryUnits);
 
         viewModel.ReceivedAmount = 110_000m;
@@ -654,15 +651,13 @@ public sealed class CashierViewModelTests
             new Money(10_000m),
             new StockQuantity(24m),
             new StockQuantity(0m),
-            unitsPerBox: 12,
-            boxPrice: new Money(110_000m),
-            halfBoxUnits: 6,
-            halfBoxPrice: new Money(57_000m));
+            presentations: [("Caja", 12, new Money(110_000m)), ("Media caja", 6, new Money(57_000m))]);
         var sales = new InMemorySaleRepository();
         var unitOfWork = new InMemoryUnitOfWork();
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(
-                product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock, 0m, 12, 110_000m, 6, 57_000m)),
+                product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock, 0m,
+                [new ProductPresentationDto("Caja", 12, 110_000m), new ProductPresentationDto("Media caja", 6, 57_000m)])),
             new CreateSaleUseCase(new InMemoryProductRepository(product), sales, unitOfWork, authorizer: CreateAuthorizer()))
         {
             SearchText = "ampolla",
@@ -670,12 +665,12 @@ public sealed class CashierViewModelTests
         };
 
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
-        viewModel.SelectedPresentation = ProductPresentation.HalfBox;
+        viewModel.SelectedPresentationOption = viewModel.AvailablePresentations.First(p => p.Name == "Media caja");
         viewModel.Quantity = 2m;
         viewModel.AddSelectedProductCommand.Execute(null);
 
         CashierCartItemViewModel line = Assert.Single(viewModel.CartItems);
-        Assert.Equal(ProductPresentation.HalfBox, line.Presentation);
+        Assert.Equal("Media caja", line.PresentationName);
         // Two half boxes cost 2 * 57.000 - not one box (110.000), and not 12 * 10.000.
         Assert.Equal(114_000m, line.Subtotal);
         Assert.Equal(12m, line.InventoryUnits);
@@ -695,13 +690,14 @@ public sealed class CashierViewModelTests
     {
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(
-                Guid.NewGuid(), "Ampolla 350", "7701", 10_000m, 24m, 0m, 12, 110_000m)))
+                Guid.NewGuid(), "Ampolla 350", "7701", 10_000m, 24m, 0m,
+                [new ProductPresentationDto("Caja", 12, 110_000m)])))
         {
             SearchText = "ampolla"
         };
 
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
-        viewModel.SelectedPresentation = ProductPresentation.Box;
+        viewModel.SelectedPresentationOption = viewModel.AvailablePresentations.First(p => p.Name == "Caja");
 
         viewModel.Quantity = 0.5m;
         Assert.Equal(1m, viewModel.Quantity);
@@ -713,23 +709,23 @@ public sealed class CashierViewModelTests
     [Fact]
     public async Task SelectedPresentation_WhenTheProductDoesNotOfferIt_FallsBackToUnit()
     {
-        // Box configured, quarter box not: picking the quarter must never price off a missing package.
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(
-                Guid.NewGuid(), "Ampolla 350", "7701", 10_000m, 24m, 0m, 12, 110_000m)))
+                Guid.NewGuid(), "Ampolla 350", "7701", 10_000m, 24m, 0m,
+                [new ProductPresentationDto("Caja", 12, 110_000m)])))
         {
             SearchText = "ampolla"
         };
 
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
 
-        viewModel.SelectedPresentation = ProductPresentation.QuarterBox;
-        Assert.Equal(ProductPresentation.Unit, viewModel.SelectedPresentation);
-        Assert.False(viewModel.CanSellSelectedAsQuarterBox);
+        // Asking for a non-existent presentation falls back to Unidad option (null Name)
+        Assert.Null(viewModel.SelectedProduct!.PackageFor("Cuarto de caja"));
+        Assert.True(viewModel.SelectedPresentationOption!.IsUnit);
 
         viewModel.AddSelectedProductCommand.Execute(null);
         CashierCartItemViewModel line = Assert.Single(viewModel.CartItems);
-        Assert.Equal(ProductPresentation.Unit, line.Presentation);
+        Assert.Null(line.PresentationName);
         Assert.Equal(10_000m, line.UnitPrice);
     }
 
@@ -788,6 +784,26 @@ public sealed class CashierViewModelTests
         var result = Assert.Single(viewModel.SearchResults);
         Assert.Equal("Exfoliante facial", result.Name);
         Assert.Equal(result, viewModel.SelectedProduct);
+    }
+
+    [Fact]
+    public async Task ClearSearchCommand_EmptiesTheSearchBoxAndItsResults()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz"
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        Assert.NotEmpty(viewModel.SearchResults);
+        Assert.True(viewModel.ClearSearchCommand.CanExecute(null));
+
+        viewModel.ClearSearchCommand.Execute(null);
+
+        Assert.Equal(string.Empty, viewModel.SearchText);
+        Assert.Empty(viewModel.SearchResults);
+        Assert.Null(viewModel.SelectedProduct);
+        // Nothing left to clear, so the button stops inviting a click.
+        Assert.False(viewModel.ClearSearchCommand.CanExecute(null));
     }
 
     [Fact]
