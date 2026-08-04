@@ -44,7 +44,7 @@ public sealed record InvoiceDetailItemResult(
     ProductPresentation Presentation = ProductPresentation.Unit,
     int UnitsPerPresentation = 1)
 {
-    public string PresentationLabel => Presentation == ProductPresentation.Box ? $"Caja x{UnitsPerPresentation}" : "Unidad";
+    public string PresentationLabel => ProductPresentationLabel.For(Presentation, UnitsPerPresentation);
 }
 
 public sealed record InvoicePaymentResult(

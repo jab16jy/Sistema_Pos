@@ -294,7 +294,7 @@ public sealed partial class EscPosPrinterService : IPrintService
         $"${amount.ToString("N0", CopCulture)}";
 
     private static string PresentationLabel(ProductPresentation presentation, int unitsPerPresentation) =>
-        presentation == ProductPresentation.Box ? $"Caja x{unitsPerPresentation}" : "Unidad";
+        ProductPresentationLabel.For(presentation, unitsPerPresentation);
 
     private static async Task PrintViaProcessAsync(ThermalPrinterTarget target, Guid saleId, CancellationToken ct)
     {

@@ -499,7 +499,7 @@ public sealed class PdfService : IPdfService
     };
 
     private static string PresentationLabel(Domain.Enums.ProductPresentation presentation, int unitsPerPresentation) =>
-        presentation == Domain.Enums.ProductPresentation.Box ? $"Caja x{unitsPerPresentation}" : "Unidad";
+        Domain.Enums.ProductPresentationLabel.For(presentation, unitsPerPresentation);
 
     private async Task<Customer?> FindCustomerAsync(Guid? customerId, CancellationToken ct) => customerId.HasValue
         ? await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(customer => customer.Id == customerId.Value, ct).ConfigureAwait(false)

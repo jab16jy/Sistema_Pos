@@ -32,7 +32,7 @@ public sealed class QuoteCartItemViewModel : ViewModelBase
     public decimal AvailableStock { get; }
     public ProductPresentation Presentation { get; }
     public int UnitsPerPresentation { get; }
-    public string PresentationLabel => Presentation == ProductPresentation.Box ? $"Caja x{UnitsPerPresentation}" : "Unidad";
+    public string PresentationLabel => ProductPresentationLabel.For(Presentation, UnitsPerPresentation);
     public decimal InventoryUnits => Quantity * UnitsPerPresentation;
 
     public decimal Quantity
