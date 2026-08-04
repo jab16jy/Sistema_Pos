@@ -144,6 +144,65 @@ public sealed class ProductBoxPresentationTests
     }
 
     [Fact]
+    public void HalfBoxSale_UsesItsOwnPriceAndUnits_NotAFractionOfTheBox()
+    {
+        // Doc example: half a box is priced at 57.000, deliberately more than 110.000 / 2.
+        var product = new Product(
+            "Ampolla 350",
+            Guid.NewGuid(),
+            new Money(6_000m),
+            new Money(10_000m),
+            new StockQuantity(24m),
+            new StockQuantity(0m),
+            unitsPerBox: 12,
+            boxPrice: new Money(110_000m),
+            halfBoxUnits: 6,
+            halfBoxPrice: new Money(57_000m));
+        var sale = new Sale(Guid.NewGuid());
+
+        sale.AddItem(product, new Quantity(2m), ProductPresentation.HalfBox, Money.Zero);
+
+        SaleItem line = Assert.Single(sale.Items);
+        Assert.Equal(ProductPresentation.HalfBox, line.Presentation);
+        Assert.Equal(6, line.UnitsPerPresentation);
+        Assert.Equal(114_000m, sale.Total().Amount);
+        Assert.Equal(12m, product.CurrentStock);
+        // Cost snapshot follows the same equivalence: 6.000 per unit * 6 units.
+        Assert.Equal(36_000m, line.UnitCost.Amount);
+    }
+
+    [Fact]
+    public void PackagedPresentations_AreIndependent_OfEachOther()
+    {
+        // A shop may price a quarter box without ever offering the full one.
+        var product = new Product(
+            "Ampolla 350",
+            Guid.NewGuid(),
+            new Money(6_000m),
+            new Money(10_000m),
+            new StockQuantity(24m),
+            new StockQuantity(0m),
+            quarterBoxUnits: 3,
+            quarterBoxPrice: new Money(30_000m));
+
+        Assert.True(product.Supports(ProductPresentation.QuarterBox));
+        Assert.False(product.Supports(ProductPresentation.Box));
+        Assert.False(product.Supports(ProductPresentation.HalfBox));
+        Assert.Equal(30_000m, product.PriceFor(ProductPresentation.QuarterBox).Amount);
+        Assert.Equal(9m, product.InventoryUnitsFor(ProductPresentation.QuarterBox, 3m));
+    }
+
+    [Fact]
+    public void SellingAPresentation_TheProductDoesNotOffer_Throws()
+    {
+        Product product = MakeAmpolla();
+        var sale = new Sale(Guid.NewGuid());
+
+        Assert.Throws<InvalidOperationException>(() =>
+            sale.AddItem(product, new Quantity(1m), ProductPresentation.HalfBox, Money.Zero));
+    }
+
+    [Fact]
     public void BoxConfig_RequiresBothUnitsAndPrice()
     {
         Assert.Throws<ArgumentException>(() => new Product(

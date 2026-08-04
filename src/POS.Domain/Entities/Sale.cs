@@ -79,11 +79,7 @@ public sealed class Sale
     public void AddItem(Product product, Quantity quantity, ProductPresentation presentation, Money discount)
     {
         ArgumentNullException.ThrowIfNull(product);
-        int unitsPerPresentation = presentation == ProductPresentation.Box
-            ? product.UnitsPerBox ?? throw new InvalidOperationException($"Product '{product.Name}' is not configured for box sales.")
-            : 1;
-
-        AddItem(product, quantity, presentation, discount, product.PriceFor(presentation), unitsPerPresentation);
+        AddItem(product, quantity, presentation, discount, product.PriceFor(presentation), product.UnitsFor(presentation));
     }
 
     /// <summary>
@@ -108,7 +104,7 @@ public sealed class Sale
             ? 1
             : unitsPerPresentation >= 2
                 ? unitsPerPresentation
-                : throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A box presentation must contain at least 2 base units.");
+                : throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A packaged presentation must contain at least 2 base units.");
 
         // Stock remains in base units even when a historical quote uses an old box equivalence.
         product.DecreaseStock(new Quantity(quantity.Value * factor));

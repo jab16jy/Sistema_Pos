@@ -24,7 +24,11 @@ public sealed class Product
         Barcode? barcode = null,
         decimal taxRate = 19m,
         int? unitsPerBox = null,
-        Money? boxPrice = null)
+        Money? boxPrice = null,
+        int? halfBoxUnits = null,
+        Money? halfBoxPrice = null,
+        int? quarterBoxUnits = null,
+        Money? quarterBoxPrice = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -45,7 +49,7 @@ public sealed class Product
         TracksInventory = true;
         TaxRate = ValidateTaxRate(taxRate);
         IsActive = true;
-        SetBoxPresentation(unitsPerBox, boxPrice);
+        SetPackagedPresentations(unitsPerBox, boxPrice, halfBoxUnits, halfBoxPrice, quarterBoxUnits, quarterBoxPrice);
     }
 
     public static Product CreateImportedCatalogItem(
@@ -113,35 +117,46 @@ public sealed class Product
     public bool IsActive { get; private set; }
     public int Version { get; private set; }
 
-    /// <summary>Units contained in one box, when the product can also be sold by the box. Null = unit-only.</summary>
+    /// <summary>Units contained in one box, when the product can also be sold by the box. Null = not sold as a box.</summary>
     public int? UnitsPerBox { get; private set; }
 
-    /// <summary>Independent price for one box (not necessarily UnitsPerBox * SalePrice). Null = unit-only.</summary>
+    /// <summary>Independent price for one box (not necessarily UnitsPerBox * SalePrice). Null = not sold as a box.</summary>
     public Money? BoxPrice { get; private set; }
 
+    /// <summary>Units contained in one half box. Configured explicitly, never derived from UnitsPerBox.</summary>
+    public int? HalfBoxUnits { get; private set; }
+
+    /// <summary>Independent price for one half box. Null = not sold as a half box.</summary>
+    public Money? HalfBoxPrice { get; private set; }
+
+    /// <summary>Units contained in one quarter box. Configured explicitly, never derived from UnitsPerBox.</summary>
+    public int? QuarterBoxUnits { get; private set; }
+
+    /// <summary>Independent price for one quarter box. Null = not sold as a quarter box.</summary>
+    public Money? QuarterBoxPrice { get; private set; }
+
     /// <summary>True when the product can be sold as a box, not just by unit.</summary>
-    public bool SupportsBoxSale => UnitsPerBox is int units && units > 0 && BoxPrice is not null;
+    public bool SupportsBoxSale => Supports(ProductPresentation.Box);
+
+    /// <summary>True when the product can be sold in the given presentation. Unit is always available.</summary>
+    public bool Supports(ProductPresentation presentation) =>
+        presentation == ProductPresentation.Unit || PackagedPresentation(presentation) is not null;
+
+    /// <summary>Base inventory units contained in one of the chosen presentation.</summary>
+    public int UnitsFor(ProductPresentation presentation) =>
+        presentation == ProductPresentation.Unit ? 1 : Require(presentation).Units;
 
     /// <summary>Sale price for the chosen presentation.</summary>
     public Money PriceFor(ProductPresentation presentation) =>
-        presentation == ProductPresentation.Box
-            ? RequireBox().BoxPrice!.Value
-            : SalePrice;
+        presentation == ProductPresentation.Unit ? SalePrice : Require(presentation).Price;
 
     /// <summary>Base inventory units consumed when selling <paramref name="quantity"/> of the chosen presentation.</summary>
     public decimal InventoryUnitsFor(ProductPresentation presentation, decimal quantity) =>
-        presentation == ProductPresentation.Box
-            ? quantity * RequireBox().UnitsPerBox!.Value
-            : quantity;
+        quantity * UnitsFor(presentation);
 
     /// <summary>Cost snapshot for one sold unit of the chosen presentation (per box = per-unit cost * units).</summary>
-    public Money UnitCostFor(ProductPresentation presentation)
-    {
-        decimal unitCost = CostPrice?.Amount ?? 0m;
-        return presentation == ProductPresentation.Box
-            ? new Money(unitCost * RequireBox().UnitsPerBox!.Value)
-            : new Money(unitCost);
-    }
+    public Money UnitCostFor(ProductPresentation presentation) =>
+        new((CostPrice?.Amount ?? 0m) * UnitsFor(presentation));
 
     public bool IsLowStock() => MinimumStock > 0m && CurrentStock > 0m && CurrentStock <= MinimumStock;
 
@@ -161,7 +176,11 @@ public sealed class Product
         Barcode? barcode = null,
         decimal taxRate = 19m,
         int? unitsPerBox = null,
-        Money? boxPrice = null)
+        Money? boxPrice = null,
+        int? halfBoxUnits = null,
+        Money? halfBoxPrice = null,
+        int? quarterBoxUnits = null,
+        Money? quarterBoxPrice = null)
     {
         if (!IsActive)
         {
@@ -181,7 +200,7 @@ public sealed class Product
         MinimumStock = minimumStock.Value;
         Barcode = barcode?.Value;
         TaxRate = ValidateTaxRate(taxRate);
-        SetBoxPresentation(unitsPerBox, boxPrice);
+        SetPackagedPresentations(unitsPerBox, boxPrice, halfBoxUnits, halfBoxPrice, quarterBoxUnits, quarterBoxPrice);
     }
 
     public void AssignCategory(Guid categoryId)
@@ -215,34 +234,60 @@ public sealed class Product
     }
 
     /// <summary>
-    /// Sets (or clears) the box presentation. Both values go together: a box needs a
-    /// unit count (at least 2) and its own price. Passing neither clears box selling.
+    /// Sets (or clears) each packaged presentation. Units and price go together per
+    /// presentation: a package needs a unit count (at least 2) and its own price, and
+    /// passing neither clears that presentation. Half and quarter box are independent
+    /// of the box — a shop may price a half box without offering the full one.
     /// </summary>
-    private void SetBoxPresentation(int? unitsPerBox, Money? boxPrice)
+    private void SetPackagedPresentations(
+        int? unitsPerBox,
+        Money? boxPrice,
+        int? halfBoxUnits,
+        Money? halfBoxPrice,
+        int? quarterBoxUnits,
+        Money? quarterBoxPrice)
     {
-        if (unitsPerBox is null && boxPrice is null)
-        {
-            UnitsPerBox = null;
-            BoxPrice = null;
-            return;
-        }
-
-        if (unitsPerBox is null || boxPrice is null)
-        {
-            throw new ArgumentException("A box presentation needs both the units per box and the box price.");
-        }
-
-        if (unitsPerBox.Value < 2)
-        {
-            throw new ArgumentOutOfRangeException(nameof(unitsPerBox), "A box must contain at least 2 units.");
-        }
-
-        UnitsPerBox = unitsPerBox.Value;
-        BoxPrice = boxPrice.Value;
+        (UnitsPerBox, BoxPrice) = ValidatePackage("box", unitsPerBox, boxPrice, nameof(unitsPerBox));
+        (HalfBoxUnits, HalfBoxPrice) = ValidatePackage("half box", halfBoxUnits, halfBoxPrice, nameof(halfBoxUnits));
+        (QuarterBoxUnits, QuarterBoxPrice) = ValidatePackage("quarter box", quarterBoxUnits, quarterBoxPrice, nameof(quarterBoxUnits));
     }
 
-    private Product RequireBox() =>
-        SupportsBoxSale ? this : throw new InvalidOperationException($"Product '{Name}' is not configured for box sales.");
+    private static (int?, Money?) ValidatePackage(string label, int? units, Money? price, string unitsParameterName)
+    {
+        if (units is null && price is null)
+        {
+            return (null, null);
+        }
+
+        if (units is null || price is null)
+        {
+            throw new ArgumentException($"A {label} presentation needs both the units it contains and its price.");
+        }
+
+        if (units.Value < 2)
+        {
+            throw new ArgumentOutOfRangeException(unitsParameterName, $"A {label} must contain at least 2 units.");
+        }
+
+        return (units.Value, price.Value);
+    }
+
+    private (int Units, Money Price)? PackagedPresentation(ProductPresentation presentation) => presentation switch
+    {
+        ProductPresentation.Box => Package(UnitsPerBox, BoxPrice),
+        ProductPresentation.HalfBox => Package(HalfBoxUnits, HalfBoxPrice),
+        ProductPresentation.QuarterBox => Package(QuarterBoxUnits, QuarterBoxPrice),
+        _ => null
+    };
+
+    private static (int Units, Money Price)? Package(int? units, Money? price) =>
+        units is int configuredUnits && configuredUnits > 0 && price is Money configuredPrice
+            ? (configuredUnits, configuredPrice)
+            : null;
+
+    private (int Units, Money Price) Require(ProductPresentation presentation) =>
+        PackagedPresentation(presentation)
+        ?? throw new InvalidOperationException($"Product '{Name}' is not configured for {presentation} sales.");
 
     /// <summary>
     /// The single entry point that changes <see cref="CurrentStock"/> and produces the matching

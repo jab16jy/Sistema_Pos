@@ -113,9 +113,9 @@ public sealed class SaleItem
             return 1;
         }
 
-        if (presentation != ProductPresentation.Box || unitsPerPresentation < 2)
+        if (unitsPerPresentation < 2)
         {
-            throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A box presentation must contain at least 2 base units.");
+            throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A packaged presentation must contain at least 2 base units.");
         }
 
         return unitsPerPresentation;
