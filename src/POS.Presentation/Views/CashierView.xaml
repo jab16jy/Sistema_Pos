@@ -149,10 +149,12 @@
                        BorderThickness="0"
                        Background="Transparent"
                        ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                       MaxHeight="180">
+                       MaxHeight="380">
               <ListBox.ItemTemplate>
                 <DataTemplate>
-                  <Border Padding="12,10"
+                  <!-- Compact row: the cashier scans by sight, so more products at once beats
+                       breathing room per product. -->
+                  <Border Padding="8,5"
                           BorderBrush="{StaticResource BrushBorder}"
                           BorderThickness="0,0,0,1">
                     <Grid>
@@ -163,17 +165,18 @@
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
 
-                      <Border Width="32"
-                              Height="32"
+                      <Border Width="22"
+                              Height="22"
                               CornerRadius="4"
+                              VerticalAlignment="Center"
                               Background="{StaticResource BrushPrimaryContainer}"
-                              Margin="0,0,12,0">
-                        <materialDesign:PackIcon Kind="Pill" Width="16" Height="16" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                              Margin="0,0,8,0">
+                        <materialDesign:PackIcon Kind="Pill" Width="13" Height="13" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                       </Border>
 
-                      <StackPanel Grid.Column="1">
-                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                        <TextBlock Style="{StaticResource CashHint}">
+                      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Style="{StaticResource CashHint}" FontSize="10">
                           <TextBlock.Text>
                             <MultiBinding StringFormat="COD: {0} · {1}">
                               <Binding Path="Barcode" />
@@ -185,9 +188,9 @@
 
                       <Border Grid.Column="2"
                               CornerRadius="3"
-                              Padding="6,2"
+                              Padding="5,1"
                               VerticalAlignment="Center"
-                              Margin="16,0,12,0">
+                              Margin="10,0,10,0">
                         <Border.Style>
                           <Style TargetType="Border" BasedOn="{StaticResource ChipStyle}">
                             <Setter Property="Background" Value="{StaticResource BrushSuccessContainer}" />
@@ -205,7 +208,7 @@
                           </Style>
                         </Border.Style>
                         <TextBlock Text="{Binding StockStatusLabel}"
-                                   FontSize="11"
+                                   FontSize="10"
                                    FontWeight="Medium">
                           <TextBlock.Style>
                             <Style TargetType="TextBlock">
@@ -226,6 +229,7 @@
                       <TextBlock Grid.Column="3"
                                  Text="{Binding UnitPriceText}"
                                  FontWeight="SemiBold"
+                                 FontSize="13"
                                  Foreground="{StaticResource BrushPrimary}"
                                  VerticalAlignment="Center" />
                     </Grid>
