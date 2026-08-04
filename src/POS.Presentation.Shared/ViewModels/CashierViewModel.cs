@@ -780,8 +780,13 @@ public sealed class CashierViewModel : ViewModelBase
     /// CollectedAmount + DeferredAmount must equal TotalAmount for CanConfirm to be true.
     /// Always zero while a split payment (Tenders) is in progress: ReceivedAmount is reset to 0
     /// after each "Agregar pago" and would otherwise read as a false full-amount deferred balance.
+    /// Also zero for a digital method with no amount typed: there is no cash to count, so the
+    /// cashier never touches the keypad and an untouched field must mean "cobra el total", not
+    /// "todo queda a crédito". Typing an amount still opts into a partial digital collection.
     /// </summary>
-    public decimal DeferredAmount => HasTenders ? 0m : Math.Max(0m, NetPayable - ReceivedAmount);
+    public decimal DeferredAmount => HasTenders || (SelectedPaymentMethod.Method != PaymentMethod.Cash && ReceivedAmount == 0m)
+        ? 0m
+        : Math.Max(0m, NetPayable - ReceivedAmount);
 
     /// <summary>
     /// Shows the saldo diferido panel. Only becomes true when the cashier commits the received

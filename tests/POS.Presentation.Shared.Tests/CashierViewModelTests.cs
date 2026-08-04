@@ -293,6 +293,52 @@ public sealed class CashierViewModelTests
         Assert.Equal(1, completedSales);
     }
 
+    [Theory]
+    [InlineData(PaymentMethod.DebitCard, null)]
+    [InlineData(PaymentMethod.CreditCard, null)]
+    [InlineData(PaymentMethod.Transfer, "Bancolombia")]
+    [InlineData(PaymentMethod.Transfer, "Nequi")]
+    [InlineData(PaymentMethod.Transfer, "Daviplata")]
+    public async Task ConfirmSaleAsync_NonCashMethod_PaysFullTotalWithoutTypingReceivedAmount(
+        PaymentMethod method,
+        string? platform)
+    {
+        // Regression: a digital payment has no cash to count, so the cashier never types an
+        // amount. ReceivedAmount stayed 0 and the whole total was read as a deferred balance,
+        // blocking the sale ("Se requiere identificar al cliente...") on every non-cash method.
+        var product = new Product("Rice", Guid.NewGuid(), new Money(1_000m), new Money(2_500m), new StockQuantity(10m), new StockQuantity(2m));
+        var sales = new InMemorySaleRepository();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), authorizer: CreateAuthorizer()))
+        {
+            SearchText = "rice",
+            Quantity = 2m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == method);
+        if (platform is not null)
+        {
+            viewModel.BankOrPlatform = platform;
+        }
+
+        Assert.Equal(0m, viewModel.ReceivedAmount);
+        Assert.Equal(0m, viewModel.DeferredAmount);
+        Assert.True(viewModel.CanConfirm, viewModel.Message);
+
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.ContinueWithoutCustomerAsync(TestContext.Current.CancellationToken);
+
+        Sale sale = Assert.Single(sales.Sales);
+        Assert.Equal(5_000m, sale.TotalPaid().Amount);
+        Assert.Equal(0m, sale.CashInDrawer().Amount);
+        Assert.Equal(method, Assert.Single(sale.Payments).Method);
+    }
+
     [Fact]
     public async Task ConfirmSaleAsync_WithSplitPayment_PersistsOnePaymentPerTender()
     {
