@@ -364,40 +364,33 @@
                 </StackPanel>
               </Grid>
 
-              <!-- Packaged presentations (each optional): every one carries its own unit count and its
-                   own price, so Caja sells at what a box is worth, not at units × unit price. Leave a
-                   row empty and the register simply does not offer that presentation. -->
-              <TextBlock Text="Presentaciones (opcional)" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-              <Grid Margin="0,0,0,10">
-                <Grid.ColumnDefinitions>
-                  <ColumnDefinition Width="Auto" />
-                  <ColumnDefinition Width="12" />
-                  <ColumnDefinition Width="*" />
-                  <ColumnDefinition Width="12" />
-                  <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="Auto" />
-                  <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
+              <!-- Dynamic packaged presentations -->
+              <DockPanel Margin="0,0,0,4">
+                <TextBlock Text="Presentaciones (opcional)" Style="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center" />
+                <Button Content="+ Agregar presentación" Command="{Binding AddPresentationCommand}" HorizontalAlignment="Right" Style="{StaticResource MaterialOutlineButton}" Padding="8,2" FontSize="11" />
+              </DockPanel>
 
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="Unidades" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-                <TextBlock Grid.Row="0" Grid.Column="4" Text="Precio" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
-
-                <TextBlock Grid.Row="1" Grid.Column="0" Text="Caja" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" Margin="0,0,0,6" />
-                <TextBox Grid.Row="1" Grid.Column="2" Text="{Binding UnitsPerBox, Mode=TwoWay, TargetNullValue=''}" Tag="0" Margin="0,0,0,6" />
-                <TextBox Grid.Row="1" Grid.Column="4" Text="{Binding BoxPrice, Mode=TwoWay, TargetNullValue=''}" Tag="0" Margin="0,0,0,6" />
-
-                <TextBlock Grid.Row="2" Grid.Column="0" Text="Media caja" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" Margin="0,0,0,6" />
-                <TextBox Grid.Row="2" Grid.Column="2" Text="{Binding HalfBoxUnits, Mode=TwoWay, TargetNullValue=''}" Tag="0" Margin="0,0,0,6" />
-                <TextBox Grid.Row="2" Grid.Column="4" Text="{Binding HalfBoxPrice, Mode=TwoWay, TargetNullValue=''}" Tag="0" Margin="0,0,0,6" />
-
-                <TextBlock Grid.Row="3" Grid.Column="0" Text="Cuarto de caja" Style="{StaticResource MutedText}" FontSize="12" VerticalAlignment="Center" />
-                <TextBox Grid.Row="3" Grid.Column="2" Text="{Binding QuarterBoxUnits, Mode=TwoWay, TargetNullValue=''}" Tag="0" />
-                <TextBox Grid.Row="3" Grid.Column="4" Text="{Binding QuarterBoxPrice, Mode=TwoWay, TargetNullValue=''}" Tag="0" />
-              </Grid>
+              <ItemsControl ItemsSource="{Binding Presentations}" Margin="0,0,0,10">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <Grid Margin="0,0,0,6">
+                      <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="80" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="100" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="Auto" />
+                      </Grid.ColumnDefinitions>
+                      <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="Nombre (ej. Caja, Paquete de 3)" />
+                      <TextBox Grid.Column="2" Text="{Binding Units, Mode=TwoWay, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Tag="Unidades" />
+                      <TextBox Grid.Column="4" Text="{Binding Price, Mode=TwoWay, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Tag="Precio" />
+                      <Button Grid.Column="6" Content="✕" Command="{Binding DataContext.RemovePresentationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Foreground="{StaticResource BrushError}" Background="Transparent" BorderThickness="0" Padding="6,2" Cursor="Hand" ToolTip="Eliminar presentación" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
 
               <!-- Stock status preview -->
               <StackPanel Orientation="Horizontal" Margin="0,0,0,10"

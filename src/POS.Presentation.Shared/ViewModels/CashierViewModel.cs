@@ -76,7 +76,7 @@ public sealed class CashierViewModel : ViewModelBase
     private CashierProductSearchResultViewModel? _selectedProduct;
     private CashierCartItemViewModel? _selectedCartItem;
     private decimal _quantity = 1m;
-    private ProductPresentation _selectedPresentation = ProductPresentation.Unit;
+
     private PaymentMethodOption _selectedPaymentMethod;
     private decimal _receivedAmount;
     private bool _isDeferredAmountVisible;
@@ -219,10 +219,7 @@ public sealed class CashierViewModel : ViewModelBase
             _ => IsAwaitingSaleConfirmation);
         _confirmSaleNoCommand = new RelayCommand(_ => DeclineSaleConfirmation(), _ => IsAwaitingSaleConfirmation);
         AddSelectedProductCommand = _addSelectedProductCommand;
-        SelectUnitPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.Unit);
-        SelectBoxPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.Box, _ => CanSellSelectedAsBox);
-        SelectHalfBoxPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.HalfBox, _ => CanSellSelectedAsHalfBox);
-        SelectQuarterBoxPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.QuarterBox, _ => CanSellSelectedAsQuarterBox);
+        SelectPresentationCommand = new RelayCommand(p => { if (p is PresentationOptionViewModel opt) SelectedPresentationOption = opt; });
         AppendReceivedAmountCommand = _appendReceivedAmountCommand;
         BackspaceReceivedAmountCommand = _backspaceReceivedAmountCommand;
         SetExactAmountCommand = _setExactAmountCommand;
@@ -287,13 +284,7 @@ public sealed class CashierViewModel : ViewModelBase
 
     public ICommand AddSelectedProductCommand { get; }
 
-    public ICommand SelectUnitPresentationCommand { get; }
-
-    public ICommand SelectBoxPresentationCommand { get; }
-
-    public ICommand SelectHalfBoxPresentationCommand { get; }
-
-    public ICommand SelectQuarterBoxPresentationCommand { get; }
+    public ICommand SelectPresentationCommand { get; }
 
     public ICommand AppendReceivedAmountCommand { get; }
 
@@ -681,7 +672,6 @@ public sealed class CashierViewModel : ViewModelBase
             }
         }
     }
-
     public CashierProductSearchResultViewModel? SelectedProduct
     {
         get => _selectedProduct;
@@ -689,65 +679,35 @@ public sealed class CashierViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedProduct, value))
             {
-                // Reset the presentation: it only applies to the product currently selected.
-                SelectedPresentation = ProductPresentation.Unit;
-                OnPropertyChanged(nameof(CanSellSelectedAsBox));
-                OnPropertyChanged(nameof(CanSellSelectedAsHalfBox));
-                OnPropertyChanged(nameof(CanSellSelectedAsQuarterBox));
-                OnPropertyChanged(nameof(SelectedBoxLabel));
-                OnPropertyChanged(nameof(SelectedHalfBoxLabel));
-                OnPropertyChanged(nameof(SelectedQuarterBoxLabel));
-                (SelectBoxPresentationCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                (SelectHalfBoxPresentationCommand as RelayCommand)?.RaiseCanExecuteChanged();
-                (SelectQuarterBoxPresentationCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                OnPropertyChanged(nameof(AvailablePresentations));
+                SelectedPresentationOption = AvailablePresentations.FirstOrDefault();
                 UpdateCommandState();
             }
         }
     }
 
-    /// <summary>True when the selected product can be sold as a box (has box units + box price).</summary>
-    public bool CanSellSelectedAsBox => _selectedProduct?.SupportsBox == true;
+    private PresentationOptionViewModel? _selectedPresentationOption;
 
-    /// <summary>True when the selected product has a half-box presentation priced in the catalogue.</summary>
-    public bool CanSellSelectedAsHalfBox => _selectedProduct?.SupportsHalfBox == true;
+    public IReadOnlyList<PresentationOptionViewModel> AvailablePresentations =>
+        _selectedProduct?.AvailablePresentations ?? [new PresentationOptionViewModel(null, 1, 0m)];
 
-    /// <summary>True when the selected product has a quarter-box presentation priced in the catalogue.</summary>
-    public bool CanSellSelectedAsQuarterBox => _selectedProduct?.SupportsQuarterBox == true;
-
-    /// <summary>Box description for the selected product, e.g. "x12 · $110.000".</summary>
-    public string SelectedBoxLabel => _selectedProduct?.BoxLabel ?? string.Empty;
-
-    public string SelectedHalfBoxLabel => _selectedProduct?.HalfBoxLabel ?? string.Empty;
-
-    public string SelectedQuarterBoxLabel => _selectedProduct?.QuarterBoxLabel ?? string.Empty;
-
-    /// <summary>
-    /// Presentation the next Add uses. Falls back to Unit whenever the selected product does not
-    /// offer the requested one, so a stale radio button can never price a line off an absent package.
-    /// </summary>
-    public ProductPresentation SelectedPresentation
+    public PresentationOptionViewModel? SelectedPresentationOption
     {
-        get => _selectedPresentation;
+        get => _selectedPresentationOption;
         set
         {
-            ProductPresentation normalized = _selectedProduct?.Supports(value) == true ? value : ProductPresentation.Unit;
-            if (SetProperty(ref _selectedPresentation, normalized))
+            if (SetProperty(ref _selectedPresentationOption, value))
             {
-                OnPropertyChanged(nameof(IsUnitPresentationSelected));
-                OnPropertyChanged(nameof(IsBoxPresentationSelected));
-                OnPropertyChanged(nameof(IsHalfBoxPresentationSelected));
-                OnPropertyChanged(nameof(IsQuarterBoxPresentationSelected));
+                if (_selectedPresentationOption != null)
+                {
+                    foreach (var opt in AvailablePresentations)
+                    {
+                        opt.IsSelected = (opt == _selectedPresentationOption);
+                    }
+                }
             }
         }
     }
-
-    public bool IsUnitPresentationSelected => SelectedPresentation == ProductPresentation.Unit;
-
-    public bool IsBoxPresentationSelected => SelectedPresentation == ProductPresentation.Box;
-
-    public bool IsHalfBoxPresentationSelected => SelectedPresentation == ProductPresentation.HalfBox;
-
-    public bool IsQuarterBoxPresentationSelected => SelectedPresentation == ProductPresentation.QuarterBox;
 
     public CashierCartItemViewModel? SelectedCartItem
     {
@@ -1125,9 +1085,8 @@ public sealed class CashierViewModel : ViewModelBase
             return false;
         }
 
-        // A package the product does not offer degrades to a unit sale rather than pricing off nulls.
-        (int Units, decimal Price)? package = SelectedProduct.PackageFor(SelectedPresentation);
-        ProductPresentation presentation = package is null ? ProductPresentation.Unit : SelectedPresentation;
+        string? presentationName = SelectedPresentationOption?.Name;
+        (int Units, decimal Price)? package = SelectedProduct.PackageFor(presentationName);
         int unitsPerLine = package?.Units ?? 1;
         decimal unitPrice = package?.Price ?? SelectedProduct.UnitPrice;
 
@@ -1139,10 +1098,10 @@ public sealed class CashierViewModel : ViewModelBase
             return false;
         }
 
-        // Only merge with a cart line of the same product AND presentation; a box line and a
+        // Only merge with a cart line of the same product AND presentation; a pack line and a
         // unit line for the same product are priced differently and must stay separate.
         CashierCartItemViewModel? existingItem = CartItems.FirstOrDefault(item =>
-            item.ProductId == SelectedProduct.ProductId && item.Presentation == presentation);
+            item.ProductId == SelectedProduct.ProductId && string.Equals(item.PresentationName, presentationName, StringComparison.OrdinalIgnoreCase));
         if (existingItem is not null)
         {
             decimal requestedTotalUnits = (existingItem.Quantity + Quantity) * unitsPerLine;
@@ -1163,7 +1122,7 @@ public sealed class CashierViewModel : ViewModelBase
                 Quantity,
                 unitPrice,
                 0m,
-                presentation,
+                presentationName,
                 unitsPerLine));
         }
 
@@ -1893,7 +1852,7 @@ public sealed class CashierViewModel : ViewModelBase
                 item.Quantity,
                 item.UnitPrice,
                 discountPercent,
-                item.Presentation,
+                item.PresentationName,
                 item.UnitsPerPresentation));
         }
 
@@ -2130,7 +2089,7 @@ public sealed class CashierViewModel : ViewModelBase
             {
                 decimal effectiveDiscountPercent = CompoundDiscount(item.Discount, _currentTierDiscountPercent);
                 decimal discountMoney = decimal.Round(item.UnitPrice * item.Quantity * effectiveDiscountPercent / 100m, 2, MidpointRounding.AwayFromZero);
-                return new CreateSaleItemRequest(item.ProductId, item.Quantity, discountMoney, item.Presentation,
+                return new CreateSaleItemRequest(item.ProductId, item.Quantity, discountMoney, item.PresentationName,
                     ManualDiscountPercent: item.Discount);
             })
             .ToArray();

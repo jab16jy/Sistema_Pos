@@ -17,7 +17,7 @@ public sealed class CashierCartItemViewModel : ViewModelBase
         decimal quantity,
         decimal unitPrice,
         decimal discount = 0m,
-        ProductPresentation presentation = ProductPresentation.Unit,
+        string? presentationName = null,
         int unitsPerLine = 1)
     {
         ProductId = productId;
@@ -26,7 +26,7 @@ public sealed class CashierCartItemViewModel : ViewModelBase
         _quantity = quantity;
         UnitPrice = unitPrice;
         _discount = NormalizeDiscount(discount);
-        Presentation = presentation;
+        PresentationName = string.IsNullOrWhiteSpace(presentationName) ? null : presentationName.Trim();
         UnitsPerLine = unitsPerLine < 1 ? 1 : unitsPerLine;
     }
 
@@ -34,16 +34,16 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     public string ProductName { get; }
     public string ProductCode { get; }
 
-    /// <summary>Whether this line is sold by unit or by box.</summary>
-    public ProductPresentation Presentation { get; }
+    /// <summary>Name of presentation sold, or null for base unit.</summary>
+    public string? PresentationName { get; }
 
-    /// <summary>Base inventory units consumed per presentation (1 for a unit line, UnitsPerBox for a box line).</summary>
+    /// <summary>Base inventory units consumed per presentation.</summary>
     public int UnitsPerLine { get; }
 
     /// <summary>Base inventory units this line consumes in total.</summary>
     public decimal InventoryUnits => Quantity * UnitsPerLine;
 
-    public string PresentationLabel => ProductPresentationLabel.For(Presentation, UnitsPerLine);
+    public string PresentationLabel => Domain.Enums.ProductPresentationLabel.For(PresentationName, UnitsPerLine);
 
     public decimal Quantity
     {

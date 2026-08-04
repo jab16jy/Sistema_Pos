@@ -1,6 +1,6 @@
 using System.Globalization;
 using POS.Application.DTOs.Products;
-using POS.Domain.Enums;
+
 
 namespace POS.Presentation.Shared.Cashier;
 
@@ -11,6 +11,18 @@ public sealed class CashierProductSearchResultViewModel
     public CashierProductSearchResultViewModel(ProductLookupResult product)
     {
         Product = product ?? throw new ArgumentNullException(nameof(product));
+        var list = new List<PresentationOptionViewModel>
+        {
+            new PresentationOptionViewModel(null, 1, product.UnitPrice) { Product = this }
+        };
+        if (product.Presentations is { Count: > 0 })
+        {
+            foreach (var p in product.Presentations)
+            {
+                list.Add(new PresentationOptionViewModel(p.Name, p.Units, p.Price) { Product = this });
+            }
+        }
+        AvailablePresentations = list;
     }
 
     public ProductLookupResult Product { get; }
@@ -23,34 +35,22 @@ public sealed class CashierProductSearchResultViewModel
     public string UnitPriceText => FormatCurrency(UnitPrice);
     public string StockText => $"Stock: {AvailableStock.ToString("0.##", ColombianCulture)}";
 
-    // ── Packaged presentations (each optional, each priced on its own in the catalogue) ──
-    public int? UnitsPerBox => Product.UnitsPerBox;
-    public decimal? BoxPrice => Product.BoxPrice;
-    public bool SupportsBox => IsConfigured(UnitsPerBox, BoxPrice);
-    public string BoxPriceText => BoxPrice is decimal price ? FormatCurrency(price) : string.Empty;
-    public string BoxLabel => DescribePackage(SupportsBox, UnitsPerBox, BoxPrice);
+    // ── Packaged presentations ──
+    public IReadOnlyList<PresentationOptionViewModel> AvailablePresentations { get; }
 
-    public int? HalfBoxUnits => Product.HalfBoxUnits;
-    public decimal? HalfBoxPrice => Product.HalfBoxPrice;
-    public bool SupportsHalfBox => IsConfigured(HalfBoxUnits, HalfBoxPrice);
-    public string HalfBoxLabel => DescribePackage(SupportsHalfBox, HalfBoxUnits, HalfBoxPrice);
-
-    public int? QuarterBoxUnits => Product.QuarterBoxUnits;
-    public decimal? QuarterBoxPrice => Product.QuarterBoxPrice;
-    public bool SupportsQuarterBox => IsConfigured(QuarterBoxUnits, QuarterBoxPrice);
-    public string QuarterBoxLabel => DescribePackage(SupportsQuarterBox, QuarterBoxUnits, QuarterBoxPrice);
-
-    /// <summary>Units and price for the chosen presentation, or null when the product does not offer it.</summary>
-    public (int Units, decimal Price)? PackageFor(ProductPresentation presentation) => presentation switch
+    /// <summary>Units and price for the chosen presentation name (null/blank = Unidad).</summary>
+    public (int Units, decimal Price)? PackageFor(string? presentationName)
     {
-        ProductPresentation.Box when SupportsBox => (UnitsPerBox!.Value, BoxPrice!.Value),
-        ProductPresentation.HalfBox when SupportsHalfBox => (HalfBoxUnits!.Value, HalfBoxPrice!.Value),
-        ProductPresentation.QuarterBox when SupportsQuarterBox => (QuarterBoxUnits!.Value, QuarterBoxPrice!.Value),
-        _ => null
-    };
+        if (string.IsNullOrWhiteSpace(presentationName))
+        {
+            return (1, UnitPrice);
+        }
 
-    public bool Supports(ProductPresentation presentation) =>
-        presentation == ProductPresentation.Unit || PackageFor(presentation) is not null;
+        var opt = AvailablePresentations.FirstOrDefault(p => string.Equals(p.Name, presentationName.Trim(), StringComparison.OrdinalIgnoreCase));
+        return opt is null ? null : (opt.Units, opt.Price);
+    }
+
+    public bool Supports(string? presentationName) => PackageFor(presentationName) is not null;
 
     private static bool IsConfigured(int? units, decimal? price) => units is > 0 && price is not null;
 

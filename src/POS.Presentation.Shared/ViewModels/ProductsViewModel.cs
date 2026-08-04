@@ -39,12 +39,7 @@ public sealed class ProductsViewModel : ViewModelBase
     private decimal _currentStock;
     private decimal _minimumStock;
     private decimal _taxRate = 19m;
-    private int? _unitsPerBox;
-    private decimal? _boxPrice;
-    private int? _halfBoxUnits;
-    private decimal? _halfBoxPrice;
-    private int? _quarterBoxUnits;
-    private decimal? _quarterBoxPrice;
+
     private string _csvPath = string.Empty;
     private string? _barcode;
     private Guid _categoryId;
@@ -98,6 +93,8 @@ public sealed class ProductsViewModel : ViewModelBase
         _printLabelCommand = new RelayCommand(_ => RunSafe(PrintLabelAsync(), ex => Message = $"Error al imprimir la etiqueta: {ex.Message}"), _ => SelectedProduct is not null && !string.IsNullOrWhiteSpace(SelectedProduct.Barcode));
         GenerateInternalBarcodeCommand = _generateInternalBarcodeCommand;
         PrintLabelCommand = _printLabelCommand;
+        AddPresentationCommand = new RelayCommand(_ => Presentations.Add(new PresentationRowViewModel("Caja", 0, 0m)));
+        RemovePresentationCommand = new RelayCommand(p => { if (p is PresentationRowViewModel row) Presentations.Remove(row); });
     }
 
     public ObservableCollection<ProductSearchResult> Products { get; } = [];
@@ -167,12 +164,18 @@ public sealed class ProductsViewModel : ViewModelBase
                     TaxRate = value.TaxRate;
                     Barcode = value.Barcode;
                     CategoryId = value.CategoryId;
-                    UnitsPerBox = value.UnitsPerBox;
-                    BoxPrice = value.BoxPrice;
-                    HalfBoxUnits = value.HalfBoxUnits;
-                    HalfBoxPrice = value.HalfBoxPrice;
-                    QuarterBoxUnits = value.QuarterBoxUnits;
-                    QuarterBoxPrice = value.QuarterBoxPrice;
+                    Presentations.Clear();
+                    if (value.Presentations is { Count: > 0 })
+                    {
+                        foreach (var p in value.Presentations)
+                        {
+                            Presentations.Add(new PresentationRowViewModel(p.Name, p.Units, p.Price));
+                        }
+                    }
+                    else
+                    {
+                        Presentations.Add(new PresentationRowViewModel("Caja", 0, 0m));
+                    }
                     RunSafe(LoadSupplierRelationshipsAsync(value.Id), ex => Message = $"Error al cargar proveedores: {ex.Message}");
                 }
                 else
@@ -351,61 +354,11 @@ public sealed class ProductsViewModel : ViewModelBase
         set => SetProperty(ref _taxRate, value);
     }
 
-    /// <summary>Units contained in one box; null/0 means the product is sold by unit only.</summary>
-    public int? UnitsPerBox
-    {
-        get => _unitsPerBox;
-        set
-        {
-            if (SetProperty(ref _unitsPerBox, value))
-            {
-                OnPropertyChanged(nameof(SellsByBox));
-            }
-        }
-    }
+    /// <summary>Packaged presentations configured for this product (e.g. Caja, Paquete de 3).</summary>
+    public ObservableCollection<PresentationRowViewModel> Presentations { get; } = new();
 
-    /// <summary>Independent price for one box (not necessarily UnitsPerBox * SalePrice).</summary>
-    public decimal? BoxPrice
-    {
-        get => _boxPrice;
-        set
-        {
-            if (SetProperty(ref _boxPrice, value))
-            {
-                OnPropertyChanged(nameof(SellsByBox));
-            }
-        }
-    }
-
-    public bool SellsByBox => _unitsPerBox is > 0 && _boxPrice is > 0m;
-
-    /// <summary>Units contained in one half box. Entered explicitly, never derived from UnitsPerBox.</summary>
-    public int? HalfBoxUnits
-    {
-        get => _halfBoxUnits;
-        set => SetProperty(ref _halfBoxUnits, value);
-    }
-
-    /// <summary>Independent price for one half box.</summary>
-    public decimal? HalfBoxPrice
-    {
-        get => _halfBoxPrice;
-        set => SetProperty(ref _halfBoxPrice, value);
-    }
-
-    /// <summary>Units contained in one quarter box. Entered explicitly, never derived from UnitsPerBox.</summary>
-    public int? QuarterBoxUnits
-    {
-        get => _quarterBoxUnits;
-        set => SetProperty(ref _quarterBoxUnits, value);
-    }
-
-    /// <summary>Independent price for one quarter box.</summary>
-    public decimal? QuarterBoxPrice
-    {
-        get => _quarterBoxPrice;
-        set => SetProperty(ref _quarterBoxPrice, value);
-    }
+    public ICommand AddPresentationCommand { get; }
+    public ICommand RemovePresentationCommand { get; }
 
     /// <summary>Operator applying stock adjustments, for audit traceability. Set by the shell after login.</summary>
     public Guid OperatorUserId { get; set; }
@@ -517,18 +470,12 @@ public sealed class ProductsViewModel : ViewModelBase
         }
     }
 
-    private static (int?, decimal?) NormalizePackage(int? units, decimal? price) =>
-        units is int configuredUnits && configuredUnits >= 2 && price is decimal configuredPrice && configuredPrice > 0m
-            ? (configuredUnits, configuredPrice)
-            : (null, null);
-
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
-        // Each presentation needs both values; a half-filled or "package of 1" config is dropped
-        // so the product simply stops offering that presentation instead of failing to save.
-        (int? unitsPerBox, decimal? boxPrice) = NormalizePackage(_unitsPerBox, _boxPrice);
-        (int? halfBoxUnits, decimal? halfBoxPrice) = NormalizePackage(_halfBoxUnits, _halfBoxPrice);
-        (int? quarterBoxUnits, decimal? quarterBoxPrice) = NormalizePackage(_quarterBoxUnits, _quarterBoxPrice);
+        var validPresentations = Presentations
+            .Where(p => !string.IsNullOrWhiteSpace(p.Name) && p.Units is >= 2 && p.Price is > 0m)
+            .Select(p => new ProductPresentationDto(p.Name.Trim(), p.Units!.Value, p.Price!.Value))
+            .ToList();
 
         try
         {
@@ -547,12 +494,7 @@ public sealed class ProductsViewModel : ViewModelBase
                     Description,
                     Barcode,
                     TaxRate,
-                    unitsPerBox,
-                    boxPrice,
-                    halfBoxUnits,
-                    halfBoxPrice,
-                    quarterBoxUnits,
-                    quarterBoxPrice,
+                    validPresentations,
                     OperatorUserId);
                 savedProductId = await _createProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
             }
@@ -570,12 +512,7 @@ public sealed class ProductsViewModel : ViewModelBase
                     Description,
                     Barcode,
                     TaxRate,
-                    unitsPerBox,
-                    boxPrice,
-                    halfBoxUnits,
-                    halfBoxPrice,
-                    quarterBoxUnits,
-                    quarterBoxPrice);
+                    validPresentations);
                 ProductResult result = await _updateProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
                 savedProductId = result.Id;
             }
@@ -733,12 +670,8 @@ public sealed class ProductsViewModel : ViewModelBase
         CurrentStock = 0;
         MinimumStock = 0;
         TaxRate = 19m;
-        UnitsPerBox = null;
-        BoxPrice = null;
-        HalfBoxUnits = null;
-        HalfBoxPrice = null;
-        QuarterBoxUnits = null;
-        QuarterBoxPrice = null;
+        Presentations.Clear();
+        Presentations.Add(new PresentationRowViewModel("Caja", 0, 0m));
         Barcode = null;
         CategoryId = ResolveDefaultCategoryId();
         OnPropertyChanged(nameof(HasSelectedProduct));

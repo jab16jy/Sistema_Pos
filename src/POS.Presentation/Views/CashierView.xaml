@@ -240,43 +240,26 @@
                      Margin="2,6,0,0"
                      Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVisibilityConverter}}" />
 
-           <StackPanel Orientation="Horizontal" Margin="2,6,0,0">
-             <TextBlock Text="Presentación:" Style="{StaticResource CashHint}" VerticalAlignment="Center" Margin="0,0,8,0" />
-              <RadioButton Content="Unidad"
-                           IsChecked="{Binding IsUnitPresentationSelected, Mode=OneWay}"
-                           Command="{Binding SelectUnitPresentationCommand}"
-                           VerticalAlignment="Center" />
-              <RadioButton Command="{Binding SelectBoxPresentationCommand}"
-                           IsChecked="{Binding IsBoxPresentationSelected, Mode=OneWay}"
-                           IsEnabled="{Binding CanSellSelectedAsBox}"
-                           VerticalAlignment="Center"
-                           Margin="12,0,0,0">
-               <StackPanel Orientation="Horizontal">
-                 <TextBlock Text="Caja" />
-                 <TextBlock Text="{Binding SelectedBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
-               </StackPanel>
-             </RadioButton>
-              <RadioButton Command="{Binding SelectHalfBoxPresentationCommand}"
-                           IsChecked="{Binding IsHalfBoxPresentationSelected, Mode=OneWay}"
-                           IsEnabled="{Binding CanSellSelectedAsHalfBox}"
-                           VerticalAlignment="Center"
-                           Margin="12,0,0,0">
-               <StackPanel Orientation="Horizontal">
-                 <TextBlock Text="Media caja" />
-                 <TextBlock Text="{Binding SelectedHalfBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
-               </StackPanel>
-             </RadioButton>
-              <RadioButton Command="{Binding SelectQuarterBoxPresentationCommand}"
-                           IsChecked="{Binding IsQuarterBoxPresentationSelected, Mode=OneWay}"
-                           IsEnabled="{Binding CanSellSelectedAsQuarterBox}"
-                           VerticalAlignment="Center"
-                           Margin="12,0,0,0">
-               <StackPanel Orientation="Horizontal">
-                 <TextBlock Text="Cuarto de caja" />
-                 <TextBlock Text="{Binding SelectedQuarterBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
-               </StackPanel>
-             </RadioButton>
-           </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="2,6,0,0">
+              <TextBlock Text="Presentación:" Style="{StaticResource CashHint}" VerticalAlignment="Center" Margin="0,0,8,0" />
+              <ItemsControl ItemsSource="{Binding AvailablePresentations}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate>
+                    <WrapPanel Orientation="Horizontal" />
+                  </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate>
+                    <RadioButton Content="{Binding DisplayText}"
+                                 IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                 Command="{Binding DataContext.SelectPresentationCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                 CommandParameter="{Binding}"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,12,0" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
           </StackPanel>
 
           <Button Grid.Column="1"
