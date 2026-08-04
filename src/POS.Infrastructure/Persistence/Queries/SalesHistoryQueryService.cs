@@ -143,7 +143,7 @@ public sealed class SalesHistoryQueryService : ISalesHistoryQueryService
                 item.UnitPrice.Amount,
                 item.Discount.Amount,
                 (item.UnitPrice.Amount * item.Quantity) - item.Discount.Amount,
-                item.Presentation,
+                item.PresentationName,
                 item.UnitsPerPresentation))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);

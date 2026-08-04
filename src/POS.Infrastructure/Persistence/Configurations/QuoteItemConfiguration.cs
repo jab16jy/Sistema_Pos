@@ -23,10 +23,9 @@ internal sealed class QuoteItemConfiguration : IEntityTypeConfiguration<QuoteIte
                .HasConversion(q => q.Value, v => new Quantity(v))
                .HasColumnName("quantity");
         builder.Property(qi => qi.Discount).HasColumnName("discount");
-        builder.Property(qi => qi.Presentation)
-               .HasConversion<int>()
-               .HasColumnName("presentation")
-               .HasDefaultValue(ProductPresentation.Unit);
+        builder.Property(qi => qi.PresentationName)
+               .HasColumnName("presentation_name")
+               .HasMaxLength(100);
         builder.Property(qi => qi.UnitsPerPresentation)
                .HasColumnName("units_per_presentation")
                .HasDefaultValue(1);

@@ -130,7 +130,7 @@ public sealed class ThermalPrinterIntegrationTests
         var product = new Product(
             "Aceite", category.Id, new Money(20_000m), new Money(60_000m),
             new StockQuantity(50m), new StockQuantity(2m),
-            halfBoxUnits: 6, halfBoxPrice: new Money(300_000m));
+            presentations: [("Media caja", 6, new Money(300_000m))]);
         fixture.DbContext.Categories.Add(category);
         fixture.DbContext.Products.Add(product);
         await fixture.DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -145,7 +145,7 @@ public sealed class ThermalPrinterIntegrationTests
         var sale = await saleUseCase.ExecuteAsync(
             new CreateSaleRequest(
                 null,
-                [new CreateSaleItemRequest(product.Id, 1m, 0m, ProductPresentation.HalfBox)],
+                [new CreateSaleItemRequest(product.Id, 1m, 0m, "Media caja")],
                 [
                     new CreateSalePaymentRequest(PaymentMethod.Transfer, 200_000m, null, "Bancolombia"),
                     new CreateSalePaymentRequest(PaymentMethod.Cash, 100_000m, 100_000m, null)

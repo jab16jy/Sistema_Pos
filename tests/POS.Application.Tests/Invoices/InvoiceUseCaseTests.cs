@@ -412,11 +412,10 @@ public sealed class InvoiceUseCaseTests
             new Money(1000m),
             new StockQuantity(24m),
             new StockQuantity(2m),
-            unitsPerBox: 12,
-            boxPrice: new Money(10000m));
+            presentations: [("Caja", 12, new Money(10000m))]);
 
         var sale = new Sale(Guid.NewGuid());
-        sale.AddItem(product, new Quantity(2m), ProductPresentation.Box, Money.Zero);
+        sale.AddItem(product, new Quantity(2m), "Caja", Money.Zero);
         sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(20000m), new Money(20000m)));
         sale.Complete();
 
@@ -444,8 +443,8 @@ public sealed class InvoiceUseCaseTests
     {
         var product = CreateProduct();
         var sale = new Sale(Guid.NewGuid());
-        sale.AddItem(product, new Quantity(2m), ProductPresentation.Unit, Money.Zero);
-        sale.AddItem(product, new Quantity(3m), ProductPresentation.Unit, Money.Zero);
+        sale.AddItem(product, new Quantity(2m), null, Money.Zero);
+        sale.AddItem(product, new Quantity(3m), null, Money.Zero);
         sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(7500m), new Money(7500m)));
         sale.Complete();
 

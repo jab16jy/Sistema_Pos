@@ -741,10 +741,6 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
-                    b.Property<decimal?>("BoxPrice")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("box_price");
-
                     b.Property<string>("CategoryId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -760,14 +756,6 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
-
-                    b.Property<decimal?>("HalfBoxPrice")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("half_box_price");
-
-                    b.Property<int?>("HalfBoxUnits")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("half_box_units");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
@@ -786,14 +774,6 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
-
-                    b.Property<decimal?>("QuarterBoxPrice")
-                        .HasColumnType("TEXT")
-                        .HasColumnName("quarter_box_price");
-
-                    b.Property<int?>("QuarterBoxUnits")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("quarter_box_units");
 
                     b.Property<decimal>("SalePrice")
                         .HasColumnType("TEXT")
@@ -821,10 +801,6 @@ namespace POS.Infrastructure.Migrations
 
                     b.Property<string>("UnitOfMeasureId")
                         .HasColumnType("TEXT");
-
-                    b.Property<int?>("UnitsPerBox")
-                        .HasColumnType("INTEGER")
-                        .HasColumnName("units_per_box");
 
                     b.Property<int>("Version")
                         .IsConcurrencyToken()
@@ -957,6 +933,44 @@ namespace POS.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("PRODUCT_IMPORT_LINES", (string)null);
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.ProductPresentation", b =>
+                {
+                    b.Property<string>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("DisplayOrder")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("name")
+                        .UseCollation("NOCASE");
+
+                    b.Property<decimal>("Price")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("price");
+
+                    b.Property<string>("ProductId")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Units")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("units");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("PRODUCT_PRESENTATIONS", (string)null);
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.ProductSupplier", b =>
@@ -1196,11 +1210,10 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("discount");
 
-                    b.Property<int>("Presentation")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(1)
-                        .HasColumnName("presentation");
+                    b.Property<string>("PresentationName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("presentation_name");
 
                     b.Property<string>("ProductId")
                         .IsRequired()
@@ -1485,11 +1498,10 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasColumnName("discount");
 
-                    b.Property<int>("Presentation")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(1)
-                        .HasColumnName("presentation");
+                    b.Property<string>("PresentationName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .HasColumnName("presentation_name");
 
                     b.Property<string>("ProductId")
                         .IsRequired()
@@ -1886,6 +1898,15 @@ namespace POS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("POS.Domain.Entities.ProductPresentation", b =>
+                {
+                    b.HasOne("POS.Domain.Entities.Product", null)
+                        .WithMany("Presentations")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("POS.Domain.Entities.ProductSupplier", b =>
                 {
                     b.HasOne("POS.Domain.Entities.Product", null)
@@ -2055,6 +2076,11 @@ namespace POS.Infrastructure.Migrations
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("POS.Domain.Entities.Product", b =>
+                {
+                    b.Navigation("Presentations");
                 });
 
             modelBuilder.Entity("POS.Domain.Entities.Purchase", b =>

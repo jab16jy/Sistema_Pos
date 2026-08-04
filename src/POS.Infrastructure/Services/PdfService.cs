@@ -359,7 +359,7 @@ public sealed class PdfService : IPdfService
                 table.Cell().Element(CellStyle).Column(column =>
                 {
                     column.Item().Text(item.ProductName).Bold();
-                    column.Item().Text(PresentationLabel(item.Presentation, item.UnitsPerPresentation)).FontSize(8).FontColor(LabelColor);
+                    column.Item().Text(PresentationLabel(item.PresentationName, item.UnitsPerPresentation)).FontSize(8).FontColor(LabelColor);
                 });
                 table.Cell().Element(CellStyle).AlignCenter().Text(item.Quantity.ToString("N2", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
@@ -397,7 +397,7 @@ public sealed class PdfService : IPdfService
                 table.Cell().Element(CellStyle).Column(column =>
                 {
                     column.Item().Text(item.ProductName).Bold();
-                    column.Item().Text(PresentationLabel(item.Presentation, item.UnitsPerPresentation)).FontSize(8).FontColor(LabelColor);
+                    column.Item().Text(PresentationLabel(item.PresentationName, item.UnitsPerPresentation)).FontSize(8).FontColor(LabelColor);
                 });
                 table.Cell().Element(CellStyle).AlignCenter().Text(item.Quantity.Value.ToString("N2", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
@@ -523,8 +523,8 @@ public sealed class PdfService : IPdfService
         container.BorderBottom(0.5f).BorderColor("#ECECEC").PaddingVertical(6).PaddingHorizontal(6);
 
 
-    private static string PresentationLabel(Domain.Enums.ProductPresentation presentation, int unitsPerPresentation) =>
-        Domain.Enums.ProductPresentationLabel.For(presentation, unitsPerPresentation);
+    private static string PresentationLabel(string? presentationName, int unitsPerPresentation) =>
+        Domain.Enums.ProductPresentationLabel.For(presentationName, unitsPerPresentation);
 
     private async Task<Customer?> FindCustomerAsync(Guid? customerId, CancellationToken ct) => customerId.HasValue
         ? await _dbContext.Customers.AsNoTracking().FirstOrDefaultAsync(customer => customer.Id == customerId.Value, ct).ConfigureAwait(false)

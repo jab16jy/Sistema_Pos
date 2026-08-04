@@ -25,10 +25,9 @@ internal sealed class SaleItemConfiguration : IEntityTypeConfiguration<SaleItem>
         builder.Property(si => si.TaxRate)
                .HasColumnName("tax_rate")
                .HasDefaultValue(19m);
-        builder.Property(si => si.Presentation)
-               .HasConversion<int>()
-               .HasColumnName("presentation")
-               .HasDefaultValue(ProductPresentation.Unit);
+        builder.Property(si => si.PresentationName)
+               .HasColumnName("presentation_name")
+               .HasMaxLength(100);
         builder.Property(si => si.UnitsPerPresentation)
                .HasColumnName("units_per_presentation")
                .HasDefaultValue(1);
