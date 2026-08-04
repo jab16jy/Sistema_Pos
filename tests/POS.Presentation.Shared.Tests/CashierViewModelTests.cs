@@ -382,6 +382,78 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task SetExactAmountCommand_WithTenderAlreadyAdded_FillsOnlyWhatIsStillOwed()
+    {
+        // 400.000 sale settled as 300.000 by transfer plus cash: "OK" on the cash leg must offer
+        // the 100.000 still owed. Filling the whole total made the second leg over-cover the sale.
+        CashierViewModel viewModel = await CreateSplitPaymentViewModelAsync();
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Cash);
+        viewModel.SetExactAmountCommand.Execute(null);
+
+        Assert.Equal(100_000m, viewModel.ReceivedAmount);
+    }
+
+    [Fact]
+    public async Task SetExactAmountCommand_WithoutTenders_StillFillsTheWholeTotal()
+    {
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(Guid.NewGuid(), "Combo", "7701", 400_000m, 10m)))
+        {
+            SearchText = "combo",
+            Quantity = 1m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        viewModel.SetExactAmountCommand.Execute(null);
+
+        Assert.Equal(400_000m, viewModel.ReceivedAmount);
+    }
+
+    [Fact]
+    public async Task PaymentBalance_DuringSplitPayment_ReportsWhatIsStillOwed()
+    {
+        CashierViewModel viewModel = await CreateSplitPaymentViewModelAsync();
+
+        Assert.True(viewModel.IsPaymentShortfall);
+        Assert.Equal("Falta", viewModel.PaymentBalanceLabel);
+        Assert.Equal(100_000m, viewModel.RemainingToPay);
+        Assert.Equal(viewModel.RemainingToPayText, viewModel.PaymentBalanceText);
+
+        // Covering the rest flips the same box back to reporting change.
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Cash);
+        viewModel.SetExactAmountCommand.Execute(null);
+        viewModel.AddTenderCommand.Execute(null);
+
+        Assert.False(viewModel.IsPaymentShortfall);
+        Assert.Equal("Cambio", viewModel.PaymentBalanceLabel);
+        Assert.Equal(0m, viewModel.RemainingToPay);
+    }
+
+    /// <summary>400.000 in the cart with a 300.000 Bancolombia transfer already tendered.</summary>
+    private static async Task<CashierViewModel> CreateSplitPaymentViewModelAsync()
+    {
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(Guid.NewGuid(), "Combo", "7701", 400_000m, 10m)))
+        {
+            SearchText = "combo",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid()
+        };
+
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Transfer);
+        viewModel.BankOrPlatform = "Bancolombia";
+        viewModel.ReceivedAmount = 300_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        return viewModel;
+    }
+
+    [Fact]
     public async Task AddTenderCommand_NonCashAmountAboveRemaining_IsDisabled()
     {
         // Regression: a digital tender larger than the remaining balance over-covers the total.

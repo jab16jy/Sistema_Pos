@@ -841,14 +841,24 @@ public sealed class CashierViewModel : ViewModelBase
 
     public string ChangeText => FormatCurrency(ChangeAmount);
 
+    /// <summary>
+    /// True while the sale is not covered yet. During a split payment the balance is what the
+    /// tenders still leave owed — the cashier needs that figure in the same box that shows the
+    /// change, not only in the tender list. Outside a split it stays the cash-only shortfall:
+    /// a digital method with no amount typed pays the full total (see DeferredAmount).
+    /// </summary>
     public bool IsPaymentShortfall => HasCartItems &&
-        SelectedPaymentMethod.Method == PaymentMethod.Cash &&
-        ReceivedAmount > 0m &&
-        ReceivedAmount < NetPayable;
+        (HasTenders
+            ? RemainingToPay > 0m
+            : SelectedPaymentMethod.Method == PaymentMethod.Cash &&
+              ReceivedAmount > 0m &&
+              ReceivedAmount < NetPayable);
 
     public string PaymentBalanceLabel => IsPaymentShortfall ? "Falta" : "Cambio";
 
-    public string PaymentBalanceText => IsPaymentShortfall ? FormatCurrency(NetPayable - ReceivedAmount) : ChangeText;
+    public string PaymentBalanceText => IsPaymentShortfall
+        ? FormatCurrency(HasTenders ? RemainingToPay : NetPayable - ReceivedAmount)
+        : ChangeText;
 
     public bool CanConfirm
     {
@@ -2350,9 +2360,14 @@ public sealed class CashierViewModel : ViewModelBase
         ReceivedAmount = decimal.Truncate(ReceivedAmount / 10m);
     }
 
+    /// <summary>
+    /// "OK" on the keypad fills what is still owed, not the sale total: once part of a 400.000
+    /// sale is already tendered by transfer, the cash leg only has to cover the remaining 100.000.
+    /// With no tenders RemainingToPay is NetPayable, so the single-method case is unchanged.
+    /// </summary>
     private void SetExactReceivedAmount()
     {
-        ReceivedAmount = NetPayable;
+        ReceivedAmount = RemainingToPay;
     }
 
     private static string FormatCurrency(decimal amount) => $"${amount.ToString("N0", ColombianCulture)}";

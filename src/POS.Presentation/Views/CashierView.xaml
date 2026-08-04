@@ -845,10 +845,12 @@
                                  LostFocus="ReceivedAmount_LostFocus" />
              <Button Grid.Column="1"
                      Content="Agregar pago"
-                     Style="{StaticResource GhostButton}"
+                     Style="{StaticResource SecondaryButton}"
                      Command="{Binding AddTenderCommand}"
                      Margin="8,0,0,0"
-                     Padding="10,4"
+                     Padding="16,0"
+                     Height="36"
+                     FontWeight="Medium"
                      ToolTip="Registra este método y monto como uno de varios pagos de la venta." />
            </Grid>
 
