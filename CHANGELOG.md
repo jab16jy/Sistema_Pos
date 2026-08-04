@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.26.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.25.0...v1.26.0) (2026-08-04)
+
+
+### Features
+
+* **application:** update DTOs and use cases for user-defined presentations ([2c7b86d](https://github.com/jab16jy/Sistema_Pos/commit/2c7b86d7f95f75edaa4911bcf8d4b82e675f4497))
+* **cashier:** fit more products in the search results list ([66a94ad](https://github.com/jab16jy/Sistema_Pos/commit/66a94adc674e35295bc6ad82bbd213be7b26c765))
+* **cashier:** replace the dead Buscar button with Limpiar ([f9ef5cf](https://github.com/jab16jy/Sistema_Pos/commit/f9ef5cf1419c2cf0cd9d5ffca41481deddc5c894))
+* **infrastructure:** add product presentations EF mapping and data migration ([6953a1a](https://github.com/jab16jy/Sistema_Pos/commit/6953a1a666e79f981206b73760d3fcfda626fad8))
+* presentaciones definidas por el usuario + mejoras de caja ([48fe3b5](https://github.com/jab16jy/Sistema_Pos/commit/48fe3b51fd23ea42307f17eb02a436656cc80fe2))
+* **product:** model presentations as a user-defined collection ([4416338](https://github.com/jab16jy/Sistema_Pos/commit/4416338db5ad08b9772c5301451da61b90e08b6b))
+* **ui:** render dynamic user-defined presentations in catalog, cashier, and quote views ([3cf6779](https://github.com/jab16jy/Sistema_Pos/commit/3cf67790ee7eec59ab7eb6eda7ea51c7940c837b))
+
+
+### Bug Fixes
+
+* **presentations:** preserve presentation identity and surface save feedback ([07a58ef](https://github.com/jab16jy/Sistema_Pos/commit/07a58efebd98f00a4abc144845c53e805860cfb6))
+
 ## [1.25.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.24.0...v1.25.0) (2026-08-04)
 
 
