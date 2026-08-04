@@ -11,7 +11,11 @@ internal sealed class ProductPresentationConfiguration : IEntityTypeConfiguratio
     {
         builder.ToTable("PRODUCT_PRESENTATIONS");
         builder.HasKey(pp => pp.Id);
-        builder.Property(pp => pp.Id).HasConversion<string>();
+        // The domain mints the id in the constructor. Without this, EF treats a Guid key as
+        // store-generated, so a presentation added to an already-tracked product arrives with its key
+        // set and gets painted Modified instead of Added — an UPDATE against a row that was never
+        // inserted, which affects 0 rows and surfaces as a concurrency conflict.
+        builder.Property(pp => pp.Id).HasConversion<string>().ValueGeneratedNever();
         builder.Property(pp => pp.ProductId).HasConversion<string>().HasColumnName("product_id");
         // NOCASE so the unique index below rejects "caja" next to "Caja", matching the
         // OrdinalIgnoreCase rule the domain enforces.

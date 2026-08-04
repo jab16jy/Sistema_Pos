@@ -221,15 +221,9 @@ public sealed class Product
     /// </summary>
     public void ReplacePresentations(IEnumerable<(string Name, int Units, Money Price)>? presentations)
     {
-        _presentations.Clear();
-        if (presentations is null)
-        {
-            return;
-        }
-
+        var incoming = new List<(string Name, int Units, Money Price)>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        int order = 0;
-        foreach (var (name, units, price) in presentations)
+        foreach (var (name, units, price) in presentations ?? [])
         {
             string normalized = ProductPresentation.Normalize(name);
             if (!seen.Add(normalized))
@@ -237,7 +231,28 @@ public sealed class Product
                 throw new ArgumentException($"Product '{Name}' already has a presentation named '{normalized}'.", nameof(presentations));
             }
 
-            _presentations.Add(new ProductPresentation(normalized, units, price, order++));
+            incoming.Add((normalized, units, price));
+        }
+
+        // A presentation that survives the edit keeps its identity: rebuilding it would make the
+        // persistence layer delete and re-insert the same row on every save, which both floods the
+        // audit trail and races the unique (product, name) index.
+        _presentations.RemoveAll(presentation => !seen.Contains(presentation.Name));
+
+        int order = 0;
+        foreach (var (name, units, price) in incoming)
+        {
+            ProductPresentation? survivor = Find(name);
+            if (survivor is null)
+            {
+                _presentations.Add(new ProductPresentation(name, units, price, order));
+            }
+            else
+            {
+                survivor.Reconfigure(name, units, price, order);
+            }
+
+            order++;
         }
     }
 

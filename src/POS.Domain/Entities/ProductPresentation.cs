@@ -22,9 +22,7 @@ public sealed class ProductPresentation
     {
         Id = Guid.NewGuid();
         Name = Normalize(name);
-        Units = units >= 2
-            ? units
-            : throw new ArgumentOutOfRangeException(nameof(units), "A presentation must contain at least 2 base units.");
+        Units = ValidateUnits(units);
         Price = price;
         DisplayOrder = displayOrder;
     }
@@ -44,6 +42,23 @@ public sealed class ProductPresentation
 
     /// <summary>Presentations are matched by name, case-insensitively, so "caja" finds "Caja".</summary>
     public bool Matches(string name) => string.Equals(Name, name?.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Re-points an existing presentation at new figures without minting a new identity, so an edit
+    /// updates its row instead of deleting and re-inserting it.
+    /// </summary>
+    internal void Reconfigure(string name, int units, Money price, int displayOrder)
+    {
+        Name = Normalize(name);
+        Units = ValidateUnits(units);
+        Price = price;
+        DisplayOrder = displayOrder;
+    }
+
+    private static int ValidateUnits(int units) =>
+        units >= 2
+            ? units
+            : throw new ArgumentOutOfRangeException(nameof(units), "A presentation must contain at least 2 base units.");
 
     internal static string Normalize(string name) =>
         string.IsNullOrWhiteSpace(name)

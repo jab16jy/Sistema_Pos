@@ -45,6 +45,9 @@ public sealed class ProductsViewModel : ViewModelBase
     private Guid _categoryId;
     private string _message = "Busca productos por nombre o código de barras.";
     private bool _isCsvSectionOpen;
+    /// <summary>Name a freshly seeded presentation row carries until the shop edits it.</summary>
+    private const string DefaultPresentationName = "Caja";
+
     private bool _isProductsSubtabActive = true;
     private CancellationTokenSource? _searchCancellationTokenSource;
 
@@ -93,7 +96,7 @@ public sealed class ProductsViewModel : ViewModelBase
         _printLabelCommand = new RelayCommand(_ => RunSafe(PrintLabelAsync(), ex => Message = $"Error al imprimir la etiqueta: {ex.Message}"), _ => SelectedProduct is not null && !string.IsNullOrWhiteSpace(SelectedProduct.Barcode));
         GenerateInternalBarcodeCommand = _generateInternalBarcodeCommand;
         PrintLabelCommand = _printLabelCommand;
-        AddPresentationCommand = new RelayCommand(_ => Presentations.Add(new PresentationRowViewModel("Caja", 0, 0m)));
+        AddPresentationCommand = new RelayCommand(_ => Presentations.Add(PresentationRowViewModel.Seeded(DefaultPresentationName)));
         RemovePresentationCommand = new RelayCommand(p => { if (p is PresentationRowViewModel row) Presentations.Remove(row); });
     }
 
@@ -174,7 +177,7 @@ public sealed class ProductsViewModel : ViewModelBase
                     }
                     else
                     {
-                        Presentations.Add(new PresentationRowViewModel("Caja", 0, 0m));
+                        Presentations.Add(PresentationRowViewModel.Seeded(DefaultPresentationName));
                     }
                     RunSafe(LoadSupplierRelationshipsAsync(value.Id), ex => Message = $"Error al cargar proveedores: {ex.Message}");
                 }
@@ -472,10 +475,10 @@ public sealed class ProductsViewModel : ViewModelBase
 
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
-        var validPresentations = Presentations
-            .Where(p => !string.IsNullOrWhiteSpace(p.Name) && p.Units is >= 2 && p.Price is > 0m)
-            .Select(p => new ProductPresentationDto(p.Name.Trim(), p.Units!.Value, p.Price!.Value))
-            .ToList();
+        if (!TryCollectPresentations(out List<ProductPresentationDto> validPresentations))
+        {
+            return;
+        }
 
         try
         {
@@ -519,7 +522,11 @@ public sealed class ProductsViewModel : ViewModelBase
 
             await LoadAsync(cancellationToken).ConfigureAwait(true);
             SelectedProduct = Products.FirstOrDefault(product => product.Id == savedProductId);
-            Message = "Producto guardado correctamente";
+            // Say exactly what landed, so a save that quietly dropped a presentation is visible
+            // instead of looking like it worked.
+            Message = validPresentations.Count == 0
+                ? $"Producto \"{Name}\" guardado. Sin presentaciones: se vende solo por unidad."
+                : $"Producto \"{Name}\" guardado con {validPresentations.Count} presentación(es): {string.Join(", ", validPresentations.Select(p => $"{p.Name} x{p.Units}"))}.";
         }
         catch (ArgumentException ex)
         {
@@ -529,6 +536,49 @@ public sealed class ProductsViewModel : ViewModelBase
         {
             Message = ex.Message;
         }
+    }
+
+    /// <summary>
+    /// Turns the presentation rows into DTOs. A row still in its seeded state is dropped, but a row
+    /// the shop started filling in must be complete: silently discarding it would report a
+    /// successful save for a presentation that never reached the catalogue.
+    /// </summary>
+    private bool TryCollectPresentations(out List<ProductPresentationDto> presentations)
+    {
+        presentations = [];
+
+        foreach (PresentationRowViewModel row in Presentations)
+        {
+            string name = row.Name?.Trim() ?? string.Empty;
+            bool hasUnits = row.Units is > 0;
+            bool hasPrice = row.Price is > 0m;
+
+            // Only a row this form seeded and nobody filled in may vanish quietly. A row the shop
+            // typed, or one loaded from the catalogue, is judged on its contents whatever it is
+            // called — otherwise clearing the figures of a saved "Caja" would delete it in silence.
+            bool untouched = row.IsSeededPlaceholder && !hasUnits && !hasPrice;
+            if (untouched)
+            {
+                continue;
+            }
+
+            string? problem = name.Length == 0 ? "necesita un nombre"
+                : !hasUnits ? "necesita las unidades que contiene (mínimo 2)"
+                : row.Units < 2 ? "debe contener al menos 2 unidades"
+                : !hasPrice ? "necesita un precio mayor a cero"
+                : null;
+
+            if (problem is not null)
+            {
+                Message = $"No se guardó: revisa la presentación \"{(name.Length == 0 ? "sin nombre" : name)}\" — {problem}.";
+                presentations = [];
+                return false;
+            }
+
+            presentations.Add(new ProductPresentationDto(name, row.Units!.Value, row.Price!.Value));
+        }
+
+        return true;
     }
 
     public async Task GenerateInternalBarcodeAsync(CancellationToken cancellationToken = default)
@@ -671,7 +721,7 @@ public sealed class ProductsViewModel : ViewModelBase
         MinimumStock = 0;
         TaxRate = 19m;
         Presentations.Clear();
-        Presentations.Add(new PresentationRowViewModel("Caja", 0, 0m));
+        Presentations.Add(PresentationRowViewModel.Seeded(DefaultPresentationName));
         Barcode = null;
         CategoryId = ResolveDefaultCategoryId();
         OnPropertyChanged(nameof(HasSelectedProduct));

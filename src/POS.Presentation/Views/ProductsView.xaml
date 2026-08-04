@@ -367,7 +367,7 @@
               <!-- Dynamic packaged presentations -->
               <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="Presentaciones (opcional)" Style="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center" />
-                <Button Content="+ Agregar presentación" Command="{Binding AddPresentationCommand}" HorizontalAlignment="Right" Style="{StaticResource MaterialOutlineButton}" Padding="8,2" FontSize="11" />
+                <Button Content="+ Agregar presentación" Command="{Binding AddPresentationCommand}" HorizontalAlignment="Right" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="11" />
               </DockPanel>
 
               <ItemsControl ItemsSource="{Binding Presentations}" Margin="0,0,0,10">
@@ -386,7 +386,7 @@
                       <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="Nombre (ej. Caja, Paquete de 3)" />
                       <TextBox Grid.Column="2" Text="{Binding Units, Mode=TwoWay, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Tag="Unidades" />
                       <TextBox Grid.Column="4" Text="{Binding Price, Mode=TwoWay, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Tag="Precio" />
-                      <Button Grid.Column="6" Content="✕" Command="{Binding DataContext.RemovePresentationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Foreground="{StaticResource BrushError}" Background="Transparent" BorderThickness="0" Padding="6,2" Cursor="Hand" ToolTip="Eliminar presentación" />
+                      <Button Grid.Column="6" Content="✕" Command="{Binding DataContext.RemovePresentationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Foreground="{StaticResource BrushDanger}" Background="Transparent" BorderThickness="0" Padding="6,2" Cursor="Hand" ToolTip="Eliminar presentación" />
                     </Grid>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -481,6 +481,7 @@
 
           <!-- Form actions -->
           <Border Grid.Row="2" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,12,0,0">
+            <StackPanel>
             <Grid>
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -509,6 +510,12 @@
                 </StackPanel>
               </Button>
             </Grid>
+
+            <!-- Save/validation feedback: the Categorias tab had its own, the product form had none,
+                 so a save that failed validation looked identical to one that worked. -->
+            <TextBlock Text="{Binding Message}" Style="{StaticResource MutedText}" FontSize="12"
+                       TextWrapping="Wrap" Margin="0,10,0,0" />
+            </StackPanel>
           </Border>
         </Grid>
       </Border>
