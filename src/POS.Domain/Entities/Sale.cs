@@ -74,22 +74,22 @@ public sealed class Sale
             : Money.Zero;
 
     public void AddItem(Product product, Quantity quantity, Money discount)
-        => AddItem(product, quantity, ProductPresentation.Unit, discount);
+        => AddItem(product, quantity, null, discount);
 
-    public void AddItem(Product product, Quantity quantity, ProductPresentation presentation, Money discount)
+    public void AddItem(Product product, Quantity quantity, string? presentationName, Money discount)
     {
         ArgumentNullException.ThrowIfNull(product);
-        AddItem(product, quantity, presentation, discount, product.PriceFor(presentation), product.UnitsFor(presentation));
+        AddItem(product, quantity, presentationName, discount, product.PriceFor(presentationName), product.UnitsFor(presentationName));
     }
 
     /// <summary>
     /// Adds a line with immutable commercial snapshots. Quote conversion uses this overload so
-    /// later catalogue price or box-equivalence changes never rewrite the agreed quote.
+    /// later catalogue price or pack-equivalence changes never rewrite the agreed quote.
     /// </summary>
     public void AddItem(
         Product product,
         Quantity quantity,
-        ProductPresentation presentation,
+        string? presentationName,
         Money discount,
         Money unitPrice,
         int unitsPerPresentation)
@@ -100,17 +100,18 @@ public sealed class Sale
         }
 
         ArgumentNullException.ThrowIfNull(product);
-        int factor = presentation == ProductPresentation.Unit
+        string? name = string.IsNullOrWhiteSpace(presentationName) ? null : presentationName.Trim();
+        int factor = name is null
             ? 1
             : unitsPerPresentation >= 2
                 ? unitsPerPresentation
                 : throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A packaged presentation must contain at least 2 base units.");
 
-        // Stock remains in base units even when a historical quote uses an old box equivalence.
+        // Stock remains in base units even when a historical quote uses an old pack equivalence.
         product.DecreaseStock(new Quantity(quantity.Value * factor));
 
         var unitCost = new Money((product.CostPrice?.Amount ?? 0m) * factor);
-        _items.Add(new SaleItem(product.Id, product.Name, quantity, unitPrice, discount, unitCost, product.TaxRate, presentation, factor));
+        _items.Add(new SaleItem(product.Id, product.Name, quantity, unitPrice, discount, unitCost, product.TaxRate, name, factor));
     }
 
     public void AddPayment(Payment payment)

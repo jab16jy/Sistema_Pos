@@ -23,12 +23,7 @@ public sealed class Product
         string? description = null,
         Barcode? barcode = null,
         decimal taxRate = 19m,
-        int? unitsPerBox = null,
-        Money? boxPrice = null,
-        int? halfBoxUnits = null,
-        Money? halfBoxPrice = null,
-        int? quarterBoxUnits = null,
-        Money? quarterBoxPrice = null)
+        IEnumerable<(string Name, int Units, Money Price)>? presentations = null)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -49,7 +44,7 @@ public sealed class Product
         TracksInventory = true;
         TaxRate = ValidateTaxRate(taxRate);
         IsActive = true;
-        SetPackagedPresentations(unitsPerBox, boxPrice, halfBoxUnits, halfBoxPrice, quarterBoxUnits, quarterBoxPrice);
+        ReplacePresentations(presentations);
     }
 
     public static Product CreateImportedCatalogItem(
@@ -117,46 +112,34 @@ public sealed class Product
     public bool IsActive { get; private set; }
     public int Version { get; private set; }
 
-    /// <summary>Units contained in one box, when the product can also be sold by the box. Null = not sold as a box.</summary>
-    public int? UnitsPerBox { get; private set; }
+    private readonly List<ProductPresentation> _presentations = [];
 
-    /// <summary>Independent price for one box (not necessarily UnitsPerBox * SalePrice). Null = not sold as a box.</summary>
-    public Money? BoxPrice { get; private set; }
+    /// <summary>
+    /// The packaged ways this shop chose to sell the product, in the order it arranged them.
+    /// Empty means the product is only sold by the loose base unit.
+    /// </summary>
+    public IReadOnlyList<ProductPresentation> Presentations =>
+        _presentations.OrderBy(presentation => presentation.DisplayOrder).ToList();
 
-    /// <summary>Units contained in one half box. Configured explicitly, never derived from UnitsPerBox.</summary>
-    public int? HalfBoxUnits { get; private set; }
-
-    /// <summary>Independent price for one half box. Null = not sold as a half box.</summary>
-    public Money? HalfBoxPrice { get; private set; }
-
-    /// <summary>Units contained in one quarter box. Configured explicitly, never derived from UnitsPerBox.</summary>
-    public int? QuarterBoxUnits { get; private set; }
-
-    /// <summary>Independent price for one quarter box. Null = not sold as a quarter box.</summary>
-    public Money? QuarterBoxPrice { get; private set; }
-
-    /// <summary>True when the product can be sold as a box, not just by unit.</summary>
-    public bool SupportsBoxSale => Supports(ProductPresentation.Box);
-
-    /// <summary>True when the product can be sold in the given presentation. Unit is always available.</summary>
-    public bool Supports(ProductPresentation presentation) =>
-        presentation == ProductPresentation.Unit || PackagedPresentation(presentation) is not null;
+    /// <summary>True when the product can be sold this way. A blank name is the base unit, always available.</summary>
+    public bool Supports(string? presentationName) =>
+        string.IsNullOrWhiteSpace(presentationName) || Find(presentationName) is not null;
 
     /// <summary>Base inventory units contained in one of the chosen presentation.</summary>
-    public int UnitsFor(ProductPresentation presentation) =>
-        presentation == ProductPresentation.Unit ? 1 : Require(presentation).Units;
+    public int UnitsFor(string? presentationName) =>
+        string.IsNullOrWhiteSpace(presentationName) ? 1 : Require(presentationName).Units;
 
     /// <summary>Sale price for the chosen presentation.</summary>
-    public Money PriceFor(ProductPresentation presentation) =>
-        presentation == ProductPresentation.Unit ? SalePrice : Require(presentation).Price;
+    public Money PriceFor(string? presentationName) =>
+        string.IsNullOrWhiteSpace(presentationName) ? SalePrice : Require(presentationName).Price;
 
     /// <summary>Base inventory units consumed when selling <paramref name="quantity"/> of the chosen presentation.</summary>
-    public decimal InventoryUnitsFor(ProductPresentation presentation, decimal quantity) =>
-        quantity * UnitsFor(presentation);
+    public decimal InventoryUnitsFor(string? presentationName, decimal quantity) =>
+        quantity * UnitsFor(presentationName);
 
-    /// <summary>Cost snapshot for one sold unit of the chosen presentation (per box = per-unit cost * units).</summary>
-    public Money UnitCostFor(ProductPresentation presentation) =>
-        new((CostPrice?.Amount ?? 0m) * UnitsFor(presentation));
+    /// <summary>Cost snapshot for one sold unit of the chosen presentation (per pack = per-unit cost * units).</summary>
+    public Money UnitCostFor(string? presentationName) =>
+        new((CostPrice?.Amount ?? 0m) * UnitsFor(presentationName));
 
     public bool IsLowStock() => MinimumStock > 0m && CurrentStock > 0m && CurrentStock <= MinimumStock;
 
@@ -175,12 +158,7 @@ public sealed class Product
         string? description = null,
         Barcode? barcode = null,
         decimal taxRate = 19m,
-        int? unitsPerBox = null,
-        Money? boxPrice = null,
-        int? halfBoxUnits = null,
-        Money? halfBoxPrice = null,
-        int? quarterBoxUnits = null,
-        Money? quarterBoxPrice = null)
+        IEnumerable<(string Name, int Units, Money Price)>? presentations = null)
     {
         if (!IsActive)
         {
@@ -200,7 +178,7 @@ public sealed class Product
         MinimumStock = minimumStock.Value;
         Barcode = barcode?.Value;
         TaxRate = ValidateTaxRate(taxRate);
-        SetPackagedPresentations(unitsPerBox, boxPrice, halfBoxUnits, halfBoxPrice, quarterBoxUnits, quarterBoxPrice);
+        ReplacePresentations(presentations);
     }
 
     public void AssignCategory(Guid categoryId)
@@ -234,60 +212,41 @@ public sealed class Product
     }
 
     /// <summary>
-    /// Sets (or clears) each packaged presentation. Units and price go together per
-    /// presentation: a package needs a unit count (at least 2) and its own price, and
-    /// passing neither clears that presentation. Half and quarter box are independent
-    /// of the box — a shop may price a half box without offering the full one.
+    /// Replaces the whole set of presentations with what the shop configured, in the given order.
+    /// The catalogue screen always sends the complete list, so replacing is the only mutation
+    /// needed and a removed row simply stops being sent. Names must be unique per product —
+    /// two presentations called "Caja" with different prices would make a sold line ambiguous.
+    /// Past sale and quote lines keep their own name and unit snapshots, so editing here never
+    /// rewrites history.
     /// </summary>
-    private void SetPackagedPresentations(
-        int? unitsPerBox,
-        Money? boxPrice,
-        int? halfBoxUnits,
-        Money? halfBoxPrice,
-        int? quarterBoxUnits,
-        Money? quarterBoxPrice)
+    public void ReplacePresentations(IEnumerable<(string Name, int Units, Money Price)>? presentations)
     {
-        (UnitsPerBox, BoxPrice) = ValidatePackage("box", unitsPerBox, boxPrice, nameof(unitsPerBox));
-        (HalfBoxUnits, HalfBoxPrice) = ValidatePackage("half box", halfBoxUnits, halfBoxPrice, nameof(halfBoxUnits));
-        (QuarterBoxUnits, QuarterBoxPrice) = ValidatePackage("quarter box", quarterBoxUnits, quarterBoxPrice, nameof(quarterBoxUnits));
+        _presentations.Clear();
+        if (presentations is null)
+        {
+            return;
+        }
+
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        int order = 0;
+        foreach (var (name, units, price) in presentations)
+        {
+            string normalized = ProductPresentation.Normalize(name);
+            if (!seen.Add(normalized))
+            {
+                throw new ArgumentException($"Product '{Name}' already has a presentation named '{normalized}'.", nameof(presentations));
+            }
+
+            _presentations.Add(new ProductPresentation(normalized, units, price, order++));
+        }
     }
 
-    private static (int?, Money?) ValidatePackage(string label, int? units, Money? price, string unitsParameterName)
-    {
-        if (units is null && price is null)
-        {
-            return (null, null);
-        }
+    private ProductPresentation? Find(string presentationName) =>
+        _presentations.FirstOrDefault(presentation => presentation.Matches(presentationName));
 
-        if (units is null || price is null)
-        {
-            throw new ArgumentException($"A {label} presentation needs both the units it contains and its price.");
-        }
-
-        if (units.Value < 2)
-        {
-            throw new ArgumentOutOfRangeException(unitsParameterName, $"A {label} must contain at least 2 units.");
-        }
-
-        return (units.Value, price.Value);
-    }
-
-    private (int Units, Money Price)? PackagedPresentation(ProductPresentation presentation) => presentation switch
-    {
-        ProductPresentation.Box => Package(UnitsPerBox, BoxPrice),
-        ProductPresentation.HalfBox => Package(HalfBoxUnits, HalfBoxPrice),
-        ProductPresentation.QuarterBox => Package(QuarterBoxUnits, QuarterBoxPrice),
-        _ => null
-    };
-
-    private static (int Units, Money Price)? Package(int? units, Money? price) =>
-        units is int configuredUnits && configuredUnits > 0 && price is Money configuredPrice
-            ? (configuredUnits, configuredPrice)
-            : null;
-
-    private (int Units, Money Price) Require(ProductPresentation presentation) =>
-        PackagedPresentation(presentation)
-        ?? throw new InvalidOperationException($"Product '{Name}' is not configured for {presentation} sales.");
+    private ProductPresentation Require(string presentationName) =>
+        Find(presentationName)
+        ?? throw new InvalidOperationException($"Product '{Name}' is not configured to be sold as '{presentationName.Trim()}'.");
 
     /// <summary>
     /// The single entry point that changes <see cref="CurrentStock"/> and produces the matching

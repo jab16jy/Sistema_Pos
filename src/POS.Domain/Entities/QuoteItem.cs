@@ -16,7 +16,7 @@ public sealed class QuoteItem
         Money unitPrice,
         Quantity quantity,
         decimal discount,
-        ProductPresentation presentation = ProductPresentation.Unit,
+        string? presentationName = null,
         int unitsPerPresentation = 1)
     {
         if (string.IsNullOrWhiteSpace(productName))
@@ -35,8 +35,8 @@ public sealed class QuoteItem
         UnitPrice = unitPrice;
         Quantity = quantity;
         Discount = discount;
-        Presentation = presentation;
-        UnitsPerPresentation = ValidateUnitsPerPresentation(presentation, unitsPerPresentation);
+        PresentationName = string.IsNullOrWhiteSpace(presentationName) ? null : presentationName.Trim();
+        UnitsPerPresentation = ValidateUnitsPerPresentation(PresentationName, unitsPerPresentation);
     }
 
     public Guid Id { get; private set; }
@@ -46,14 +46,19 @@ public sealed class QuoteItem
     public Money UnitPrice { get; private set; }
     public Quantity Quantity { get; private set; }
     public decimal Discount { get; private set; }
-    public ProductPresentation Presentation { get; private set; }
+    /// <summary>
+    /// Name snapshot of the presentation quoted. Null means the loose base unit. A copy, not a
+    /// foreign key, so a later catalogue rename never rewrites the quote that was agreed.
+    /// </summary>
+    public string? PresentationName { get; private set; }
+
     public int UnitsPerPresentation { get; private set; }
 
     public Money Subtotal() => new(UnitPrice.Amount * Quantity.Value * (1m - Discount / 100m));
 
-    private static int ValidateUnitsPerPresentation(ProductPresentation presentation, int unitsPerPresentation)
+    private static int ValidateUnitsPerPresentation(string? presentationName, int unitsPerPresentation)
     {
-        if (presentation == ProductPresentation.Unit)
+        if (presentationName is null)
         {
             return 1;
         }
