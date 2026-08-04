@@ -304,8 +304,27 @@ public sealed class PdfService : IPdfService
                 row.RelativeItem().Text("Total pagado").FontSize(11).Bold();
                 row.ConstantItem(120).AlignRight().Text(totalPaid.ToString("C0", culture)).FontSize(11).Bold();
             });
+
+            // Only a credit sale carries one, and the customer's copy has to say so.
+            decimal deferred = DeferredBalance(sale);
+            if (deferred > 0m)
+            {
+                col.Item().Row(row =>
+                {
+                    row.RelativeItem().Text("Saldo pendiente").FontSize(11).Bold().FontColor(DueColor);
+                    row.ConstantItem(120).AlignRight().Text(deferred.ToString("C0", culture)).FontSize(11).Bold().FontColor(DueColor);
+                });
+            }
         });
     }
+
+    /// <summary>
+    /// What the customer still owes on a credit sale. The settlement plan lives only in memory
+    /// while the sale is being built, so a reloaded sale has none — but Sale.Complete() enforces
+    /// TotalPaid + deferred == Total, which makes the gap the deferred balance as it stood when
+    /// the sale closed. Reading the receivable instead would report today's balance on a reprint.
+    /// </summary>
+    private static decimal DeferredBalance(Sale sale) => sale.Total().Amount - sale.TotalPaid().Amount;
 
     private static void ComposeItemsTable(IContainer container, Sale sale, CultureInfo culture)
     {
@@ -489,6 +508,7 @@ public sealed class PdfService : IPdfService
     private const string LabelColor = "#6B6B6B";
     private const string BorderColor = "#D0D0D0";
     private const string AccentColor = "#0F766E";
+    private const string DueColor = "#B91C1C";
 
     private static IContainer CardStyle(IContainer container) =>
         container.Border(0.75f).BorderColor(BorderColor).Padding(12);

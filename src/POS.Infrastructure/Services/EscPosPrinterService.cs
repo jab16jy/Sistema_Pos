@@ -252,6 +252,19 @@ public sealed partial class EscPosPrinterService : IPrintService
                 WriteLine($"  {payment.BankOrPlatform}");
         }
 
+        // Only a credit sale carries one. The settlement plan lives in memory only while the sale
+        // is being built, so a reloaded sale has none — but Sale.Complete() enforces
+        // TotalPaid + deferred == Total, which makes the gap the balance as it stood at closing.
+        // Reading the receivable instead would print today's balance on a reprint.
+        var deferredBalance = sale.Total().Amount - sale.TotalPaid().Amount;
+        if (deferredBalance > 0)
+        {
+            WriteLine();
+            Write(EscPosCommands.BoldOn);
+            WriteLine($"{"SALDO PENDIENTE:",-20}{FormatCurrency(deferredBalance),12}");
+            Write(EscPosCommands.BoldOff);
+        }
+
         WriteLine();
         Separator();
 

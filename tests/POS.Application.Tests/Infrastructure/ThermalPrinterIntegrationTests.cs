@@ -190,6 +190,68 @@ public sealed class ThermalPrinterIntegrationTests
     }
 
     [Fact]
+    public async Task EscPosPrinterService_PrintsThePendingBalanceOnlyWhenTheSaleWasPartlyOnCredit()
+    {
+        await using var fixture = await TestDbContextFactory.CreateAsync();
+        fixture.DbContext.BusinessSettings.Add(new BusinessSettings(
+            "Negocio", null, null, null, null, null, null, null, false, null, "COM7", null, null, null, "COP"));
+
+        var customer = new Customer("Maria Perez", "123456789");
+        fixture.DbContext.Customers.Add(customer);
+        await fixture.DbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Product product = await TestProductFactory.CreateAndPersistAsync(
+            fixture.DbContext, "Arroz", new Money(2_000m), new Money(10_000m),
+            new StockQuantity(50m), new StockQuantity(2m), TestContext.Current.CancellationToken);
+
+        var saleUseCase = new CreateSaleUseCase(
+            new ProductRepository(fixture.DbContext),
+            new SaleRepository(fixture.DbContext),
+            fixture.DbContext,
+            new ReceivableRepository(fixture.DbContext),
+            authorizer: TestAuthorizer.Create(dbContext: fixture.DbContext));
+
+        // 100.000 sale: 60.000 collected in cash, 40.000 left on the customer's account.
+        var creditSale = await saleUseCase.ExecuteAsync(
+            new CreateSaleRequest(
+                customer.Id,
+                [new CreateSaleItemRequest(product.Id, 10m, 0m)],
+                new SaleSettlementPlan(60_000m, PaymentMethod.Cash, 40_000m, null)),
+            TestContext.Current.CancellationToken);
+
+        var resolver = new PrinterSettingsResolver(new PrinterRuntimeOptions(), fixture.DbContext);
+        var transport = new FakeThermalPrinterTransport();
+        var service = new EscPosPrinterService(resolver, transport, fixture.DbContext);
+
+        await service.PrintReceiptAsync(creditSale.SaleId, TestContext.Current.CancellationToken);
+        string creditText = Encoding.Latin1.GetString(transport.LastPayload!);
+
+        Assert.Contains("SALDO PENDIENTE:", creditText);
+        Assert.Contains("$40.000", creditText);
+
+        // Measure from the label onwards: everything before it on this segment is the bold-on
+        // escape sequence, which the printer consumes as a command instead of putting it on paper.
+        string segment = creditText
+            .Split((char)10)
+            .First(line => line.Contains("SALDO PENDIENTE:", StringComparison.Ordinal));
+        string pendingLine = segment[segment.IndexOf("SALDO PENDIENTE:", StringComparison.Ordinal)..];
+        Assert.True(pendingLine.Length <= 32, $"Pending balance line exceeds the 32-column receipt: '{pendingLine}'");
+
+        // A fully paid sale must not carry the line at all.
+        var paidSale = await saleUseCase.ExecuteAsync(
+            new CreateSaleRequest(
+                null,
+                [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+                [new CreateSalePaymentRequest(PaymentMethod.Cash, 10_000m, 10_000m, null)]),
+            TestContext.Current.CancellationToken);
+
+        await service.PrintReceiptAsync(paidSale.SaleId, TestContext.Current.CancellationToken);
+        string paidText = Encoding.Latin1.GetString(transport.LastPayload!);
+
+        Assert.DoesNotContain("SALDO PENDIENTE", paidText);
+    }
+
+    [Fact]
     public async Task EscPosPrinterService_PrintsItemDiscountGrossTotalAndLoyaltyTier()
     {
         await using var fixture = await TestDbContextFactory.CreateAsync();
