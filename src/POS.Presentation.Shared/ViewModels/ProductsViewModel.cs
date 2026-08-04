@@ -41,6 +41,10 @@ public sealed class ProductsViewModel : ViewModelBase
     private decimal _taxRate = 19m;
     private int? _unitsPerBox;
     private decimal? _boxPrice;
+    private int? _halfBoxUnits;
+    private decimal? _halfBoxPrice;
+    private int? _quarterBoxUnits;
+    private decimal? _quarterBoxPrice;
     private string _csvPath = string.Empty;
     private string? _barcode;
     private Guid _categoryId;
@@ -165,6 +169,10 @@ public sealed class ProductsViewModel : ViewModelBase
                     CategoryId = value.CategoryId;
                     UnitsPerBox = value.UnitsPerBox;
                     BoxPrice = value.BoxPrice;
+                    HalfBoxUnits = value.HalfBoxUnits;
+                    HalfBoxPrice = value.HalfBoxPrice;
+                    QuarterBoxUnits = value.QuarterBoxUnits;
+                    QuarterBoxPrice = value.QuarterBoxPrice;
                     RunSafe(LoadSupplierRelationshipsAsync(value.Id), ex => Message = $"Error al cargar proveedores: {ex.Message}");
                 }
                 else
@@ -371,6 +379,34 @@ public sealed class ProductsViewModel : ViewModelBase
 
     public bool SellsByBox => _unitsPerBox is > 0 && _boxPrice is > 0m;
 
+    /// <summary>Units contained in one half box. Entered explicitly, never derived from UnitsPerBox.</summary>
+    public int? HalfBoxUnits
+    {
+        get => _halfBoxUnits;
+        set => SetProperty(ref _halfBoxUnits, value);
+    }
+
+    /// <summary>Independent price for one half box.</summary>
+    public decimal? HalfBoxPrice
+    {
+        get => _halfBoxPrice;
+        set => SetProperty(ref _halfBoxPrice, value);
+    }
+
+    /// <summary>Units contained in one quarter box. Entered explicitly, never derived from UnitsPerBox.</summary>
+    public int? QuarterBoxUnits
+    {
+        get => _quarterBoxUnits;
+        set => SetProperty(ref _quarterBoxUnits, value);
+    }
+
+    /// <summary>Independent price for one quarter box.</summary>
+    public decimal? QuarterBoxPrice
+    {
+        get => _quarterBoxPrice;
+        set => SetProperty(ref _quarterBoxPrice, value);
+    }
+
     /// <summary>Operator applying stock adjustments, for audit traceability. Set by the shell after login.</summary>
     public Guid OperatorUserId { get; set; }
 
@@ -481,16 +517,18 @@ public sealed class ProductsViewModel : ViewModelBase
         }
     }
 
+    private static (int?, decimal?) NormalizePackage(int? units, decimal? price) =>
+        units is int configuredUnits && configuredUnits >= 2 && price is decimal configuredPrice && configuredPrice > 0m
+            ? (configuredUnits, configuredPrice)
+            : (null, null);
+
     public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
-        // A box needs both values; a half-filled or "box of 1" config is treated as unit-only.
-        int? unitsPerBox = null;
-        decimal? boxPrice = null;
-        if (_unitsPerBox is int units && units >= 2 && _boxPrice is decimal price && price > 0m)
-        {
-            unitsPerBox = units;
-            boxPrice = price;
-        }
+        // Each presentation needs both values; a half-filled or "package of 1" config is dropped
+        // so the product simply stops offering that presentation instead of failing to save.
+        (int? unitsPerBox, decimal? boxPrice) = NormalizePackage(_unitsPerBox, _boxPrice);
+        (int? halfBoxUnits, decimal? halfBoxPrice) = NormalizePackage(_halfBoxUnits, _halfBoxPrice);
+        (int? quarterBoxUnits, decimal? quarterBoxPrice) = NormalizePackage(_quarterBoxUnits, _quarterBoxPrice);
 
         try
         {
@@ -511,6 +549,10 @@ public sealed class ProductsViewModel : ViewModelBase
                     TaxRate,
                     unitsPerBox,
                     boxPrice,
+                    halfBoxUnits,
+                    halfBoxPrice,
+                    quarterBoxUnits,
+                    quarterBoxPrice,
                     OperatorUserId);
                 savedProductId = await _createProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
             }
@@ -529,7 +571,11 @@ public sealed class ProductsViewModel : ViewModelBase
                     Barcode,
                     TaxRate,
                     unitsPerBox,
-                    boxPrice);
+                    boxPrice,
+                    halfBoxUnits,
+                    halfBoxPrice,
+                    quarterBoxUnits,
+                    quarterBoxPrice);
                 ProductResult result = await _updateProduct.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
                 savedProductId = result.Id;
             }
@@ -689,6 +735,10 @@ public sealed class ProductsViewModel : ViewModelBase
         TaxRate = 19m;
         UnitsPerBox = null;
         BoxPrice = null;
+        HalfBoxUnits = null;
+        HalfBoxPrice = null;
+        QuarterBoxUnits = null;
+        QuarterBoxPrice = null;
         Barcode = null;
         CategoryId = ResolveDefaultCategoryId();
         OnPropertyChanged(nameof(HasSelectedProduct));
