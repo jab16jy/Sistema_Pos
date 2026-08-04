@@ -11,7 +11,11 @@ public sealed record UpdateProductRequest(
     string? Barcode,
     decimal TaxRate = 19m,
     int? UnitsPerBox = null,
-    decimal? BoxPrice = null);
+    decimal? BoxPrice = null,
+    int? HalfBoxUnits = null,
+    decimal? HalfBoxPrice = null,
+    int? QuarterBoxUnits = null,
+    decimal? QuarterBoxPrice = null);
 
 public sealed record ProductResult(
     Guid Id,
@@ -26,7 +30,11 @@ public sealed record ProductResult(
     string? Barcode,
     bool IsActive,
     int? UnitsPerBox = null,
-    decimal? BoxPrice = null);
+    decimal? BoxPrice = null,
+    int? HalfBoxUnits = null,
+    decimal? HalfBoxPrice = null,
+    int? QuarterBoxUnits = null,
+    decimal? QuarterBoxPrice = null);
 
 public sealed record SearchProductsRequest(
     string? SearchText,
@@ -47,7 +55,11 @@ public sealed record ProductSearchResult(
     string? Barcode,
     bool IsActive,
     int? UnitsPerBox = null,
-    decimal? BoxPrice = null)
+    decimal? BoxPrice = null,
+    int? HalfBoxUnits = null,
+    decimal? HalfBoxPrice = null,
+    int? QuarterBoxUnits = null,
+    decimal? QuarterBoxPrice = null)
 {
     public bool IsOutOfStock => CurrentStock <= 0m;
 

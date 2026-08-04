@@ -61,7 +61,11 @@ public sealed class ProductCatalogQueryService : IProductCatalogQueryService
                 product.Barcode,
                 product.IsActive,
                 product.UnitsPerBox,
-                product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : null))
+                product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : null,
+                product.HalfBoxUnits,
+                product.HalfBoxPrice.HasValue ? product.HalfBoxPrice.Value.Amount : null,
+                product.QuarterBoxUnits,
+                product.QuarterBoxPrice.HasValue ? product.QuarterBoxPrice.Value.Amount : null))
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
     }

@@ -52,7 +52,11 @@ public sealed class CreateProductUseCase
             string.IsNullOrWhiteSpace(request.Barcode) ? null : new Barcode(request.Barcode),
             request.TaxRate,
             request.UnitsPerBox,
-            request.BoxPrice.HasValue ? new Money(request.BoxPrice.Value) : null);
+            request.BoxPrice.HasValue ? new Money(request.BoxPrice.Value) : null,
+            request.HalfBoxUnits,
+            request.HalfBoxPrice.HasValue ? new Money(request.HalfBoxPrice.Value) : null,
+            request.QuarterBoxUnits,
+            request.QuarterBoxPrice.HasValue ? new Money(request.QuarterBoxPrice.Value) : null);
 
         await _products.AddAsync(product, cancellationToken);
 

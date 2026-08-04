@@ -761,6 +761,14 @@ namespace POS.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<decimal?>("HalfBoxPrice")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("half_box_price");
+
+                    b.Property<int?>("HalfBoxUnits")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("half_box_units");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
@@ -778,6 +786,14 @@ namespace POS.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("QuarterBoxPrice")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("quarter_box_price");
+
+                    b.Property<int?>("QuarterBoxUnits")
+                        .HasColumnType("INTEGER")
+                        .HasColumnName("quarter_box_units");
 
                     b.Property<decimal>("SalePrice")
                         .HasColumnType("TEXT")

@@ -51,7 +51,11 @@ public sealed class ProductLookupService : IProductLookupService
                 product.CurrentStock,
                 product.MinimumStock,
                 product.UnitsPerBox,
-                BoxPrice = product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : (decimal?)null
+                BoxPrice = product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : (decimal?)null,
+                product.HalfBoxUnits,
+                HalfBoxPrice = product.HalfBoxPrice.HasValue ? product.HalfBoxPrice.Value.Amount : (decimal?)null,
+                product.QuarterBoxUnits,
+                QuarterBoxPrice = product.QuarterBoxPrice.HasValue ? product.QuarterBoxPrice.Value.Amount : (decimal?)null
             })
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
@@ -73,7 +77,11 @@ public sealed class ProductLookupService : IProductLookupService
                 product.CurrentStock,
                 product.MinimumStock,
                 product.UnitsPerBox,
-                product.BoxPrice))
+                product.BoxPrice,
+                product.HalfBoxUnits,
+                product.HalfBoxPrice,
+                product.QuarterBoxUnits,
+                product.QuarterBoxPrice))
             .ToList();
     }
 
@@ -98,7 +106,11 @@ public sealed class ProductLookupService : IProductLookupService
                 product.CurrentStock,
                 product.MinimumStock,
                 product.UnitsPerBox,
-                product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : null))
+                product.BoxPrice.HasValue ? product.BoxPrice.Value.Amount : null,
+                product.HalfBoxUnits,
+                product.HalfBoxPrice.HasValue ? product.HalfBoxPrice.Value.Amount : null,
+                product.QuarterBoxUnits,
+                product.QuarterBoxPrice.HasValue ? product.QuarterBoxPrice.Value.Amount : null))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
     }

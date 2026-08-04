@@ -44,6 +44,20 @@ internal sealed class ProductConfiguration : IEntityTypeConfiguration<Product>
                     value => value.HasValue ? value.Value.Amount : (decimal?)null,
                     value => value.HasValue ? new Money(value.Value) : null)
                .HasColumnName("box_price");
+        builder.Property(p => p.HalfBoxUnits)
+               .HasColumnName("half_box_units");
+        builder.Property(p => p.HalfBoxPrice)
+               .HasConversion(
+                    value => value.HasValue ? value.Value.Amount : (decimal?)null,
+                    value => value.HasValue ? new Money(value.Value) : null)
+               .HasColumnName("half_box_price");
+        builder.Property(p => p.QuarterBoxUnits)
+               .HasColumnName("quarter_box_units");
+        builder.Property(p => p.QuarterBoxPrice)
+               .HasConversion(
+                    value => value.HasValue ? value.Value.Amount : (decimal?)null,
+                    value => value.HasValue ? new Money(value.Value) : null)
+               .HasColumnName("quarter_box_price");
         builder.Property(p => p.TaxRate)
                .HasColumnName("tax_rate");
         builder.Property(p => p.Version)

@@ -12,4 +12,8 @@ public sealed record CreateProductRequest(
     decimal TaxRate = 19m,
     int? UnitsPerBox = null,
     decimal? BoxPrice = null,
+    int? HalfBoxUnits = null,
+    decimal? HalfBoxPrice = null,
+    int? QuarterBoxUnits = null,
+    decimal? QuarterBoxPrice = null,
     Guid OperatorUserId = default);
