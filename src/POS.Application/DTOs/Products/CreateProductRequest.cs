@@ -10,10 +10,5 @@ public sealed record CreateProductRequest(
     string? Description,
     string? Barcode,
     decimal TaxRate = 19m,
-    int? UnitsPerBox = null,
-    decimal? BoxPrice = null,
-    int? HalfBoxUnits = null,
-    decimal? HalfBoxPrice = null,
-    int? QuarterBoxUnits = null,
-    decimal? QuarterBoxPrice = null,
+    IReadOnlyList<ProductPresentationDto>? Presentations = null,
     Guid OperatorUserId = default);

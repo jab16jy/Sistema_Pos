@@ -43,18 +43,16 @@ public sealed class CreateQuoteUseCase
                 var product = await _products.GetByIdAsync(item.ProductId, transactionCt)
                     ?? throw new InvalidOperationException($"Producto {item.ProductId} no encontrado.");
 
-                int unitsPerPresentation = item.Presentation == Domain.Enums.ProductPresentation.Box
-                    ? product.UnitsPerBox ?? throw new InvalidOperationException($"Producto '{product.Name}' no está configurado para venta por caja.")
-                    : 1;
-
+                // The product resolves units and price for whichever presentation it offers, so a
+                // quote can sell every pack the shop configured, not just the box it used to know.
                 quote.AddItem(new QuoteItem(
                     product.Id,
                     product.Name,
-                    product.PriceFor(item.Presentation),
+                    product.PriceFor(item.PresentationName),
                     new Quantity(item.Quantity),
                     item.Discount,
-                    item.Presentation,
-                    unitsPerPresentation));
+                    item.PresentationName,
+                    product.UnitsFor(item.PresentationName)));
             }
 
             await _quotes.AddAsync(quote, transactionCt);

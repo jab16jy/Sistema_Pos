@@ -60,7 +60,7 @@ public sealed record CreateSaleItemRequest(
     Guid ProductId,
     decimal Quantity,
     decimal Discount,
-    ProductPresentation Presentation = ProductPresentation.Unit,
+    string? PresentationName = null,
     decimal? UnitPriceOverride = null,
     int? UnitsPerPresentationOverride = null,
     decimal ManualDiscountPercent = 0m);

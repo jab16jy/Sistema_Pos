@@ -43,12 +43,7 @@ public sealed class UpdateProductUseCase
             request.Description,
             string.IsNullOrWhiteSpace(request.Barcode) ? null : new Barcode(request.Barcode),
             request.TaxRate,
-            request.UnitsPerBox,
-            request.BoxPrice.HasValue ? new Money(request.BoxPrice.Value) : null,
-            request.HalfBoxUnits,
-            request.HalfBoxPrice.HasValue ? new Money(request.HalfBoxPrice.Value) : null,
-            request.QuarterBoxUnits,
-            request.QuarterBoxPrice.HasValue ? new Money(request.QuarterBoxPrice.Value) : null);
+            request.Presentations.ToDomain());
 
         await _unitOfWork.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -67,12 +62,7 @@ public sealed class UpdateProductUseCase
         product.Description,
         product.Barcode,
         product.IsActive,
-        product.UnitsPerBox,
-        product.BoxPrice?.Amount,
-        product.HalfBoxUnits,
-        product.HalfBoxPrice?.Amount,
-        product.QuarterBoxUnits,
-        product.QuarterBoxPrice?.Amount);
+        product.ToDto());
 
     private async Task EnsureCategoryExistsAsync(Guid categoryId, CancellationToken cancellationToken)
     {

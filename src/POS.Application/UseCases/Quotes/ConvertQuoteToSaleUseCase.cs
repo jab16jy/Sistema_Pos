@@ -57,13 +57,13 @@ public sealed class ConvertQuoteToSaleUseCase
             i.ProductId,
             i.Quantity.Value,
             decimal.Round(i.UnitPrice.Amount * i.Quantity.Value * i.Discount / 100m, 2, MidpointRounding.AwayFromZero),
-            i.Presentation,
+            i.PresentationName,
             i.UnitPrice.Amount,
             i.UnitsPerPresentation)).ToList();
 
         CreateSaleRequest saleRequest = settlementPlan is not null
             ? new CreateSaleRequest(quote.CustomerId, saleItems, settlementPlan) { IsQuoteConversion = true }
-            : new CreateSaleRequest(quote.CustomerId, saleItems, request.Payments) { IsQuoteConversion = true };
+            : new CreateSaleRequest(quote.CustomerId, saleItems, request.Payments!) { IsQuoteConversion = true };
 
         CreateSaleResult? saleResult = null;
         await _unitOfWork.ExecuteInTransactionAsync(async transactionCt =>

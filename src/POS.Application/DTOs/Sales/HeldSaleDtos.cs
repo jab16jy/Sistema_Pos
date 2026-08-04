@@ -14,7 +14,7 @@ public sealed record HeldSaleItem(
     decimal Quantity,
     decimal UnitPrice,
     decimal Discount,
-    ProductPresentation Presentation,
+    string? PresentationName,
     int UnitsPerPresentation);
 
 public sealed record HeldSaleSummary(

@@ -21,8 +21,8 @@ public sealed record QuoteDetailItemResult(
     decimal UnitPrice,
     decimal Discount,
     decimal Subtotal,
-    ProductPresentation Presentation = ProductPresentation.Unit,
+    string? PresentationName = null,
     int UnitsPerPresentation = 1)
 {
-    public string PresentationLabel => ProductPresentationLabel.For(Presentation, UnitsPerPresentation);
+    public string PresentationLabel => ProductPresentationLabel.For(PresentationName, UnitsPerPresentation);
 }

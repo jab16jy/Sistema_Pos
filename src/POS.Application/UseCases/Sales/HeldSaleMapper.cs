@@ -18,6 +18,6 @@ internal static class HeldSaleMapper
             item.Quantity,
             item.UnitPrice.Amount,
             item.Discount.Amount,
-            item.Presentation,
+            item.PresentationName,
             item.UnitsPerPresentation)).ToArray());
 }
