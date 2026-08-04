@@ -40,19 +40,18 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     /// <summary>Base inventory units consumed per presentation (1 for a unit line, UnitsPerBox for a box line).</summary>
     public int UnitsPerLine { get; }
 
-    public bool IsBox => Presentation == ProductPresentation.Box;
-
     /// <summary>Base inventory units this line consumes in total.</summary>
     public decimal InventoryUnits => Quantity * UnitsPerLine;
 
-    public string PresentationLabel => IsBox ? $"Caja x{UnitsPerLine}" : "Unidad";
+    public string PresentationLabel => ProductPresentationLabel.For(Presentation, UnitsPerLine);
 
     public decimal Quantity
     {
         get => _quantity;
         set
         {
-            decimal normalized = value < 0.01m ? 0.01m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+            // Presentations carry the fractions (half box, quarter box); quantity is always whole.
+            decimal normalized = Math.Max(decimal.Truncate(value), 1m);
             if (SetProperty(ref _quantity, normalized))
             {
                 OnPropertyChanged(nameof(Subtotal));

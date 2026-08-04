@@ -99,11 +99,9 @@
                    BorderBrush="{StaticResource BrushPrimary}"
                    BorderThickness="2" />
 
-          <xctk:DecimalUpDown Grid.Column="1"
+          <xctk:IntegerUpDown Grid.Column="1"
                               Value="{Binding Quantity, Mode=TwoWay}"
-                              Minimum="0.01"
-                              Increment="1"
-                              FormatString="0.##"
+                              Minimum="1"
                               Margin="8,0,0,0"
                               Height="44"
                               HorizontalContentAlignment="Center"
@@ -251,11 +249,31 @@
               <RadioButton Command="{Binding SelectBoxPresentationCommand}"
                            IsChecked="{Binding IsBoxPresentationSelected, Mode=OneWay}"
                            IsEnabled="{Binding CanSellSelectedAsBox}"
-                          VerticalAlignment="Center"
-                          Margin="12,0,0,0">
+                           VerticalAlignment="Center"
+                           Margin="12,0,0,0">
                <StackPanel Orientation="Horizontal">
                  <TextBlock Text="Caja" />
                  <TextBlock Text="{Binding SelectedBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
+               </StackPanel>
+             </RadioButton>
+              <RadioButton Command="{Binding SelectHalfBoxPresentationCommand}"
+                           IsChecked="{Binding IsHalfBoxPresentationSelected, Mode=OneWay}"
+                           IsEnabled="{Binding CanSellSelectedAsHalfBox}"
+                           VerticalAlignment="Center"
+                           Margin="12,0,0,0">
+               <StackPanel Orientation="Horizontal">
+                 <TextBlock Text="Media caja" />
+                 <TextBlock Text="{Binding SelectedHalfBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
+               </StackPanel>
+             </RadioButton>
+              <RadioButton Command="{Binding SelectQuarterBoxPresentationCommand}"
+                           IsChecked="{Binding IsQuarterBoxPresentationSelected, Mode=OneWay}"
+                           IsEnabled="{Binding CanSellSelectedAsQuarterBox}"
+                           VerticalAlignment="Center"
+                           Margin="12,0,0,0">
+               <StackPanel Orientation="Horizontal">
+                 <TextBlock Text="Cuarto de caja" />
+                 <TextBlock Text="{Binding SelectedQuarterBoxLabel}" Style="{StaticResource CashHint}" Margin="4,0,0,0" />
                </StackPanel>
              </RadioButton>
            </StackPanel>
@@ -372,11 +390,11 @@
 
                       <xctk:DecimalUpDown Grid.Column="1"
                                           Value="{Binding Quantity, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                          Minimum="0.01"
+                                          Minimum="1"
                                           Width="56"
                                           Height="28"
                                           Increment="1"
-                                          FormatString="0.##"
+                                          FormatString="N0"
                                           HorizontalContentAlignment="Center"
                                           HorizontalAlignment="Center" />
 

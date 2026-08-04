@@ -72,7 +72,7 @@ public sealed class CashierViewModel : ViewModelBase
     private CashierProductSearchResultViewModel? _selectedProduct;
     private CashierCartItemViewModel? _selectedCartItem;
     private decimal _quantity = 1m;
-    private bool _sellSelectedAsBox;
+    private ProductPresentation _selectedPresentation = ProductPresentation.Unit;
     private PaymentMethodOption _selectedPaymentMethod;
     private decimal _receivedAmount;
     private bool _isDeferredAmountVisible;
@@ -207,8 +207,10 @@ public sealed class CashierViewModel : ViewModelBase
         _printReceiptYesCommand = new RelayCommand(_ => RunSafe(PrintPendingReceiptAsync(), ex => Message = $"Error al imprimir el recibo: {ex.Message}"), _ => IsAwaitingPrintChoice);
         _printReceiptNoCommand = new RelayCommand(_ => DeclinePendingReceipt(), _ => IsAwaitingPrintChoice);
         AddSelectedProductCommand = _addSelectedProductCommand;
-        SelectUnitPresentationCommand = new RelayCommand(_ => SellSelectedAsBox = false);
-        SelectBoxPresentationCommand = new RelayCommand(_ => SellSelectedAsBox = true, _ => CanSellSelectedAsBox);
+        SelectUnitPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.Unit);
+        SelectBoxPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.Box, _ => CanSellSelectedAsBox);
+        SelectHalfBoxPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.HalfBox, _ => CanSellSelectedAsHalfBox);
+        SelectQuarterBoxPresentationCommand = new RelayCommand(_ => SelectedPresentation = ProductPresentation.QuarterBox, _ => CanSellSelectedAsQuarterBox);
         AppendReceivedAmountCommand = _appendReceivedAmountCommand;
         BackspaceReceivedAmountCommand = _backspaceReceivedAmountCommand;
         SetExactAmountCommand = _setExactAmountCommand;
@@ -274,6 +276,10 @@ public sealed class CashierViewModel : ViewModelBase
     public ICommand SelectUnitPresentationCommand { get; }
 
     public ICommand SelectBoxPresentationCommand { get; }
+
+    public ICommand SelectHalfBoxPresentationCommand { get; }
+
+    public ICommand SelectQuarterBoxPresentationCommand { get; }
 
     public ICommand AppendReceivedAmountCommand { get; }
 
@@ -648,11 +654,17 @@ public sealed class CashierViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedProduct, value))
             {
-                // Reset the box toggle: it only applies to the product currently selected.
-                SellSelectedAsBox = false;
+                // Reset the presentation: it only applies to the product currently selected.
+                SelectedPresentation = ProductPresentation.Unit;
                 OnPropertyChanged(nameof(CanSellSelectedAsBox));
+                OnPropertyChanged(nameof(CanSellSelectedAsHalfBox));
+                OnPropertyChanged(nameof(CanSellSelectedAsQuarterBox));
                 OnPropertyChanged(nameof(SelectedBoxLabel));
+                OnPropertyChanged(nameof(SelectedHalfBoxLabel));
+                OnPropertyChanged(nameof(SelectedQuarterBoxLabel));
                 (SelectBoxPresentationCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (SelectHalfBoxPresentationCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                (SelectQuarterBoxPresentationCommand as RelayCommand)?.RaiseCanExecuteChanged();
                 UpdateCommandState();
             }
         }
@@ -661,27 +673,46 @@ public sealed class CashierViewModel : ViewModelBase
     /// <summary>True when the selected product can be sold as a box (has box units + box price).</summary>
     public bool CanSellSelectedAsBox => _selectedProduct?.SupportsBox == true;
 
-    /// <summary>Box description for the selected product, e.g. "Caja x12 · $110.000".</summary>
+    /// <summary>True when the selected product has a half-box presentation priced in the catalogue.</summary>
+    public bool CanSellSelectedAsHalfBox => _selectedProduct?.SupportsHalfBox == true;
+
+    /// <summary>True when the selected product has a quarter-box presentation priced in the catalogue.</summary>
+    public bool CanSellSelectedAsQuarterBox => _selectedProduct?.SupportsQuarterBox == true;
+
+    /// <summary>Box description for the selected product, e.g. "x12 · $110.000".</summary>
     public string SelectedBoxLabel => _selectedProduct?.BoxLabel ?? string.Empty;
 
-    /// <summary>When true, the next Add uses the box presentation (price and stock by the box).</summary>
-    public bool SellSelectedAsBox
+    public string SelectedHalfBoxLabel => _selectedProduct?.HalfBoxLabel ?? string.Empty;
+
+    public string SelectedQuarterBoxLabel => _selectedProduct?.QuarterBoxLabel ?? string.Empty;
+
+    /// <summary>
+    /// Presentation the next Add uses. Falls back to Unit whenever the selected product does not
+    /// offer the requested one, so a stale radio button can never price a line off an absent package.
+    /// </summary>
+    public ProductPresentation SelectedPresentation
     {
-        get => _sellSelectedAsBox;
+        get => _selectedPresentation;
         set
         {
-            bool normalized = value && CanSellSelectedAsBox;
-            if (SetProperty(ref _sellSelectedAsBox, normalized))
+            ProductPresentation normalized = _selectedProduct?.Supports(value) == true ? value : ProductPresentation.Unit;
+            if (SetProperty(ref _selectedPresentation, normalized))
             {
                 OnPropertyChanged(nameof(IsUnitPresentationSelected));
                 OnPropertyChanged(nameof(IsBoxPresentationSelected));
+                OnPropertyChanged(nameof(IsHalfBoxPresentationSelected));
+                OnPropertyChanged(nameof(IsQuarterBoxPresentationSelected));
             }
         }
     }
 
-    public bool IsUnitPresentationSelected => !SellSelectedAsBox;
+    public bool IsUnitPresentationSelected => SelectedPresentation == ProductPresentation.Unit;
 
-    public bool IsBoxPresentationSelected => SellSelectedAsBox;
+    public bool IsBoxPresentationSelected => SelectedPresentation == ProductPresentation.Box;
+
+    public bool IsHalfBoxPresentationSelected => SelectedPresentation == ProductPresentation.HalfBox;
+
+    public bool IsQuarterBoxPresentationSelected => SelectedPresentation == ProductPresentation.QuarterBox;
 
     public CashierCartItemViewModel? SelectedCartItem
     {
@@ -694,7 +725,9 @@ public sealed class CashierViewModel : ViewModelBase
         get => _quantity;
         set
         {
-            decimal normalized = value < 0.01m ? 0.01m : decimal.Round(value, 2, MidpointRounding.AwayFromZero);
+            // Fractions of a box are their own presentation, priced in the product catalogue;
+            // the register only ever sells a whole number of whatever presentation is chosen.
+            decimal normalized = Math.Max(decimal.Truncate(value), 1m);
             if (SetProperty(ref _quantity, normalized))
             {
                 UpdateCommandState();
@@ -1042,12 +1075,13 @@ public sealed class CashierViewModel : ViewModelBase
             return false;
         }
 
-        bool asBox = SellSelectedAsBox && SelectedProduct.SupportsBox;
-        ProductPresentation presentation = asBox ? ProductPresentation.Box : ProductPresentation.Unit;
-        int unitsPerLine = asBox ? SelectedProduct.UnitsPerBox!.Value : 1;
-        decimal unitPrice = asBox ? SelectedProduct.BoxPrice!.Value : SelectedProduct.UnitPrice;
+        // A package the product does not offer degrades to a unit sale rather than pricing off nulls.
+        (int Units, decimal Price)? package = SelectedProduct.PackageFor(SelectedPresentation);
+        ProductPresentation presentation = package is null ? ProductPresentation.Unit : SelectedPresentation;
+        int unitsPerLine = package?.Units ?? 1;
+        decimal unitPrice = package?.Price ?? SelectedProduct.UnitPrice;
 
-        // Stock is validated in base units: N boxes consume N * UnitsPerBox units.
+        // Stock is validated in base units: N packages consume N * units-per-package units.
         decimal requestedUnits = Quantity * unitsPerLine;
         if (requestedUnits > SelectedProduct.AvailableStock)
         {
