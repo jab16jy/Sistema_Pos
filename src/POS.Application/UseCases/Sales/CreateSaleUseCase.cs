@@ -194,7 +194,7 @@ public sealed class CreateSaleUseCase
             }
             else if (!string.IsNullOrWhiteSpace(plan.CollectedBankOrPlatform))
             {
-                throw new InvalidOperationException("A payment platform requires a collected payment method.");
+                throw new InvalidOperationException("La plataforma de pago requiere un monto cobrado.");
             }
 
             sale.SetSettlementPlan(plan);

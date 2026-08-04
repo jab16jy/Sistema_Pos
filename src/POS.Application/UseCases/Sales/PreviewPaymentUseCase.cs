@@ -77,7 +77,7 @@ public sealed class PreviewPaymentUseCase
             else if (!string.IsNullOrWhiteSpace(request.BankOrPlatform))
             {
                 return new PaymentPreviewResult(false, 0m,
-                    "A payment platform requires a collected payment method.");
+                    "La plataforma de pago requiere un monto cobrado.");
             }
 
             if (collected + deferred.Amount != total.Amount)

@@ -37,14 +37,14 @@ public static class PaymentPlatforms
         {
             if (!supplied)
             {
-                throw new InvalidOperationException("A payment platform is required for transfers.");
+                throw new InvalidOperationException("Selecciona la plataforma de la transferencia.");
             }
 
             if (!IsValid(platform))
             {
                 throw new InvalidOperationException(
-                    $"Payment platform '{platform}' is not accepted. " +
-                    $"Valid platforms: {string.Join(", ", All)}.");
+                    $"La plataforma de pago '{platform}' no está aceptada. " +
+                    $"Plataformas válidas: {string.Join(", ", All)}.");
             }
 
             return;
@@ -52,7 +52,7 @@ public static class PaymentPlatforms
 
         if (supplied)
         {
-            throw new InvalidOperationException("A payment platform is only valid for transfers.");
+            throw new InvalidOperationException("La plataforma de pago solo aplica a transferencias.");
         }
     }
 }

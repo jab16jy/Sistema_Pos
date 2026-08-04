@@ -49,7 +49,7 @@ public sealed class PreviewPaymentUseCaseTests
             new PaymentPreviewRequest(7_500m, PaymentMethod.Transfer, 0m));
 
         Assert.False(result.CanConfirm);
-        Assert.Contains("platform", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("plataforma", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class PreviewPaymentUseCaseTests
             new PaymentPreviewRequest(7_500m, PaymentMethod.Cash, 7_500m, BankOrPlatform: "Nequi"));
 
         Assert.False(result.CanConfirm);
-        Assert.Contains("only valid", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("solo aplica a transferencias", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // --- RED: Settlement plan preview tests ---
@@ -144,7 +144,7 @@ public sealed class PreviewPaymentUseCaseTests
         var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
 
         Assert.False(result.CanConfirm);
-        Assert.Contains("platform", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("plataforma", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

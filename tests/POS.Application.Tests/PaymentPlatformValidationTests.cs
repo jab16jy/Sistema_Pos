@@ -34,6 +34,19 @@ public sealed class PaymentPlatformValidationTests
         Assert.Equal(3, PaymentPlatforms.All.Count);
     }
 
+    [Theory]
+    // These messages reach the cashier verbatim through CashierViewModel.Message, so they
+    // must stay in the UI language — regressing them to English is a user-facing defect.
+    [InlineData(PaymentMethod.Transfer, null, "Selecciona la plataforma de la transferencia.")]
+    [InlineData(PaymentMethod.Transfer, "Zelle", "La plataforma de pago 'Zelle' no está aceptada. Plataformas válidas: Nequi, Bancolombia, Daviplata.")]
+    [InlineData(PaymentMethod.Cash, "Bancolombia", "La plataforma de pago solo aplica a transferencias.")]
+    public void Validate_RejectionMessages_AreLocalized(PaymentMethod method, string? platform, string expected)
+    {
+        var exception = Assert.Throws<InvalidOperationException>(() => PaymentPlatforms.Validate(method, platform));
+
+        Assert.Equal(expected, exception.Message);
+    }
+
     // --- CreateSaleUseCase platform validation ---
 
     [Fact]
