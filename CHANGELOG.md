@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.25.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.24.0...v1.25.0) (2026-08-04)
+
+
+### Features
+
+* **cashier:** fill and report the balance still owed during split payments ([0280de5](https://github.com/jab16jy/Sistema_Pos/commit/0280de59a360e5d355163ce068a1cd6959a69ef9))
+* **sales:** print every payment leg and ask before closing a sale ([b82cb19](https://github.com/jab16jy/Sistema_Pos/commit/b82cb19ca7d654c241f7f3ae3e5f2ac95addc394))
+* **sales:** print the pending balance on credit sales only ([88e4e0b](https://github.com/jab16jy/Sistema_Pos/commit/88e4e0b9b0fdffade6599dc48376a730e3229323))
+
 ## [1.24.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.23.0...v1.24.0) (2026-08-03)
 
 
