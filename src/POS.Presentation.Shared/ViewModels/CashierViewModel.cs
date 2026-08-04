@@ -50,6 +50,7 @@ public sealed class CashierViewModel : ViewModelBase
     private bool _isAwaitingSaleConfirmation;
     private bool _saleConfirmationAcknowledged;
     private readonly RelayCommand _addSelectedProductCommand;
+    private readonly RelayCommand _clearSearchCommand;
     private readonly RelayCommand _appendReceivedAmountCommand;
     private readonly RelayCommand _backspaceReceivedAmountCommand;
     private readonly RelayCommand _setExactAmountCommand;
@@ -190,7 +191,8 @@ public sealed class CashierViewModel : ViewModelBase
         Tenders = [];
         CartItems.CollectionChanged += OnCartItemsChanged;
 
-        SearchCommand = new RelayCommand(_ => RunSafe(SearchAsync(), ex => Message = $"Error al buscar productos: {ex.Message}"));
+        _clearSearchCommand = new RelayCommand(_ => ClearSearch(), _ => SearchText.Length > 0);
+        ClearSearchCommand = _clearSearchCommand;
         _addSelectedProductCommand = new RelayCommand(_ => TryAddSelectedProduct(), _ => CanAddSelectedProduct);
         _appendReceivedAmountCommand = new RelayCommand(AppendReceivedAmount);
         _backspaceReceivedAmountCommand = new RelayCommand(_ => BackspaceReceivedAmount());
@@ -280,7 +282,11 @@ public sealed class CashierViewModel : ViewModelBase
         }
     }
 
-    public ICommand SearchCommand { get; }
+    /// <summary>
+    /// Empties the search box. The lookup already searches as the cashier types, so the button next
+    /// to it is only useful to start over after a mistyped or wrong product.
+    /// </summary>
+    public ICommand ClearSearchCommand { get; }
 
     public ICommand AddSelectedProductCommand { get; }
 
@@ -669,9 +675,14 @@ public sealed class CashierViewModel : ViewModelBase
                 }
 
                 StartAutocompleteSearch();
+                _clearSearchCommand.RaiseCanExecuteChanged();
             }
         }
     }
+
+    /// <summary>Wipes the search box; the setter cancels the pending lookup and drops the results.</summary>
+    public void ClearSearch() => SearchText = string.Empty;
+
     public CashierProductSearchResultViewModel? SelectedProduct
     {
         get => _selectedProduct;

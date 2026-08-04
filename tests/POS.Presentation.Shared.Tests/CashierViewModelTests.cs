@@ -787,6 +787,26 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task ClearSearchCommand_EmptiesTheSearchBoxAndItsResults()
+    {
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz"
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        Assert.NotEmpty(viewModel.SearchResults);
+        Assert.True(viewModel.ClearSearchCommand.CanExecute(null));
+
+        viewModel.ClearSearchCommand.Execute(null);
+
+        Assert.Equal(string.Empty, viewModel.SearchText);
+        Assert.Empty(viewModel.SearchResults);
+        Assert.Null(viewModel.SelectedProduct);
+        // Nothing left to clear, so the button stops inviting a click.
+        Assert.False(viewModel.ClearSearchCommand.CanExecute(null));
+    }
+
+    [Fact]
     public async Task AddSelectedProduct_AddsItemAndCalculatesTotal()
     {
         var viewModel = new CashierViewModel(new PrototypeProductLookupService())

@@ -108,9 +108,10 @@
                               FontSize="15" />
 
           <Button Grid.Column="2"
-                  Content="Buscar"
-                  Command="{Binding SearchCommand}"
-                  Style="{StaticResource PrimaryButton}"
+                  Content="Limpiar"
+                  ToolTip="Vacía el buscador para empezar de nuevo"
+                  Command="{Binding ClearSearchCommand}"
+                  Style="{StaticResource SecondaryOutlineButton}"
                   Height="44"
                   Margin="8,0,0,0" />
         </Grid>
