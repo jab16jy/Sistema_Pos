@@ -57,3 +57,5 @@ mcp.json
 mcp/
 mcp-servers/
 
+.opencode/plugins/
+opencode.json
