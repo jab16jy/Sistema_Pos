@@ -127,11 +127,17 @@ public sealed class ProductLookupServiceTests
 
         var category = new Category("Migration");
         await dbContext.Categories.AddAsync(category, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Seeded through raw SQL so the rewound schema decides the columns, not the current model.
         var first = new Product("First", category.Id, new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m), barcode: new Barcode("FIRST-CODE"));
         var duplicate = new Product("Duplicate", category.Id, new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m), barcode: new Barcode("SECOND-CODE"));
         var blank = new Product("Blank", category.Id, new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m), barcode: new Barcode("BLANK-CODE"));
-        await dbContext.Products.AddRangeAsync([first, duplicate, blank], TestContext.Current.CancellationToken);
-        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        foreach (Product seeded in new[] { first, duplicate, blank })
+        {
+            await LegacyProductRow.InsertAsync(dbContext, seeded);
+        }
+
         await dbContext.Database.ExecuteSqlRawAsync(
             "UPDATE \"PRODUCTS\" SET \"Barcode\" = 'DUPLICATE-CODE' WHERE \"Id\" IN ({0}, {1})",
             [first.Id.ToString(), duplicate.Id.ToString()]);

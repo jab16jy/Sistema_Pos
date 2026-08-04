@@ -40,10 +40,12 @@ public sealed class InventoryReturnQuoteMigrationTests
 
         var category = new Category("General");
         dbContext.Categories.Add(category);
-        var product = new Product("Widget", category.Id, new Money(10m), new Money(20m), new StockQuantity(50m), new StockQuantity(1m));
-        dbContext.Products.Add(product);
-
         await dbContext.SaveChangesAsync();
+
+        // Seeded through raw SQL so the rewound schema decides the columns, not the current model.
+        var product = new Product("Widget", category.Id, new Money(10m), new Money(20m), new StockQuantity(50m), new StockQuantity(1m));
+        await LegacyProductRow.InsertAsync(dbContext, product);
+
         return (cashier, product);
     }
 
