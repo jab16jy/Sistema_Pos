@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.26.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.26.0...v1.26.1) (2026-08-05)
+
+
+### Bug Fixes
+
+* **cashier:** show the real per-product VAT rate in Caja and the invoice ([2ae2a94](https://github.com/jab16jy/Sistema_Pos/commit/2ae2a947919447e001af9051ebc3e1acd77c6a38))
+
 ## [1.26.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.25.0...v1.26.0) (2026-08-04)
 
 
