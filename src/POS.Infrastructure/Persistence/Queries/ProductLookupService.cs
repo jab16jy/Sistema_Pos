@@ -50,6 +50,7 @@ public sealed class ProductLookupService : IProductLookupService
                 SalePrice = product.SalePrice.Amount,
                 product.CurrentStock,
                 product.MinimumStock,
+                product.TaxRate,
                 Presentations = product.Presentations
                     .Select(p => new ProductPresentationDto(p.Name, p.Units, p.Price.Amount))
                     .ToList()
@@ -73,7 +74,8 @@ public sealed class ProductLookupService : IProductLookupService
                 product.SalePrice,
                 product.CurrentStock,
                 product.MinimumStock,
-                product.Presentations))
+                product.Presentations,
+                product.TaxRate))
             .ToList();
     }
 
@@ -99,7 +101,8 @@ public sealed class ProductLookupService : IProductLookupService
                 product.MinimumStock,
                 product.Presentations
                     .Select(p => new ProductPresentationDto(p.Name, p.Units, p.Price.Amount))
-                    .ToList()))
+                    .ToList(),
+                product.TaxRate))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
     }

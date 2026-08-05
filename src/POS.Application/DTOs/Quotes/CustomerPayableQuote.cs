@@ -14,4 +14,5 @@ public sealed record CustomerPayableQuoteItem(
     decimal Quantity,
     decimal UnitPrice,
     decimal Discount,
-    decimal Subtotal);
+    decimal Subtotal,
+    decimal TaxRate = 0m);

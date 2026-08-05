@@ -477,6 +477,14 @@
                          Margin="0,2,0,0"
                          Visibility="{Binding HasLoyaltyDiscount, Converter={StaticResource BoolToVisibilityConverter}}" />
               <TextBlock Text="{Binding NetPayableText}" Style="{StaticResource TextDisplay}" FontWeight="Bold" Margin="0,2,0,0" />
+              <!-- Prices are VAT-inclusive: this splits the total, it never adds to it. -->
+              <TextBlock Text="{Binding TaxableBaseTotalText, StringFormat='Base gravable: {0}'}"
+                         Style="{StaticResource CashHint}"
+                         Margin="0,6,0,0"
+                         Visibility="{Binding HasCartItems, Converter={StaticResource BoolToVisibilityConverter}}" />
+              <TextBlock Text="{Binding TaxTotalText, StringFormat='IVA incluido: {0}'}"
+                         Style="{StaticResource CashHint}"
+                         Visibility="{Binding HasCartItems, Converter={StaticResource BoolToVisibilityConverter}}" />
             </StackPanel>
            </Border>
 

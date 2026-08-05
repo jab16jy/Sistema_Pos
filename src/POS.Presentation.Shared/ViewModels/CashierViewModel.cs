@@ -823,6 +823,26 @@ public sealed class CashierViewModel : ViewModelBase
 
     public string NetPayableText => FormatCurrency(NetPayable);
 
+    /// <summary>
+    /// VAT already contained in the cart, per line and per product rate. Computed from the exact
+    /// amounts <see cref="BuildLineRequests"/> sends to the domain, so this figure equals the IVA
+    /// the invoice prints for the same sale. Redeemed points are a payment, not a line discount,
+    /// so they never shrink the taxable base.
+    /// </summary>
+    public decimal TaxTotal => CartItems.Sum(item => SaleItem.IncludedTax(TaxableLineAmount(item), item.TaxRate));
+
+    public string TaxTotalText => FormatCurrency(TaxTotal);
+
+    /// <summary>
+    /// Sums the same per-line, already-rounded amounts as <see cref="TaxTotal"/> instead of
+    /// subtracting the unrounded aggregate <see cref="TierDiscount"/> — that aggregate can drift a
+    /// cent from the sum of independently-rounded per-line discounts once 2+ lines carry a tier
+    /// discount, which would make this preview disagree with the printed invoice.
+    /// </summary>
+    public decimal TaxableBaseTotal => Math.Max(0m, CartItems.Sum(TaxableLineAmount) - TaxTotal);
+
+    public string TaxableBaseTotalText => FormatCurrency(TaxableBaseTotal);
+
     public int CartLineCount => CartItems.Count;
 
     public decimal CartUnitCount => CartItems.Sum(item => item.Quantity);
@@ -1134,7 +1154,8 @@ public sealed class CashierViewModel : ViewModelBase
                 unitPrice,
                 0m,
                 presentationName,
-                unitsPerLine));
+                unitsPerLine,
+                SelectedProduct.TaxRate));
         }
 
         Quantity = 1m;
@@ -1709,7 +1730,10 @@ public sealed class CashierViewModel : ViewModelBase
                 CompactProductId(item.ProductId),
                 item.Quantity,
                 item.UnitPrice,
-                item.Discount));
+                item.Discount,
+                presentationName: null,
+                unitsPerLine: 1,
+                taxRate: item.TaxRate));
         }
 
         _loadedQuote = quote;
@@ -1864,7 +1888,8 @@ public sealed class CashierViewModel : ViewModelBase
                 item.UnitPrice,
                 discountPercent,
                 item.PresentationName,
-                item.UnitsPerPresentation));
+                item.UnitsPerPresentation,
+                item.TaxRate));
         }
 
         _resumedSaleId = resumed.SaleId;
@@ -2107,6 +2132,19 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// The line amount the domain will actually tax: gross minus the compounded manual+tier discount,
+    /// rounded exactly as <see cref="BuildLineRequests"/> rounds it. Any drift here would make the
+    /// IVA shown in Caja differ from the IVA printed on the invoice.
+    /// </summary>
+    private decimal TaxableLineAmount(CashierCartItemViewModel item)
+    {
+        decimal gross = item.UnitPrice * item.Quantity;
+        decimal effectiveDiscountPercent = CompoundDiscount(item.Discount, _currentTierDiscountPercent);
+        decimal discountMoney = decimal.Round(gross * effectiveDiscountPercent / 100m, 2, MidpointRounding.AwayFromZero);
+        return gross - discountMoney;
+    }
+
+    /// <summary>
     /// Compounds an automatic tier discount percentage on top of a line's existing (possibly manual)
     /// discount percentage, so the final line total is exactly (existing-discounted subtotal) reduced
     /// by tierPercent — matching the aggregate TierDiscount shown at checkout with no rounding drift.
@@ -2205,6 +2243,10 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(TotalText));
         OnPropertyChanged(nameof(NetPayable));
         OnPropertyChanged(nameof(NetPayableText));
+        OnPropertyChanged(nameof(TaxTotal));
+        OnPropertyChanged(nameof(TaxTotalText));
+        OnPropertyChanged(nameof(TaxableBaseTotal));
+        OnPropertyChanged(nameof(TaxableBaseTotalText));
         OnPropertyChanged(nameof(TierDiscount));
         OnPropertyChanged(nameof(TierDiscountText));
         OnPropertyChanged(nameof(HasTierDiscount));

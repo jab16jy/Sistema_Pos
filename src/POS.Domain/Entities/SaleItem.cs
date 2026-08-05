@@ -68,16 +68,17 @@ public sealed class SaleItem
         return new Money(gross - Discount.Amount);
     }
 
-    public Money TaxAmount()
-    {
-        var subtotal = Subtotal().Amount;
-        if (TaxRate <= 0m)
-        {
-            return Money.Zero;
-        }
+    public Money TaxAmount() => new(IncludedTax(Subtotal().Amount, TaxRate));
 
-        return new Money(Math.Round(subtotal * TaxRate / (100m + TaxRate), 2, MidpointRounding.AwayFromZero));
-    }
+    /// <summary>
+    /// Tax already contained inside a tax-inclusive subtotal, for a rate expressed as a percentage.
+    /// Shared with the cashier preview so the figure shown before confirming a sale is the same one
+    /// the invoice prints afterwards.
+    /// </summary>
+    public static decimal IncludedTax(decimal subtotal, decimal taxRatePercent)
+        => taxRatePercent <= 0m
+            ? 0m
+            : Math.Round(subtotal * taxRatePercent / (100m + taxRatePercent), 2, MidpointRounding.AwayFromZero);
 
     public Money TaxableBaseAmount()
     {

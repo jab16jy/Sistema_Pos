@@ -1389,6 +1389,79 @@ public sealed class CashierViewModelTests
         Assert.Contains("facturada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public async Task TaxTotal_WithMixedRateCart_ExtractsVatPerProductRateWithoutChangingTheTotal()
+    {
+        // The shop reported that changing a product's IVA "does nothing". Prices are VAT-inclusive,
+        // so the total is right to stay put — but the breakdown must move, and must move per product.
+        var taxed = new ProductLookupResult(Guid.NewGuid(), "Gravado 19", "IVA-19", 11_900m, 10m, TaxRate: 19m);
+        var exempt = new ProductLookupResult(Guid.NewGuid(), "Exento", "IVA-00", 5_000m, 10m, TaxRate: 0m);
+        var viewModel = new CashierViewModel(new MultiProductLookupService(taxed, exempt))
+        {
+            SearchText = "IVA-19"
+        };
+        await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+        viewModel.SearchText = "IVA-00";
+        await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, viewModel.CartItems.Count);
+        Assert.Equal(16_900m, viewModel.TotalAmount);
+        Assert.Equal(1_900m, viewModel.TaxTotal);          // 11_900 * 19 / 119, exempt line adds nothing
+        Assert.Equal(15_000m, viewModel.TaxableBaseTotal);
+        Assert.Equal(viewModel.TotalAmount - viewModel.TierDiscount, viewModel.TaxableBaseTotal + viewModel.TaxTotal);
+    }
+
+    [Fact]
+    public async Task TaxableBaseTotal_WithActiveTierDiscount_MatchesTheDomainsPerLineRoundedBase()
+    {
+        // Regression: TaxableBaseTotal must not be TotalAmount - TierDiscount(unrounded) - TaxTotal —
+        // that reuses the aggregate tier percentage, while the domain (and BuildLineRequests) rounds
+        // the discount independently per line. The two disagree by a cent even on a single line, and
+        // an invariant assertion built from TaxableBaseTotal's own formula can't catch that drift —
+        // this asserts against numbers worked out independently of the production formula.
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var product = new ProductLookupResult(Guid.NewGuid(), "Gravado", "GRA-1", 33.34m, 10m, TaxRate: 19m);
+        var loyalty = new TieredLoyaltyRepository(customer.Id, discountPercent: 10m);
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(product),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            null,
+            null,
+            null,
+            new GetLoyaltyBalanceUseCase(loyalty))
+        {
+            SearchText = "GRA-1",
+            Quantity = 1m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+
+        // gross 33.34, 10% tier discount rounded per line to 3.33 (not the unrounded 3.334) -> subtotal 30.01
+        Assert.Equal(30.01m, viewModel.TotalAmount - 3.33m);
+        Assert.Equal(4.79m, viewModel.TaxTotal);            // round(30.01 * 19 / 119, 2)
+        Assert.Equal(25.22m, viewModel.TaxableBaseTotal);   // 30.01 - 4.79, matching Sale.TaxableBaseTotal()
+    }
+
+    [Fact]
+    public async Task TaxTotal_WhenProductRateIsZeroed_DropsToZeroWhileTheTotalStaysTheSame()
+    {
+        var exemptNow = new ProductLookupResult(Guid.NewGuid(), "Gravado 19", "IVA-19", 11_900m, 10m, TaxRate: 0m);
+        var viewModel = new CashierViewModel(new MultiProductLookupService(exemptNow))
+        {
+            SearchText = "IVA-19"
+        };
+        await viewModel.HandleScannerInputAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(11_900m, viewModel.TotalAmount);
+        Assert.Equal(0m, viewModel.TaxTotal);
+        Assert.Equal(11_900m, viewModel.TaxableBaseTotal);
+    }
+
     private sealed class EmptyProductLookupService : POS.Application.Interfaces.IProductLookupService
     {
         public Task<IReadOnlyList<ProductLookupResult>> SearchAsync(string query, CancellationToken cancellationToken = default)

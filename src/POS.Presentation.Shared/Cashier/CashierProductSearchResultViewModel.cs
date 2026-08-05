@@ -32,6 +32,7 @@ public sealed class CashierProductSearchResultViewModel
     public decimal UnitPrice => Product.UnitPrice;
     public decimal AvailableStock => Product.AvailableStock;
     public decimal MinimumStock => Product.MinimumStock;
+    public decimal TaxRate => Product.TaxRate;
     public string UnitPriceText => FormatCurrency(UnitPrice);
     public string StockText => $"Stock: {AvailableStock.ToString("0.##", ColombianCulture)}";
 

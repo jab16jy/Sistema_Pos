@@ -364,7 +364,9 @@ public sealed class PdfService : IPdfService
                 table.Cell().Element(CellStyle).AlignCenter().Text(item.Quantity.ToString("N2", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(item.UnitPrice.Amount.ToString("C0", culture));
                 table.Cell().Element(CellStyle).AlignRight().Text(ItemDiscount(item).ToString("C0", culture));
-                table.Cell().Element(CellStyle).AlignRight().Text(item.TaxAmount().Amount.ToString("C0", culture));
+                // Rate beside the amount: an exempt product is otherwise indistinguishable from a
+                // taxed one whose IVA rounds small, which reads as "the rate I set was ignored".
+                table.Cell().Element(CellStyle).AlignRight().Text($"{item.TaxAmount().Amount.ToString("C0", culture)} ({FormatTaxRate(item.TaxRate, culture)})");
                 table.Cell().Element(CellStyle).AlignRight().Text(item.Subtotal().Amount.ToString("C0", culture));
             }
         });
@@ -436,7 +438,7 @@ public sealed class PdfService : IPdfService
             });
             col.Item().Row(row =>
             {
-                row.RelativeItem().Text("IVA 19% incluido");
+                row.RelativeItem().Text(TaxTotalLabel(sale, culture));
                 row.ConstantItem(120).AlignRight().Text(sale.TaxTotal().Amount.ToString("C0", culture));
             });
 
@@ -541,6 +543,21 @@ public sealed class PdfService : IPdfService
     private static decimal GrossTotal(Sale sale) => sale.Items.Sum(item => item.UnitPrice.Amount * item.Quantity);
 
     private static decimal ItemDiscount(SaleItem item) => item.UnitPrice.Amount * item.Quantity - item.Subtotal().Amount;
+
+    private static string FormatTaxRate(decimal taxRate, CultureInfo culture) => $"{taxRate.ToString("0.##", culture)}%";
+
+    /// <summary>
+    /// Names the actual rate instead of a fixed 19%. A sale mixing exempt and taxed products has no
+    /// single rate to name, so it falls back to the unqualified label — the amount beside it is
+    /// summed per line and stays correct either way.
+    /// </summary>
+    private static string TaxTotalLabel(Sale sale, CultureInfo culture)
+    {
+        decimal[] rates = sale.Items.Select(item => item.TaxRate).Distinct().ToArray();
+        return rates.Length == 1
+            ? $"IVA {FormatTaxRate(rates[0], culture)} incluido"
+            : "IVA incluido";
+    }
 
     private static byte[] LoadLogoImage()
     {

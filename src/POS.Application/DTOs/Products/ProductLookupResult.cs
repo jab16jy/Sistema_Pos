@@ -7,4 +7,5 @@ public sealed record ProductLookupResult(
     decimal UnitPrice,
     decimal AvailableStock,
     decimal MinimumStock = 0m,
-    IReadOnlyList<ProductPresentationDto>? Presentations = null);
+    IReadOnlyList<ProductPresentationDto>? Presentations = null,
+    decimal TaxRate = 0m);

@@ -18,8 +18,10 @@ public sealed class CashierCartItemViewModel : ViewModelBase
         decimal unitPrice,
         decimal discount = 0m,
         string? presentationName = null,
-        int unitsPerLine = 1)
+        int unitsPerLine = 1,
+        decimal taxRate = 0m)
     {
+        TaxRate = taxRate;
         ProductId = productId;
         ProductName = productName;
         ProductCode = productCode;
@@ -62,6 +64,10 @@ public sealed class CashierCartItemViewModel : ViewModelBase
     }
 
     public decimal UnitPrice { get; }
+
+    /// <summary>Product VAT rate as a percentage. Prices are tax-inclusive, so this splits the
+    /// line between taxable base and VAT rather than adding anything on top.</summary>
+    public decimal TaxRate { get; }
     public decimal Discount
     {
         get => _discount;

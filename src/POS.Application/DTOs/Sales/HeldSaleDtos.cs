@@ -15,7 +15,8 @@ public sealed record HeldSaleItem(
     decimal UnitPrice,
     decimal Discount,
     string? PresentationName,
-    int UnitsPerPresentation);
+    int UnitsPerPresentation,
+    decimal TaxRate = 0m);
 
 public sealed record HeldSaleSummary(
     Guid SaleId,
