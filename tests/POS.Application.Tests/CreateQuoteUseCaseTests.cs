@@ -94,6 +94,74 @@ public sealed class CreateQuoteUseCaseTests
         Assert.Equal(20m, product.CurrentStock);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WhenDiscountExceedsLimit_Throws()
+    {
+        var product = new Product("Widget", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(20m), new StockQuantity(2m));
+        var products = new InMemoryProductRepository(product);
+        var quotes = new InMemoryQuoteRepository("COT-2026-0003");
+        var unitOfWork = new InMemoryUnitOfWork();
+
+        var settings = new BusinessSettings(
+            "Test Business",
+            null, null, null, null, null, null, null, false, null, null, null, null, null,
+            "COP",
+            maximumCashierDiscountPercent: 20m);
+        var settingsRepo = new SettingsRepositoryFake(settings);
+        var useCase = new CreateQuoteUseCase(quotes, products, unitOfWork, settingsRepo);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            useCase.ExecuteAsync(new CreateQuoteRequest(
+                null,
+                "Test Customer",
+                null,
+                null,
+                30,
+                null,
+                [new CreateQuoteItemRequest(product.Id, 2m, 25m)]),
+                TestContext.Current.CancellationToken));
+
+        Assert.Contains("exceeds the configured maximum of 20%", exception.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenDiscountWithinLimit_CreatesQuoteWithDiscount()
+    {
+        var product = new Product("Widget", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(20m), new StockQuantity(2m));
+        var products = new InMemoryProductRepository(product);
+        var quotes = new InMemoryQuoteRepository("COT-2026-0004");
+        var unitOfWork = new InMemoryUnitOfWork();
+
+        var settings = new BusinessSettings(
+            "Test Business",
+            null, null, null, null, null, null, null, false, null, null, null, null, null,
+            "COP",
+            maximumCashierDiscountPercent: 20m);
+        var settingsRepo = new SettingsRepositoryFake(settings);
+        var useCase = new CreateQuoteUseCase(quotes, products, unitOfWork, settingsRepo);
+
+        await useCase.ExecuteAsync(new CreateQuoteRequest(
+            null,
+            "Test Customer",
+            null,
+            null,
+            30,
+            null,
+            [new CreateQuoteItemRequest(product.Id, 2m, 15m)]),
+            TestContext.Current.CancellationToken);
+
+        QuoteItem item = Assert.Single(Assert.Single(quotes.Quotes).Items);
+        Assert.Equal(15m, item.Discount);
+    }
+
+    private sealed class SettingsRepositoryFake : ISettingsRepository
+    {
+        private readonly BusinessSettings _settings;
+        public SettingsRepositoryFake(BusinessSettings settings) => _settings = settings;
+        public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default) => Task.FromResult<BusinessSettings?>(_settings);
+        public Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
     private sealed class InMemoryProductRepository : IProductRepository
     {
         private readonly Product? _product;

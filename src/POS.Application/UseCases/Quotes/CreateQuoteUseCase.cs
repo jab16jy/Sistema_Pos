@@ -1,4 +1,5 @@
 using POS.Application.DTOs.Quotes;
+using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
@@ -10,16 +11,21 @@ public sealed class CreateQuoteUseCase
     private readonly IQuoteRepository _quotes;
     private readonly IProductRepository _products;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ISettingsRepository? _settings;
 
-    public CreateQuoteUseCase(IQuoteRepository quotes, IProductRepository products, IUnitOfWork unitOfWork)
+    public CreateQuoteUseCase(IQuoteRepository quotes, IProductRepository products, IUnitOfWork unitOfWork, ISettingsRepository? settings = null)
     {
         _quotes = quotes;
         _products = products;
         _unitOfWork = unitOfWork;
+        _settings = settings;
     }
 
     public async Task<QuoteResult> ExecuteAsync(CreateQuoteRequest request, CancellationToken ct = default)
     {
+        decimal maximumDiscount = await CashierDiscountPolicy.GetMaximumAsync(_settings, ct).ConfigureAwait(false);
+        CashierDiscountPolicy.Validate(request.Items, maximumDiscount);
+
         Quote quote = null!;
 
         // Reservation, quote staging, and save must commit atomically: the sequence UPSERT and the

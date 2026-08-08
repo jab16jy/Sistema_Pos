@@ -1,3 +1,4 @@
+using POS.Application.DTOs.Quotes;
 using POS.Application.DTOs.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
@@ -36,6 +37,30 @@ internal static class CashierDiscountPolicy
             }
 
             if (item.ManualDiscountPercent > maximumPercent)
+            {
+                throw new InvalidOperationException(
+                    $"Manual discount for product '{item.ProductId}' exceeds the configured maximum of {maximumPercent:0.##}%.");
+            }
+        }
+    }
+
+    public static void Validate(IReadOnlyCollection<CreateQuoteItemRequest> items, decimal maximumPercent)
+    {
+        if (maximumPercent < 0m || maximumPercent > 100m)
+        {
+            throw new InvalidOperationException("The configured maximum cashier discount must be between 0 and 100 percent.");
+        }
+
+        foreach (CreateQuoteItemRequest item in items)
+        {
+            if (item.Discount < 0m || item.Discount > 100m)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(item.Discount),
+                    "Manual line discount must be between 0 and 100 percent.");
+            }
+
+            if (item.Discount > maximumPercent)
             {
                 throw new InvalidOperationException(
                     $"Manual discount for product '{item.ProductId}' exceeds the configured maximum of {maximumPercent:0.##}%.");

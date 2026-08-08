@@ -54,7 +54,7 @@ public sealed class QuoteCartItemViewModel : ViewModelBase
         get => _discount;
         set
         {
-            if (SetProperty(ref _discount, value))
+            if (SetProperty(ref _discount, Math.Clamp(value, 0m, 100m)))
             {
                 OnPropertyChanged(nameof(Subtotal));
             }

@@ -38,6 +38,9 @@ public sealed class QuoteViewModel : ViewModelBase
     private string _validationMessage = string.Empty;
     private bool _isConfirming;
     private string _lastQuoteNumber = string.Empty;
+    private decimal _cartDiscountPercentInput;
+    private readonly RelayCommand _applyCartDiscountCommand;
+    private readonly RelayCommand _clearCartDiscountCommand;
 
     public QuoteViewModel(
         IProductLookupService productLookupService,
@@ -66,6 +69,10 @@ public sealed class QuoteViewModel : ViewModelBase
         AddUnitToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, null));
         AddBoxToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, "Caja"));
         RemoveFromCartCommand = new RelayCommand(p => RemoveFromCart(p as QuoteCartItemViewModel));
+        _applyCartDiscountCommand = new RelayCommand(_ => ApplyCartDiscount(), _ => CartItems.Count > 0);
+        _clearCartDiscountCommand = new RelayCommand(_ => ClearCartDiscount(), _ => HasManualDiscount);
+        ApplyCartDiscountCommand = _applyCartDiscountCommand;
+        ClearCartDiscountCommand = _clearCartDiscountCommand;
         ConfirmCommand = new RelayCommand(_ => RunSafe(ConfirmAsync(), ex => ValidationMessage = $"Error al crear la cotización: {ex.Message}"));
         SendByEmailCommand = new RelayCommand(_ => RunSafe(SendByEmailAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(_ => RunSafe(SendByWhatsAppAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
@@ -82,6 +89,8 @@ public sealed class QuoteViewModel : ViewModelBase
     public ICommand AddUnitToCartCommand { get; }
     public ICommand AddBoxToCartCommand { get; }
     public ICommand RemoveFromCartCommand { get; }
+    public ICommand ApplyCartDiscountCommand { get; }
+    public ICommand ClearCartDiscountCommand { get; }
     public ICommand ConfirmCommand { get; }
     public ICommand SendByEmailCommand { get; }
     public ICommand SendByWhatsAppCommand { get; }
@@ -165,6 +174,16 @@ public sealed class QuoteViewModel : ViewModelBase
         get => _totalFormatted;
         private set => SetProperty(ref _totalFormatted, value);
     }
+
+    /// <summary>Percentage typed by the user, applied to every cart line via ApplyCartDiscountCommand.</summary>
+    public decimal CartDiscountPercentInput
+    {
+        get => _cartDiscountPercentInput;
+        set => SetProperty(ref _cartDiscountPercentInput, Math.Clamp(value, 0m, 100m));
+    }
+
+    /// <summary>True when any cart line currently carries a manual discount.</summary>
+    public bool HasManualDiscount => CartItems.Any(item => item.Discount > 0m);
 
     public string ValidationMessage
     {
@@ -536,9 +555,42 @@ public sealed class QuoteViewModel : ViewModelBase
         return await _createQuoteUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
     }
 
+    /// <summary>
+    /// Applies CartDiscountPercentInput to every cart line at once — more ergonomic than editing
+    /// lines one by one. Mirrors CashierViewModel.ApplyCartDiscount; there is no separate cart-level
+    /// discount field, this is purely a bulk-set convenience over QuoteCartItemViewModel.Discount.
+    /// </summary>
+    private void ApplyCartDiscount()
+    {
+        foreach (QuoteCartItemViewModel item in CartItems)
+        {
+            item.Discount = CartDiscountPercentInput;
+        }
+
+        ValidationMessage = CartDiscountPercentInput > 0m
+            ? $"Descuento de {CartDiscountPercentInput.ToString("0.##", ColombianCulture)}% aplicado al carrito."
+            : "Descuento removido del carrito.";
+        RecalculateTotal();
+    }
+
+    private void ClearCartDiscount()
+    {
+        CartDiscountPercentInput = 0m;
+        foreach (QuoteCartItemViewModel item in CartItems)
+        {
+            item.Discount = 0m;
+        }
+
+        ValidationMessage = "Descuento removido del carrito.";
+        RecalculateTotal();
+    }
+
     private void RecalculateTotal()
     {
         Total = CartItems.Sum(i => i.Subtotal);
+        OnPropertyChanged(nameof(HasManualDiscount));
+        _applyCartDiscountCommand.RaiseCanExecuteChanged();
+        _clearCartDiscountCommand.RaiseCanExecuteChanged();
     }
 
     private void ClearForm()
@@ -554,6 +606,7 @@ public sealed class QuoteViewModel : ViewModelBase
         SelectedCustomerLabel = string.Empty;
         ValidityDays = 30;
         Observations = string.Empty;
+        CartDiscountPercentInput = 0m;
         RecalculateTotal();
     }
 }

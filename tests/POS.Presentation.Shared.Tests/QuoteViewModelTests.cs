@@ -245,6 +245,54 @@ public sealed class QuoteViewModelTests
         Assert.Equal("neutral", row.StatusChipKind);
     }
 
+    [Fact]
+    public void ApplyCartDiscountCommand_WithCartItems_SetsDiscountOnAllLinesAndUpdatesTotal()
+    {
+        var vm = CreateViewModel(out _, out _);
+        AddCartItem(vm, Guid.NewGuid(), "Producto A", 1_000m);
+        AddCartItem(vm, Guid.NewGuid(), "Producto B", 2_000m);
+
+        vm.CartDiscountPercentInput = 10m;
+        vm.ApplyCartDiscountCommand.Execute(null);
+
+        Assert.All(vm.CartItems, item => Assert.Equal(10m, item.Discount));
+        Assert.True(vm.HasManualDiscount);
+        Assert.Equal(2_700m, vm.Total);
+    }
+
+    [Fact]
+    public void ClearCartDiscountCommand_AfterApplying_ResetsDiscountAndInput()
+    {
+        var vm = CreateViewModel(out _, out _);
+        AddCartItem(vm, Guid.NewGuid(), "Producto A", 1_000m);
+        vm.CartDiscountPercentInput = 15m;
+        vm.ApplyCartDiscountCommand.Execute(null);
+
+        vm.ClearCartDiscountCommand.Execute(null);
+
+        Assert.All(vm.CartItems, item => Assert.Equal(0m, item.Discount));
+        Assert.False(vm.HasManualDiscount);
+        Assert.Equal(0m, vm.CartDiscountPercentInput);
+        Assert.Equal(1_000m, vm.Total);
+    }
+
+    [Fact]
+    public void ApplyCartDiscountCommand_WithEmptyCart_CannotExecute()
+    {
+        var vm = CreateViewModel(out _, out _);
+
+        Assert.False(vm.ApplyCartDiscountCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public void ClearCartDiscountCommand_WithoutManualDiscount_CannotExecute()
+    {
+        var vm = CreateViewModel(out _, out _);
+        AddCartItem(vm, Guid.NewGuid(), "Producto A", 1_000m);
+
+        Assert.False(vm.ClearCartDiscountCommand.CanExecute(null));
+    }
+
     private static void AddCartItem(QuoteViewModel vm, Guid productId, string name, decimal unitPrice)
         => vm.CartItems.Add(new QuoteCartItemViewModel(productId, name, unitPrice));
 

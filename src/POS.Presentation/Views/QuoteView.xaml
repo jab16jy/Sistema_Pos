@@ -288,13 +288,15 @@
               <ColumnDefinition Width="*" />
               <ColumnDefinition Width="110" />
               <ColumnDefinition Width="110" />
+              <ColumnDefinition Width="90" />
               <ColumnDefinition Width="110" />
               <ColumnDefinition Width="36" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="Producto" Style="{StaticResource MutedText}" FontSize="11" Margin="14,8" />
             <TextBlock Grid.Column="1" Text="Cant." Style="{StaticResource MutedText}" FontSize="11" Margin="8" HorizontalAlignment="Center" />
             <TextBlock Grid.Column="2" Text="Precio" Style="{StaticResource MutedText}" FontSize="11" Margin="8" HorizontalAlignment="Right" />
-            <TextBlock Grid.Column="3" Text="Subtotal" Style="{StaticResource MutedText}" FontSize="11" Margin="8" HorizontalAlignment="Right" />
+            <TextBlock Grid.Column="3" Text="Dto." Style="{StaticResource MutedText}" FontSize="11" Margin="8" HorizontalAlignment="Right" />
+            <TextBlock Grid.Column="4" Text="Subtotal" Style="{StaticResource MutedText}" FontSize="11" Margin="8" HorizontalAlignment="Right" />
           </Grid>
 
           <Grid Grid.Row="2">
@@ -319,6 +321,7 @@
                           <ColumnDefinition Width="*" />
                           <ColumnDefinition Width="110" />
                           <ColumnDefinition Width="110" />
+                          <ColumnDefinition Width="90" />
                           <ColumnDefinition Width="110" />
                           <ColumnDefinition Width="36" />
                         </Grid.ColumnDefinitions>
@@ -328,8 +331,14 @@
                          </StackPanel>
                         <xctk:DecimalUpDown Grid.Row="0" Grid.Column="1" Value="{Binding Quantity, Mode=TwoWay}" Minimum="0.01" Height="28" HorizontalContentAlignment="Center" />
                         <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding UnitPrice, StringFormat={}{0:C0}}" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                        <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding Subtotal, StringFormat={}{0:C0}}" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
-                        <Button Grid.Row="0" Grid.Column="4"
+                        <TextBox Grid.Row="0" Grid.Column="3"
+                                 Text="{Binding Discount, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource FlexibleDecimalConverter}}"
+                                 Width="58"
+                                 HorizontalAlignment="Right"
+                                 VerticalContentAlignment="Center"
+                                 ToolTip="Descuento manual por línea (%)" />
+                        <TextBlock Grid.Row="0" Grid.Column="4" Text="{Binding Subtotal, StringFormat={}{0:C0}}" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Right" />
+                        <Button Grid.Row="0" Grid.Column="5"
                                 Background="Transparent"
                                 BorderBrush="Transparent"
                                 Padding="0"
@@ -337,7 +346,7 @@
                                 CommandParameter="{Binding}">
                           <materialDesign:PackIcon Kind="Close" Foreground="{StaticResource BrushDanger}" Width="15" Height="15" />
                         </Button>
-                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="5"
+                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="6"
                                    Text="{Binding AvailableStock, StringFormat='No hay stock suficiente. Disponible: {0:0.##}'}"
                                    Foreground="Red" FontSize="11" Margin="0,4,0,0" FontWeight="SemiBold"
                                    Visibility="{Binding IsOutOfStock, Converter={StaticResource BoolToVisibilityConverter}}" />
@@ -352,6 +361,7 @@
           <Border Grid.Row="3" BorderBrush="{StaticResource BrushBorder}" BorderThickness="0,1,0,0" Padding="14">
             <Grid>
               <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
               </Grid.RowDefinitions>
@@ -383,7 +393,30 @@
                   <TextBlock Text="{Binding TotalFormatted}" Style="{StaticResource TextH1}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Right" />
                 </StackPanel>
               </Grid>
-              <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right">
+              <Grid Grid.Row="1" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBox Text="{Binding CartDiscountPercentInput, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource FlexibleDecimalConverter}}"
+                         Tag="% de descuento..."
+                         Height="34"
+                         VerticalContentAlignment="Center" />
+                <Button Grid.Column="1"
+                        Content="Aplicar"
+                        Style="{StaticResource PrimaryButton}"
+                        Command="{Binding ApplyCartDiscountCommand}"
+                        Margin="8,0,0,0"
+                        Padding="10,4" />
+                <Button Grid.Column="2"
+                        Content="Quitar"
+                        Style="{StaticResource GhostQuoteButton}"
+                        Command="{Binding ClearCartDiscountCommand}"
+                        Margin="8,0,0,0"
+                        Padding="10,4" />
+              </Grid>
+              <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
                 <Button Command="{Binding SendByWhatsAppCommand}" IsEnabled="{Binding IsConfirming, Converter={StaticResource BooleanNegationConverter}}" Style="{StaticResource GhostQuoteButton}" Margin="0,0,8,0">
                   <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="WhatsApp" Width="16" Height="16" Margin="0,0,4,0" />
