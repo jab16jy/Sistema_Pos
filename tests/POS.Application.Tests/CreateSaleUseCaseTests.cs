@@ -22,7 +22,10 @@ public sealed class CreateSaleUseCaseSettlementTests
         var unitOfWork = new InMemUoW();
         var customerId = Guid.NewGuid();
 
-        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
+        var useCase = new CreateSaleUseCase(
+            products, sales, unitOfWork, receivables,
+            accumulatePoints: null, redeemPoints: null, inventory: null,
+            settings: new SettingsRepositoryFake(50m), authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
             customerId,
@@ -62,7 +65,7 @@ public sealed class CreateSaleUseCaseSettlementTests
     [Fact]
     public async Task ExecuteAsync_DeferredBalanceAboveConfiguredMaximum_IsRejected()
     {
-        // Sale total is 800_000; default maximum deferred balance is 50% (400_000).
+        // Sale total is 800_000; configured maximum deferred balance is 50% (400_000).
         var product = new Product("Laptop", Guid.NewGuid(), new Money(500_000m), new Money(800_000m), new StockQuantity(5m), new StockQuantity(1m));
         var products = new InMemProductRepo(product);
         var sales = new InMemSaleRepo();
@@ -70,7 +73,10 @@ public sealed class CreateSaleUseCaseSettlementTests
         var unitOfWork = new InMemUoW();
         var customerId = Guid.NewGuid();
 
-        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
+        var useCase = new CreateSaleUseCase(
+            products, sales, unitOfWork, receivables,
+            accumulatePoints: null, redeemPoints: null, inventory: null,
+            settings: new SettingsRepositoryFake(50m), authorizer: TestAuthorizer.Create());
 
         var request = new CreateSaleRequest(
             customerId,
@@ -85,10 +91,10 @@ public sealed class CreateSaleUseCaseSettlementTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithTwoCollectedLegsAndDeferredRemainder_CreatesOnePaymentPerLegAndOneReceivable()
+    public async Task ExecuteAsync_WithDeferredBalance_WhenNoSettingsConfigured_IsRejectedByDefault()
     {
-        // Sale total 800_000; two collected legs (cash 300_000 + transfer 200_000) leave 300_000
-        // deferred — within the default 50% maximum (400_000).
+        // The deferred balance cap now defaults to 0% — no credit is accepted anywhere until the
+        // business explicitly raises MaximumDeferredBalancePercent from Ajustes.
         var product = new Product("Laptop", Guid.NewGuid(), new Money(500_000m), new Money(800_000m), new StockQuantity(5m), new StockQuantity(1m));
         var products = new InMemProductRepo(product);
         var sales = new InMemSaleRepo();
@@ -97,6 +103,35 @@ public sealed class CreateSaleUseCaseSettlementTests
         var customerId = Guid.NewGuid();
 
         var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
+
+        var request = new CreateSaleRequest(
+            customerId,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            new SaleSettlementPlan(750_000m, PaymentMethod.Cash, 50_000m));
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
+
+        Assert.Contains("0%", ex.Message);
+        Assert.Empty(receivables.Stored);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithTwoCollectedLegsAndDeferredRemainder_CreatesOnePaymentPerLegAndOneReceivable()
+    {
+        // Sale total 800_000; two collected legs (cash 300_000 + transfer 200_000) leave 300_000
+        // deferred — within the configured 50% maximum (400_000).
+        var product = new Product("Laptop", Guid.NewGuid(), new Money(500_000m), new Money(800_000m), new StockQuantity(5m), new StockQuantity(1m));
+        var products = new InMemProductRepo(product);
+        var sales = new InMemSaleRepo();
+        var receivables = new InMemReceivableRepo();
+        var unitOfWork = new InMemUoW();
+        var customerId = Guid.NewGuid();
+
+        var useCase = new CreateSaleUseCase(
+            products, sales, unitOfWork, receivables,
+            accumulatePoints: null, redeemPoints: null, inventory: null,
+            settings: new SettingsRepositoryFake(50m), authorizer: TestAuthorizer.Create());
 
         var legs = new List<SettlementCollectedPayment>
         {
@@ -167,6 +202,18 @@ public sealed class CreateSaleUseCaseSettlementTests
 
         Assert.Equal(0m, result.DeferredBalance);
         Assert.Empty(receivables.Stored);
+    }
+
+    private sealed class SettingsRepositoryFake(decimal maximumDeferredBalancePercent) : ISettingsRepository
+    {
+        public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<BusinessSettings?>(new BusinessSettings(
+                "Test Business",
+                null, null, null, null, null, null, null, false, null, null, null, null, null,
+                "COP",
+                maximumDeferredBalancePercent: maximumDeferredBalancePercent));
+
+        public Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class InMemProductRepo : IProductRepository
@@ -496,6 +543,24 @@ public sealed class CreateSaleUseCaseTests
 
         Assert.Empty(sales.Sales);
         Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task GetDeferredBalanceLimitUseCase_ReadsConfiguredPercent_FallsBackToDefaultWithoutSettings()
+    {
+        var settings = new BusinessSettings(
+            "Test Business",
+            null, null, null, null, null, null, null, false, null, null, null, null, null,
+            "COP",
+            maximumDeferredBalancePercent: 30m);
+
+        decimal configured = await new GetDeferredBalanceLimitUseCase(new SettingsRepositoryFake(settings))
+            .ExecuteAsync(TestContext.Current.CancellationToken);
+        decimal fallback = await new GetDeferredBalanceLimitUseCase()
+            .ExecuteAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(30m, configured);
+        Assert.Equal(BusinessSettings.DefaultMaximumDeferredBalancePercent, fallback);
     }
 
     private sealed class SettingsRepositoryFake : ISettingsRepository

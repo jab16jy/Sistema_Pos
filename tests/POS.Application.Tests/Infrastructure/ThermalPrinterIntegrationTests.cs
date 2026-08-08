@@ -194,7 +194,8 @@ public sealed class ThermalPrinterIntegrationTests
     {
         await using var fixture = await TestDbContextFactory.CreateAsync();
         fixture.DbContext.BusinessSettings.Add(new BusinessSettings(
-            "Negocio", null, null, null, null, null, null, null, false, null, "COM7", null, null, null, "COP"));
+            "Negocio", null, null, null, null, null, null, null, false, null, "COM7", null, null, null, "COP",
+            maximumDeferredBalancePercent: 50m));
 
         var customer = new Customer("Maria Perez", "123456789");
         fixture.DbContext.Customers.Add(customer);
@@ -209,6 +210,8 @@ public sealed class ThermalPrinterIntegrationTests
             new SaleRepository(fixture.DbContext),
             fixture.DbContext,
             new ReceivableRepository(fixture.DbContext),
+            accumulatePoints: null, redeemPoints: null, inventory: null,
+            settings: new SettingsRepository(fixture.DbContext),
             authorizer: TestAuthorizer.Create(dbContext: fixture.DbContext));
 
         // 100.000 sale: 60.000 collected in cash, 40.000 left on the customer's account.

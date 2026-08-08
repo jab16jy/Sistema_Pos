@@ -350,6 +350,8 @@ public sealed class SalePersistenceTests
             new SaleRepository(dbContext),
             dbContext,
             new ReceivableRepository(dbContext),
+            accumulatePoints: null, redeemPoints: null, inventory: null,
+            settings: new SettingsRepositoryFake(50m),
             authorizer: TestAuthorizer.Create(dbContext: dbContext));
 
         var request = new CreateSaleRequest(
@@ -399,6 +401,8 @@ public sealed class SalePersistenceTests
             new SaleRepository(dbContext),
             dbContext,
             new ReceivableRepository(dbContext),
+            accumulatePoints: null, redeemPoints: null, inventory: null,
+            settings: new SettingsRepositoryFake(50m),
             authorizer: TestAuthorizer.Create(dbContext: dbContext));
         var result = await useCase.ExecuteAsync(new CreateSaleRequest(
             customerId,
@@ -485,5 +489,17 @@ public sealed class SalePersistenceTests
             .Options;
 
         return new AppDbContext(options);
+    }
+
+    private sealed class SettingsRepositoryFake(decimal maximumDeferredBalancePercent) : ISettingsRepository
+    {
+        public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<BusinessSettings?>(new BusinessSettings(
+                "Test Business",
+                null, null, null, null, null, null, null, false, null, null, null, null, null,
+                "COP",
+                maximumDeferredBalancePercent: maximumDeferredBalancePercent));
+
+        public Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

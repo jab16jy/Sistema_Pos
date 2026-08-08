@@ -54,6 +54,7 @@ public partial class CashierView : UserControl
         if (DataContext is CashierViewModel viewModel)
         {
             await viewModel.LoadHeldSalesAsync();
+            await viewModel.LoadDeferredBalanceLimitAsync();
             if (viewModel.IsAwaitingSaleConfirmation || viewModel.IsAwaitingPrintChoice)
             {
                 ScrollRightPanelToBottom();

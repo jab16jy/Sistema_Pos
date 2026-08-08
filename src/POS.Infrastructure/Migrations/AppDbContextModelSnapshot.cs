@@ -115,7 +115,7 @@ namespace POS.Infrastructure.Migrations
                     b.Property<decimal>("MaximumDeferredBalancePercent")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
-                        .HasDefaultValue(50m);
+                        .HasDefaultValue(0m);
 
                     b.Property<decimal>("MaximumPointsMultiplier")
                         .ValueGeneratedOnAdd()

@@ -42,6 +42,8 @@ public sealed class CashierViewModel : ViewModelBase
     private readonly ResumeHeldSaleUseCase? _resumeHeldSaleUseCase;
     private readonly CompleteHeldSaleUseCase? _completeHeldSaleUseCase;
     private readonly CancelHeldSaleUseCase? _cancelHeldSaleUseCase;
+    private readonly GetDeferredBalanceLimitUseCase? _getDeferredBalanceLimitUseCase;
+    private decimal _maximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent;
     private readonly RelayCommand _printReceiptYesCommand;
     private readonly RelayCommand _printReceiptNoCommand;
     private Guid? _pendingPrintSaleId;
@@ -157,7 +159,8 @@ public sealed class CashierViewModel : ViewModelBase
         GetHeldSalesUseCase? getHeldSalesUseCase = null,
         ResumeHeldSaleUseCase? resumeHeldSaleUseCase = null,
         CompleteHeldSaleUseCase? completeHeldSaleUseCase = null,
-        CancelHeldSaleUseCase? cancelHeldSaleUseCase = null)
+        CancelHeldSaleUseCase? cancelHeldSaleUseCase = null,
+        GetDeferredBalanceLimitUseCase? getDeferredBalanceLimitUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _findProductByBarcodeUseCase = findProductByBarcodeUseCase ?? new FindProductByBarcodeUseCase(_productLookupService);
@@ -174,6 +177,7 @@ public sealed class CashierViewModel : ViewModelBase
         _resumeHeldSaleUseCase = resumeHeldSaleUseCase;
         _completeHeldSaleUseCase = completeHeldSaleUseCase;
         _cancelHeldSaleUseCase = cancelHeldSaleUseCase;
+        _getDeferredBalanceLimitUseCase = getDeferredBalanceLimitUseCase;
 
         PaymentMethods = new ObservableCollection<PaymentMethodOption>
         {
@@ -795,6 +799,24 @@ public sealed class CashierViewModel : ViewModelBase
         : (SelectedPaymentMethod.Method != PaymentMethod.Cash && ReceivedAmount == 0m)
             ? 0m
             : Math.Max(0m, NetPayable - ReceivedAmount);
+
+    /// <summary>
+    /// The deferred balance cap, as a percent of the cart total (business setting, default 0 — the
+    /// business must opt in from Ajustes before any deferred balance is accepted). Loaded from
+    /// settings via <see cref="LoadDeferredBalanceLimitAsync"/>; settable directly for tests.
+    /// </summary>
+    public decimal MaximumDeferredBalancePercent
+    {
+        get => _maximumDeferredBalancePercent;
+        set
+        {
+            if (_maximumDeferredBalancePercent != value)
+            {
+                _maximumDeferredBalancePercent = value;
+                RefreshPaymentPreview(updateMessage: false);
+            }
+        }
+    }
 
     /// <summary>
     /// Shows the saldo diferido panel. Only becomes true when the cashier commits the received
@@ -1808,6 +1830,20 @@ public sealed class CashierViewModel : ViewModelBase
         _resumeHeldSaleCommand.RaiseCanExecuteChanged();
     }
 
+    /// <summary>Loads the deferred balance cap (business setting) so the checkout panel can
+    /// enforce it live instead of only failing when the sale is confirmed.</summary>
+    public async Task LoadDeferredBalanceLimitAsync(CancellationToken cancellationToken = default)
+    {
+        if (_getDeferredBalanceLimitUseCase is null)
+        {
+            return;
+        }
+
+        MaximumDeferredBalancePercent = await _getDeferredBalanceLimitUseCase
+            .ExecuteAsync(cancellationToken)
+            .ConfigureAwait(true);
+    }
+
     public async Task HoldSaleAsync(CancellationToken cancellationToken = default)
     {
         if (_holdSaleUseCase is null)
@@ -2303,6 +2339,19 @@ public sealed class CashierViewModel : ViewModelBase
                 return;
             }
 
+            if (ExceedsDeferredBalanceLimit(RemainingToPay))
+            {
+                ChangeAmount = 0m;
+                CanConfirm = false;
+                NotifyPaymentBalanceChanged();
+                if (updateMessage)
+                {
+                    Message = DeferredBalanceLimitMessage();
+                }
+
+                return;
+            }
+
             PaymentPreviewResult splitPreview = _previewPaymentUseCase.Execute(new PaymentPreviewRequest(
                 NetPayable,
                 SelectedPaymentMethod.Method,
@@ -2334,6 +2383,19 @@ public sealed class CashierViewModel : ViewModelBase
             return;
         }
 
+        if (ExceedsDeferredBalanceLimit(DeferredAmount))
+        {
+            ChangeAmount = 0m;
+            CanConfirm = false;
+            NotifyPaymentBalanceChanged();
+            if (updateMessage)
+            {
+                Message = DeferredBalanceLimitMessage();
+            }
+
+            return;
+        }
+
         PaymentPreviewResult preview = _previewPaymentUseCase.Execute(new PaymentPreviewRequest(
             NetPayable,
             SelectedPaymentMethod.Method,
@@ -2352,6 +2414,21 @@ public sealed class CashierViewModel : ViewModelBase
 
     /// <summary>True when a deferred amount would be created without an identified customer (orphan credit guard, mirrored client-side for UX).</summary>
     private bool RequiresCustomerForDeferred(decimal amount) => amount > 0m && CustomerId is null;
+
+    /// <summary>
+    /// The most that can be left as a deferred balance for this sale — mirrors
+    /// DeferredBalancePolicy.Validate's ceiling (percent of the cart total, not the
+    /// post-redemption net) so the client-side gate below agrees with the server.
+    /// </summary>
+    private decimal MaximumDeferredAmount =>
+        decimal.Round(TotalAmount * _maximumDeferredBalancePercent / 100m, 2, MidpointRounding.AwayFromZero);
+
+    /// <summary>True when a deferred amount would exceed the configured business cap (mirrored client-side for UX).</summary>
+    private bool ExceedsDeferredBalanceLimit(decimal amount) => amount > MaximumDeferredAmount;
+
+    private string DeferredBalanceLimitMessage() =>
+        $"El saldo diferido no puede superar el {_maximumDeferredBalancePercent:0.##}% del total " +
+        $"({FormatCurrency(MaximumDeferredAmount)}). Cobra al menos {FormatCurrency(TotalAmount - MaximumDeferredAmount)}.";
 
     private void OnCartItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -2427,13 +2504,13 @@ public sealed class CashierViewModel : ViewModelBase
         // field, so it doesn't need the single-payment CommitReceivedAmount() step below.
         // Outside a split this still evaluates to false, exactly like the old unconditional reset,
         // so CommitReceivedAmount() remains required there.
-        IsDeferredAmountVisible = HasTenders && DeferredAmount > 0m;
+        IsDeferredAmountVisible = HasTenders && DeferredAmount > 0m && !ExceedsDeferredBalanceLimit(DeferredAmount);
     }
 
     /// <summary>Called when the cashier commits the received amount — Enter or losing focus on the field.</summary>
     public void CommitReceivedAmount()
     {
-        IsDeferredAmountVisible = DeferredAmount > 0m;
+        IsDeferredAmountVisible = DeferredAmount > 0m && !ExceedsDeferredBalanceLimit(DeferredAmount);
     }
 
     private void UpdateCommandState()

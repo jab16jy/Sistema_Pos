@@ -1003,9 +1003,11 @@ public sealed class CashierViewModelTests
         viewModel.CommitReceivedAmount(); // simulates pressing Enter / leaving the field
 
         // Underpaying now auto-derives a deferred balance, which requires an identified customer.
+        // It also exceeds the default 50% deferred cap (10.200 of 11.200), so the panel stays
+        // hidden on both counts.
         Assert.False(viewModel.CanConfirm);
         Assert.Equal(0m, viewModel.ChangeAmount);
-        Assert.True(viewModel.IsDeferredAmountVisible);
+        Assert.False(viewModel.IsDeferredAmountVisible);
         Assert.Equal(10_200m, viewModel.DeferredAmount);
         Assert.Contains("cliente", viewModel.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(viewModel.IsPaymentShortfall);
@@ -1468,6 +1470,18 @@ public sealed class CashierViewModelTests
             => Task.FromResult<IReadOnlyList<ProductLookupResult>>([]);
     }
 
+    private sealed class SettingsRepositoryFake(decimal maximumDeferredBalancePercent) : ISettingsRepository
+    {
+        public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<BusinessSettings?>(new BusinessSettings(
+                "Test Business",
+                null, null, null, null, null, null, null, false, null, null, null, null, null,
+                "COP",
+                maximumDeferredBalancePercent: maximumDeferredBalancePercent));
+
+        public Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
     private sealed class StaticProductLookupService : POS.Application.Interfaces.IProductLookupService
     {
         private readonly ProductLookupResult _product;
@@ -1615,7 +1629,8 @@ public sealed class CashierViewModelTests
         {
             SearchText = "arroz",
             Quantity = 1m,
-            CustomerId = Guid.NewGuid()
+            CustomerId = Guid.NewGuid(),
+            MaximumDeferredBalancePercent = 50m // default is 0 (opt-in) — this test isn't about the cap.
         };
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);
@@ -1676,7 +1691,8 @@ public sealed class CashierViewModelTests
         {
             SearchText = "arroz",
             Quantity = 2m,
-            CustomerId = Guid.NewGuid()
+            CustomerId = Guid.NewGuid(),
+            MaximumDeferredBalancePercent = 50m // default is 0 (opt-in) — this test isn't about the cap.
         };
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);
@@ -1717,7 +1733,8 @@ public sealed class CashierViewModelTests
         {
             SearchText = "arroz",
             Quantity = 1m,
-            CustomerId = Guid.NewGuid()
+            CustomerId = Guid.NewGuid(),
+            MaximumDeferredBalancePercent = 50m // default is 0 (opt-in) — this test isn't about the cap.
         };
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);
@@ -1742,7 +1759,8 @@ public sealed class CashierViewModelTests
         {
             SearchText = "arroz",
             Quantity = 1m,
-            CustomerId = Guid.NewGuid()
+            CustomerId = Guid.NewGuid(),
+            MaximumDeferredBalancePercent = 50m // default is 0 (opt-in) — this test isn't about the cap.
         };
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);
@@ -1768,13 +1786,14 @@ public sealed class CashierViewModelTests
         {
             SearchText = "combo",
             Quantity = 1m,
-            CustomerId = Guid.NewGuid()
+            CustomerId = Guid.NewGuid(),
+            MaximumDeferredBalancePercent = 50m // default is 0 (opt-in) — this test isn't about the cap.
         };
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);
 
         // Total 400.000: transfer 200.000 + cash 100.000 leaves 100.000 unassigned — within the
-        // default 50% maximum deferred (200.000).
+        // configured 50% maximum deferred (200.000).
         viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Transfer);
         viewModel.BankOrPlatform = "Bancolombia";
         viewModel.ReceivedAmount = 200_000m;
@@ -1819,6 +1838,80 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task DeferredAmount_WhenExceedsMaximumDeferredPercent_StaysHiddenAndBlocksConfirm()
+    {
+        // Total 40.000, cap set to 50% → max deferred is 20.000. Paying 19.000 would leave
+        // 21.000 deferred, over the cap, so the panel must not appear yet.
+        var product = new Product("Producto", Guid.NewGuid(), new Money(20_000m), new Money(40_000m), new StockQuantity(10m), new StockQuantity(1m));
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "9001", product.SalePrice.Amount, product.CurrentStock)))
+        {
+            SearchText = "producto",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid(),
+            MaximumDeferredBalancePercent = 50m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        viewModel.ReceivedAmount = 19_000m;
+        viewModel.CommitReceivedAmount();
+
+        Assert.Equal(21_000m, viewModel.DeferredAmount);
+        Assert.False(viewModel.IsDeferredAmountVisible);
+        Assert.False(viewModel.CanConfirm);
+        Assert.Contains("50%", viewModel.Message);
+    }
+
+    [Fact]
+    public async Task DeferredAmount_AtMaximumDeferredPercent_BecomesVisibleAndAllowsConfirm()
+    {
+        // Same sale, but paying exactly 20.000 (the 50% cap) leaves 20.000 deferred — allowed.
+        var product = new Product("Producto", Guid.NewGuid(), new Money(20_000m), new Money(40_000m), new StockQuantity(10m), new StockQuantity(1m));
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "9001", product.SalePrice.Amount, product.CurrentStock)))
+        {
+            SearchText = "producto",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid(),
+            MaximumDeferredBalancePercent = 50m
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        viewModel.ReceivedAmount = 20_000m;
+        viewModel.CommitReceivedAmount();
+
+        Assert.Equal(20_000m, viewModel.DeferredAmount);
+        Assert.True(viewModel.IsDeferredAmountVisible);
+        Assert.True(viewModel.CanConfirm);
+    }
+
+    [Fact]
+    public async Task DeferredAmount_WithDefaultCap_IsAlwaysBlockedUntilBusinessOptsIn()
+    {
+        // The deferred balance cap now defaults to 0% — no credit is accepted anywhere until the
+        // business explicitly raises MaximumDeferredBalancePercent from Ajustes.
+        var viewModel = new CashierViewModel(new PrototypeProductLookupService())
+        {
+            SearchText = "arroz",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid()
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        Assert.Equal(0m, viewModel.MaximumDeferredBalancePercent);
+
+        viewModel.ReceivedAmount = viewModel.TotalAmount - 1m;
+        viewModel.CommitReceivedAmount();
+
+        Assert.False(viewModel.IsDeferredAmountVisible);
+        Assert.False(viewModel.CanConfirm);
+        Assert.Contains("0%", viewModel.Message);
+    }
+
+    [Fact]
     public async Task ConfirmSaleAsync_WithTendersLeavingRemainder_PersistsOnePaymentPerLegAndDefersTheRest()
     {
         var product = new Product("Combo", Guid.NewGuid(), new Money(200_000m), new Money(400_000m), new StockQuantity(10m), new StockQuantity(1m));
@@ -1828,12 +1921,16 @@ public sealed class CashierViewModelTests
         var viewModel = new CashierViewModel(
             new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
             new PreviewPaymentUseCase(),
-            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), receivables, authorizer: CreateAuthorizer()))
+            new CreateSaleUseCase(
+                new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), receivables,
+                accumulatePoints: null, redeemPoints: null, inventory: null,
+                settings: new SettingsRepositoryFake(50m), authorizer: CreateAuthorizer()))
         {
             SearchText = "combo",
             Quantity = 1m,
             CashierUserId = Guid.NewGuid(),
-            CustomerId = customerId
+            CustomerId = customerId,
+            MaximumDeferredBalancePercent = 50m
         };
         await viewModel.SearchAsync(TestContext.Current.CancellationToken);
         viewModel.AddSelectedProductCommand.Execute(null);

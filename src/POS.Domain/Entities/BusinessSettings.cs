@@ -3,7 +3,7 @@ namespace POS.Domain.Entities;
 public sealed class BusinessSettings
 {
     public const decimal DefaultMaximumCashierDiscountPercent = 20m;
-    public const decimal DefaultMaximumDeferredBalancePercent = 50m;
+    public const decimal DefaultMaximumDeferredBalancePercent = 0m;
     public const decimal DefaultMaximumPointsMultiplier = 5m;
 
     private BusinessSettings()
