@@ -78,4 +78,23 @@ public sealed class ProductTests
         product.DecreaseStock(new Quantity(5m));
         Assert.Equal(0m, product.CurrentStock);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(19)]
+    public void Constructor_WithTaxRateWithinRange_Succeeds(decimal taxRate)
+    {
+        var product = new Product("Widget", Guid.NewGuid(), new Money(10m), new Money(20m), new StockQuantity(1m), new StockQuantity(0m), taxRate: taxRate);
+
+        Assert.Equal(taxRate, product.TaxRate);
+    }
+
+    [Theory]
+    [InlineData(19.01)]
+    [InlineData(100)]
+    public void Constructor_WithTaxRateAboveNineteen_Throws(decimal taxRate)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new Product("Widget", Guid.NewGuid(), new Money(10m), new Money(20m), new StockQuantity(1m), new StockQuantity(0m), taxRate: taxRate));
+    }
 }

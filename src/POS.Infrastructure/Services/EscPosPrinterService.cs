@@ -210,7 +210,7 @@ public sealed partial class EscPosPrinterService : IPrintService
             WriteLine($"{"Desc. productos:",-20}{$"-{FormatCurrency(itemDiscountTotal)}",12}");
         }
         WriteLine($"{"Base gravable:",-20}{FormatCurrency(sale.TaxableBaseTotal().Amount),12}");
-        WriteLine($"{"IVA incluido:",-20}{FormatCurrency(sale.TaxTotal().Amount),12}");
+        WriteLine($"{TaxTotalLabel(sale),-20}{FormatCurrency(sale.TaxTotal().Amount),12}");
         Write(EscPosCommands.BoldOn);
         WriteLine($"{"TOTAL:",-20}{FormatCurrency(sale.Total().Amount),12}");
         Write(EscPosCommands.BoldOff);
@@ -312,6 +312,21 @@ public sealed partial class EscPosPrinterService : IPrintService
 
     private static string FormatCurrency(decimal amount) =>
         $"${amount.ToString("N0", CopCulture)}";
+
+    private static string FormatTaxRate(decimal taxRate) => $"{taxRate.ToString("0.##", CopCulture)}%";
+
+    /// <summary>
+    /// Names the actual rate instead of a fixed 19%, mirroring PdfService.TaxTotalLabel. A sale
+    /// mixing exempt and taxed products has no single rate to name, so it falls back to the
+    /// unqualified label — the amount beside it is summed per line and stays correct either way.
+    /// </summary>
+    private static string TaxTotalLabel(Sale sale)
+    {
+        decimal[] rates = sale.Items.Select(item => item.TaxRate).Distinct().ToArray();
+        return rates.Length == 1
+            ? $"IVA {FormatTaxRate(rates[0])} incluido:"
+            : "IVA incluido:";
+    }
 
     private static string PresentationLabel(string? presentationName, int unitsPerPresentation) =>
         ProductPresentationLabel.For(presentationName, unitsPerPresentation);

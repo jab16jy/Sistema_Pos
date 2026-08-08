@@ -105,9 +105,9 @@ public sealed class SaleItem
 
     private static decimal ValidateTaxRate(decimal taxRate)
     {
-        if (taxRate < 0m || taxRate > 100m)
+        if (taxRate < 0m || taxRate > 19m)
         {
-            throw new ArgumentOutOfRangeException(nameof(taxRate), "Tax rate must be between 0 and 100.");
+            throw new ArgumentOutOfRangeException(nameof(taxRate), "Tax rate must be between 0 and 19.");
         }
 
         return taxRate;

@@ -938,7 +938,6 @@ namespace POS.Infrastructure.Migrations
             modelBuilder.Entity("POS.Domain.Entities.ProductPresentation", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
                     b.Property<int>("DisplayOrder")
@@ -1520,9 +1519,7 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("TaxRate")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT")
-                        .HasDefaultValue(19m)
                         .HasColumnName("tax_rate");
 
                     b.Property<decimal>("UnitCost")

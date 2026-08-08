@@ -23,8 +23,7 @@ internal sealed class SaleItemConfiguration : IEntityTypeConfiguration<SaleItem>
                .HasConversion(m => m.Amount, v => new Money(v))
                .HasColumnName("discount");
         builder.Property(si => si.TaxRate)
-               .HasColumnName("tax_rate")
-               .HasDefaultValue(19m);
+               .HasColumnName("tax_rate");
         builder.Property(si => si.PresentationName)
                .HasColumnName("presentation_name")
                .HasMaxLength(100);
