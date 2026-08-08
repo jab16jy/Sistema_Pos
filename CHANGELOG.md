@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.27.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.26.1...v1.27.0) (2026-08-08)
+
+
+### Features
+
+* **sales:** unify deferred balance with multi-tender payments ([9feacac](https://github.com/jab16jy/Sistema_Pos/commit/9feacac162ed3294aeb17af399de70192c35d09d))
+
+
+### Bug Fixes
+
+* **sales:** stop IVA 0% from being persisted as 19% on sale items ([072cd3d](https://github.com/jab16jy/Sistema_Pos/commit/072cd3dc34a3afcc3d7823242d422df64e942462))
+
 ## [1.26.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.26.0...v1.26.1) (2026-08-05)
 
 
