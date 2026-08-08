@@ -586,8 +586,15 @@ public sealed class CashierViewModel : ViewModelBase
     /// <summary>Manual discount as a negative currency string, e.g. "-$5.000".</summary>
     public string ManualDiscountText => $"-{FormatCurrency(ManualDiscountAmount)}";
 
-    /// <summary>Automatic discount from the customer's current tier, applied on top of any loyalty point redemption.</summary>
-    public decimal TierDiscount => Math.Max(0m, TotalAmount * (_currentTierDiscountPercent / 100m));
+    /// <summary>
+    /// Automatic discount from the customer's current tier, applied on top of any loyalty point
+    /// redemption. Suppressed for a loaded quote: the quote's own price/discount was already
+    /// decided when it was created, and ConvertQuoteToSaleUseCase charges TotalAmount (not this),
+    /// so showing a tier discount here would just be a display lie about what gets charged.
+    /// </summary>
+    public decimal TierDiscount => IsQuoteLoaded
+        ? 0m
+        : Math.Max(0m, TotalAmount * (_currentTierDiscountPercent / 100m));
 
     /// <summary>Tier discount as a negative currency string, e.g. "-$5.000".</summary>
     public string TierDiscountText => $"-{FormatCurrency(TierDiscount)}";
@@ -1529,6 +1536,10 @@ public sealed class CashierViewModel : ViewModelBase
         IsCustomerAssignmentOpen = false;
         await LoadCustomerQuotesForSelectedCustomerAsync(cancellationToken).ConfigureAwait(true);
         await LoadCustomerLoyaltyBalanceAsync(cancellationToken).ConfigureAwait(true);
+        // Re-read the cap here instead of only once at view Loaded: otherwise a change to
+        // MaximumDeferredBalancePercent in Ajustes keeps enforcing the stale value for the rest of
+        // the app session, which reads as "el saldo diferido solo sirve si reinicias la app".
+        await LoadDeferredBalanceLimitAsync(cancellationToken).ConfigureAwait(true);
         Message = HasCustomerQuotes
             ? $"Cliente asignado: {customer.FullName}. Tiene {CustomerQuoteCount} cotización(es) pendiente(s); puedes cargar una en Caja."
             : $"Cliente asignado para puntos: {customer.FullName}.";
@@ -2051,6 +2062,15 @@ public sealed class CashierViewModel : ViewModelBase
         if (SelectedCustomer is null)
         {
             Message = "Selecciona un cliente para aplicar descuento por puntos.";
+            return;
+        }
+
+        // A loaded quote's price was already fixed when it was created, and confirming it charges
+        // TotalAmount (not NetPayable) — a redemption here would show a discount on screen that
+        // never actually gets charged. Same reasoning as TierDiscount above.
+        if (IsQuoteLoaded)
+        {
+            Message = "No se puede aplicar descuento por puntos sobre una cotización cargada.";
             return;
         }
 

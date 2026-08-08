@@ -1320,6 +1320,69 @@ public sealed class CashierViewModelTests
     }
 
     [Fact]
+    public async Task LoadCustomerQuoteAsync_WithTieredCustomer_SuppressesTierDiscount()
+    {
+        // Regression: a quote's price is already fixed when it's created, and confirming it
+        // (ConvertQuoteToSaleUseCase) charges TotalAmount, never NetPayable — but TierDiscount was an
+        // unconditional getter, so the UI showed an extra tier discount on top of the quote's own
+        // discount that was never actually charged. Loading a quote must suppress it.
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var productId = Guid.NewGuid();
+        var quote = CreateCustomerQuote("COT-CAJA-TIER", customer.Id, productId, discount: 0m);
+        var quoteRepo = new InMemoryQuoteRepository(quote);
+        var loyalty = new TieredLoyaltyRepository(customer.Id, discountPercent: 10m);
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(productId, "Serum", "SER-1", 2_000m, 10m)),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            new GetCustomerPayableQuotesUseCase(quoteRepo),
+            null,
+            null,
+            new GetLoyaltyBalanceUseCase(loyalty));
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+        await viewModel.LoadCustomerQuoteAsync(viewModel.CustomerQuotes.Single(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(2_000m, viewModel.TotalAmount); // sanity: tier % would have applied to this
+        Assert.Equal(0m, viewModel.TierDiscount);
+        Assert.False(viewModel.HasTierDiscount);
+        Assert.Equal(viewModel.TotalAmount, viewModel.NetPayable);
+    }
+
+    [Fact]
+    public async Task ApplyRedemptionAsync_WithQuoteLoaded_BlocksRedemption()
+    {
+        // Same root cause as the tier-discount suppression above: ConvertQuoteToSaleUseCase charges
+        // TotalAmount, so a loyalty redemption applied on top of a loaded quote would show a discount
+        // on screen that never gets charged.
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var productId = Guid.NewGuid();
+        var quote = CreateCustomerQuote("COT-CAJA-PTS", customer.Id, productId, discount: 0m);
+        var quoteRepo = new InMemoryQuoteRepository(quote);
+        var redeem = new RedeemLoyaltyPointsUseCase(new UnusedLoyaltyRepository(), new InMemoryUnitOfWork());
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(productId, "Serum", "SER-1", 2_000m, 10m)),
+            new PreviewPaymentUseCase(),
+            null,
+            redeem,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            new GetCustomerPayableQuotesUseCase(quoteRepo));
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+        await viewModel.LoadCustomerQuoteAsync(viewModel.CustomerQuotes.Single(), TestContext.Current.CancellationToken);
+        viewModel.LoyaltyPointsToRedeem = 50;
+
+        await viewModel.ApplyRedemptionAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0m, viewModel.LoyaltyDiscount);
+        Assert.Contains("cotización", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task LoadCustomerQuoteAsync_ClearsStaleTendersAndQuoteIsConfirmable()
     {
         // Regression: tenders added before loading a customer quote used to survive into the
@@ -1472,12 +1535,14 @@ public sealed class CashierViewModelTests
 
     private sealed class SettingsRepositoryFake(decimal maximumDeferredBalancePercent) : ISettingsRepository
     {
+        public decimal MaximumDeferredBalancePercent { get; set; } = maximumDeferredBalancePercent;
+
         public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<BusinessSettings?>(new BusinessSettings(
                 "Test Business",
                 null, null, null, null, null, null, null, false, null, null, null, null, null,
                 "COP",
-                maximumDeferredBalancePercent: maximumDeferredBalancePercent));
+                maximumDeferredBalancePercent: MaximumDeferredBalancePercent));
 
         public Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
@@ -1909,6 +1974,33 @@ public sealed class CashierViewModelTests
         Assert.False(viewModel.IsDeferredAmountVisible);
         Assert.False(viewModel.CanConfirm);
         Assert.Contains("0%", viewModel.Message);
+    }
+
+    [Fact]
+    public async Task SelectCustomerAsync_RefreshesDeferredBalanceCapWithoutRequiringRestart()
+    {
+        // Regression: MaximumDeferredBalancePercent was only fetched once, from CashierView's
+        // Loaded event — a cap change from Ajustes kept being ignored for the rest of the app
+        // session (read by users as "solo funciona si reinicias la app"). Customer selection is a
+        // cheap, natural point to re-read it, mirroring the existing loyalty-balance refresh.
+        var settings = new SettingsRepositoryFake(10m);
+        var customer = new CustomerSearchResult(Guid.NewGuid(), "Ana Cliente", "1001", "300", null, null, true);
+        var viewModel = new CashierViewModel(
+            new PrototypeProductLookupService(),
+            new PreviewPaymentUseCase(),
+            null,
+            null,
+            null,
+            new SearchCustomersUseCase(new StaticCustomerLookupQueryService([customer])),
+            getDeferredBalanceLimitUseCase: new GetDeferredBalanceLimitUseCase(settings));
+
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+        Assert.Equal(10m, viewModel.MaximumDeferredBalancePercent);
+
+        settings.MaximumDeferredBalancePercent = 40m; // admin raises the cap in Ajustes, no restart
+        await viewModel.SelectCustomerAsync(customer, TestContext.Current.CancellationToken);
+
+        Assert.Equal(40m, viewModel.MaximumDeferredBalancePercent);
     }
 
     [Fact]
