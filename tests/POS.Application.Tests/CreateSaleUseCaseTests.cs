@@ -85,6 +85,69 @@ public sealed class CreateSaleUseCaseSettlementTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithTwoCollectedLegsAndDeferredRemainder_CreatesOnePaymentPerLegAndOneReceivable()
+    {
+        // Sale total 800_000; two collected legs (cash 300_000 + transfer 200_000) leave 300_000
+        // deferred — within the default 50% maximum (400_000).
+        var product = new Product("Laptop", Guid.NewGuid(), new Money(500_000m), new Money(800_000m), new StockQuantity(5m), new StockQuantity(1m));
+        var products = new InMemProductRepo(product);
+        var sales = new InMemSaleRepo();
+        var receivables = new InMemReceivableRepo();
+        var unitOfWork = new InMemUoW();
+        var customerId = Guid.NewGuid();
+
+        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
+
+        var legs = new List<SettlementCollectedPayment>
+        {
+            new(PaymentMethod.Cash, 300_000m),
+            new(PaymentMethod.Transfer, 200_000m, "Nequi")
+        };
+        var request = new CreateSaleRequest(
+            customerId,
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            new SaleSettlementPlan(legs, 300_000m));
+
+        var result = await useCase.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(300_000m, result.CashInDrawer);
+        Assert.Equal(300_000m, result.DeferredBalance);
+        Sale sale = sales.Sales.Single();
+        Assert.Equal(2, sale.Payments.Count);
+        Assert.Contains(sale.Payments, p => p.Method == PaymentMethod.Cash && p.Amount.Amount == 300_000m);
+        Assert.Contains(sale.Payments, p => p.Method == PaymentMethod.Transfer && p.Amount.Amount == 200_000m && p.BankOrPlatform == "Nequi");
+        Assert.Single(receivables.Stored);
+        Assert.Equal(300_000m, receivables.Stored[0].OutstandingBalance.Amount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithTwoCollectedLegsAndDeferredRemainder_WhenNoCustomer_Throws()
+    {
+        var product = new Product("Laptop", Guid.NewGuid(), new Money(500_000m), new Money(800_000m), new StockQuantity(5m), new StockQuantity(1m));
+        var products = new InMemProductRepo(product);
+        var sales = new InMemSaleRepo();
+        var receivables = new InMemReceivableRepo();
+        var unitOfWork = new InMemUoW();
+
+        var useCase = new CreateSaleUseCase(products, sales, unitOfWork, receivables, authorizer: TestAuthorizer.Create());
+
+        var legs = new List<SettlementCollectedPayment>
+        {
+            new(PaymentMethod.Cash, 300_000m),
+            new(PaymentMethod.Transfer, 200_000m, "Nequi")
+        };
+        var request = new CreateSaleRequest(
+            null, // no customer
+            [new CreateSaleItemRequest(product.Id, 1m, 0m)],
+            new SaleSettlementPlan(legs, 300_000m));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
+
+        Assert.Empty(sales.Sales);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_FullPayment_NoReceivedBalance_NoReceivableCreated()
     {
         var product = new Product("Mouse", Guid.NewGuid(), new Money(30_000m), new Money(50_000m), new StockQuantity(10m), new StockQuantity(2m));
@@ -119,9 +182,16 @@ public sealed class CreateSaleUseCaseSettlementTests
 
     private sealed class InMemSaleRepo : ISaleRepository
     {
-        public Task AddAsync(Sale sale, CancellationToken ct = default) => Task.CompletedTask;
+        public List<Sale> Sales { get; } = [];
+
+        public Task AddAsync(Sale sale, CancellationToken ct = default)
+        {
+            Sales.Add(sale);
+            return Task.CompletedTask;
+        }
+
         public Task<Sale?> GetByIdAsync(Guid id, CancellationToken ct = default)
-            => Task.FromResult<Sale?>(null);
+            => Task.FromResult(Sales.SingleOrDefault(sale => sale.Id == id));
 
         public Task<DashboardSummaryData> GetDashboardSummaryAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken ct = default)
             => Task.FromResult(new DashboardSummaryData(0m, 0m, 0m, 0, 0));

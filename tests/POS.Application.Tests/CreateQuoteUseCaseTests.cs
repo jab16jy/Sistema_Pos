@@ -154,6 +154,35 @@ public sealed class CreateQuoteUseCaseTests
         Assert.Equal(15m, item.Discount);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_ForCustomerWithTierDiscount_PersistsOnlyManualDiscountNotTier()
+    {
+        // Regression guard: CreateQuoteUseCase must never resolve/inject the customer's loyalty
+        // tier discount, even when a CustomerId is supplied — quote discounts are manual-only by
+        // design (see the comment in CreateQuoteUseCase.ExecuteAsync). If this test starts
+        // failing because someone wired ILoyaltyRepository in, that's a deliberate design change,
+        // not a bug fix — update the comment there consciously before touching this assertion.
+        var product = new Product("Widget", Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(20m), new StockQuantity(2m));
+        var products = new InMemoryProductRepository(product);
+        var quotes = new InMemoryQuoteRepository("COT-2026-0005");
+        var unitOfWork = new InMemoryUnitOfWork();
+        var useCase = new CreateQuoteUseCase(quotes, products, unitOfWork);
+
+        var customerId = Guid.NewGuid();
+        await useCase.ExecuteAsync(new CreateQuoteRequest(
+            customerId,
+            "Tiered Customer",
+            null,
+            null,
+            30,
+            null,
+            [new CreateQuoteItemRequest(product.Id, 2m, 10m)]),
+            TestContext.Current.CancellationToken);
+
+        QuoteItem item = Assert.Single(Assert.Single(quotes.Quotes).Items);
+        Assert.Equal(10m, item.Discount);
+    }
+
     private sealed class SettingsRepositoryFake : ISettingsRepository
     {
         private readonly BusinessSettings _settings;

@@ -19,7 +19,7 @@ public sealed class PreviewPaymentUseCase
 
         var deferred = request.DeferredAmount > 0m ? new Money(request.DeferredAmount) : Money.Zero;
 
-        // Split-payment path: several tenders covering the full total (no deferred balance).
+        // Split-payment path: several tenders, possibly leaving a remainder that becomes deferred.
         if (request.Tenders is { Count: > 0 } tenders && deferred.Amount == 0m)
         {
             foreach (PaymentTender tender in tenders)
@@ -51,8 +51,13 @@ public sealed class PreviewPaymentUseCase
 
             if (covered < total.Amount)
             {
-                decimal missing = total.Amount - covered;
-                return new PaymentPreviewResult(false, 0m, $"Faltan ${missing:N0} para completar el total.");
+                // The remainder becomes a deferred balance rather than blocking confirmation — the
+                // caller (CashierViewModel) still gates this on requiring an identified customer,
+                // and CreateSaleUseCase re-validates the maximum deferred percent server-side.
+                decimal remainder = total.Amount - covered;
+                return new PaymentPreviewResult(true, 0m,
+                    $"Venta con crédito: ${covered:N0} cobrado en pagos combinados, ${remainder:N0} queda como saldo pendiente.",
+                    DeferredBalance: remainder);
             }
 
             decimal splitChange = Math.Max(0m, cashReceived - (total.Amount - nonCashCovered));

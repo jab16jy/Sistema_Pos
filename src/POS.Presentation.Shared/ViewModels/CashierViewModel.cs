@@ -779,20 +779,22 @@ public sealed class CashierViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Shortfall between what's owed and what the cashier entered as received — the receivable
-    /// balance left on the customer's account. Not directly editable: it's the gap ReceivedAmount
-    /// leaves against NetPayable, so it only appears once the cashier underpays.
-    /// When DeferredAmount > 0, a CustomerId is required and
-    /// CollectedAmount + DeferredAmount must equal TotalAmount for CanConfirm to be true.
-    /// Always zero while a split payment (Tenders) is in progress: ReceivedAmount is reset to 0
-    /// after each "Agregar pago" and would otherwise read as a false full-amount deferred balance.
-    /// Also zero for a digital method with no amount typed: there is no cash to count, so the
-    /// cashier never touches the keypad and an untouched field must mean "cobra el total", not
-    /// "todo queda a crédito". Typing an amount still opts into a partial digital collection.
+    /// Shortfall between what's owed and what's already collected — the receivable balance left on
+    /// the customer's account. Not directly editable. When DeferredAmount > 0, a CustomerId is
+    /// required and CollectedAmount + DeferredAmount must equal TotalAmount for CanConfirm to be true.
+    /// While a split payment (Tenders) is in progress, this is RemainingToPay: whatever the added
+    /// tenders don't yet cover, so the deferred panel reacts to AddTender()/RemoveTender() directly
+    /// instead of needing the single-payment CommitReceivedAmount() step.
+    /// Outside a split, it's the gap ReceivedAmount leaves against NetPayable, so it only appears
+    /// once the cashier underpays. Zero for a digital method with no amount typed: there is no cash
+    /// to count, so the cashier never touches the keypad and an untouched field must mean "cobra el
+    /// total", not "todo queda a crédito". Typing an amount still opts into a partial digital collection.
     /// </summary>
-    public decimal DeferredAmount => HasTenders || (SelectedPaymentMethod.Method != PaymentMethod.Cash && ReceivedAmount == 0m)
-        ? 0m
-        : Math.Max(0m, NetPayable - ReceivedAmount);
+    public decimal DeferredAmount => HasTenders
+        ? RemainingToPay
+        : (SelectedPaymentMethod.Method != PaymentMethod.Cash && ReceivedAmount == 0m)
+            ? 0m
+            : Math.Max(0m, NetPayable - ReceivedAmount);
 
     /// <summary>
     /// Shows the saldo diferido panel. Only becomes true when the cashier commits the received
@@ -2072,6 +2074,18 @@ public sealed class CashierViewModel : ViewModelBase
         // cash for change — ReceivedAmount keeps the raw amount so ChangeAmount() still reports it.
         if (HasTenders)
         {
+            // Tenders leave a remainder: defer it instead of blocking confirmation. The full-coverage
+            // case below (no remainder) keeps the legacy Payments list because it still has to support
+            // loyalty-point redemption, which CreateSaleUseCase rejects when a SettlementPlan is set.
+            if (RemainingToPay > 0m)
+            {
+                var legs = Tenders
+                    .Select(t => new SettlementCollectedPayment(t.Method, t.Amount, t.BankOrPlatform))
+                    .ToList();
+                var plan = new SaleSettlementPlan(legs, RemainingToPay);
+                return new CreateSaleRequest(CustomerId, items, plan);
+            }
+
             decimal nonCashTotal = Tenders.Where(t => t.Method != PaymentMethod.Cash).Sum(t => t.Amount);
             var splitPayments = new List<CreateSalePaymentRequest>();
             foreach (PaymentTenderViewModel tender in Tenders.Where(t => t.Method != PaymentMethod.Cash))
@@ -2273,9 +2287,22 @@ public sealed class CashierViewModel : ViewModelBase
 
     private void RefreshPaymentPreview(bool updateMessage = true)
     {
-        // Split-payment path: several tenders already added, no deferred balance involved.
+        // Split-payment path: several tenders already added; a remainder becomes a deferred balance.
         if (HasTenders)
         {
+            if (RequiresCustomerForDeferred(RemainingToPay))
+            {
+                ChangeAmount = 0m;
+                CanConfirm = false;
+                NotifyPaymentBalanceChanged();
+                if (updateMessage)
+                {
+                    Message = "Se requiere identificar al cliente para registrar un saldo a crédito.";
+                }
+
+                return;
+            }
+
             PaymentPreviewResult splitPreview = _previewPaymentUseCase.Execute(new PaymentPreviewRequest(
                 NetPayable,
                 SelectedPaymentMethod.Method,
@@ -2294,7 +2321,7 @@ public sealed class CashierViewModel : ViewModelBase
         }
 
         // Deferred balance requires an identified customer — block confirmation without one
-        if (DeferredAmount > 0m && CustomerId is null)
+        if (RequiresCustomerForDeferred(DeferredAmount))
         {
             ChangeAmount = 0m;
             CanConfirm = false;
@@ -2322,6 +2349,9 @@ public sealed class CashierViewModel : ViewModelBase
             Message = preview.Message;
         }
     }
+
+    /// <summary>True when a deferred amount would be created without an identified customer (orphan credit guard, mirrored client-side for UX).</summary>
+    private bool RequiresCustomerForDeferred(decimal amount) => amount > 0m && CustomerId is null;
 
     private void OnCartItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
@@ -2392,7 +2422,12 @@ public sealed class CashierViewModel : ViewModelBase
         OnPropertyChanged(nameof(RemainingToPay));
         OnPropertyChanged(nameof(RemainingToPayText));
         _addTenderCommand.RaiseCanExecuteChanged();
-        IsDeferredAmountVisible = false;
+        // Split payments: the deferred panel reacts directly to AddTender()/RemoveTender() — a
+        // click on "Agregar pago" is already a deliberate action, unlike typing in the amount
+        // field, so it doesn't need the single-payment CommitReceivedAmount() step below.
+        // Outside a split this still evaluates to false, exactly like the old unconditional reset,
+        // so CommitReceivedAmount() remains required there.
+        IsDeferredAmountVisible = HasTenders && DeferredAmount > 0m;
     }
 
     /// <summary>Called when the cashier commits the received amount — Enter or losing focus on the field.</summary>

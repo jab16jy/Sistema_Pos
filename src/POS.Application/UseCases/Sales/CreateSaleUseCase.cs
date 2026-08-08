@@ -188,25 +188,8 @@ public sealed class CreateSaleUseCase
                 .ConfigureAwait(false);
             DeferredBalancePolicy.Validate(plan.DeferredBalanceAmount, sale.Total().Amount, maximumDeferredPercent);
 
-            if (plan.CollectedMethod is { } collectedMethod)
-            {
-                PaymentPlatforms.Validate(collectedMethod, plan.CollectedBankOrPlatform);
-            }
-            else if (!string.IsNullOrWhiteSpace(plan.CollectedBankOrPlatform))
-            {
-                throw new InvalidOperationException("La plataforma de pago requiere un monto cobrado.");
-            }
-
             sale.SetSettlementPlan(plan);
-
-            if (plan.CollectedAmount > 0m && plan.CollectedMethod is not null)
-            {
-                sale.AddPayment(new Payment(
-                    plan.CollectedMethod.Value,
-                    new Money(plan.CollectedAmount),
-                    plan.CollectedMethod == Domain.Enums.PaymentMethod.Cash ? new Money(plan.CollectedAmount) : null,
-                    plan.CollectedBankOrPlatform));
-            }
+            SettlementPlanApplier.Apply(sale, plan);
         }
         else
         {

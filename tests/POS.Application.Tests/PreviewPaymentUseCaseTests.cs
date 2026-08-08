@@ -165,7 +165,7 @@ public sealed class PreviewPaymentUseCaseTests
     }
 
     [Fact]
-    public void Execute_WithTenders_SumBelowTotal_DisablesConfirmationWithShortfall()
+    public void Execute_WithTenders_SumBelowTotal_SucceedsWithRemainderAsDeferredBalance()
     {
         var useCase = new PreviewPaymentUseCase();
         var tenders = new[]
@@ -174,11 +174,15 @@ public sealed class PreviewPaymentUseCaseTests
             new PaymentTender(PaymentMethod.Transfer, 50_000m, "Nequi")
         };
 
+        // Total 100000, tenders sum to 80000 — the missing 20000 becomes a deferred balance instead
+        // of blocking confirmation (root-cause fix: Tenders and DeferredAmount are no longer mutually
+        // exclusive paths).
         var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
 
-        Assert.False(result.CanConfirm);
+        Assert.True(result.CanConfirm);
         Assert.Equal(0m, result.ChangeAmount);
-        Assert.Contains("Faltan", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(20_000m, result.DeferredBalance);
+        Assert.Contains("crédito", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -198,6 +202,25 @@ public sealed class PreviewPaymentUseCaseTests
 
         Assert.False(result.CanConfirm);
         Assert.Equal(0m, result.ChangeAmount);
+        Assert.Contains("superan el total", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Execute_WithTenders_NonCashOverpay_StillRejectsEvenThoughOverallSumIsBelowTotal()
+    {
+        var useCase = new PreviewPaymentUseCase();
+        var tenders = new[]
+        {
+            new PaymentTender(PaymentMethod.Transfer, 120_000m, "Nequi")
+        };
+
+        // Regression: the digital-overcoverage rejection must still fire before the new
+        // remainder-becomes-deferred logic ever runs, even though the tenders' sum (120000)
+        // technically covers the total (100000) — it's the wrong shape (non-cash alone over-covers).
+        var result = useCase.Execute(new PaymentPreviewRequest(100_000m, PaymentMethod.Cash, 0m, Tenders: tenders));
+
+        Assert.False(result.CanConfirm);
+        Assert.Equal(0m, result.DeferredBalance);
         Assert.Contains("superan el total", result.Message, StringComparison.OrdinalIgnoreCase);
     }
 

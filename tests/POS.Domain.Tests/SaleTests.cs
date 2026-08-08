@@ -77,6 +77,52 @@ public sealed class SaleTests
     }
 
     [Fact]
+    public void Complete_WithSettlementPlan_TwoCollectedLegsPlusDeferred_SumsAllLegsAndCompletes()
+    {
+        var product = MakeProduct(10_000m, stock: 5m);
+        var customerId = Guid.NewGuid();
+        var sale = new Sale(Guid.NewGuid(), customerId);
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+
+        // Two collected legs (3000 cash + 3000 transfer) + 4000 deferred = 10000 total.
+        var legs = new List<SettlementCollectedPayment>
+        {
+            new(PaymentMethod.Cash, 3_000m),
+            new(PaymentMethod.Transfer, 3_000m, "Nequi")
+        };
+        sale.SetSettlementPlan(new SaleSettlementPlan(legs, 4_000m));
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(3_000m), new Money(3_000m)));
+        sale.AddPayment(new Payment(PaymentMethod.Transfer, new Money(3_000m), bankOrPlatform: "Nequi"));
+
+        sale.Complete();
+
+        Assert.Equal(SaleStatus.Completed, sale.Status);
+        Assert.Equal(6_000m, sale.TotalPaid().Amount);
+        Assert.Equal(4_000m, sale.DeferredBalance().Amount);
+        Assert.Equal(3_000m, sale.CashInDrawer().Amount);
+    }
+
+    [Fact]
+    public void Complete_WithSettlementPlan_TwoCollectedLegsPlusDeferred_WhenTotalPaidPlusDeferredMismatchesTotal_Throws()
+    {
+        var product = MakeProduct(10_000m, stock: 5m);
+        var sale = new Sale(Guid.NewGuid(), Guid.NewGuid());
+        sale.AddItem(product, new Quantity(1m), Money.Zero);
+
+        var legs = new List<SettlementCollectedPayment>
+        {
+            new(PaymentMethod.Cash, 3_000m),
+            new(PaymentMethod.Transfer, 3_000m, "Nequi")
+        };
+        // Legs declare 3000+3000, but only the cash payment is actually recorded, so
+        // TotalPaid (3000) + Deferred (4000) = 7000 != Total (10000).
+        sale.SetSettlementPlan(new SaleSettlementPlan(legs, 4_000m));
+        sale.AddPayment(new Payment(PaymentMethod.Cash, new Money(3_000m), new Money(3_000m)));
+
+        Assert.Throws<InvalidOperationException>(() => sale.Complete());
+    }
+
+    [Fact]
     public void DeferredBalance_WhenNoSettlementPlan_ReturnsZero()
     {
         var product = MakeProduct(5_000m, stock: 5m);

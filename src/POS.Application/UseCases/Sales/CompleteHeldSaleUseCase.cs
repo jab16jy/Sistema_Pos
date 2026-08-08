@@ -72,25 +72,13 @@ public sealed class CompleteHeldSaleUseCase
                 throw new InvalidOperationException("A customer must be identified to create a deferred balance.");
             }
 
-            if (plan.CollectedMethod is { } method)
-            {
-                PaymentPlatforms.Validate(method, plan.CollectedBankOrPlatform);
-            }
-
             decimal maximumDeferredPercent = await DeferredBalancePolicy
                 .GetMaximumAsync(_settings, cancellationToken)
                 .ConfigureAwait(false);
             DeferredBalancePolicy.Validate(plan.DeferredBalanceAmount, sale.Total().Amount, maximumDeferredPercent);
 
             sale.SetSettlementPlan(plan);
-            if (plan.CollectedAmount > 0m && plan.CollectedMethod is { } collectedMethod)
-            {
-                sale.AddPayment(new Payment(
-                    collectedMethod,
-                    new Money(plan.CollectedAmount),
-                    collectedMethod == PaymentMethod.Cash ? new Money(plan.CollectedAmount) : null,
-                    plan.CollectedBankOrPlatform));
-            }
+            SettlementPlanApplier.Apply(sale, plan);
         }
         else
         {

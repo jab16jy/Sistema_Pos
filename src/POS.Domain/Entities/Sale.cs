@@ -46,24 +46,22 @@ public sealed class Sale
 
         _settlementPlan = plan ?? throw new ArgumentNullException(nameof(plan));
 
-        if (plan.CollectedAmount < 0m || plan.DeferredBalanceAmount < 0m)
+        if (plan.DeferredBalanceAmount < 0m)
         {
             throw new InvalidOperationException("Settlement amounts cannot be negative.");
         }
 
-        if (plan.CollectedAmount > 0m && plan.CollectedMethod is null)
+        foreach (SettlementCollectedPayment leg in plan.CollectedPayments)
         {
-            throw new InvalidOperationException("A collected payment requires a payment method.");
-        }
+            if (leg.Amount <= 0m)
+            {
+                throw new InvalidOperationException("A collected payment leg must have a positive amount.");
+            }
 
-        if (plan.CollectedAmount == 0m && plan.CollectedMethod is not null)
-        {
-            throw new InvalidOperationException("A payment method cannot be set without a collected amount.");
-        }
-
-        if (plan.CollectedMethod == PaymentMethod.LoyaltyPoints)
-        {
-            throw new InvalidOperationException("Loyalty points cannot be used in a deferred settlement plan.");
+            if (leg.Method == PaymentMethod.LoyaltyPoints)
+            {
+                throw new InvalidOperationException("Loyalty points cannot be used in a deferred settlement plan.");
+            }
         }
     }
 

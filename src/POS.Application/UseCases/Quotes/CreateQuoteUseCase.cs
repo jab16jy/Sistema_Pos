@@ -44,6 +44,12 @@ public sealed class CreateQuoteUseCase
                 request.Email,
                 request.Observations);
 
+            // Intentionally no ILoyaltyRepository/tier lookup here: a quote is a commercial
+            // proposal whose customer tier can change before it's converted, so only the
+            // cashier's manual per-line Discount is frozen in. The tier discount is resolved
+            // live at checkout (see CashierViewModel._currentTierDiscountPercent) — and
+            // ConvertQuoteToSaleUseCase carries this frozen Discount through without
+            // re-resolving the tier either, for the same reason.
             foreach (var item in request.Items)
             {
                 var product = await _products.GetByIdAsync(item.ProductId, transactionCt)

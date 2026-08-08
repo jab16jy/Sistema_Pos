@@ -1757,6 +1757,113 @@ public sealed class CashierViewModelTests
         Assert.False(viewModel.IsDeferredAmountVisible);
     }
 
+    // --- Multi-tender + deferred balance unification ---
+
+    [Fact]
+    public async Task AddTender_TwoTendersLeavingRemainderWithCustomer_ShowsDeferredPanelWithoutCommit()
+    {
+        var product = new Product("Combo", Guid.NewGuid(), new Money(200_000m), new Money(400_000m), new StockQuantity(10m), new StockQuantity(1m));
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)))
+        {
+            SearchText = "combo",
+            Quantity = 1m,
+            CustomerId = Guid.NewGuid()
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        // Total 400.000: transfer 200.000 + cash 100.000 leaves 100.000 unassigned — within the
+        // default 50% maximum deferred (200.000).
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Transfer);
+        viewModel.BankOrPlatform = "Bancolombia";
+        viewModel.ReceivedAmount = 200_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Cash);
+        viewModel.ReceivedAmount = 100_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        // No CommitReceivedAmount() call — the tenders themselves drive the panel.
+        Assert.Equal(100_000m, viewModel.RemainingToPay);
+        Assert.Equal(100_000m, viewModel.DeferredAmount);
+        Assert.True(viewModel.IsDeferredAmountVisible);
+        Assert.True(viewModel.CanConfirm);
+    }
+
+    [Fact]
+    public async Task AddTender_TwoTendersLeavingRemainderWithoutCustomer_CannotConfirm()
+    {
+        var product = new Product("Combo", Guid.NewGuid(), new Money(200_000m), new Money(400_000m), new StockQuantity(10m), new StockQuantity(1m));
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)))
+        {
+            SearchText = "combo",
+            Quantity = 1m
+            // CustomerId not set
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Transfer);
+        viewModel.BankOrPlatform = "Bancolombia";
+        viewModel.ReceivedAmount = 200_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Cash);
+        viewModel.ReceivedAmount = 100_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        Assert.False(viewModel.CanConfirm);
+        Assert.Contains("cliente", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ConfirmSaleAsync_WithTendersLeavingRemainder_PersistsOnePaymentPerLegAndDefersTheRest()
+    {
+        var product = new Product("Combo", Guid.NewGuid(), new Money(200_000m), new Money(400_000m), new StockQuantity(10m), new StockQuantity(1m));
+        var sales = new InMemorySaleRepository();
+        var receivables = new InMemoryReceivableRepository();
+        var customerId = Guid.NewGuid();
+        var viewModel = new CashierViewModel(
+            new StaticProductLookupService(new ProductLookupResult(product.Id, product.Name, "7701", product.SalePrice.Amount, product.CurrentStock)),
+            new PreviewPaymentUseCase(),
+            new CreateSaleUseCase(new InMemoryProductRepository(product), sales, new InMemoryUnitOfWork(), receivables, authorizer: CreateAuthorizer()))
+        {
+            SearchText = "combo",
+            Quantity = 1m,
+            CashierUserId = Guid.NewGuid(),
+            CustomerId = customerId
+        };
+        await viewModel.SearchAsync(TestContext.Current.CancellationToken);
+        viewModel.AddSelectedProductCommand.Execute(null);
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Transfer);
+        viewModel.BankOrPlatform = "Bancolombia";
+        viewModel.ReceivedAmount = 200_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        viewModel.SelectedPaymentMethod = viewModel.PaymentMethods.Single(option => option.Method == PaymentMethod.Cash);
+        viewModel.ReceivedAmount = 100_000m;
+        viewModel.AddTenderCommand.Execute(null);
+
+        Assert.True(viewModel.CanConfirm);
+
+        await viewModel.ConfirmSaleAsync(TestContext.Current.CancellationToken);
+        await viewModel.AcknowledgeSaleConfirmationAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("guardada", viewModel.Message, StringComparison.OrdinalIgnoreCase);
+        Sale sale = Assert.Single(sales.Sales);
+        Assert.Equal(400_000m, sale.Total().Amount);
+        Assert.Equal(2, sale.Payments.Count);
+        Assert.Contains(sale.Payments, p => p.Method == PaymentMethod.Transfer && p.Amount.Amount == 200_000m && p.BankOrPlatform == "Bancolombia");
+        Assert.Contains(sale.Payments, p => p.Method == PaymentMethod.Cash && p.Amount.Amount == 100_000m);
+        Assert.Equal(100_000m, sale.DeferredBalance().Amount);
+        Receivable receivable = Assert.Single(receivables.Stored);
+        Assert.Equal(customerId, receivable.CustomerId);
+        Assert.Equal(100_000m, receivable.OutstandingBalance.Amount);
+    }
+
     // Loyalty backing store for a redemption use case that the empty-cart guard never reaches.
     private sealed class UnusedLoyaltyRepository : ILoyaltyRepository
     {
@@ -1784,6 +1891,22 @@ public sealed class CashierViewModelTests
             SaveCount++;
             return Task.FromResult(1);
         }
+    }
+
+    private sealed class InMemoryReceivableRepository : IReceivableRepository
+    {
+        public List<Receivable> Stored { get; } = [];
+
+        public Task AddAsync(Receivable receivable, CancellationToken cancellationToken = default)
+        {
+            Stored.Add(receivable);
+            return Task.CompletedTask;
+        }
+
+        public Task<Receivable?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+            => Task.FromResult(Stored.FirstOrDefault(r => r.Id == id));
+
+        public Task UpdateAsync(Receivable receivable, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class BlockingSearchProductLookupService : IProductLookupService
