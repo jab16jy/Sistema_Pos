@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.27.0...v1.27.1) (2026-08-08)
+
+
+### Bug Fixes
+
+* **caja:** suppress tier/loyalty discounts on loaded quotes, live-refresh deferred cap ([8e3f615](https://github.com/jab16jy/Sistema_Pos/commit/8e3f61564e472d37b35f21110a49cb72aa883819))
+
 ## [1.27.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.26.1...v1.27.0) (2026-08-08)
 
 
