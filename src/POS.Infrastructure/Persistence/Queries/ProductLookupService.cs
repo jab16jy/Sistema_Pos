@@ -91,11 +91,12 @@ public sealed class ProductLookupService : IProductLookupService
         string exactBarcode = barcode.Trim();
         return await _dbContext.Products
             .AsNoTracking()
-            .Where(product => product.IsActive && product.Barcode == exactBarcode)
+            .Where(product => product.IsActive && (product.Barcode == exactBarcode || product.SourceCode == exactBarcode))
+            .OrderByDescending(product => product.Barcode == exactBarcode)
             .Select(product => new ProductLookupResult(
                 product.Id,
                 product.Name,
-                product.Barcode!,
+                product.Barcode ?? product.SourceCode,
                 product.SalePrice.Amount,
                 product.CurrentStock,
                 product.MinimumStock,

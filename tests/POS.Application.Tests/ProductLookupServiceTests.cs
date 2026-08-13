@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using POS.Application.DTOs.Products;
 using POS.Application.UseCases.Products;
 using POS.Domain.Entities;
+using POS.Domain.Enums;
 using POS.Domain.ValueObjects;
 using POS.Infrastructure.Persistence;
 using POS.Infrastructure.Persistence.Queries;
@@ -111,6 +112,79 @@ public sealed class ProductLookupServiceTests
         Assert.NotNull(exactResult);
         Assert.Equal(exactProduct.Id, exactResult.ProductId);
         Assert.Null(await service.FindByBarcodeAsync("INACTIVE-SCAN", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task FindByBarcodeAsync_ProductWithoutBarcode_MatchesBySourceCode()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using var dbContext = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var category = new Category("Scanner");
+        await dbContext.Categories.AddAsync(category, TestContext.Current.CancellationToken);
+        var noBarcodeProduct = Product.CreateImportedCatalogItem(
+            sourceCode: "SRC-ONLY-01",
+            name: "Imported product without barcode",
+            categoryId: category.Id,
+            salePrice: new Money(2m),
+            currentStock: new StockQuantity(1m),
+            minimumStock: new StockQuantity(0m),
+            itemType: CatalogItemType.Product,
+            tracksInventory: true,
+            unitOfMeasureId: null,
+            taxProfileId: null);
+        await dbContext.Products.AddAsync(noBarcodeProduct, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var service = new ProductLookupService(dbContext);
+        ProductLookupResult? result = await service.FindByBarcodeAsync("SRC-ONLY-01", TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(noBarcodeProduct.Id, result.ProductId);
+        Assert.Equal("SRC-ONLY-01", result.Barcode);
+    }
+
+    [Fact]
+    public async Task FindByBarcodeAsync_BarcodeCollidesWithAnotherProductsSourceCode_PrefersTheBarcodeOwner()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using var dbContext = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var category = new Category("Scanner");
+        await dbContext.Categories.AddAsync(category, TestContext.Current.CancellationToken);
+        var barcodeOwner = Product.CreateImportedCatalogItem(
+            sourceCode: "BARCODE-OWNER-SRC",
+            name: "Barcode owner",
+            categoryId: category.Id,
+            salePrice: new Money(1m),
+            currentStock: new StockQuantity(1m),
+            minimumStock: new StockQuantity(0m),
+            itemType: CatalogItemType.Product,
+            tracksInventory: true,
+            unitOfMeasureId: null,
+            taxProfileId: null,
+            barcode: new Barcode("COLLIDE-01"));
+        var sourceCodeOwner = Product.CreateImportedCatalogItem(
+            sourceCode: "COLLIDE-01",
+            name: "SourceCode owner",
+            categoryId: category.Id,
+            salePrice: new Money(3m),
+            currentStock: new StockQuantity(1m),
+            minimumStock: new StockQuantity(0m),
+            itemType: CatalogItemType.Product,
+            tracksInventory: true,
+            unitOfMeasureId: null,
+            taxProfileId: null);
+        await dbContext.Products.AddRangeAsync([barcodeOwner, sourceCodeOwner], TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var service = new ProductLookupService(dbContext);
+        ProductLookupResult? result = await service.FindByBarcodeAsync("COLLIDE-01", TestContext.Current.CancellationToken);
+
+        Assert.NotNull(result);
+        Assert.Equal(barcodeOwner.Id, result.ProductId);
     }
 
     [Fact]
