@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.27.1...v1.27.2) (2026-08-13)
+
+
+### Bug Fixes
+
+* **caja:** match products without a barcode by SourceCode in scanner lookup ([97c344b](https://github.com/jab16jy/Sistema_Pos/commit/97c344b48d7187eea17c397003f65eab9d610534))
+
 ## [1.27.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.27.0...v1.27.1) (2026-08-08)
 
 
