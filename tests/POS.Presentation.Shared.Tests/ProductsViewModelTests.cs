@@ -80,6 +80,24 @@ public sealed class ProductsViewModelTests
     }
 
     [Fact]
+    public async Task SelectingProductWithPresentations_LocksUnitsOnlyForUnitTypeRows()
+    {
+        Category category = new("Sin categoría");
+        var product = new ProductSearchResult(
+            Guid.NewGuid(), "Refresco", category.Id, category.Name, null, 2_500m, 10m, 1m, 19m, null, null, true,
+            [new ProductPresentationDto("Unitaria", 1, 2_500m), new ProductPresentationDto("Media caja", 6, 13_000m)]);
+        var viewModel = CreateViewModel(new StubProductCatalogQueryService([product]), [category]);
+
+        await viewModel.LoadAsync(TestContext.Current.CancellationToken);
+        viewModel.SelectedProduct = Assert.Single(viewModel.Products);
+
+        PresentationRowViewModel unitary = viewModel.Presentations.Single(p => p.Name == "Unitaria");
+        PresentationRowViewModel packOfSix = viewModel.Presentations.Single(p => p.Name == "Media caja");
+        Assert.False(unitary.CanEditUnits);
+        Assert.True(packOfSix.CanEditUnits);
+    }
+
+    [Fact]
     public async Task LoadAsync_WhenSearchFails_SetsRecoverableMessage()
     {
         var viewModel = new ProductsViewModel(

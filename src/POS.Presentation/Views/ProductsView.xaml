@@ -369,7 +369,7 @@
                 <TextBlock Text="Presentaciones (opcional)" Style="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center" />
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                   <Button Content="+ Caja" Command="{Binding AddPresentationCommand}" CommandParameter="Caja" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="11" Margin="0,0,6,0" />
-                  <Button Content="+ Unidad" Command="{Binding AddPresentationCommand}" CommandParameter="Individual" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="11" />
+                  <Button Content="+ Unidad" Command="{Binding AddPresentationCommand}" CommandParameter="Unitaria" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="11" />
                 </StackPanel>
               </DockPanel>
 
@@ -387,7 +387,7 @@
                         <ColumnDefinition Width="Auto" />
                       </Grid.ColumnDefinitions>
                       <TextBox Grid.Column="0" Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Tag="Nombre (ej. Caja, Paquete de 3)" />
-                      <TextBox Grid.Column="2" Text="{Binding Units, Mode=TwoWay, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Tag="Unidades" />
+                      <TextBox Grid.Column="2" Text="{Binding Units, Mode=TwoWay, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding CanEditUnits}" Tag="Unidades" />
                       <TextBox Grid.Column="4" Text="{Binding Price, Mode=TwoWay, TargetNullValue='', UpdateSourceTrigger=PropertyChanged}" Tag="Precio" />
                       <Button Grid.Column="6" Content="✕" Command="{Binding DataContext.RemovePresentationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" Foreground="{StaticResource BrushDanger}" Background="Transparent" BorderThickness="0" Padding="6,2" Cursor="Hand" ToolTip="Eliminar presentación" />
                     </Grid>

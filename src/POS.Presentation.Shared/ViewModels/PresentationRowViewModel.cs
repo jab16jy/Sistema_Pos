@@ -10,11 +10,12 @@ public sealed class PresentationRowViewModel : ViewModelBase
     {
     }
 
-    public PresentationRowViewModel(string name, int units, decimal price)
+    public PresentationRowViewModel(string name, int units, decimal price, bool canEditUnits = true)
     {
         _name = name;
         _units = units;
         _price = price;
+        CanEditUnits = canEditUnits;
     }
 
     /// <summary>
@@ -24,8 +25,18 @@ public sealed class PresentationRowViewModel : ViewModelBase
     /// </summary>
     public bool IsSeededPlaceholder { get; private init; }
 
+    /// <summary>
+    /// Fixed at creation/load time, never recomputed from the live value being typed: a unit-type
+    /// presentation (Units == 1) has its Units field locked. Recomputing it on every keystroke would
+    /// lock the field after typing the leading "1" of a multi-digit number like "12".
+    /// </summary>
+    public bool CanEditUnits { get; private init; } = true;
+
     public static PresentationRowViewModel Seeded(string name) =>
         new(name, 0, 0m) { IsSeededPlaceholder = true };
+
+    public static PresentationRowViewModel SeededUnitary(string name) =>
+        new(name, 1, 0m, canEditUnits: false) { IsSeededPlaceholder = true };
 
     public string Name
     {

@@ -48,7 +48,7 @@ public sealed class ProductsViewModel : ViewModelBase
     /// <summary>Name a freshly seeded presentation row carries until the shop edits it.</summary>
     private const string DefaultPresentationName = "Caja";
     /// <summary>Seed name for a unit-type presentation. Not "Unidad": that name would render identically to the always-present implicit base option in Caja/Cotizaciones.</summary>
-    private const string IndividualPresentationName = "Individual";
+    private const string UnitaryPresentationName = "Unitaria";
 
     private bool _isProductsSubtabActive = true;
     private CancellationTokenSource? _searchCancellationTokenSource;
@@ -98,7 +98,13 @@ public sealed class ProductsViewModel : ViewModelBase
         _printLabelCommand = new RelayCommand(_ => RunSafe(PrintLabelAsync(), ex => Message = $"Error al imprimir la etiqueta: {ex.Message}"), _ => SelectedProduct is not null && !string.IsNullOrWhiteSpace(SelectedProduct.Barcode));
         GenerateInternalBarcodeCommand = _generateInternalBarcodeCommand;
         PrintLabelCommand = _printLabelCommand;
-        AddPresentationCommand = new RelayCommand(p => Presentations.Add(PresentationRowViewModel.Seeded(p as string ?? DefaultPresentationName)));
+        AddPresentationCommand = new RelayCommand(p =>
+        {
+            string name = p as string ?? DefaultPresentationName;
+            Presentations.Add(name == UnitaryPresentationName
+                ? PresentationRowViewModel.SeededUnitary(name)
+                : PresentationRowViewModel.Seeded(name));
+        });
         RemovePresentationCommand = new RelayCommand(p => { if (p is PresentationRowViewModel row) Presentations.Remove(row); });
     }
 
@@ -174,7 +180,7 @@ public sealed class ProductsViewModel : ViewModelBase
                     {
                         foreach (var p in value.Presentations)
                         {
-                            Presentations.Add(new PresentationRowViewModel(p.Name, p.Units, p.Price));
+                            Presentations.Add(new PresentationRowViewModel(p.Name, p.Units, p.Price, canEditUnits: p.Units > 1));
                         }
                     }
                     else

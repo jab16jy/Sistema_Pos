@@ -143,7 +143,18 @@ public sealed class Product
 
     public bool IsLowStock() => MinimumStock > 0m && CurrentStock > 0m && CurrentStock <= MinimumStock;
 
-    public void Deactivate() => IsActive = false;
+    // Frees both unique identifiers at the moment of deletion instead of relaxing either uniqueness
+    // check, which would let the app accept a value the database still rejects. Barcode tolerates
+    // NULL under its unique index; SourceCode is required and unique with no NULL escape, so it is
+    // rewritten to an id-based placeholder — the same pattern the barcode-uniqueness migration and
+    // AssignInternalBarcodeUseCase already use for a guaranteed-unique fallback. A product has no
+    // reactivation path, so there is nothing to restore either value for.
+    public void Deactivate()
+    {
+        IsActive = false;
+        Barcode = null;
+        SourceCode = $"DELETED-{Id:N}";
+    }
 
     public void SetSubCategory(Guid? subCategoryId) => SubCategoryId = subCategoryId;
 

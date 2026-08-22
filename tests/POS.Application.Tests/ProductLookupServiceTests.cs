@@ -301,6 +301,37 @@ public sealed class ProductLookupServiceTests
         Assert.Empty(await dbContext.InventoryMovements.ToListAsync(TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task Deactivate_ClearsTheBarcode_SoANewProductCanPersistWithTheSameOne()
+    {
+        await using SqliteConnection connection = await OpenConnectionAsync();
+        await using var dbContext = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
+        await dbContext.Database.EnsureCreatedAsync(TestContext.Current.CancellationToken);
+
+        var category = new Category("Barcodes");
+        var product = new Product("Rice", category.Id, new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m), barcode: new Barcode("REUSE-001"));
+        await dbContext.Categories.AddAsync(category, TestContext.Current.CancellationToken);
+        await dbContext.Products.AddAsync(product, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        product.Deactivate();
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Assert.Null(product.Barcode);
+
+        var repository = new ProductRepository(dbContext);
+        Assert.Null(await repository.GetByBarcodeAsync("REUSE-001", TestContext.Current.CancellationToken));
+
+        // The real proof: a second product can actually persist with the freed barcode, not just
+        // pass the application-level check — the unique index only rejects non-null duplicates.
+        var replacement = new Product("Rice (new batch)", category.Id, new Money(1m), new Money(2m), new StockQuantity(1m), new StockQuantity(0m), barcode: new Barcode("REUSE-001"));
+        await dbContext.Products.AddAsync(replacement, TestContext.Current.CancellationToken);
+        await dbContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        Product? found = await repository.GetByBarcodeAsync("REUSE-001", TestContext.Current.CancellationToken);
+        Assert.Equal(replacement.Id, found?.Id);
+    }
+
     private static async Task<SqliteConnection> OpenConnectionAsync()
     {
         var connection = new SqliteConnection("Data Source=:memory:");

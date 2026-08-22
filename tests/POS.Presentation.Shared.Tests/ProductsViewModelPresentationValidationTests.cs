@@ -31,18 +31,29 @@ public sealed class ProductsViewModelPresentationValidationTests
     }
 
     [Fact]
-    public void AddPresentationCommand_WithIndividualParameter_SeedsARowNamedIndividual()
+    public void AddPresentationCommand_WithUnitariaParameter_SeedsARowNamedUnitariaWithUnitsLockedToOne()
     {
         var recorder = new RecordingProductRepository();
         ProductsViewModel viewModel = CreateViewModel(recorder);
 
-        viewModel.AddPresentationCommand.Execute("Individual");
+        viewModel.AddPresentationCommand.Execute("Unitaria");
 
         PresentationRowViewModel row = viewModel.Presentations[^1];
-        Assert.Equal("Individual", row.Name);
-        Assert.True(row.IsSeededPlaceholder);
-        Assert.False(row.Units is > 0);
-        Assert.False(row.Price is > 0m);
+        Assert.Equal("Unitaria", row.Name);
+        Assert.Equal(1, row.Units);
+        Assert.False(row.CanEditUnits);
+    }
+
+    [Fact]
+    public void AddPresentationCommand_WithCajaParameter_StillSeedsAnEditableRow()
+    {
+        var recorder = new RecordingProductRepository();
+        ProductsViewModel viewModel = CreateViewModel(recorder);
+
+        viewModel.AddPresentationCommand.Execute("Caja");
+
+        PresentationRowViewModel row = viewModel.Presentations[^1];
+        Assert.True(row.CanEditUnits);
     }
 
     [Fact]
