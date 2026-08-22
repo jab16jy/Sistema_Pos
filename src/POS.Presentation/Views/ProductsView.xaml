@@ -367,7 +367,10 @@
               <!-- Dynamic packaged presentations -->
               <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="Presentaciones (opcional)" Style="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center" />
-                <Button Content="+ Agregar presentación" Command="{Binding AddPresentationCommand}" HorizontalAlignment="Right" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="11" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                  <Button Content="+ Caja" Command="{Binding AddPresentationCommand}" CommandParameter="Caja" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="11" Margin="0,0,6,0" />
+                  <Button Content="+ Unidad" Command="{Binding AddPresentationCommand}" CommandParameter="Individual" Style="{StaticResource SecondaryButton}" Padding="8,2" FontSize="11" />
+                </StackPanel>
               </DockPanel>
 
               <ItemsControl ItemsSource="{Binding Presentations}" Margin="0,0,0,10">

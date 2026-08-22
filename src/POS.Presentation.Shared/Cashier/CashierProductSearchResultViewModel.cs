@@ -17,7 +17,8 @@ public sealed class CashierProductSearchResultViewModel
         };
         if (product.Presentations is { Count: > 0 })
         {
-            foreach (var p in product.Presentations)
+            // Unit-type presentations (Units == 1) first, then box-type ones biggest-to-smallest.
+            foreach (var p in product.Presentations.OrderBy(p => p.Units == 1 ? 0 : 1).ThenByDescending(p => p.Units))
             {
                 list.Add(new PresentationOptionViewModel(p.Name, p.Units, p.Price) { Product = this });
             }

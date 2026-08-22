@@ -16,6 +16,36 @@ namespace POS.Presentation.Shared.Tests;
 public sealed class ProductsViewModelPresentationValidationTests
 {
     [Fact]
+    public void AddPresentationCommand_WithCajaParameter_SeedsARowNamedCaja()
+    {
+        var recorder = new RecordingProductRepository();
+        ProductsViewModel viewModel = CreateViewModel(recorder);
+
+        viewModel.AddPresentationCommand.Execute("Caja");
+
+        PresentationRowViewModel row = viewModel.Presentations[^1];
+        Assert.Equal("Caja", row.Name);
+        Assert.True(row.IsSeededPlaceholder);
+        Assert.False(row.Units is > 0);
+        Assert.False(row.Price is > 0m);
+    }
+
+    [Fact]
+    public void AddPresentationCommand_WithIndividualParameter_SeedsARowNamedIndividual()
+    {
+        var recorder = new RecordingProductRepository();
+        ProductsViewModel viewModel = CreateViewModel(recorder);
+
+        viewModel.AddPresentationCommand.Execute("Individual");
+
+        PresentationRowViewModel row = viewModel.Presentations[^1];
+        Assert.Equal("Individual", row.Name);
+        Assert.True(row.IsSeededPlaceholder);
+        Assert.False(row.Units is > 0);
+        Assert.False(row.Price is > 0m);
+    }
+
+    [Fact]
     public async Task SaveAsync_WithAnUntouchedSeededRow_SavesAndSaysThereAreNoPresentations()
     {
         var recorder = new RecordingProductRepository();
