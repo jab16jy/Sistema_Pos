@@ -12,5 +12,7 @@ public static class ProductPresentationLabel
     public static string For(string? presentationName, int unitsPerPresentation) =>
         string.IsNullOrWhiteSpace(presentationName)
             ? UnitLabel
-            : $"{presentationName.Trim()} x{unitsPerPresentation}";
+            : unitsPerPresentation == 1
+                ? presentationName.Trim()
+                : $"{presentationName.Trim()} x{unitsPerPresentation}";
 }

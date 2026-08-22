@@ -235,6 +235,18 @@ public partial class CashierView : UserControl
         }
     }
 
+    private void LineDiscountTextBox_OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || sender is not TextBox textBox)
+        {
+            return;
+        }
+
+        textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+        e.Handled = true;
+        Keyboard.ClearFocus();
+    }
+
     private void ReceivedAmount_Pasting(object sender, DataObjectPastingEventArgs e)
     {
         if (e.DataObject.GetDataPresent(typeof(string)))

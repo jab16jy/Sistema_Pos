@@ -44,9 +44,23 @@ public sealed class ProductsViewModelPresentationValidationTests
         Assert.Contains("Paquete de 3 x3", viewModel.Message);
     }
 
+    [Fact]
+    public async Task SaveAsync_WithAOneUnitPresentation_SavesItWithItsOwnPrice()
+    {
+        var recorder = new RecordingProductRepository();
+        ProductsViewModel viewModel = CreateViewModel(recorder);
+        viewModel.Name = "X3";
+        viewModel.Presentations.Clear();
+        viewModel.Presentations.Add(new PresentationRowViewModel("Individual especial", 1, 8_000m));
+
+        await viewModel.SaveAsync(TestContext.Current.CancellationToken);
+
+        Assert.Single(recorder.LastCreated!.Presentations);
+        Assert.Contains("Individual especial", viewModel.Message);
+    }
+
     [Theory]
     [InlineData("Paquete de 3", null, 15_000, "unidades")]
-    [InlineData("Paquete de 3", 1, 15_000, "al menos 2 unidades")]
     [InlineData("Paquete de 3", 3, null, "precio")]
     [InlineData("", 3, 15_000, "nombre")]
     public async Task SaveAsync_WithAnIncompletePresentation_StopsAndExplainsWhy(

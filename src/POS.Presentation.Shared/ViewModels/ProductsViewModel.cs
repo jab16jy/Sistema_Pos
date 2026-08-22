@@ -563,8 +563,7 @@ public sealed class ProductsViewModel : ViewModelBase
             }
 
             string? problem = name.Length == 0 ? "necesita un nombre"
-                : !hasUnits ? "necesita las unidades que contiene (mínimo 2)"
-                : row.Units < 2 ? "debe contener al menos 2 unidades"
+                : !hasUnits ? "necesita las unidades que contiene"
                 : !hasPrice ? "necesita un precio mayor a cero"
                 : null;
 

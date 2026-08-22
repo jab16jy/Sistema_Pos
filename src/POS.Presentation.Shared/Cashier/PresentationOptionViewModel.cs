@@ -30,9 +30,13 @@ public sealed class PresentationOptionViewModel : ViewModelBase
 
     public string DisplayText => IsUnit
         ? $"Unidad (${Price.ToString("N0", ColombianCulture)})"
-        : $"{Name} x{Units} (${Price.ToString("N0", ColombianCulture)})";
+        : Units == 1
+            ? $"{Name} (${Price.ToString("N0", ColombianCulture)})"
+            : $"{Name} x{Units} (${Price.ToString("N0", ColombianCulture)})";
 
     public string Label => IsUnit
         ? $"Unidad"
-        : $"x{Units} · ${Price.ToString("N0", ColombianCulture)}";
+        : Units == 1
+            ? $"${Price.ToString("N0", ColombianCulture)}"
+            : $"x{Units} · ${Price.ToString("N0", ColombianCulture)}";
 }

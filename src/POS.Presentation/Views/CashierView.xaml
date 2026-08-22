@@ -397,7 +397,8 @@
                                 HorizontalAlignment="Right"
                                 VerticalContentAlignment="Center"
                                 IsReadOnly="{Binding DataContext.IsResumedSale, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                ToolTip="Descuento manual por línea (%)" />
+                                ToolTip="Descuento manual por línea (%)"
+                                PreviewKeyDown="LineDiscountTextBox_OnPreviewKeyDown" />
 
                        <TextBlock Grid.Column="4"
                                   Text="{Binding SubtotalText}"

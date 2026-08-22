@@ -63,9 +63,9 @@ public sealed class QuoteItem
             return 1;
         }
 
-        if (unitsPerPresentation < 2)
+        if (unitsPerPresentation < 1)
         {
-            throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A packaged presentation must contain at least 2 base units.");
+            throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A packaged presentation must contain at least 1 base unit.");
         }
 
         return unitsPerPresentation;

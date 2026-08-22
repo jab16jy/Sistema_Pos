@@ -128,10 +128,25 @@ public sealed class ProductPresentationTests
     }
 
     [Fact]
-    public void PresentationConfig_RequiresAtLeastTwoUnits()
+    public void PresentationConfig_RequiresAtLeastOneUnit()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() => MakeAmpolla(
-            presentations: ("Caja", 1, new Money(110_000m))));
+            presentations: ("Caja", 0, new Money(110_000m))));
+    }
+
+    [Fact]
+    public void OneUnitPresentation_UsesItsOwnPrice_DistinctFromTheBaseSalePrice()
+    {
+        // The client's actual use case: a 1-unit presentation with its own price, e.g. an
+        // "Individual especial" sold at 8.000 while the base unit price stays 10.000.
+        Product product = MakeAmpolla(
+            stock: 24m,
+            presentations: ("Individual especial", 1, new Money(8_000m)));
+
+        Assert.True(product.Supports("Individual especial"));
+        Assert.Equal(8_000m, product.PriceFor("Individual especial").Amount);
+        Assert.NotEqual(product.PriceFor(null).Amount, product.PriceFor("Individual especial").Amount);
+        Assert.Equal(1, product.UnitsFor("Individual especial"));
     }
 
     [Fact]

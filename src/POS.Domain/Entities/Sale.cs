@@ -101,9 +101,9 @@ public sealed class Sale
         string? name = string.IsNullOrWhiteSpace(presentationName) ? null : presentationName.Trim();
         int factor = name is null
             ? 1
-            : unitsPerPresentation >= 2
+            : unitsPerPresentation >= 1
                 ? unitsPerPresentation
-                : throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A packaged presentation must contain at least 2 base units.");
+                : throw new ArgumentOutOfRangeException(nameof(unitsPerPresentation), "A packaged presentation must contain at least 1 base unit.");
 
         // Stock remains in base units even when a historical quote uses an old pack equivalence.
         product.DecreaseStock(new Quantity(quantity.Value * factor));

@@ -56,9 +56,9 @@ public sealed class ProductPresentation
     }
 
     private static int ValidateUnits(int units) =>
-        units >= 2
+        units >= 1
             ? units
-            : throw new ArgumentOutOfRangeException(nameof(units), "A presentation must contain at least 2 base units.");
+            : throw new ArgumentOutOfRangeException(nameof(units), "A presentation must contain at least 1 base unit.");
 
     internal static string Normalize(string name) =>
         string.IsNullOrWhiteSpace(name)
