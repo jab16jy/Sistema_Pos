@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.28.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.27.3...v1.28.0) (2026-08-22)
+
+
+### Features
+
+* **productos,caja:** elegir Unidad/Caja al agregar presentacion y ordenar Caja por tipo ([f88532a](https://github.com/jab16jy/Sistema_Pos/commit/f88532aabd29d9f7558ab2c72b4b585aada9b38b))
+* **productos,caja:** presentacion "Unitaria" con unidades bloqueadas a 1 ([d490fc7](https://github.com/jab16jy/Sistema_Pos/commit/d490fc78c93c30901d6b7142e99343228350335e))
+* **productos,negocio:** completar wiring del limite de presentaciones ([794fc76](https://github.com/jab16jy/Sistema_Pos/commit/794fc76c6cd27ceb0d2cfedecc94464ab67b72e1))
+* **productos,negocio:** limite configurable de presentaciones por producto ([2cf4b51](https://github.com/jab16jy/Sistema_Pos/commit/2cf4b516222b6cb4cdc1e055390b00b74d1aa46f))
+* **productos:** permitir presentaciones de 1 sola unidad con precio propio ([03c3220](https://github.com/jab16jy/Sistema_Pos/commit/03c3220627610ea2471621b7e42f21ce41127fc8))
+
+
+### Bug Fixes
+
+* **productos:** liberar codigo de barras y SourceCode al eliminar un producto ([d490fc7](https://github.com/jab16jy/Sistema_Pos/commit/d490fc78c93c30901d6b7142e99343228350335e))
+
 ## [1.27.3](https://github.com/jab16jy/Sistema_Pos/compare/v1.27.2...v1.27.3) (2026-08-22)
 
 
