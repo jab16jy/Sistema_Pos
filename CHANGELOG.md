@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.3](https://github.com/jab16jy/Sistema_Pos/compare/v1.27.2...v1.27.3) (2026-08-22)
+
+
+### Bug Fixes
+
+* **cotizaciones:** habilitar scroll en carrito cuando hay muchos productos ([e1efe88](https://github.com/jab16jy/Sistema_Pos/commit/e1efe888cd41162e997557ed35c435148ab59a32))
+
 ## [1.27.2](https://github.com/jab16jy/Sistema_Pos/compare/v1.27.1...v1.27.2) (2026-08-13)
 
 
