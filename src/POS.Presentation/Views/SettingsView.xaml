@@ -412,6 +412,15 @@
                         FontSize="10"
                         TextWrapping="Wrap"
                         Margin="0,0,0,12" />
+             <TextBlock Text="Máximo de presentaciones por producto" Style="{StaticResource MutedText}" FontSize="11" Margin="0,0,0,4" />
+             <TextBox Text="{Binding MaximumProductPresentations, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                      Tag="7"
+                      Margin="0,0,0,4" />
+             <TextBlock Text="Evita saturar los botones de Caja con demasiadas opciones. Rango permitido: 1–50."
+                        Style="{StaticResource MutedText}"
+                        FontSize="10"
+                        TextWrapping="Wrap"
+                        Margin="0,0,0,12" />
              <StackPanel Orientation="Horizontal">
               <Button Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" Margin="0,0,8,0">
                 <StackPanel Orientation="Horizontal">

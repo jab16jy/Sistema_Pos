@@ -10,12 +10,18 @@ public sealed class UpdateProductUseCase
     private readonly IProductRepository _products;
     private readonly ICategoryRepository _categories;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ISettingsRepository? _settings;
 
-    public UpdateProductUseCase(IProductRepository products, ICategoryRepository categories, IUnitOfWork unitOfWork)
+    public UpdateProductUseCase(
+        IProductRepository products,
+        ICategoryRepository categories,
+        IUnitOfWork unitOfWork,
+        ISettingsRepository? settings = null)
     {
         _products = products;
         _categories = categories;
         _unitOfWork = unitOfWork;
+        _settings = settings;
     }
 
     public async Task<ProductResult> ExecuteAsync(UpdateProductRequest request, CancellationToken cancellationToken = default)
@@ -24,6 +30,10 @@ public sealed class UpdateProductUseCase
             ?? throw new InvalidOperationException("Product was not found.");
 
         await EnsureCategoryExistsAsync(request.CategoryId, cancellationToken).ConfigureAwait(false);
+
+        ProductPresentationCountPolicy.Validate(
+            request.Presentations?.Count ?? 0,
+            await ProductPresentationCountPolicy.GetMaximumAsync(_settings, cancellationToken).ConfigureAwait(false));
 
         if (!string.IsNullOrWhiteSpace(request.Barcode))
         {

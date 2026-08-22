@@ -12,22 +12,29 @@ public sealed class CreateProductUseCase
     private readonly ICategoryRepository _categories;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IInventoryRepository? _inventory;
+    private readonly ISettingsRepository? _settings;
 
     public CreateProductUseCase(
         IProductRepository products,
         ICategoryRepository categories,
         IUnitOfWork unitOfWork,
-        IInventoryRepository? inventory = null)
+        IInventoryRepository? inventory = null,
+        ISettingsRepository? settings = null)
     {
         _products = products;
         _categories = categories;
         _unitOfWork = unitOfWork;
         _inventory = inventory;
+        _settings = settings;
     }
 
     public async Task<Guid> ExecuteAsync(CreateProductRequest request, CancellationToken cancellationToken = default)
     {
         await EnsureCategoryExistsAsync(request.CategoryId, cancellationToken).ConfigureAwait(false);
+
+        ProductPresentationCountPolicy.Validate(
+            request.Presentations?.Count ?? 0,
+            await ProductPresentationCountPolicy.GetMaximumAsync(_settings, cancellationToken).ConfigureAwait(false));
 
         if (!string.IsNullOrWhiteSpace(request.Barcode) &&
             await _products.GetByBarcodeAsync(request.Barcode, cancellationToken).ConfigureAwait(false) is not null)

@@ -57,5 +57,6 @@ public sealed class LoadSettingsUseCase
                     settings.LastBackupUsername),
         settings.MaximumCashierDiscountPercent,
         settings.MaximumDeferredBalancePercent,
-        settings.MaximumPointsMultiplier);
+        settings.MaximumPointsMultiplier,
+        settings.MaximumProductPresentations);
 }

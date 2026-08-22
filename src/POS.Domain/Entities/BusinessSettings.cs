@@ -5,6 +5,7 @@ public sealed class BusinessSettings
     public const decimal DefaultMaximumCashierDiscountPercent = 20m;
     public const decimal DefaultMaximumDeferredBalancePercent = 0m;
     public const decimal DefaultMaximumPointsMultiplier = 5m;
+    public const int DefaultMaximumProductPresentations = 7;
 
     private BusinessSettings()
     {
@@ -13,6 +14,7 @@ public sealed class BusinessSettings
         MaximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent;
         MaximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent;
         MaximumPointsMultiplier = DefaultMaximumPointsMultiplier;
+        MaximumProductPresentations = DefaultMaximumProductPresentations;
     }
 
     public BusinessSettings(
@@ -33,7 +35,8 @@ public sealed class BusinessSettings
         string currencyCode,
         decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent,
         decimal maximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent,
-        decimal maximumPointsMultiplier = DefaultMaximumPointsMultiplier)
+        decimal maximumPointsMultiplier = DefaultMaximumPointsMultiplier,
+        int maximumProductPresentations = DefaultMaximumProductPresentations)
     {
         Id = Guid.NewGuid();
         Apply(
@@ -54,7 +57,8 @@ public sealed class BusinessSettings
             currencyCode,
             maximumCashierDiscountPercent,
             maximumDeferredBalancePercent,
-            maximumPointsMultiplier);
+            maximumPointsMultiplier,
+            maximumProductPresentations);
     }
 
     public Guid Id { get; private set; }
@@ -83,6 +87,9 @@ public sealed class BusinessSettings
     /// <summary>Upper bound for the points multiplier a loyalty tier may grant.</summary>
     public decimal MaximumPointsMultiplier { get; private set; } = DefaultMaximumPointsMultiplier;
 
+    /// <summary>Upper bound on how many presentations a single product may have, so Caja's picker doesn't saturate.</summary>
+    public int MaximumProductPresentations { get; private set; } = DefaultMaximumProductPresentations;
+
     public void Update(
         string businessName,
         string? businessAddress,
@@ -101,7 +108,8 @@ public sealed class BusinessSettings
         string currencyCode,
         decimal maximumCashierDiscountPercent = DefaultMaximumCashierDiscountPercent,
         decimal maximumDeferredBalancePercent = DefaultMaximumDeferredBalancePercent,
-        decimal maximumPointsMultiplier = DefaultMaximumPointsMultiplier)
+        decimal maximumPointsMultiplier = DefaultMaximumPointsMultiplier,
+        int maximumProductPresentations = DefaultMaximumProductPresentations)
     {
         Apply(
             businessName,
@@ -121,7 +129,8 @@ public sealed class BusinessSettings
             currencyCode,
             maximumCashierDiscountPercent,
             maximumDeferredBalancePercent,
-            maximumPointsMultiplier);
+            maximumPointsMultiplier,
+            maximumProductPresentations);
     }
 
     public void RecordSuccessfulBackup(
@@ -164,7 +173,8 @@ public sealed class BusinessSettings
         string currencyCode,
         decimal maximumCashierDiscountPercent,
         decimal maximumDeferredBalancePercent,
-        decimal maximumPointsMultiplier)
+        decimal maximumPointsMultiplier,
+        int maximumProductPresentations)
     {
         if (string.IsNullOrWhiteSpace(businessName))
         {
@@ -210,6 +220,15 @@ public sealed class BusinessSettings
                 "Maximum points multiplier must be between 1 and 100.");
         }
 
+        // Soft UI-usability cap, not a hard domain limit: keeps Caja's presentation-picker from
+        // growing an unbounded row of buttons for one product.
+        if (maximumProductPresentations < 1 || maximumProductPresentations > 50)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maximumProductPresentations),
+                "Maximum product presentations must be between 1 and 50.");
+        }
+
         BusinessName = businessName.Trim();
         BusinessAddress = TrimToNull(businessAddress);
         TaxId = TrimToNull(taxId);
@@ -228,6 +247,7 @@ public sealed class BusinessSettings
         MaximumCashierDiscountPercent = maximumCashierDiscountPercent;
         MaximumDeferredBalancePercent = maximumDeferredBalancePercent;
         MaximumPointsMultiplier = maximumPointsMultiplier;
+        MaximumProductPresentations = maximumProductPresentations;
     }
 
     private static string? TrimToNull(string? value)

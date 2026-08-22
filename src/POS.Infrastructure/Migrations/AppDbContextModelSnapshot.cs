@@ -122,6 +122,11 @@ namespace POS.Infrastructure.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue(5m);
 
+                    b.Property<int>("MaximumProductPresentations")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(7);
+
                     b.Property<string>("PrinterCommand")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");

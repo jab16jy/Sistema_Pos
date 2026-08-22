@@ -11,6 +11,18 @@ namespace POS.Application.Tests.Products;
 public sealed class ProductUseCaseTests
 {
     [Fact]
+    public void ProductPresentationCountPolicy_WithCountOverMaximum_Throws()
+    {
+        Assert.Throws<InvalidOperationException>(() => ProductPresentationCountPolicy.Validate(8, maximum: 7));
+    }
+
+    [Fact]
+    public void ProductPresentationCountPolicy_WithCountAtMaximum_DoesNotThrow()
+    {
+        ProductPresentationCountPolicy.Validate(7, maximum: 7);
+    }
+
+    [Fact]
     public async Task CreateProductAsync_WithDuplicateBarcode_RejectsCreation()
     {
         var existing = CreateProduct("Rice", "A100");
@@ -54,6 +66,69 @@ public sealed class ProductUseCaseTests
     }
 
     [Fact]
+    public async Task CreateProductAsync_WithPresentationsOverConfiguredMaximum_RejectsCreation()
+    {
+        var products = new InMemoryProductRepository();
+        var category = new Category("Abarrotes");
+        var useCase = new CreateProductUseCase(
+            products,
+            new InMemoryCategoryRepository(category),
+            new CountingUnitOfWork(),
+            settings: new SettingsRepositoryFake(maximumProductPresentations: 2));
+
+        var request = new CreateProductRequest(
+            "Beans",
+            category.Id,
+            1_000m,
+            1_500m,
+            0m,
+            2m,
+            null,
+            null,
+            Presentations:
+            [
+                new ProductPresentationDto("Caja", 6, 8_500m),
+                new ProductPresentationDto("Media caja", 3, 4_500m),
+                new ProductPresentationDto("Docena", 12, 16_000m),
+            ]);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
+        Assert.Contains("2 presentaciones", exception.Message);
+    }
+
+    [Fact]
+    public async Task CreateProductAsync_WithPresentationsAtConfiguredMaximum_CreatesProduct()
+    {
+        var products = new InMemoryProductRepository();
+        var category = new Category("Abarrotes");
+        var useCase = new CreateProductUseCase(
+            products,
+            new InMemoryCategoryRepository(category),
+            new CountingUnitOfWork(),
+            settings: new SettingsRepositoryFake(maximumProductPresentations: 2));
+
+        var request = new CreateProductRequest(
+            "Beans",
+            category.Id,
+            1_000m,
+            1_500m,
+            0m,
+            2m,
+            null,
+            null,
+            Presentations:
+            [
+                new ProductPresentationDto("Caja", 6, 8_500m),
+                new ProductPresentationDto("Media caja", 3, 4_500m),
+            ]);
+
+        Guid productId = await useCase.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.NotEqual(Guid.Empty, productId);
+    }
+
+    [Fact]
     public async Task UpdateProductAsync_WithValidData_MutatesProductAndSaves()
     {
         var product = CreateProduct("Rice", "A100");
@@ -76,6 +151,70 @@ public sealed class ProductUseCaseTests
         Assert.Equal("B200", product.Barcode);
         Assert.Equal(1_700m, result.SalePrice);
         Assert.Equal(1, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task UpdateProductAsync_WithPresentationsOverConfiguredMaximum_RejectsUpdate()
+    {
+        var product = CreateProduct("Rice", "A100");
+        var products = new InMemoryProductRepository(product);
+        var category = new Category("Abarrotes");
+        var useCase = new UpdateProductUseCase(
+            products,
+            new InMemoryCategoryRepository(category),
+            new CountingUnitOfWork(),
+            settings: new SettingsRepositoryFake(maximumProductPresentations: 1));
+
+        var request = new UpdateProductRequest(
+            product.Id,
+            "Rice",
+            category.Id,
+            1_000m,
+            1_500m,
+            2m,
+            null,
+            null,
+            Presentations:
+            [
+                new ProductPresentationDto("Caja", 6, 8_500m),
+                new ProductPresentationDto("Media caja", 3, 4_500m),
+            ]);
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => useCase.ExecuteAsync(request, TestContext.Current.CancellationToken));
+        Assert.Contains("1 presentaciones", exception.Message);
+    }
+
+    [Fact]
+    public async Task UpdateProductAsync_WithPresentationsAtConfiguredMaximum_UpdatesProduct()
+    {
+        var product = CreateProduct("Rice", "A100");
+        var products = new InMemoryProductRepository(product);
+        var category = new Category("Abarrotes");
+        var useCase = new UpdateProductUseCase(
+            products,
+            new InMemoryCategoryRepository(category),
+            new CountingUnitOfWork(),
+            settings: new SettingsRepositoryFake(maximumProductPresentations: 2));
+
+        var request = new UpdateProductRequest(
+            product.Id,
+            "Rice",
+            category.Id,
+            1_000m,
+            1_500m,
+            2m,
+            null,
+            null,
+            Presentations:
+            [
+                new ProductPresentationDto("Caja", 6, 8_500m),
+                new ProductPresentationDto("Media caja", 3, 4_500m),
+            ]);
+
+        ProductResult result = await useCase.ExecuteAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, result.Presentations?.Count);
     }
 
     [Fact]
@@ -292,6 +431,18 @@ public sealed class ProductUseCaseTests
         new StockQuantity(2m),
         null,
         barcode is null ? null : new Barcode(barcode));
+
+    private sealed class SettingsRepositoryFake(int maximumProductPresentations) : ISettingsRepository
+    {
+        public Task<BusinessSettings?> GetAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<BusinessSettings?>(new BusinessSettings(
+                "Test Business",
+                null, null, null, null, null, null, null, false, null, null, null, null, null,
+                "COP",
+                maximumProductPresentations: maximumProductPresentations));
+
+        public Task SaveAsync(BusinessSettings settings, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
 
     private sealed class InMemoryProductRepository : IProductRepository
     {

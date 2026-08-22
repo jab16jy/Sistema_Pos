@@ -78,6 +78,30 @@ public sealed class SettingsViewModelTests
     }
 
     [Fact]
+    public async Task SaveAsync_ThenLoadAsync_RoundTripsMaximumProductPresentations()
+    {
+        var repository = new StubMutableSettingsRepository();
+        var viewModel = new SettingsViewModel(
+            new LoadSettingsUseCase(repository, new StubOperatorSession()),
+            new SaveSettingsUseCase(repository, new StubUnitOfWork(), new StubOperatorSession()))
+        {
+            BusinessName = "Store",
+            CurrencyCode = "COP",
+            MaximumProductPresentations = 3,
+        };
+
+        await viewModel.SaveAsync(TestContext.Current.CancellationToken);
+
+        var reloaded = new SettingsViewModel(
+            new LoadSettingsUseCase(repository, new StubOperatorSession()),
+            new SaveSettingsUseCase(repository, new StubUnitOfWork(), new StubOperatorSession()));
+
+        await reloaded.LoadAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, reloaded.MaximumProductPresentations);
+    }
+
+    [Fact]
     public async Task LoadAsync_GeneratesDynamicSystemAlerts()
     {
         var settings = new SettingsResult(

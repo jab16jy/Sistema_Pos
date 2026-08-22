@@ -44,6 +44,7 @@ public sealed class SettingsViewModel : ViewModelBase
     private decimal _maximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent;
     private decimal _maximumPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier;
     private decimal _maximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent;
+    private int _maximumProductPresentations = BusinessSettings.DefaultMaximumProductPresentations;
     private string _message = "Carga la configuración del negocio o realiza un backup.";
 
     private string _receiptTemplate = "80 mm térmico";
@@ -238,6 +239,13 @@ public sealed class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _maximumPointsMultiplier, value);
     }
 
+    /// <summary>Upper bound on how many presentations a single product may have, so Caja's picker doesn't saturate.</summary>
+    public int MaximumProductPresentations
+    {
+        get => _maximumProductPresentations;
+        set => SetProperty(ref _maximumProductPresentations, value);
+    }
+
     public string Message
     {
         get => _message;
@@ -414,6 +422,7 @@ public sealed class SettingsViewModel : ViewModelBase
             MaximumCashierDiscountPercent = settings.MaximumCashierDiscountPercent;
             MaximumPointsMultiplier = settings.MaximumPointsMultiplier;
             MaximumDeferredBalancePercent = settings.MaximumDeferredBalancePercent;
+            MaximumProductPresentations = settings.MaximumProductPresentations;
             UpdateLastSuccessfulBackup(settings.LastSuccessfulBackup);
 
             Warnings.Clear();
@@ -579,7 +588,8 @@ public sealed class SettingsViewModel : ViewModelBase
             CurrencyCode,
             MaximumCashierDiscountPercent,
             MaximumDeferredBalancePercent,
-            MaximumPointsMultiplier);
+            MaximumPointsMultiplier,
+            MaximumProductPresentations);
 
         SettingsResult result = await _saveSettings.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 

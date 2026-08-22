@@ -39,5 +39,7 @@ internal sealed class BusinessSettingsConfiguration : IEntityTypeConfiguration<B
             .HasDefaultValue(BusinessSettings.DefaultMaximumPointsMultiplier);
         builder.Property(settings => settings.MaximumDeferredBalancePercent)
             .HasDefaultValue(BusinessSettings.DefaultMaximumDeferredBalancePercent);
+        builder.Property(settings => settings.MaximumProductPresentations)
+            .HasDefaultValue(BusinessSettings.DefaultMaximumProductPresentations);
     }
 }

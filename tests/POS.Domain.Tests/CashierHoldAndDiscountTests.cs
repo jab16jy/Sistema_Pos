@@ -49,4 +49,24 @@ public sealed class CashierHoldAndDiscountTests
 
         Assert.Equal(BusinessSettings.DefaultMaximumPointsMultiplier, settings.MaximumPointsMultiplier);
     }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(51)]
+    public void BusinessSettings_RejectsMaximumProductPresentationsOutsideBounds(int maximum)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new BusinessSettings(
+            "Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP",
+            maximumCashierDiscountPercent: 20m, maximumDeferredBalancePercent: 50m, maximumPointsMultiplier: 5m,
+            maximumProductPresentations: maximum));
+    }
+
+    [Fact]
+    public void BusinessSettings_DefaultsMaximumProductPresentations()
+    {
+        var settings = new BusinessSettings(
+            "Store", null, null, null, null, null, null, null, false, null, null, null, null, null, "COP");
+
+        Assert.Equal(BusinessSettings.DefaultMaximumProductPresentations, settings.MaximumProductPresentations);
+    }
 }

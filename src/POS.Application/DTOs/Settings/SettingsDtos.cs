@@ -23,7 +23,8 @@ public sealed record SettingsResult(
     ManualBackupMetadata? LastSuccessfulBackup = null,
     decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent,
     decimal MaximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent,
-    decimal MaximumPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier);
+    decimal MaximumPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier,
+    int MaximumProductPresentations = BusinessSettings.DefaultMaximumProductPresentations);
 
 public sealed record SaveSettingsRequest(
     string BusinessName,
@@ -43,7 +44,8 @@ public sealed record SaveSettingsRequest(
     string CurrencyCode,
     decimal MaximumCashierDiscountPercent = BusinessSettings.DefaultMaximumCashierDiscountPercent,
     decimal MaximumDeferredBalancePercent = BusinessSettings.DefaultMaximumDeferredBalancePercent,
-    decimal MaximumPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier);
+    decimal MaximumPointsMultiplier = BusinessSettings.DefaultMaximumPointsMultiplier,
+    int MaximumProductPresentations = BusinessSettings.DefaultMaximumProductPresentations);
 
 public sealed record SettingsWarning(string Code, string Message);
 
