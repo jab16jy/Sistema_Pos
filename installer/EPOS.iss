@@ -2,7 +2,7 @@
 ; The release process publishes a fresh, self-contained single-file executable to build_output.
 #define MyAppName "EPOS"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.27.3"
+  #define MyAppVersion "1.28.0"
 #endif
 #define MyAppPublisher "EPOS"
 #define MyAppExeName "EPOS.exe"
