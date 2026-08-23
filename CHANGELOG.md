@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.28.0...v1.28.1) (2026-08-23)
+
+
+### Bug Fixes
+
+* **cotizaciones:** evitar desborde de presentaciones al agregar producto ([858d450](https://github.com/jab16jy/Sistema_Pos/commit/858d4509d56cd4f5132947a2093f079f01191005))
+
 ## [1.28.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.27.3...v1.28.0) (2026-08-22)
 
 
