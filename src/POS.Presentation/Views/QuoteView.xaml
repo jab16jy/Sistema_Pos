@@ -228,7 +228,7 @@
                             </TextBlock.Style>
                           </TextBlock>
                         </Border>
-                         <ItemsControl Grid.Column="3" ItemsSource="{Binding AvailablePresentations}" VerticalAlignment="Center">
+                         <ItemsControl Grid.Column="3" ItemsSource="{Binding AvailablePresentations}" VerticalAlignment="Center" MaxWidth="300">
                            <ItemsControl.ItemsPanel>
                              <ItemsPanelTemplate>
                                <WrapPanel Orientation="Horizontal" />
