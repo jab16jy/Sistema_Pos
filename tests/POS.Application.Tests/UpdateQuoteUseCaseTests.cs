@@ -128,6 +128,38 @@ public sealed class UpdateQuoteUseCaseTests
         Assert.Equal(0, unitOfWork.SaveCount);
     }
 
+    /// <summary>
+    /// C6b. A validity window beyond the domain's ceiling is refused on the write path, and refused with
+    /// nothing half-applied. The aggregate throws before assigning any field, so the stored quote still
+    /// describes what the operator was looking at and no save is issued — the same guarantee the discount
+    /// ceiling test above pins.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(3651)]
+    [InlineData(int.MaxValue)]
+    public async Task ExecuteAsync_WhenValidityDaysAreOutOfRange_ThrowsAndLeavesTheQuoteUntouched(int validityDays)
+    {
+        var product = CreateProduct("Widget");
+        var quotes = new InMemoryQuoteRepository();
+        Quote stored = SeedDraftQuote(quotes, product);
+        var unitOfWork = new InMemoryUnitOfWork();
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork, SessionWithQuotesEdit());
+
+        var exception = await Assert.ThrowsAsync<QuoteValidityDaysOutOfRangeException>(() =>
+            useCase.ExecuteAsync(
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, validityDays, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+                TestContext.Current.CancellationToken));
+
+        // The message names the rule and the quote, which is what the operator sees: the view-model
+        // renders ex.Message verbatim.
+        Assert.Contains("COT-2026-0001", exception.Message, StringComparison.Ordinal);
+        Assert.Equal("Test Customer", stored.CustomerName);
+        Assert.Equal(30, stored.ValidityDays);
+        Assert.Single(stored.Items);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
     [Fact]
     public async Task ExecuteAsync_RepricingALineReusesTheSamePresentationResolutionAsCreation()
     {

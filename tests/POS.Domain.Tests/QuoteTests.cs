@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
@@ -340,7 +341,78 @@ public sealed class QuoteTests
     {
         var quote = new Quote("COT-2026-0001", "Test Customer", 30);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => quote.Update("Test Customer", null, 0, null, null, null));
+        // Was ArgumentOutOfRangeException. The aggregate now refuses the window itself with a message
+        // naming the accepted range, because an ArgumentOutOfRangeException told the operator nothing
+        // about which rule they had broken — it came from DateTime.AddDays, deep inside the aggregate.
+        var exception = Assert.Throws<QuoteValidityDaysOutOfRangeException>(
+            () => quote.Update("Test Customer", null, 0, null, null, null));
+
+        Assert.Contains("COT-2026-0001", exception.Message, StringComparison.Ordinal);
+        // The aggregate is left untouched, so the form on screen still describes the stored quote.
+        Assert.Equal(30, quote.ValidityDays);
+    }
+
+    /// <summary>
+    /// C6b. The upper bound. <c>DateTime.AddDays</c> accepts a window of up to roughly 2.9 million days
+    /// (<c>DateTime.MaxValue</c> is year 9999), so before this bound every absurd value below that was
+    /// representable, passed every guard and got persisted — then reached the client as a rendered
+    /// deadline, since <c>PdfService</c> prints "Válida hasta" from <c>ExpiresAt</c>.
+    ///
+    /// A typo is enough to reach it: holding Ctrl in the validity spinner and pressing Up runs the number
+    /// into the thousands, well past the form's own 365 maximum.
+    /// </summary>
+    [Theory]
+    [InlineData(3651)]
+    [InlineData(500_000)]
+    [InlineData(2_900_000)]
+    [InlineData(int.MaxValue)]
+    public void Update_WithValidityDaysBeyondTheCeiling_ThrowsDomainException(int validityDays)
+    {
+        var quote = new Quote("COT-2026-0001", "Test Customer", 30);
+
+        QuoteValidityDaysOutOfRangeException exception = Assert.Throws<QuoteValidityDaysOutOfRangeException>(
+            () => quote.Update("Test Customer", null, validityDays, null, null, null));
+
+        // A clear domain message, not an arithmetic failure: the operator can see the rule and the value
+        // they typed, which is the whole point of refusing it at this boundary.
+        Assert.Contains("COT-2026-0001", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(validityDays.ToString(CultureInfo.InvariantCulture), exception.Message, StringComparison.Ordinal);
+        Assert.Contains(Quote.MaximumValidityDays.ToString(CultureInfo.InvariantCulture), exception.Message, StringComparison.Ordinal);
+        Assert.Equal(30, quote.ValidityDays);
+        Assert.Equal(30, quote.ExpiresAt.Subtract(quote.CreatedAt).TotalDays);
+    }
+
+    /// <summary>
+    /// The creation path is guarded by the same method, so a request that bypasses the form cannot
+    /// introduce a value the edit path would refuse. The two entry points must not disagree.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(3651)]
+    [InlineData(int.MaxValue)]
+    public void Constructor_WithValidityDaysOutsideTheAcceptedRange_Throws(int validityDays) =>
+        Assert.Throws<QuoteValidityDaysOutOfRangeException>(
+            () => new Quote("COT-2026-0001", "Test Customer", validityDays));
+
+    /// <summary>
+    /// Negative control: the bound must not be so tight that it refuses a legitimate window. The form's
+    /// <c>IntegerUpDown</c> caps at 365, so a full year has to be accepted on both paths — this is what
+    /// stops the ceiling from quietly becoming the next form of a duplicated rule that disagrees with the
+    /// control the operator actually uses.
+    /// </summary>
+    [Fact]
+    public void TheCeilingAcceptsTheLongestWindowTheFormOffers()
+    {
+        Assert.True(
+            Quote.MaximumValidityDays >= 365,
+            "The domain ceiling must never be tighter than the form's own maximum (365).");
+
+        var quote = new Quote("COT-2026-0001", "Test Customer", 365);
+        quote.Update("Test Customer", null, 365, null, null, null);
+
+        Assert.Equal(365, quote.ValidityDays);
+        Assert.Equal(quote.CreatedAt.AddDays(365), quote.ExpiresAt);
     }
 
     [Fact]

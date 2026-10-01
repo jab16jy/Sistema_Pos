@@ -21,10 +21,7 @@ public sealed class Quote
             throw new ArgumentException("Quote number is required.", nameof(quoteNumber));
         }
 
-        if (validityDays <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(validityDays), "Validity days must be greater than zero.");
-        }
+        EnsureValidityDaysInRange(validityDays, quoteNumber);
 
         Id = Guid.NewGuid();
         QuoteNumber = quoteNumber.Trim();
@@ -38,6 +35,27 @@ public sealed class Quote
         CreatedAt = DateTime.UtcNow;
         ExpiresAt = CreatedAt.AddDays(validityDays);
     }
+
+    /// <summary>
+    /// Bounds on the validity window, enforced by both the constructor and <see cref="Update"/>.
+    /// </summary>
+    /// <remarks>
+    /// The ceiling is 3650 days — a decade. Deliberately generous rather than tight: the form's own
+    /// <c>IntegerUpDown</c> caps at 365 (one year), so every value the system can legitimately produce sits
+    /// far below this and the bound can never contradict the form's maximum. A quote is a commercial
+    /// proposal a client holds for weeks — the reporting horizons in this app are weeks to months — so a
+    /// decade is already nonsense. The point of the bound is to refuse nonsense HERE, with a message that
+    /// names the rule, rather than to encode a business policy the domain states nowhere else. Lifting it
+    /// later is a one-line change and touches no schema.
+    ///
+    /// The failure it prevents is subtler than an exception. <c>DateTime.AddDays</c> does not overflow
+    /// until roughly 2.9 million days from today (<c>DateTime.MaxValue</c> is year 9999), so every absurd
+    /// value below that — 500,000 days included — is perfectly representable, passed every previous guard
+    /// and persisted. It then reaches the client as a rendered deadline, because <c>PdfService</c> prints
+    /// "Válida hasta" from <c>ExpiresAt</c>, on a proposal nobody can act on.
+    /// </remarks>
+    public const int MinimumValidityDays = 1;
+    public const int MaximumValidityDays = 3650;
 
     public Guid Id { get; private set; }
     public string QuoteNumber { get; private set; }
@@ -117,10 +135,7 @@ public sealed class Quote
     {
         EnsureEditable();
 
-        if (validityDays <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(validityDays), "Validity days must be greater than zero.");
-        }
+        EnsureValidityDaysInRange(validityDays, QuoteNumber);
 
         CustomerName = ContactInfo.NormalizeName(customerName);
         CustomerId = customerId;
@@ -231,6 +246,20 @@ public sealed class Quote
         // client's point of view. Reporting it as "estado Draft" would tell the operator the quote is
         // editable right before the write is rejected.
         throw new QuoteNotEditableException(QuoteNumber, IsLapsedByCalendar(DateTime.UtcNow) ? QuoteStatus.Expired : Status);
+    }
+
+    /// <summary>
+    /// One validity guard for both entry points, so creation and editing cannot disagree about what a
+    /// legal window is. Both callers run it before assigning anything, so a refused window leaves the
+    /// aggregate exactly as it was — on the edit path that means the header on screen still describes the
+    /// quote that is actually stored.
+    /// </summary>
+    private static void EnsureValidityDaysInRange(int validityDays, string quoteNumber)
+    {
+        if (validityDays < MinimumValidityDays || validityDays > MaximumValidityDays)
+        {
+            throw new QuoteValidityDaysOutOfRangeException(quoteNumber, validityDays);
+        }
     }
 
     /// <summary>

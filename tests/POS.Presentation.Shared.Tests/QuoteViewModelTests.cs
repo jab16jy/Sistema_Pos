@@ -385,6 +385,27 @@ public sealed class QuoteViewModelTests
     }
 
     /// <summary>
+    /// C6b. The form clamps the validity window to the domain's own bounds on both ends, so a typed-in
+    /// value never reaches the use case only to be refused with an exception the operator cannot act on.
+    /// The XAML <c>IntegerUpDown</c> already caps at 365; this is the backstop for any other input path,
+    /// and it reads the domain constants rather than restating the numbers.
+    /// </summary>
+    [Theory]
+    [InlineData(0, Domain.Entities.Quote.MinimumValidityDays)]
+    [InlineData(-30, Domain.Entities.Quote.MinimumValidityDays)]
+    [InlineData(365, 365)]
+    [InlineData(3651, Domain.Entities.Quote.MaximumValidityDays)]
+    [InlineData(int.MaxValue, Domain.Entities.Quote.MaximumValidityDays)]
+    public void ValidityDays_ClampsToTheDomainRange(int input, int expected)
+    {
+        var vm = CreateViewModel(out _, out _);
+
+        vm.ValidityDays = input;
+
+        Assert.Equal(expected, vm.ValidityDays);
+    }
+
+    /// <summary>
     /// C4a. "Descartar" is bound to CancelEditCommand, whose CanExecute closes over IsEditing, and
     /// RelayCommand has no CommandManager behind it — WPF evaluates CanExecute once, at bind time, and
     /// never re-queries. So the assertion has to go through CanExecute, not through CancelEdit(): the

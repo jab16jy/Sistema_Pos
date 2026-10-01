@@ -155,10 +155,17 @@ public sealed class QuoteViewModel : ViewModelBase
         private set => SetProperty(ref _selectedCustomerLabel, value ?? string.Empty);
     }
 
+    /// <summary>
+    /// Clamped on both ends, matching the domain's <c>Quote</c> bounds rather than contradicting them:
+    /// the lower clamp stops a spinner or a cleared box from producing zero, and the upper one stops a
+    /// typed-in value from reaching the use case only to be refused with an exception the operator cannot
+    /// act on. The form's own <c>IntegerUpDown</c> stops at 365; this is the backstop for any other input
+    /// path, and it is the domain, not this setter, that is authoritative.
+    /// </summary>
     public int ValidityDays
     {
         get => _validityDays;
-        set => SetProperty(ref _validityDays, value < 1 ? 1 : value);
+        set => SetProperty(ref _validityDays, Math.Clamp(value, Domain.Entities.Quote.MinimumValidityDays, Domain.Entities.Quote.MaximumValidityDays));
     }
 
     public string Observations
