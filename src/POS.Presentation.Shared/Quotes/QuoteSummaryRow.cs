@@ -89,7 +89,6 @@ public sealed record QuoteSummaryRow(
         : string.Empty;
 
     /// <summary>
-    /// <summary>
     /// True when the "Venta" row action should be shown. Mirrors <c>ConvertQuoteToSaleUseCase</c>'s own guard
     /// (blocks Converted/Expired). New quotes are created as Draft, and the documented business rule allows
     /// Draft or Active quotes to be converted.
