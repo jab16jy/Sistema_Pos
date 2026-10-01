@@ -6,6 +6,7 @@ using POS.Application.DTOs.Sales;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Quotes;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
@@ -65,12 +66,14 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         SendByEmailCommand = new RelayCommand(p => RunSafe(SendByEmailAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(p => RunSafe(SendByWhatsAppAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al enviar el documento: {ex.Message}"));
         ViewDetailCommand = new RelayCommand(p => RunSafe(ViewDetailAsync(p as QuoteSummaryRow), ex => StatusMessage = $"Error al cargar el detalle de la cotización: {ex.Message}"));
+        EditCommand = new RelayCommand(p => RequestQuoteEdit(p as QuoteSummaryRow ?? SelectedQuote));
     }
 
     public event EventHandler<(string FileName, byte[] Data)>? FileExportRequested;
     public event EventHandler<QuoteSummaryRow>? SaleConversionConfirmationRequested;
     public event EventHandler<QuoteSummaryRow>? QuoteCancellationConfirmationRequested;
     public event EventHandler<QuoteDetailResult>? QuoteDetailRequested;
+    public event EventHandler<QuoteDetailResult>? QuoteEditRequested;
 
     public ObservableCollection<QuoteSummaryRow> Quotes { get; }
 
@@ -83,6 +86,7 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
     public ICommand SendByEmailCommand { get; }
     public ICommand SendByWhatsAppCommand { get; }
     public ICommand ViewDetailCommand { get; }
+    public ICommand EditCommand { get; }
 
     public string FilterCustomerName
     {
@@ -335,6 +339,63 @@ public sealed class QuoteHistoryViewModel : ViewModelBase
         }
 
         QuoteDetailRequested?.Invoke(this, detail);
+    }
+
+    /// <summary>
+    /// Starts a correction of a quote that is still a proposal. Two independent gates apply and both
+    /// report why they blocked instead of failing silently, mirroring <see cref="RequestQuoteCancellation"/>:
+    /// the aggregate's status rule (<see cref="QuoteSummaryRow.CanEdit"/>) and the operator's permission.
+    /// </summary>
+    public void RequestQuoteEdit(QuoteSummaryRow? row)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (!row.CanEdit)
+        {
+            StatusMessage = $"La cotización '{row.QuoteNumber}' no se puede editar porque su estado es {row.StatusLabel}.";
+            return;
+        }
+
+        if (_operatorSession is null || !_operatorSession.HasPermission(PermissionKeys.Quotes.Edit))
+        {
+            StatusMessage = "Tu rol no tiene permiso para editar cotizaciones.";
+            return;
+        }
+
+        RunSafe(EditAsync(row), ex => StatusMessage = $"Error al cargar la cotización para editar: {ex.Message}");
+    }
+
+    /// <summary>
+    /// Loads the full quote so the "Nueva cotización" form can be reused as the edit form — the same
+    /// optional detail use case <see cref="ViewDetailAsync"/> uses, so a host without it degrades with a
+    /// recoverable message instead of throwing.
+    /// </summary>
+    public async Task EditAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)
+    {
+        if (row is null)
+        {
+            return;
+        }
+
+        if (_getQuoteDetail is null)
+        {
+            StatusMessage = "La edición de cotizaciones no está disponible en este entorno.";
+            return;
+        }
+
+        SelectedQuote = row;
+
+        QuoteDetailResult? detail = await _getQuoteDetail.ExecuteAsync(row.QuoteId, cancellationToken).ConfigureAwait(true);
+        if (detail is null)
+        {
+            StatusMessage = "La cotización seleccionada ya no está disponible.";
+            return;
+        }
+
+        QuoteEditRequested?.Invoke(this, detail);
     }
 
     public async Task ExportPdfAsync(QuoteSummaryRow? row, CancellationToken cancellationToken = default)

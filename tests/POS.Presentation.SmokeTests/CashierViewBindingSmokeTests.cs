@@ -55,11 +55,13 @@ public sealed class CashierViewBindingSmokeTests
                 // when the markup is actually loaded.
                 ShowAndClose(new ProductsView());
 
-                // A product configured with many presentations (now up to 50, see
-                // BusinessSettings.MaximumProductPresentations) must wrap onto extra lines
-                // instead of overflowing the row's WrapPanel unbounded.
-                var quoteView = new QuoteView { DataContext = new QuoteSearchResultsStub(BuildManyPresentationsRow()) };
-                AssertPresentationsWrap(quoteView);
+                // A product configured with many presentations (up to 50, see
+                // BusinessSettings.MaximumProductPresentations) must not make its result row taller.
+                double manyRow = MeasureResultRowHeight(BuildManyPresentationsRow());
+                double singleRow = MeasureResultRowHeight(BuildSinglePresentationRow());
+                Assert.True(
+                    manyRow <= singleRow + 1,
+                    $"A row with 20 presentations ({manyRow}px) must stay as tall as one with a single presentation ({singleRow}px).");
 
                 application.Shutdown();
             }
@@ -91,11 +93,42 @@ public sealed class CashierViewBindingSmokeTests
         window.Close();
     }
 
-    private static void AssertPresentationsWrap(UIElement view)
+    /// <summary>
+    /// A product with many presentations must not make its result row taller than a product with one.
+    /// </summary>
+    /// <remarks>
+    /// Compared rather than bounded, because the search list sits in a star-sized row: its
+    /// <c>ItemsControl.ActualHeight</c> is the space the layout handed it, not the row's own height, so
+    /// any fixed ceiling there measures the layout slot and passes for the wrong reason. The previous
+    /// guard capped the presentation panel at 300px, which is what forced the buttons to wrap and is
+    /// the pile-up this test exists to catch.
+    /// </remarks>
+    private static double ResolveResultRowHeight(UIElement view, System.Collections.IEnumerable searchResults)
     {
+        // Matched by ItemsSource, not "the first ItemsControl": the quotes view also lists customers
+        // and cart lines, and a plain first-match measures the wrong list and passes for the wrong reason.
+        var results = FindVisualChild<System.Windows.Controls.ItemsControl>(
+                view,
+                candidate => ReferenceEquals(candidate.ItemsSource, searchResults))
+            ?? throw new InvalidOperationException("Expected the ItemsControl bound to the search results.");
+
+        var row = FindVisualChild<System.Windows.Controls.ContentPresenter>(results)
+            ?? throw new InvalidOperationException("Expected a generated container for the single search result.");
+
+        Assert.NotNull(FindVisualChild<System.Windows.Controls.ComboBox>(results));
+
+        return row.ActualHeight;
+
+        return row.ActualHeight;
+    }
+
+    private static double MeasureResultRowHeight(CashierProductSearchResultViewModel row)
+    {
+        var stub = new QuoteSearchResultsStub(row);
+        var quoteView = new QuoteView { DataContext = stub };
         var window = new Window
         {
-            Content = view,
+            Content = quoteView,
             Width = 1200,
             Height = 800,
             ShowInTaskbar = false
@@ -103,27 +136,22 @@ public sealed class CashierViewBindingSmokeTests
 
         window.Show();
         window.UpdateLayout();
-
-        var wrapPanel = FindVisualChild<System.Windows.Controls.WrapPanel>(window)
-            ?? throw new InvalidOperationException("Expected a WrapPanel rendering the presentation buttons.");
-        Assert.True(
-            wrapPanel.ActualWidth <= 300,
-            $"Presentations WrapPanel should wrap within 300px, but measured {wrapPanel.ActualWidth}px.");
-
+        double height = ResolveResultRowHeight(quoteView, stub.SearchResults);
         window.Close();
+        return height;
     }
 
-    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    private static T? FindVisualChild<T>(DependencyObject parent, Func<T, bool>? matches = null) where T : DependencyObject
     {
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T typed)
+            if (child is T typed && (matches is null || matches(typed)))
             {
                 return typed;
             }
 
-            var found = FindVisualChild<T>(child);
+            var found = FindVisualChild(child, matches);
             if (found is not null)
             {
                 return found;
@@ -140,6 +168,13 @@ public sealed class CashierViewBindingSmokeTests
             .ToList();
         var product = new ProductLookupResult(
             Guid.NewGuid(), "Producto con muchas presentaciones", "0001", 5_000m, 100m, 0m, presentations);
+        return new CashierProductSearchResultViewModel(product);
+    }
+
+    private static CashierProductSearchResultViewModel BuildSinglePresentationRow()
+    {
+        var product = new ProductLookupResult(
+            Guid.NewGuid(), "Producto de una sola presentación", "0002", 5_000m, 100m, 0m, null);
         return new CashierProductSearchResultViewModel(product);
     }
 

@@ -31,4 +31,17 @@ public sealed class CashierProductSearchResultViewModelTests
             [null, "Individual B", "Individual A", "Caja", "Media caja", "Cuarto de caja"],
             viewModel.AvailablePresentations.Select(p => p.Name));
     }
+
+    [Fact]
+    public void HasMultiplePresentations_IsFalseOnlyWhenTheLooseUnitIsTheSoleOption()
+    {
+        var single = new CashierProductSearchResultViewModel(
+            new ProductLookupResult(Guid.NewGuid(), "Cable", "7702", 1_000m, 5m, 0m, []));
+        var several = new CashierProductSearchResultViewModel(
+            new ProductLookupResult(Guid.NewGuid(), "Ampolla", "7701", 10_000m, 24m, 0m,
+                [new ProductPresentationDto("Caja", 12, 110_000m)]));
+
+        Assert.False(single.HasMultiplePresentations);
+        Assert.True(several.HasMultiplePresentations);
+    }
 }

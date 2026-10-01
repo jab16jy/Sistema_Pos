@@ -44,6 +44,7 @@ public partial class QuoteView : UserControl
             oldViewModel.SaleConversionConfirmationRequested -= view.OnSaleConversionConfirmationRequested;
             oldViewModel.QuoteCancellationConfirmationRequested -= view.OnQuoteCancellationConfirmationRequested;
             oldViewModel.QuoteDetailRequested -= view.OnQuoteDetailRequested;
+            oldViewModel.QuoteEditRequested -= view.OnQuoteEditRequested;
         }
 
         if (e.NewValue is QuoteHistoryViewModel newViewModel)
@@ -52,6 +53,7 @@ public partial class QuoteView : UserControl
             newViewModel.SaleConversionConfirmationRequested += view.OnSaleConversionConfirmationRequested;
             newViewModel.QuoteCancellationConfirmationRequested += view.OnQuoteCancellationConfirmationRequested;
             newViewModel.QuoteDetailRequested += view.OnQuoteDetailRequested;
+            newViewModel.QuoteEditRequested += view.OnQuoteEditRequested;
         }
     }
 
@@ -59,6 +61,21 @@ public partial class QuoteView : UserControl
     {
         var window = new QuoteDetailWindow(detail) { Owner = Window.GetWindow(this) };
         window.ShowDialog();
+    }
+
+    /// <summary>
+    /// The edit form is the "Nueva cotización" form, so hydrating it and switching the sub-tab is all
+    /// the bridge has to do. Purely visual composition plumbing — no business logic — per pos-wpf-mvvm.
+    /// </summary>
+    private void OnQuoteEditRequested(object? sender, POS.Application.DTOs.Quotes.QuoteDetailResult detail)
+    {
+        if (DataContext is not QuoteViewModel quoteViewModel)
+        {
+            return;
+        }
+
+        quoteViewModel.LoadForEdit(detail);
+        TabNueva.IsChecked = true;
     }
 
     private void OnFileExportRequested(object? sender, (string FileName, byte[] Data) args)

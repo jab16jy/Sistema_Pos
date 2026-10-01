@@ -206,15 +206,19 @@ public sealed class QuoteHistoryViewModelTests
         var vm = BuildHistoryVmWithProduct(summaries: summaries, quoteRepo: quoteRepo, product: product);
         await vm.LoadAsync(TestContext.Current.CancellationToken);
 
-        QuoteDetailResult? received = null;
-        vm.QuoteDetailRequested += (_, detail) => received = detail;
+        // Fire-and-forget continuation: wait on the event, not on a fixed sleep that only happens to
+        // be long enough on an idle runner. The timeout is a backstop against a hang.
+        var detailRequested = new TaskCompletionSource<QuoteDetailResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.QuoteDetailRequested += (_, detail) => detailRequested.TrySetResult(detail);
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
         vm.ViewDetailCommand.Execute(row);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
 
-        Assert.NotNull(received);
-        Assert.Equal("COT-013", received!.QuoteNumber);
+        QuoteDetailResult received = await detailRequested.Task.WaitAsync(
+            TimeSpan.FromSeconds(10),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("COT-013", received.QuoteNumber);
         Assert.Single(received.Items);
         Assert.Equal("Producto Test", received.Items[0].ProductName);
     }
@@ -357,6 +361,263 @@ public sealed class QuoteHistoryViewModelTests
 
         Assert.Equal("COT-011.pdf", exported?.FileName);
         Assert.NotNull(exported?.Data);
+    }
+
+    // --- Editable proposals: the affordance is the aggregate's status rule, restated for the binding ---
+
+    [Theory]
+    [InlineData(QuoteStatus.Draft, true)]
+    [InlineData(QuoteStatus.Active, true)]
+    [InlineData(QuoteStatus.Expired, false)]
+    [InlineData(QuoteStatus.Converted, false)]
+    [InlineData(QuoteStatus.Cancelled, false)]
+    public void QuoteSummaryRow_CanEdit_AgreesWithTheAggregateForEveryStatus(QuoteStatus status, bool expected)
+    {
+        var summary = new QuoteSummary(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-EDIT-MATRIX",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: status,
+            ExpiresAt: "2026-12-31");
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        var aggregate = new Domain.Entities.Quote("COT-EDIT-MATRIX", "Cliente", 30);
+        if (status == QuoteStatus.Converted)
+        {
+            aggregate.Convert(Guid.NewGuid());
+        }
+        else if (status == QuoteStatus.Expired)
+        {
+            aggregate.Expire();
+        }
+        else if (status == QuoteStatus.Cancelled)
+        {
+            aggregate.Cancel();
+        }
+
+        Assert.Equal(expected, row.CanEdit);
+        Assert.Equal(aggregate.CanEdit, row.CanEdit);
+    }
+
+    /// <summary>
+    /// C6c. CanConvertToSale, CanEdit and CanCancel each used to restate the status set by hand, in
+    /// addition to <c>Quote.CanEdit</c> in the domain — four expressions that only a comment claimed
+    /// agreed. This pins all three against the domain aggregate for every status, so a new QuoteStatus
+    /// member cannot leave one affordance behind. Note CanCancel legitimately differs from CanEdit on
+    /// Expired: cancelling a lapsed quote is how the shop retires it.
+    /// </summary>
+    [Theory]
+    [InlineData(QuoteStatus.Draft, true, true, true)]
+    [InlineData(QuoteStatus.Active, true, true, true)]
+    [InlineData(QuoteStatus.Expired, false, false, true)]
+    [InlineData(QuoteStatus.Converted, false, false, false)]
+    [InlineData(QuoteStatus.Cancelled, false, false, false)]
+    public void QuoteSummaryRow_TheThreeAffordancesAgreeWithTheDomainForEveryStatus(
+        QuoteStatus status, bool canConvert, bool canEdit, bool canCancel)
+    {
+        var row = QuoteSummaryRow.FromSummary(new QuoteSummary(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-AFFORDANCES",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: status,
+            ExpiresAt: "2026-12-31"));
+
+        Assert.Equal(canConvert, row.CanConvertToSale);
+        Assert.Equal(canEdit, row.CanEdit);
+        Assert.Equal(canCancel, row.CanCancel);
+
+        // The domain remains authoritative: a live quote is a proposal, a converted or cancelled one is
+        // not. Only the expiry half of the row's rule is invisible from a status alone, and it is
+        // covered by the lapsed-row tests below.
+        var aggregate = new Domain.Entities.Quote("COT-AFFORDANCES", "Cliente", 30);
+        if (status == QuoteStatus.Converted)
+        {
+            aggregate.Convert(Guid.NewGuid());
+        }
+        else if (status == QuoteStatus.Expired)
+        {
+            aggregate.Expire();
+        }
+        else if (status == QuoteStatus.Cancelled)
+        {
+            aggregate.Cancel();
+        }
+
+        Assert.Equal(aggregate.CanEdit, row.CanEdit);
+    }
+
+    /// <summary>
+    /// C3 at the row level. A lapsed quote is still <c>Draft</c> — nothing transitions it, because
+    /// <c>Expire()</c> is only reached from the conversion path — so a status-only affordance rule left
+    /// the Edit action showing on a quote the use case would refuse to save, and offered no renewal
+    /// guidance. The row mirrors the aggregate's rule: editable status AND a deadline that has not lapsed.
+    /// </summary>
+    [Fact]
+    public void QuoteSummaryRow_ALapsedDraftLosesTheEditAffordanceAndShowsRenewalGuidance()
+    {
+        QuoteSummary summary = new(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-LAPSED",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: Domain.Enums.QuoteStatus.Draft,
+            ExpiresAt: "2026-01-01",
+            IsExpiredByCalendar: true);
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        Assert.False(row.CanEdit);
+        Assert.False(row.CanConvertToSale);
+        Assert.True(row.IsExpiredByCalendar);
+        Assert.Equal("Renueva o crea otra cotización para vender.", row.ExpirationGuidance);
+    }
+
+    /// <summary>
+    /// The same row, but never emailed. Expiry used to be inferred from the "Vencida" reminder label,
+    /// and the label itself was gated on a successful email — so a quote that was never sent reported no
+    /// expiry, kept its edit affordance, and showed no guidance. A deadline elapsing is a fact about the
+    /// quote, not about the channel it went out on.
+    /// </summary>
+    [Fact]
+    public void QuoteSummaryRow_ANeverEmailedLapsedQuote_StillReportsTheExpiry()
+    {
+        QuoteSummary summary = new(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-LAPSED-NO-EMAIL",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: Domain.Enums.QuoteStatus.Draft,
+            ExpiresAt: "2026-01-01",
+            HasSuccessfulEmail: false,
+            ReminderLabel: "Vencida",
+            IsExpiredByCalendar: true);
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        Assert.True(row.IsExpiredByCalendar);
+        Assert.True(row.HasReminder);
+        Assert.False(row.CanEdit);
+        Assert.Equal("Renueva o crea otra cotización para vender.", row.ExpirationGuidance);
+    }
+
+    [Fact]
+    public async Task EditCommand_WithoutQuotesEditPermission_BlocksWithRecoverableMessage()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-EDIT-PERM", product.Id);
+        quoteRepo.Store(quote);
+
+        var summaries = new List<QuoteSummary>
+        {
+            new QuoteSummary(quote.Id, "COT-EDIT-PERM", "Cliente Sin Permiso", null, null, 2_000m, QuoteStatus.Active, "2026-12-31")
+        };
+
+        QuoteHistoryViewModel vm = BuildHistoryVmWithProduct(
+            summaries,
+            quoteRepo,
+            product,
+            session: new OperatorSessionWithoutQuotesEdit(Guid.NewGuid()));
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteDetailResult? requested = null;
+        vm.QuoteEditRequested += (_, detail) => requested = detail;
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        vm.EditCommand.Execute(row);
+
+        // No wait needed, and none taken: the permission gate is synchronous inside RequestQuoteEdit, so
+        // the message is already set once Execute returns. The fire-and-forget continuation is only
+        // reached past that gate, which is precisely what this test proves it is not.
+        Assert.Null(requested);
+        Assert.Contains("permiso", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EditCommand_WhenQuoteIsFrozen_BlocksWithRecoverableMessage()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-EDIT-FROZEN", product.Id);
+        quote.Convert(Guid.NewGuid());
+        quoteRepo.Store(quote);
+
+        QuoteHistoryViewModel vm = BuildHistoryVmWithProduct(
+            [new QuoteSummary(quote.Id, "COT-EDIT-FROZEN", "Cliente Convertida", null, null, 2_000m, QuoteStatus.Converted, "2026-12-31")],
+            quoteRepo,
+            product);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteDetailResult? requested = null;
+        vm.QuoteEditRequested += (_, detail) => requested = detail;
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        Assert.False(row.CanEdit);
+
+        vm.EditCommand.Execute(row);
+
+        // Synchronous gate again — see the permission test above. The message is set before Execute returns.
+        Assert.Null(requested);
+        Assert.Contains("no se puede editar", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EditCommand_RaisesQuoteEditRequestedWithTheLoadedDetail()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Detalle", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-EDIT-OK", product.Id);
+        quoteRepo.Store(quote);
+
+        var summaries = new List<QuoteSummary>
+        {
+            new QuoteSummary(quote.Id, "COT-EDIT-OK", "Cliente Detalle", null, null, 2_000m, QuoteStatus.Active, "2026-12-31")
+        };
+
+        QuoteHistoryViewModel vm = BuildHistoryVmWithProduct(summaries, quoteRepo, product);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        // The detail load is a fire-and-forget continuation (ViewModelBase.RunSafe → ObserveTaskAsync),
+        // so this waits on the event itself rather than on a fixed sleep that only passes on a runner
+        // that happens to be idle. The timeout is a backstop against a hang, not the mechanism.
+        var editRequested = new TaskCompletionSource<QuoteDetailResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.QuoteEditRequested += (_, detail) => editRequested.TrySetResult(detail);
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        vm.EditCommand.Execute(row);
+
+        QuoteDetailResult requested = await editRequested.Task.WaitAsync(
+            TimeSpan.FromSeconds(10),
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(requested);
+        Assert.Equal(quote.Id, requested.QuoteId);
+        Assert.Equal("COT-EDIT-OK", requested.QuoteNumber);
+        // The detail comes from the stored aggregate, not the summary — the quote starts as Draft.
+        Assert.Equal(QuoteStatus.Draft, requested.Status);
+        Assert.Single(requested.Items);
+        Assert.Equal("Producto Test", requested.Items[0].ProductName);
+    }
+
+    [Fact]
+    public async Task EditAsync_WhenDetailUseCaseIsUnavailable_SetsRecoverableMessage()
+    {
+        var vm = BuildHistoryVm();
+
+        await vm.EditAsync(new QuoteSummaryRow(Guid.NewGuid(), "COT-EDIT-NODETAIL", "Cliente", null, null, 10_000m, "$10.000", QuoteStatus.Active, "Activa", "2026-12-31"), TestContext.Current.CancellationToken);
+
+        Assert.Contains("no está disponible", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
 
     // --- Helpers ---
@@ -689,6 +950,18 @@ public sealed class QuoteHistoryViewModelTests
         public IReadOnlySet<string> Permissions => new HashSet<string>(POS.Domain.Authorization.PermissionKeys.CashierDefaults);
         public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => OperatorId != Guid.Empty;
+    }
+
+    private sealed class OperatorSessionWithoutQuotesEdit(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => "cashier";
+        public bool IsAuthenticated => OperatorId != Guid.Empty;
+
+        // Everything the cashier role grants except the quote correction — the negative control for I6.
+        public IReadOnlySet<string> Permissions => new HashSet<string>(
+            POS.Domain.Authorization.PermissionKeys.CashierDefaults
+                .Where(key => key != POS.Domain.Authorization.PermissionKeys.Quotes.Edit));
     }
 
     // --- RED: settlement plan forwarded on quote conversion ---
