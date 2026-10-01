@@ -43,6 +43,9 @@ public sealed class CashierProductSearchResultViewModel : ViewModelBase
     // ── Packaged presentations ──
     public IReadOnlyList<PresentationOptionViewModel> AvailablePresentations { get; }
 
+    /// <summary>A dropdown with a single entry is noise, so the quotes row only shows it when there is a choice.</summary>
+    public bool HasMultiplePresentations => AvailablePresentations.Count > 1;
+
     /// <summary>
     /// The presentation this row will add, defaulting to the loose unit.
     /// </summary>
