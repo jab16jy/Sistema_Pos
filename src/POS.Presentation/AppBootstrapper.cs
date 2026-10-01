@@ -121,7 +121,8 @@ internal static class AppBootstrapper
                 productLookup,
                 sp.GetRequiredService<CreateQuoteUseCase>(),
                 TryResolveOptional<POS.Application.UseCases.Communication.SendDocumentUseCase>(sp),
-                TryResolveOptional<SearchCustomersUseCase>(sp)),
+                TryResolveOptional<SearchCustomersUseCase>(sp),
+                TryResolveOptional<UpdateQuoteUseCase>(sp)),
             moduleWarnings);
 
         GetDashboardSummaryUseCase? dashboardUseCase = TryResolveOptional<GetDashboardSummaryUseCase>(sp);
