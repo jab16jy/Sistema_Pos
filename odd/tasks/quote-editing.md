@@ -669,3 +669,26 @@ Batch 1 ended at 1043; batch 2 added 35 tests.
    the total, and a lapsed row showing "Vencida" with the renewal guidance.
 4. **`CreateQuoteUseCase` and `CancelQuoteUseCase` are ungated at the use-case level.**
    Pre-existing app-wide pattern, recorded in C1b, needs its own change.
+
+## Visual fixes after batch 2 (`6a6c941`)
+
+Two operator-reported visual defects in the quotes screen, fixed in one commit. Neither
+touches the money path or the edit flow.
+
+| # | Defect | Root cause | Fix |
+|---|---|---|---|
+| V1 | A product with a single presentation still rendered a one-entry dropdown | `AvailablePresentations` always contains the loose unit, so "one presentation" means `Count == 1`; the `ComboBox` was unconditional | `CashierProductSearchResultViewModel.HasMultiplePresentations` (`Count > 1`) drives the `ComboBox` visibility. A product with Unidad + Caja still shows it. Test: `HasMultiplePresentations_IsFalseOnlyWhenTheLooseUnitIsTheSoleOption` |
+| V2 | "Aplicar a todas" and "Quitar" drew text on top of each other in the global discount row | both buttons were declared in `Grid.Column="2"` of `QuoteView.xaml` | "Quitar" moved to `Grid.Column="3"`, which already existed as `Auto` and was empty |
+
+`dotnet build src/POS.Presentation` -> 0 errors. V1 test: 2/2 passing in
+`CashierProductSearchResultViewModelTests`. V2 is XAML layout only and has no headless
+test; it is covered by the manual runtime check below.
+
+**Review status:** low risk (+17 lines, one XAML attribute each, no domain or persistence
+change), so no lens fan-out. The native review status returned `managed_assets_outdated`
+(a `gentle-ai sync` is owed), so no receipt was issued for this commit.
+
+**Added to "Outstanding Before Archive":** the manual runtime check also owes confirming
+that a single-presentation product shows no dropdown and that the global discount row
+shows both buttons side by side. Whether "Quitar" should hide when no discount is applied
+was left as is (it is always visible, enabled only when a discount exists).
