@@ -126,7 +126,11 @@ public sealed class UpdateQuoteUseCaseTests
         var unitOfWork = new InMemoryUnitOfWork();
         var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork, SessionWithQuotesEdit());
 
-        var exception = await Assert.ThrowsAsync<QuoteNotEditableException>(() =>
+        // The type is now the aggregate's, not the use case's local copy of the guard: a converted quote
+        // raises QuoteAlreadyConvertedException, which is what QuoteTests already specifies for
+        // QuoteStatus.Converted. The two paths agreeing is the point — this assertion used to pin the
+        // duplicate instead, which is how the duplicate was free to drift on the lapsed case.
+        var exception = await Assert.ThrowsAsync<QuoteAlreadyConvertedException>(() =>
             useCase.ExecuteAsync(
                 new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
                 TestContext.Current.CancellationToken));
@@ -183,6 +187,49 @@ public sealed class UpdateQuoteUseCaseTests
         quote.AddItem(new QuoteItem(product.Id, "Widget", new Money(500m), new Quantity(2m), 0m));
         quotes.Add(quote);
         return quote;
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ADraftQuoteWhoseDeadlinePassed_RejectsBeforeAnyWrite()
+    {
+        // C3 at the trust boundary. Expire() has one caller in src/ (the conversion path), so a lapsed
+        // quote is still Draft here — and a status-only check would have let this save through,
+        // re-anchoring ExpiresAt to CreatedAt + the new ValidityDays and resurrecting a lapsed offer as
+        // a live, convertible one.
+        var product = CreateProduct("Widget");
+        var quotes = new InMemoryQuoteRepository();
+        Quote stored = SeedDraftQuote(quotes, product);
+        SetExpiresAt(stored, DateTime.UtcNow.AddHours(-5).Date.AddDays(-1).AddHours(5));
+        var unitOfWork = new InMemoryUnitOfWork();
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork, SessionWithQuotesEdit());
+
+        var exception = await Assert.ThrowsAsync<QuoteNotEditableException>(() =>
+            useCase.ExecuteAsync(
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 90, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+                TestContext.Current.CancellationToken));
+
+        // Surfaced to the operator as expired, which is what it is — not as "estado Draft".
+        Assert.Contains("vencida", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("Test Customer", stored.CustomerName);
+        Assert.Equal(30, stored.ValidityDays);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ADraftQuoteExpiringToday_IsStillEditable()
+    {
+        var product = CreateProduct("Widget");
+        var quotes = new InMemoryQuoteRepository();
+        Quote stored = SeedDraftQuote(quotes, product);
+        SetExpiresAt(stored, DateTime.UtcNow.AddHours(-5).Date.AddHours(5));
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
+
+        QuoteResult result = await useCase.ExecuteAsync(
+            new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1_000m, result.Total);
+        Assert.Equal("Ana Gomez", Assert.Single(quotes.Quotes).CustomerName);
     }
 
     [Fact]
@@ -246,6 +293,11 @@ public sealed class UpdateQuoteUseCaseTests
         typeof(Quote)
             .GetProperty(nameof(Quote.Status), System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)!
             .SetValue(quote, status);
+
+    private static void SetExpiresAt(Quote quote, DateTime expiresAt) =>
+        typeof(Quote)
+            .GetProperty(nameof(Quote.ExpiresAt), System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)!
+            .SetValue(quote, expiresAt);
 
     private sealed class SessionFake(bool isAuthenticated, params string[] permissions) : ICurrentOperatorSession
     {

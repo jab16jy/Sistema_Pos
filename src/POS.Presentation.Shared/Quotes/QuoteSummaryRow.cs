@@ -16,7 +16,8 @@ public sealed record QuoteSummaryRow(
     string ExpiresAt,
     Guid? CustomerId = null,
     bool HasSuccessfulEmail = false,
-    string? ReminderLabel = null)
+    string? ReminderLabel = null,
+    bool IsExpiredByCalendar = false)
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
 
@@ -34,7 +35,8 @@ public sealed record QuoteSummaryRow(
             summary.ExpiresAt,
             summary.CustomerId,
             summary.HasSuccessfulEmail,
-            summary.ReminderLabel);
+            summary.ReminderLabel,
+            summary.IsExpiredByCalendar);
 
     /// <summary>
     /// True when this quote references a customer registered in the system, as opposed to a walk-in/casual
@@ -57,6 +59,14 @@ public sealed record QuoteSummaryRow(
     };
 
     /// <summary>
+    /// True when the expiry chip should be shown. Reads the label alone, with no send-history gate: a
+    /// deadline elapsing is a calendar fact about the quote, not a fact about whether an email went out.
+    /// Gating this on HasSuccessfulEmail — as this did — hid "Vencida" for every quote that was never
+    /// sent, and took the renewal guidance with it.
+    /// </summary>
+    public bool HasReminder => !string.IsNullOrWhiteSpace(ReminderLabel);
+
+    /// <summary>
     /// Chip color variant for the status badge ("success"/"warning"/"error"/"neutral"). Domain only models
     /// Draft/Active/Expired/Converted/Cancelled.
     /// </summary>
@@ -71,26 +81,28 @@ public sealed record QuoteSummaryRow(
     };
 
     /// <summary>
-    /// True when the "Venta" row action should be shown. Mirrors <c>ConvertQuoteToSaleUseCase</c>'s own guard
-    /// (blocks Converted/Expired). New quotes are created as Draft, and the documented business rule allows
-    /// Draft or Active quotes to be converted.
+    /// Renewal guidance for a lapsed proposal. Driven by the same field as the chip, so the operator is
+    /// told what to do about an expired quote whether or not it was ever emailed.
     /// </summary>
-    public bool HasReminder => HasSuccessfulEmail && !string.IsNullOrWhiteSpace(ReminderLabel);
-
-    public bool IsExpiredByCalendar => string.Equals(ReminderLabel, "Vencida", StringComparison.Ordinal);
-
     public string ExpirationGuidance => IsExpiredByCalendar
         ? "Renueva o crea otra cotización para vender."
         : string.Empty;
 
+    /// <summary>
+    /// True when the "Venta" row action should be shown. Mirrors <c>ConvertQuoteToSaleUseCase</c>'s own guard
+    /// (blocks Converted/Expired). New quotes are created as Draft, and the documented business rule allows
+    /// Draft or Active quotes to be converted.
+    /// </summary>
     public bool CanConvertToSale => !IsExpiredByCalendar && Status is QuoteStatus.Draft or QuoteStatus.Active;
 
     /// <summary>
-    /// True when the quote is still a proposal that may be corrected. Mirrors <c>Quote.CanEdit</c>
-    /// exactly — the rule is the aggregate's, this only restates it so the row can drive a binding.
-    /// Whether the operator is *allowed* to edit is a permission question and lives in the view-model.
+    /// True when the quote is still a proposal that may be corrected, mirroring <c>Quote.CanEdit</c> — the
+    /// rule is the aggregate's, this only restates it so the row can drive a binding. That rule requires
+    /// an editable status AND a deadline that has not lapsed, so a lapsed Draft (which no caller has
+    /// transitioned to Expired) loses its affordance here too. Whether the operator is *allowed* to edit
+    /// is a permission question and lives in the view-model.
     /// </summary>
-    public bool CanEdit => Status is QuoteStatus.Draft or QuoteStatus.Active;
+    public bool CanEdit => !IsExpiredByCalendar && Status is QuoteStatus.Draft or QuoteStatus.Active;
 
     public bool CanCancel => Status is QuoteStatus.Draft or QuoteStatus.Active or QuoteStatus.Expired;
 }

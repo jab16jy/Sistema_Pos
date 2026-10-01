@@ -142,6 +142,86 @@ public sealed class QuoteTests
         Assert.False(quote.CanEdit);
     }
 
+    /// <summary>
+    /// C3. <c>Expire()</c> has exactly one caller in src/ — the conversion path — so a quote whose
+    /// deadline passed keeps <c>Draft</c> forever. A status-only rule therefore left a lapsed proposal
+    /// editable, and saving it with a larger ValidityDays would have resurrected a lapsed offer as a
+    /// live, convertible one. The maintainer decision: a calendar-expired quote is treated exactly like
+    /// <c>QuoteStatus.Expired</c>, and renewal means creating a new quote.
+    /// </summary>
+    [Fact]
+    public void CanEditAt_ADraftQuoteWhoseDeadlinePassed_IsNotEditable()
+    {
+        var quote = new Quote("COT-2026-LAPSED", "Test Customer", 30);
+        SetStatus(quote, QuoteStatus.Draft);
+        SetExpiresAt(quote, ColombiaMidnightUtc(-1));
+
+        Assert.False(quote.CanEditAt(ColombiaMidnightUtc(0)));
+    }
+
+    [Fact]
+    public void CanEditAt_ADraftQuoteExpiringToday_IsStillEditable()
+    {
+        // The deadline day itself is still valid — this matches ConvertQuoteToSaleUseCase, which allows
+        // conversion on the expiration date in UTC-5. Off-by-one here would silently freeze quotes early.
+        var quote = new Quote("COT-2026-TODAY", "Test Customer", 30);
+        SetStatus(quote, QuoteStatus.Draft);
+        SetExpiresAt(quote, ColombiaMidnightUtc(0));
+
+        Assert.True(quote.CanEditAt(ColombiaMidnightUtc(0)));
+    }
+
+    [Fact]
+    public void CanEditAt_UsesTheColombianCalendarDayNotTheUtcOne()
+    {
+        // A deadline of 03:00 UTC on the 2nd is already the 2nd at 22:00 on the 1st in Bogotá. Judged on
+        // the UTC date it would read as two days of validity left; judged on the Colombian date, one.
+        var quote = new Quote("COT-2026-TZ", "Test Customer", 30);
+        SetExpiresAt(quote, new DateTime(2026, 10, 2, 3, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal(new DateOnly(2026, 10, 1), quote.ColombiaExpirationDate);
+
+        // 2026-10-02 02:00 UTC is 2026-10-01 21:00 in Colombia: same Colombian day, still valid.
+        Assert.True(quote.CanEditAt(new DateTime(2026, 10, 2, 2, 0, 0, DateTimeKind.Utc)));
+        // Five minutes later it is 2026-10-02 in Colombia and the quote has lapsed.
+        Assert.False(quote.CanEditAt(new DateTime(2026, 10, 2, 5, 5, 0, DateTimeKind.Utc)));
+    }
+
+    [Fact]
+    public void Update_ADraftQuoteWhoseDeadlinePassed_ThrowsAsExpiredAndLeavesTheQuoteUntouched()
+    {
+        var quote = new Quote("COT-2026-LAPSED-UPD", "Test Customer", 30, null, null, null, "Original");
+        quote.AddItem(new QuoteItem(Guid.NewGuid(), "Product A", new Money(1_000m), new Quantity(2m), 0m));
+        SetExpiresAt(quote, ColombiaMidnightUtc(-1));
+
+        // Reported as expired, not as "estado Draft": the status alone would tell the operator the quote
+        // is editable right before the write is refused.
+        var exception = Assert.Throws<QuoteNotEditableException>(
+            () => quote.Update("Nuevo Cliente", 90, null, null, "Cambio"));
+
+        Assert.Contains("vencida", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(QuoteStatus.Draft, quote.Status);
+        Assert.Equal("Test Customer", quote.CustomerName);
+        Assert.Equal(30, quote.ValidityDays);
+        Assert.Equal("Original", quote.Observations);
+        Assert.Single(quote.Items);
+    }
+
+    [Fact]
+    public void ReplaceItems_ADraftQuoteExpiringToday_StillAcceptsTheCorrection()
+    {
+        var quote = new Quote("COT-2026-TODAY-REP", "Test Customer", 30);
+        SetExpiresAt(quote, ColombiaMidnightUtc(0));
+
+        quote.ReplaceItems([new QuoteItem(Guid.NewGuid(), "Product A", new Money(1_000m), new Quantity(1m), 0m)]);
+
+        Assert.Single(quote.Items);
+    }
+
+    /// <summary>Midnight of the Colombian day <paramref name="offsetDays"/> from today, in UTC (Colombia = UTC-5).</summary>
+    private static DateTime ColombiaMidnightUtc(int offsetDays) =>
+        DateTime.UtcNow.AddHours(-5).Date.AddDays(offsetDays).AddHours(5);
+
     [Theory]
     [InlineData(QuoteStatus.Converted, typeof(QuoteAlreadyConvertedException))]
     [InlineData(QuoteStatus.Cancelled, typeof(QuoteNotEditableException))]
@@ -243,4 +323,14 @@ public sealed class QuoteTests
         typeof(Quote)
             .GetProperty(nameof(Quote.Status), BindingFlags.Instance | BindingFlags.Public)!
             .SetValue(quote, status);
+
+    /// <summary>
+    /// <c>ExpiresAt</c> is anchored to <c>CreatedAt</c>, and the constructor only accepts a positive
+    /// validity, so a quote cannot be constructed already lapsed. Stamping the private setter is the
+    /// same escape hatch the existing Status tests use.
+    /// </summary>
+    private static void SetExpiresAt(Quote quote, DateTime expiresAt) =>
+        typeof(Quote)
+            .GetProperty(nameof(Quote.ExpiresAt), BindingFlags.Instance | BindingFlags.Public)!
+            .SetValue(quote, expiresAt);
 }

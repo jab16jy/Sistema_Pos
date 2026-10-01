@@ -59,12 +59,14 @@ public sealed class UpdateQuoteUseCase
             ?? throw new InvalidOperationException($"Cotización {request.QuoteId} no encontrada.");
 
         // Checked before the discount policy and the product lookups so a frozen quote is rejected
-        // without touching anything. The aggregate repeats the same guard on Update/ReplaceItems;
-        // this copy only exists to fail earlier and cheaper.
-        if (!quote.CanEdit)
-        {
-            throw new QuoteNotEditableException(quote.QuoteNumber, quote.Status);
-        }
+        // without touching anything. The aggregate repeats the same guard on Update/ReplaceItems; this
+        // call exists only to fail earlier and cheaper. It delegates to the aggregate rather than
+        // re-deriving the rule, because a local copy of this check had already drifted — it threw with
+        // the raw Status, so a lapsed-but-still-Draft quote was reported as "estado Draft" instead of
+        // vencida. The instant is captured once here and reused below, so the guard and the write it
+        // protects are evaluated against the same clock.
+        DateTime utcNow = DateTime.UtcNow;
+        quote.EnsureEditableAt(utcNow);
 
         // Same ceiling as creation: a quote is a proposal a client may hold on to, so an edit must
         // not become a way around the discount limit the cashier is held to at the till.

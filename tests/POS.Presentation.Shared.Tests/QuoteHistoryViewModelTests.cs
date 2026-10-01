@@ -399,6 +399,64 @@ public sealed class QuoteHistoryViewModelTests
         Assert.Equal(aggregate.CanEdit, row.CanEdit);
     }
 
+    /// <summary>
+    /// C3 at the row level. A lapsed quote is still <c>Draft</c> — nothing transitions it, because
+    /// <c>Expire()</c> is only reached from the conversion path — so a status-only affordance rule left
+    /// the Edit action showing on a quote the use case would refuse to save, and offered no renewal
+    /// guidance. The row mirrors the aggregate's rule: editable status AND a deadline that has not lapsed.
+    /// </summary>
+    [Fact]
+    public void QuoteSummaryRow_ALapsedDraftLosesTheEditAffordanceAndShowsRenewalGuidance()
+    {
+        QuoteSummary summary = new(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-LAPSED",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: Domain.Enums.QuoteStatus.Draft,
+            ExpiresAt: "2026-01-01",
+            IsExpiredByCalendar: true);
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        Assert.False(row.CanEdit);
+        Assert.False(row.CanConvertToSale);
+        Assert.True(row.IsExpiredByCalendar);
+        Assert.Equal("Renueva o crea otra cotización para vender.", row.ExpirationGuidance);
+    }
+
+    /// <summary>
+    /// The same row, but never emailed. Expiry used to be inferred from the "Vencida" reminder label,
+    /// and the label itself was gated on a successful email — so a quote that was never sent reported no
+    /// expiry, kept its edit affordance, and showed no guidance. A deadline elapsing is a fact about the
+    /// quote, not about the channel it went out on.
+    /// </summary>
+    [Fact]
+    public void QuoteSummaryRow_ANeverEmailedLapsedQuote_StillReportsTheExpiry()
+    {
+        QuoteSummary summary = new(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-LAPSED-NO-EMAIL",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: Domain.Enums.QuoteStatus.Draft,
+            ExpiresAt: "2026-01-01",
+            HasSuccessfulEmail: false,
+            ReminderLabel: "Vencida",
+            IsExpiredByCalendar: true);
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        Assert.True(row.IsExpiredByCalendar);
+        Assert.True(row.HasReminder);
+        Assert.False(row.CanEdit);
+        Assert.Equal("Renueva o crea otra cotización para vender.", row.ExpirationGuidance);
+    }
+
     [Fact]
     public async Task EditCommand_WithoutQuotesEditPermission_BlocksWithRecoverableMessage()
     {

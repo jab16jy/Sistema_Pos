@@ -56,10 +56,40 @@ public sealed class Quote
     public decimal Total => _items.Sum(i => i.Subtotal().Amount);
 
     /// <summary>
-    /// A quote stays editable only while it is still a proposal. Converted is the point where it
-    /// became a Sale, so that plus Cancelled and Expired are frozen for good.
+    /// Colombia has no daylight saving, so UTC-5 is a fixed offset. A quote's deadline is judged on
+    /// the Colombian calendar day, not the UTC one: at 20:00 in Bogotá it is already the next day for
+    /// the shop, and a quote that lapsed for the client lapsed on the day the client reads.
     /// </summary>
-    public bool CanEdit => Status is QuoteStatus.Draft or QuoteStatus.Active;
+    private const int ColombiaUtcOffsetHours = -5;
+
+    /// <summary>
+    /// The deadline as a Colombian calendar day, which is the unit a validity window is actually
+    /// expressed in. <see cref="ExpiresAt"/> is stored in UTC.
+    /// </summary>
+    public DateOnly ColombiaExpirationDate => DateOnly.FromDateTime(ExpiresAt.AddHours(ColombiaUtcOffsetHours));
+
+    /// <summary>
+    /// A quote stays editable only while it is still a proposal AND has not lapsed. Converted is the
+    /// point where it became a Sale, so that plus Cancelled and Expired are frozen for good.
+    /// </summary>
+    /// <remarks>
+    /// The lapsed case is why this is not a status check alone. <see cref="Expire"/> has exactly one
+    /// caller in <c>src/</c> — the conversion path — so a quote whose deadline passed keeps
+    /// <see cref="QuoteStatus.Draft"/> indefinitely. Left as a pure status rule, a lapsed proposal stays
+    /// editable and saving it with a larger <c>ValidityDays</c> would resurrect it as a live, convertible
+    /// quote, re-pricing an offer the client already let lapse. A lapsed quote is renewed by creating a
+    /// new one, which is the same guidance <c>QuoteSummaryRow.ExpirationGuidance</c> already gives.
+    /// </remarks>
+    public bool CanEdit => CanEditAt(DateTime.UtcNow);
+
+    /// <summary>
+    /// <see cref="CanEdit"/> with the clock supplied, so the rule is deterministic and testable instead
+    /// of reading wall-clock time inside a property. Uses the same UTC-5 comparison
+    /// <c>ConvertQuoteToSaleUseCase</c> applies — one rule, not two subtly different ones.
+    /// </summary>
+    public bool CanEditAt(DateTime utcNow) =>
+        Status is QuoteStatus.Draft or QuoteStatus.Active &&
+        ColombiaExpirationDate >= DateOnly.FromDateTime(utcNow.AddHours(ColombiaUtcOffsetHours));
 
     public void AddItem(QuoteItem item)
     {
@@ -145,6 +175,30 @@ public sealed class Quote
         Status = QuoteStatus.Cancelled;
     }
 
+    /// <summary>
+    /// The single editability guard, with the clock supplied. Public so callers can validate before doing
+    /// any work and still get the aggregate's exact rejection, rather than re-deriving the rule and
+    /// drifting from it — a duplicated copy of this check already reported a lapsed quote as
+    /// "estado Draft" instead of vencida.
+    /// </summary>
+    public void EnsureEditableAt(DateTime utcNow)
+    {
+        if (CanEditAt(utcNow))
+        {
+            return;
+        }
+
+        if (Status == QuoteStatus.Converted)
+        {
+            throw new QuoteAlreadyConvertedException(QuoteNumber);
+        }
+
+        // A lapsed-but-still-Draft quote is reported as expired, because that is what it is from the
+        // client's point of view. Reporting it as "estado Draft" would tell the operator the quote is
+        // editable right before the write is rejected.
+        throw new QuoteNotEditableException(QuoteNumber, IsLapsedByCalendar(utcNow) ? QuoteStatus.Expired : Status);
+    }
+
     private void EnsureEditable()
     {
         if (CanEdit)
@@ -157,6 +211,17 @@ public sealed class Quote
             throw new QuoteAlreadyConvertedException(QuoteNumber);
         }
 
-        throw new QuoteNotEditableException(QuoteNumber, Status);
+        // A lapsed-but-still-Draft quote is reported as expired, because that is what it is from the
+        // client's point of view. Reporting it as "estado Draft" would tell the operator the quote is
+        // editable right before the write is rejected.
+        throw new QuoteNotEditableException(QuoteNumber, IsLapsedByCalendar(DateTime.UtcNow) ? QuoteStatus.Expired : Status);
     }
+
+    /// <summary>
+    /// True when the deadline has passed on the Colombian calendar while the quote is still a proposal
+    /// and therefore has not been transitioned to <see cref="QuoteStatus.Expired"/> by any caller.
+    /// </summary>
+    public bool IsLapsedByCalendar(DateTime utcNow) =>
+        Status is QuoteStatus.Draft or QuoteStatus.Active &&
+        ColombiaExpirationDate < DateOnly.FromDateTime(utcNow.AddHours(ColombiaUtcOffsetHours));
 }
