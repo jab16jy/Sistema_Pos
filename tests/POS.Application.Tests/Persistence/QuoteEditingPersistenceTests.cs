@@ -1,7 +1,9 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using POS.Application.DTOs.Quotes;
+using POS.Application.DTOs.Sales;
 using POS.Application.UseCases.Quotes;
+using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Interfaces;
@@ -173,6 +175,85 @@ public sealed class QuoteEditingPersistenceTests
         Assert.Equal(QuoteStatus.Cancelled, reloaded.Status);
         Assert.Equal(2, reloaded.Items.Count);
         Assert.Equal(2, await CountRowsAsync(connection, "QUOTE_ITEMS", TestContext.Current.CancellationToken, quoteId));
+    }
+
+    /// <summary>
+    /// The other caller of the rewritten <c>UpdateAsync</c>, and the riskier one. Conversion runs
+    /// <c>UpdateAsync</c> INSIDE <c>ExecuteInTransactionAsync</c> while <c>CreateSaleUseCase</c> writes
+    /// through the same <see cref="AppDbContext"/>, and it does so on a quote whose <c>Items</c> were
+    /// loaded with <c>.Include(q =&gt; q.Items)</c> and are therefore already tracked. That combination is
+    /// exactly where the reconciliation can go wrong — a line marked Deleted or re-Added by mistake would
+    /// quietly destroy the quote that the invoice was built from.
+    ///
+    /// <c>CommercialPresentationFlowTests</c> covers conversion against a hand-rolled repository, so it
+    /// never reaches the EF reconciliation, and <c>QuoteExpirationTests</c> throws before
+    /// <c>UpdateAsync</c> is called at all. This is real SQLite, a real context and the real repository.
+    /// </summary>
+    [Fact]
+    public async Task ConvertQuoteToSaleUseCase_ThroughTheRewrittenUpdateAsync_LeavesTheQuoteConvertedAndItsLinesIntact()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await using (var seedContext = CreateDbContext(connection))
+        {
+            await seedContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        }
+
+        // Persisted first, and the SAME instance then handed to the quote builder: QUOTE_ITEMS carries an
+        // FK to PRODUCTS, so building the quote lines against an unpersisted stub would fail the insert
+        // for a reason that has nothing to do with the reconciliation under test.
+        Guid quoteId;
+        await using (var createContext = CreateDbContext(connection))
+        {
+            Product product = await TestProductFactory.CreateAndPersistAsync(
+                createContext,
+                "Widget",
+                new Money(500m),
+                new Money(1_000m),
+                new StockQuantity(20m),
+                new StockQuantity(2m),
+                TestContext.Current.CancellationToken);
+
+            var quotes = new QuoteRepository(createContext);
+            QuoteResult created = await new CreateQuoteUseCase(quotes, new StubProductRepository(product), createContext).ExecuteAsync(
+                new CreateQuoteRequest(null, "Test Customer", null, null, 30, null,
+                [
+                    new CreateQuoteItemRequest(product.Id, 2m, 0m),
+                    new CreateQuoteItemRequest(product.Id, 3m, 0m)
+                ]),
+                TestContext.Current.CancellationToken);
+            quoteId = created.QuoteId;
+        }
+
+        CreateSaleResult saleResult;
+        await using (var convertContext = CreateDbContext(connection))
+        {
+            var createSale = new CreateSaleUseCase(
+                new ProductRepository(convertContext),
+                new SaleRepository(convertContext),
+                convertContext,
+                authorizer: TestAuthorizer.Create(dbContext: convertContext));
+
+            saleResult = await new ConvertQuoteToSaleUseCase(new QuoteRepository(convertContext), createSale, convertContext).ExecuteAsync(
+                new ConvertQuoteToSaleRequest(
+                    quoteId,
+                    [new CreateSalePaymentRequest(PaymentMethod.Cash, 5_000m, 5_000m, null)]),
+                TestContext.Current.CancellationToken);
+        }
+
+        // Fresh context: nothing the converting context tracked can paper over a lost or duplicated row.
+        await using var reloadContext = CreateDbContext(connection);
+        var reloaded = await reloadContext.Quotes
+            .Include(q => q.Items)
+            .SingleAsync(q => q.Id == quoteId, TestContext.Current.CancellationToken);
+
+        Assert.Equal(QuoteStatus.Converted, reloaded.Status);
+        Assert.Equal(saleResult.SaleId, reloaded.ConvertedSaleId);
+        // The lines the invoice was built from are still here, unchanged, and the row count did not move:
+        // conversion rewrites the header only, so a reconcile that touched the lines would show up here.
+        Assert.Equal(2, reloaded.Items.Count);
+        Assert.Equal(1_000m * 2m + 1_000m * 3m, reloaded.Total);
+        Assert.Equal(2, await CountRowsAsync(connection, "QUOTE_ITEMS", TestContext.Current.CancellationToken, quoteId));
+        Assert.Equal(1, await CountRowsAsync(connection, "QUOTES", TestContext.Current.CancellationToken));
     }
 
     private static async Task<SqliteConnection> OpenConnectionAsync()
