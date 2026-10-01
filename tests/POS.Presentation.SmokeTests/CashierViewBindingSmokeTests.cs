@@ -58,10 +58,10 @@ public sealed class CashierViewBindingSmokeTests
                 // A product configured with many presentations (up to 50, see
                 // BusinessSettings.MaximumProductPresentations) must not make its result row taller.
                 double manyRow = MeasureResultRowHeight(BuildManyPresentationsRow());
-                double singleRow = MeasureResultRowHeight(BuildSinglePresentationRow());
+                double twoOptionsRow = MeasureResultRowHeight(BuildTwoOptionsRow());
                 Assert.True(
-                    manyRow <= singleRow + 1,
-                    $"A row with 20 presentations ({manyRow}px) must stay as tall as one with a single presentation ({singleRow}px).");
+                    manyRow <= twoOptionsRow + 1,
+                    $"A row with 20 presentations ({manyRow}px) must stay as tall as one with two options ({twoOptionsRow}px).");
 
                 application.Shutdown();
             }
@@ -171,10 +171,13 @@ public sealed class CashierViewBindingSmokeTests
         return new CashierProductSearchResultViewModel(product);
     }
 
-    private static CashierProductSearchResultViewModel BuildSinglePresentationRow()
+    // The smallest row that still shows the dropdown: a row with only the loose unit hides it, so it
+    // would be shorter than any row with a choice and is no baseline for "does not grow with count".
+    private static CashierProductSearchResultViewModel BuildTwoOptionsRow()
     {
         var product = new ProductLookupResult(
-            Guid.NewGuid(), "Producto de una sola presentación", "0002", 5_000m, 100m, 0m, null);
+            Guid.NewGuid(), "Producto con dos opciones", "0002", 5_000m, 100m, 0m,
+            [new ProductPresentationDto("Caja", 2, 9_000m)]);
         return new CashierProductSearchResultViewModel(product);
     }
 
