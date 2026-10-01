@@ -344,6 +344,61 @@ public sealed class QuoteViewModelTests
         Assert.Equal(9_000m, vm.Total);
     }
 
+    /// <summary>
+    /// C4a. "Descartar" is bound to CancelEditCommand, whose CanExecute closes over IsEditing, and
+    /// RelayCommand has no CommandManager behind it — WPF evaluates CanExecute once, at bind time, and
+    /// never re-queries. So the assertion has to go through CanExecute, not through CancelEdit(): the
+    /// old test called the method directly, which bypasses exactly the thing that was broken and is why
+    /// the button could never enable.
+    /// </summary>
+    [Fact]
+    public void CancelEditCommand_TracksIsEditingThroughCanExecute()
+    {
+        var vm = CreateViewModel(out _, out _);
+
+        // Bound state: the form is creating a new quote, so discarding an edit is meaningless.
+        Assert.False(vm.CancelEditCommand.CanExecute(null));
+
+        vm.LoadForEdit(new QuoteDetailResult(
+            Guid.NewGuid(), "COT-CANCEL-CANEXEC", null, "Ana Gómez", null, null,
+            Domain.Enums.QuoteStatus.Active, "2026-12-31", 1_000m,
+            [new QuoteDetailItemResult(Guid.NewGuid(), "Producto", 1m, 1_000m, 0m, 1_000m)],
+            null, 30));
+
+        Assert.True(vm.IsEditing);
+        Assert.True(vm.CancelEditCommand.CanExecute(null));
+
+        vm.CancelEdit();
+
+        Assert.False(vm.IsEditing);
+        Assert.False(vm.CancelEditCommand.CanExecute(null));
+    }
+
+    /// <summary>
+    /// CanExecute re-reads the predicate on every call, so the test above would pass even if the raise
+    /// were missing — it pins the value, not the notification. WPF only ever reads it again if
+    /// CanExecuteChanged fires, so that is the half that actually mattered and it needs its own assertion.
+    /// </summary>
+    [Fact]
+    public void CancelEditCommand_RaisesCanExecuteChanged_WhenIsEditingFlips()
+    {
+        var vm = CreateViewModel(out _, out _);
+        int raised = 0;
+        ((System.Windows.Input.ICommand)vm.CancelEditCommand).CanExecuteChanged += (_, _) => raised++;
+
+        vm.LoadForEdit(new QuoteDetailResult(
+            Guid.NewGuid(), "COT-CANCEL-RAISE", null, "Ana Gómez", null, null,
+            Domain.Enums.QuoteStatus.Active, "2026-12-31", 1_000m,
+            [new QuoteDetailItemResult(Guid.NewGuid(), "Producto", 1m, 1_000m, 0m, 1_000m)],
+            null, 30));
+        int afterLoad = raised;
+
+        vm.CancelEdit();
+
+        Assert.True(afterLoad > 0, "Entering edit mode must re-query the command's CanExecute.");
+        Assert.True(raised > afterLoad, "Leaving edit mode must re-query the command's CanExecute.");
+    }
+
     [Fact]
     public void CancelEdit_AfterHydrating_ReturnsToCreateModeAndDropsTheEditForm()
     {

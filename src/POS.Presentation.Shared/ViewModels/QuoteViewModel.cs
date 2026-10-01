@@ -45,6 +45,7 @@ public sealed class QuoteViewModel : ViewModelBase
     private decimal _cartDiscountPercentInput;
     private readonly RelayCommand _applyCartDiscountCommand;
     private readonly RelayCommand _clearCartDiscountCommand;
+    private readonly RelayCommand _cancelEditCommand;
 
     public QuoteViewModel(
         IProductLookupService productLookupService,
@@ -80,7 +81,8 @@ public sealed class QuoteViewModel : ViewModelBase
         ApplyCartDiscountCommand = _applyCartDiscountCommand;
         ClearCartDiscountCommand = _clearCartDiscountCommand;
         ConfirmCommand = new RelayCommand(_ => RunSafe(ConfirmAsync(), ex => ValidationMessage = $"Error al crear la cotización: {ex.Message}"));
-        CancelEditCommand = new RelayCommand(_ => CancelEdit(), _ => IsEditing);
+        _cancelEditCommand = new RelayCommand(_ => CancelEdit(), _ => IsEditing);
+        CancelEditCommand = _cancelEditCommand;
         SendByEmailCommand = new RelayCommand(_ => RunSafe(SendByEmailAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(_ => RunSafe(SendByWhatsAppAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
     }
@@ -236,6 +238,11 @@ public sealed class QuoteViewModel : ViewModelBase
             if (SetProperty(ref _isEditing, value))
             {
                 OnPropertyChanged(nameof(ConfirmButtonLabel));
+                // RelayCommand.CanExecuteChanged is a bare event with no CommandManager behind it, so WPF
+                // evaluates CanExecute exactly once, at bind time. Without this the "Descartar" button is
+                // bound while IsEditing is still false and never enables — the operator can enter edit mode
+                // and then only leave it by saving. Same pattern as RecalculateTotal below.
+                _cancelEditCommand.RaiseCanExecuteChanged();
             }
         }
     }
