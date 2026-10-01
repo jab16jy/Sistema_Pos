@@ -84,8 +84,9 @@ public sealed class QuoteEditingPersistenceTests
         Assert.Equal(reloaded.CreatedAt.AddDays(15), reloaded.ExpiresAt);
         Assert.Equal(QuoteStatus.Draft, reloaded.Status);
 
-        // The assertion that actually proves I4: the raw table, not the tracked graph.
-        Assert.Equal(2, await CountRowsAsync(connection, "QUOTE_ITEMS", TestContext.Current.CancellationToken));
+        // The assertion that actually proves the orphan is gone: the raw table, not the tracked graph,
+        // and scoped to this quote so it cannot pass on some other quote's rows.
+        Assert.Equal(2, await CountRowsAsync(connection, "QUOTE_ITEMS", TestContext.Current.CancellationToken, quoteId));
     }
 
     [Fact]
@@ -131,7 +132,7 @@ public sealed class QuoteEditingPersistenceTests
         Assert.Equal(33, reloaded.ValidityDays);
         // Every edit replaced the single line, so exactly one row must remain — not one per edit.
         Assert.Single(reloaded.Items);
-        Assert.Equal(1, await CountRowsAsync(connection, "QUOTE_ITEMS", TestContext.Current.CancellationToken));
+        Assert.Equal(1, await CountRowsAsync(connection, "QUOTE_ITEMS", TestContext.Current.CancellationToken, quoteId));
         Assert.Equal(1, await CountRowsAsync(connection, "QUOTES", TestContext.Current.CancellationToken));
     }
 
@@ -171,7 +172,7 @@ public sealed class QuoteEditingPersistenceTests
 
         Assert.Equal(QuoteStatus.Cancelled, reloaded.Status);
         Assert.Equal(2, reloaded.Items.Count);
-        Assert.Equal(2, await CountRowsAsync(connection, "QUOTE_ITEMS", TestContext.Current.CancellationToken));
+        Assert.Equal(2, await CountRowsAsync(connection, "QUOTE_ITEMS", TestContext.Current.CancellationToken, quoteId));
     }
 
     private static async Task<SqliteConnection> OpenConnectionAsync()
@@ -184,13 +185,30 @@ public sealed class QuoteEditingPersistenceTests
     private static AppDbContext CreateDbContext(SqliteConnection connection) =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options);
 
+    /// <summary>
+    /// Counts rows in a raw table, optionally scoped to one quote. Scoped rather than whole-table because
+    /// a whole-table count can only pass for the right reason while each fixture seeds exactly one quote;
+    /// the moment a second one appears it would report the sum of both and stop proving anything about
+    /// the quote under test.
+    /// </summary>
     private static async Task<int> CountRowsAsync(
         SqliteConnection connection,
         string table,
-        CancellationToken ct)
+        CancellationToken ct,
+        Guid? quoteId = null)
     {
         await using SqliteCommand command = connection.CreateCommand();
-        command.CommandText = $"SELECT COUNT(*) FROM \"{table}\";";
+        command.CommandText = quoteId.HasValue
+            ? $"SELECT COUNT(*) FROM \"{table}\" WHERE \"QuoteId\" = @quoteId;"
+            : $"SELECT COUNT(*) FROM \"{table}\";";
+        if (quoteId.HasValue)
+        {
+            SqliteParameter parameter = command.CreateParameter();
+            parameter.ParameterName = "@quoteId";
+            parameter.Value = quoteId.Value.ToString();
+            command.Parameters.Add(parameter);
+        }
+
         return Convert.ToInt32(await command.ExecuteScalarAsync(ct));
     }
 
