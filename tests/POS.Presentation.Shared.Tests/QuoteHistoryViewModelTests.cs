@@ -400,6 +400,56 @@ public sealed class QuoteHistoryViewModelTests
     }
 
     /// <summary>
+    /// C6c. CanConvertToSale, CanEdit and CanCancel each used to restate the status set by hand, in
+    /// addition to <c>Quote.CanEdit</c> in the domain — four expressions that only a comment claimed
+    /// agreed. This pins all three against the domain aggregate for every status, so a new QuoteStatus
+    /// member cannot leave one affordance behind. Note CanCancel legitimately differs from CanEdit on
+    /// Expired: cancelling a lapsed quote is how the shop retires it.
+    /// </summary>
+    [Theory]
+    [InlineData(QuoteStatus.Draft, true, true, true)]
+    [InlineData(QuoteStatus.Active, true, true, true)]
+    [InlineData(QuoteStatus.Expired, false, false, true)]
+    [InlineData(QuoteStatus.Converted, false, false, false)]
+    [InlineData(QuoteStatus.Cancelled, false, false, false)]
+    public void QuoteSummaryRow_TheThreeAffordancesAgreeWithTheDomainForEveryStatus(
+        QuoteStatus status, bool canConvert, bool canEdit, bool canCancel)
+    {
+        var row = QuoteSummaryRow.FromSummary(new QuoteSummary(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-AFFORDANCES",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: status,
+            ExpiresAt: "2026-12-31"));
+
+        Assert.Equal(canConvert, row.CanConvertToSale);
+        Assert.Equal(canEdit, row.CanEdit);
+        Assert.Equal(canCancel, row.CanCancel);
+
+        // The domain remains authoritative: a live quote is a proposal, a converted or cancelled one is
+        // not. Only the expiry half of the row's rule is invisible from a status alone, and it is
+        // covered by the lapsed-row tests below.
+        var aggregate = new Domain.Entities.Quote("COT-AFFORDANCES", "Cliente", 30);
+        if (status == QuoteStatus.Converted)
+        {
+            aggregate.Convert(Guid.NewGuid());
+        }
+        else if (status == QuoteStatus.Expired)
+        {
+            aggregate.Expire();
+        }
+        else if (status == QuoteStatus.Cancelled)
+        {
+            aggregate.Cancel();
+        }
+
+        Assert.Equal(aggregate.CanEdit, row.CanEdit);
+    }
+
+    /// <summary>
     /// C3 at the row level. A lapsed quote is still <c>Draft</c> — nothing transitions it, because
     /// <c>Expire()</c> is only reached from the conversion path — so a status-only affordance rule left
     /// the Edit action showing on a quote the use case would refuse to save, and offered no renewal

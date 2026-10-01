@@ -89,11 +89,12 @@ public sealed record QuoteSummaryRow(
         : string.Empty;
 
     /// <summary>
+    /// <summary>
     /// True when the "Venta" row action should be shown. Mirrors <c>ConvertQuoteToSaleUseCase</c>'s own guard
     /// (blocks Converted/Expired). New quotes are created as Draft, and the documented business rule allows
     /// Draft or Active quotes to be converted.
     /// </summary>
-    public bool CanConvertToSale => !IsExpiredByCalendar && Status is QuoteStatus.Draft or QuoteStatus.Active;
+    public bool CanConvertToSale => !IsExpiredByCalendar && IsOpenProposal;
 
     /// <summary>
     /// True when the quote is still a proposal that may be corrected, mirroring <c>Quote.CanEdit</c> — the
@@ -102,7 +103,20 @@ public sealed record QuoteSummaryRow(
     /// transitioned to Expired) loses its affordance here too. Whether the operator is *allowed* to edit
     /// is a permission question and lives in the view-model.
     /// </summary>
-    public bool CanEdit => !IsExpiredByCalendar && Status is QuoteStatus.Draft or QuoteStatus.Active;
+    public bool CanEdit => !IsExpiredByCalendar && IsOpenProposal;
 
-    public bool CanCancel => Status is QuoteStatus.Draft or QuoteStatus.Active or QuoteStatus.Expired;
+    /// <summary>
+    /// A quote may be cancelled while it is a proposal, and also once it has lapsed: cancelling an
+    /// expired quote is how the shop retires it. Converted and Cancelled are already terminal, so there
+    /// is nothing left to cancel.
+    /// </summary>
+    public bool CanCancel => IsOpenProposal || Status == QuoteStatus.Expired;
+
+    /// <summary>
+    /// "Still a proposal" — the status set every row affordance is derived from. Stated once here so a new
+    /// <see cref="QuoteStatus"/> member or a rule change is one edit rather than three restatements that
+    /// can drift apart; the authoritative rule itself remains <c>Quote.CanEditAt</c> in the aggregate, which
+    /// also applies the calendar-expiry half this type cannot see from a status alone.
+    /// </summary>
+    private bool IsOpenProposal => Status is QuoteStatus.Draft or QuoteStatus.Active;
 }
