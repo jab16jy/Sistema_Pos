@@ -204,6 +204,7 @@
                           <ColumnDefinition Width="*" />
                           <ColumnDefinition Width="Auto" />
                           <ColumnDefinition Width="Auto" />
+                          <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <materialDesign:PackIcon Kind="PackageVariant" Foreground="{StaticResource BrushPrimary}" VerticalAlignment="Center" />
                         <StackPanel Grid.Column="1" Margin="10,0" VerticalAlignment="Center">
@@ -253,22 +254,23 @@
                             </TextBlock.Style>
                           </TextBlock>
                         </Border>
-                         <ItemsControl Grid.Column="3" ItemsSource="{Binding AvailablePresentations}" VerticalAlignment="Center" MaxWidth="300">
-                           <ItemsControl.ItemsPanel>
-                             <ItemsPanelTemplate>
-                               <WrapPanel Orientation="Horizontal" />
-                             </ItemsPanelTemplate>
-                           </ItemsControl.ItemsPanel>
-                           <ItemsControl.ItemTemplate>
-                             <DataTemplate>
-                               <Button Content="{Binding Label}"
-                                       Style="{StaticResource GhostQuoteButton}"
-                                       Command="{Binding DataContext.AddToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                       CommandParameter="{Binding}"
-                                       Margin="0,0,4,0" />
-                             </DataTemplate>
-                           </ItemsControl.ItemTemplate>
-                         </ItemsControl>
+                        <ComboBox Grid.Column="3"
+                                  ItemsSource="{Binding AvailablePresentations}"
+                                  SelectedItem="{Binding SelectedPresentation}"
+                                  DisplayMemberPath="DisplayText"
+                                  MinWidth="210"
+                                  MaxWidth="300"
+                                  Margin="8,0"
+                                  Padding="8,5"
+                                  VerticalAlignment="Center"
+                                  ToolTip="Presentación y precio con el que se agrega el producto" />
+                        <Button Grid.Column="4"
+                                Content="Agregar"
+                                Style="{StaticResource GhostQuoteButton}"
+                                Command="{Binding DataContext.AddToCartCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                Margin="0,0,4,0"
+                                VerticalAlignment="Center" />
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -416,20 +418,37 @@
                 <StackPanel Grid.Column="1" HorizontalAlignment="Right">
                   <TextBlock Text="Total" Style="{StaticResource MutedText}" FontSize="11" HorizontalAlignment="Right" />
                   <TextBlock Text="{Binding TotalFormatted}" Style="{StaticResource TextH1}" FontWeight="Bold" Foreground="{StaticResource BrushPrimary}" HorizontalAlignment="Right" />
+                  <Border Style="{StaticResource ChipStyle}"
+                          Background="{StaticResource BrushSuccessContainer}"
+                          BorderBrush="{StaticResource BrushSuccess}"
+                          Padding="6,2"
+                          Margin="0,4,0,0"
+                          HorizontalAlignment="Right"
+                          Visibility="{Binding DiscountScopeLabel, Converter={StaticResource StringIsNotEmptyToVisibilityConverter}}">
+                    <TextBlock Text="{Binding DiscountScopeLabel}" FontSize="11" FontWeight="Medium" Foreground="{StaticResource BrushSuccess}" />
+                  </Border>
                 </StackPanel>
               </Grid>
               <Grid Grid.Row="1" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="Auto" />
                   <ColumnDefinition Width="*" />
                   <ColumnDefinition Width="Auto" />
                   <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBox Text="{Binding CartDiscountPercentInput, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource FlexibleDecimalConverter}}"
+                <TextBlock Grid.Column="0"
+                           Text="Descuento a todas las líneas"
+                           Style="{StaticResource MutedText}"
+                           FontSize="11"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0" />
+                <TextBox Grid.Column="1"
+                         Text="{Binding CartDiscountPercentInput, Mode=TwoWay, UpdateSourceTrigger=LostFocus, Converter={StaticResource FlexibleDecimalConverter}}"
                          Tag="% de descuento..."
                          Height="34"
                          VerticalContentAlignment="Center" />
-                <Button Grid.Column="1"
-                        Content="Aplicar"
+                <Button Grid.Column="2"
+                        Content="Aplicar a todas"
                         Style="{StaticResource PrimaryButton}"
                         Command="{Binding ApplyCartDiscountCommand}"
                         Margin="8,0,0,0"

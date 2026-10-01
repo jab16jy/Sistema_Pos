@@ -68,10 +68,10 @@ public sealed class QuoteViewModel : ViewModelBase
         SearchCustomerCommand = new RelayCommand(_ => RunSafe(SearchCustomersAsync(), ex => ValidationMessage = $"Error al buscar clientes: {ex.Message}"));
         SelectCustomerCommand = new RelayCommand(p => SelectCustomer(p as CustomerSearchResult));
         AddToCartCommand = new RelayCommand(p => {
-            if (p is PresentationOptionViewModel opt)
-                AddToCart(opt.Product, opt.Name);
-            else if (p is CashierProductSearchResultViewModel prod)
-                AddToCart(prod, null);
+            // The result row carries the presentation the operator picked in its dropdown, so adding
+            // the row and adding one specific presentation are the same path.
+            if (p is CashierProductSearchResultViewModel prod)
+                AddToCart(prod, prod.SelectedPresentation.Name);
         });
         AddUnitToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, null));
         AddBoxToCartCommand = new RelayCommand(p => AddToCart(p as CashierProductSearchResultViewModel, "Caja"));
@@ -201,6 +201,38 @@ public sealed class QuoteViewModel : ViewModelBase
 
     /// <summary>True when any cart line currently carries a manual discount.</summary>
     public bool HasManualDiscount => CartItems.Any(item => item.Discount > 0m);
+
+    /// <summary>
+    /// Persistent readout of how much of the cart is discounted, shown next to the total.
+    /// </summary>
+    /// <remarks>
+    /// The global-discount button used to leave no trace: its confirmation went to the same slot as the
+    /// "Ingresa el nombre del cliente" errors, far above the control, and the only other evidence was
+    /// the per-line "Dto." column — so scrolling past it left the operator unsure whether a discount
+    /// was in force. Deliberately counts lines rather than claiming "applied to all", because
+    /// <see cref="HasManualDiscount"/> is also true when a single line was discounted by hand and that
+    /// claim would be a lie.
+    /// </remarks>
+    public string DiscountScopeLabel
+    {
+        get
+        {
+            if (CartItems.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            int discounted = CartItems.Count(item => item.Discount > 0m);
+            if (discounted == 0)
+            {
+                return string.Empty;
+            }
+
+            return discounted == CartItems.Count
+                ? "Descuento en todas las líneas"
+                : $"{discounted} de {CartItems.Count} líneas con descuento";
+        }
+    }
 
     public string ValidationMessage
     {
@@ -829,6 +861,7 @@ public sealed class QuoteViewModel : ViewModelBase
     {
         Total = CartItems.Sum(i => i.Subtotal);
         OnPropertyChanged(nameof(HasManualDiscount));
+        OnPropertyChanged(nameof(DiscountScopeLabel));
         _applyCartDiscountCommand.RaiseCanExecuteChanged();
         _clearCartDiscountCommand.RaiseCanExecuteChanged();
     }

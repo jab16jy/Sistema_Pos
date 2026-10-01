@@ -9,6 +9,7 @@ using POS.Application.UseCases.Quotes;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
 using POS.Domain.ValueObjects;
+using POS.Presentation.Shared.Cashier;
 using POS.Presentation.Shared.Quotes;
 using POS.Presentation.Shared.ViewModels;
 using Xunit;
@@ -682,6 +683,31 @@ public sealed class QuoteViewModelTests
 
         Assert.Null(Assert.Single(quoteRepo.Quotes).CustomerId);
     }
+
+    [Fact]
+    public void DiscountScopeLabel_ReflectsHowMuchOfTheCartIsDiscounted()
+    {
+        var vm = CreateViewModel(out _, out _);
+        Assert.Equal(string.Empty, vm.DiscountScopeLabel);
+
+        // Driven through the real commands rather than a test hook: AddToCartCommand and
+        // ApplyCartDiscountCommand are what the operator uses, and both are what refresh the total.
+        vm.AddToCartCommand.Execute(new CashierProductSearchResultViewModel(SearchResult("Producto A", 1_000m)));
+        vm.AddToCartCommand.Execute(new CashierProductSearchResultViewModel(SearchResult("Producto B", 1_000m)));
+        Assert.Equal(string.Empty, vm.DiscountScopeLabel);
+
+        // One line discounted by hand must not be reported as a global discount — claiming
+        // "todas las líneas" there would be a lie the operator reads on screen.
+        vm.CartItems[0].Discount = 10m;
+        Assert.Equal("1 de 2 líneas con descuento", vm.DiscountScopeLabel);
+
+        vm.CartDiscountPercentInput = 15m;
+        vm.ApplyCartDiscountCommand.Execute(null);
+        Assert.Equal("Descuento en todas las líneas", vm.DiscountScopeLabel);
+    }
+
+    private static Application.DTOs.Products.ProductLookupResult SearchResult(string name, decimal unitPrice)
+        => new(Guid.NewGuid(), name, null, unitPrice, 100m, 0m, null);
 
     private static void AddCartItem(QuoteViewModel vm, Guid productId, string name, decimal unitPrice)
         => vm.CartItems.Add(new QuoteCartItemViewModel(productId, name, unitPrice));

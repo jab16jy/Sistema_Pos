@@ -1,12 +1,14 @@
 using System.Globalization;
 using POS.Application.DTOs.Products;
+using POS.Presentation.Shared.ViewModels;
 
 
 namespace POS.Presentation.Shared.Cashier;
 
-public sealed class CashierProductSearchResultViewModel
+public sealed class CashierProductSearchResultViewModel : ViewModelBase
 {
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
+    private PresentationOptionViewModel _selectedPresentation = null!;
 
     public CashierProductSearchResultViewModel(ProductLookupResult product)
     {
@@ -24,6 +26,7 @@ public sealed class CashierProductSearchResultViewModel
             }
         }
         AvailablePresentations = list;
+        SelectedPresentation = list[0];
     }
 
     public ProductLookupResult Product { get; }
@@ -39,6 +42,37 @@ public sealed class CashierProductSearchResultViewModel
 
     // ── Packaged presentations ──
     public IReadOnlyList<PresentationOptionViewModel> AvailablePresentations { get; }
+
+    /// <summary>
+    /// The presentation this row will add, defaulting to the loose unit.
+    /// </summary>
+    /// <remarks>
+    /// This is what replaced a wall of one button per presentation in the quotes view: the shop can
+    /// configure up to <c>BusinessSettings.MaximumProductPresentations</c> (50) of them, and buttons
+    /// wrapped into more and more rows grew the result row without bound, so a single product could
+    /// push the rest of the list off the screen. A dropdown keeps the row one line tall whatever the
+    /// count, and mirrors the selection model the till already uses.
+    /// </remarks>
+    public PresentationOptionViewModel SelectedPresentation
+    {
+        get => _selectedPresentation;
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            if (SetProperty(ref _selectedPresentation, value))
+            {
+                // PresentationOptionViewModel.IsSelected is what the till's radio group binds, so keep
+                // the two selections consistent instead of letting them drift.
+                foreach (PresentationOptionViewModel option in AvailablePresentations)
+                {
+                    option.IsSelected = ReferenceEquals(option, value);
+                }
+            }
+        }
+    }
+
+    /// <summary>Price of the selected presentation, so a row can show what adding it will actually cost.</summary>
+    public decimal SelectedPresentationPrice => SelectedPresentation.Price;
 
     /// <summary>Units and price for the chosen presentation name (null/blank = Unidad).</summary>
     public (int Units, decimal Price)? PackageFor(string? presentationName)
