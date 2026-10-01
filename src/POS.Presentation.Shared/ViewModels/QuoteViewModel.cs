@@ -256,6 +256,18 @@ public sealed class QuoteViewModel : ViewModelBase
     /// presentation — because a partial hydration would silently drop a correction the operator sees in
     /// the cart. Whether the quote may be edited at all was already decided upstream by the aggregate.
     /// </summary>
+    /// <remarks>
+    /// The cart is hydrated with the quote's FROZEN snapshot prices, not today's catalogue. That is
+    /// deliberate: the save path deliberately re-resolves each line through <c>QuoteLineBuilder</c>
+    /// (see the ODD's money-path rationale), so the form total and the persisted total can differ once
+    /// the catalogue moves. <c>IProductLookupService</c> has no by-id lookup and this method is
+    /// synchronous, so making the form total live would mean adding a product read per line and
+    /// re-implementing presentation price resolution here — a second copy of exactly the resolution the
+    /// shared builder exists to prevent drifting. Instead the divergence is made VISIBLE rather than
+    /// silent: <see cref="UpdateQuoteAsync"/> replaces the total with the authoritative persisted one and
+    /// says so, both in the form and in the success message. Making the form total live remains the
+    /// better long-term fix and needs a by-id seam on <see cref="IProductLookupService"/>.
+    /// </remarks>
     public void LoadForEdit(QuoteDetailResult detail)
     {
         ArgumentNullException.ThrowIfNull(detail);
@@ -495,8 +507,11 @@ public sealed class QuoteViewModel : ViewModelBase
             }
 
             LastQuoteNumber = result.QuoteNumber;
-            ValidationMessage = $"Cotización {result.QuoteNumber} creada correctamente.";
+            ValidationMessage = $"Cotización {result.QuoteNumber} creada correctamente. Total: {result.Total.ToString("N0", ColombianCulture)}.";
             ClearForm();
+            // After ClearForm for the same reason as UpdateQuoteAsync: the empty cart recalculates to
+            // zero, and zero is not the number this quote is worth.
+            Total = result.Total;
         }
         catch (Exception ex)
         {
@@ -610,10 +625,15 @@ public sealed class QuoteViewModel : ViewModelBase
             SendDocumentResult sendResult = await _sendDocumentUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 
             LastQuoteNumber = result.QuoteNumber;
+            // Same reason as UpdateQuoteAsync: the persisted total is the only authoritative figure,
+            // and this message is the last thing the operator reads before the quote goes out to a
+            // client. Stating the amount is what makes a later re-pricing a visible change.
+            string totalText = result.Total.ToString("N0", ColombianCulture);
             ValidationMessage = sendResult.Success
-                ? $"Cotización {result.QuoteNumber} enviada correctamente."
+                ? $"Cotización {result.QuoteNumber} enviada correctamente. Total: ${totalText}."
                 : $"Cotización {result.QuoteNumber} creada, pero no se pudo enviar: {sendResult.ErrorMessage}";
             ClearForm();
+            Total = result.Total;
         }
         catch (Exception ex)
         {
@@ -675,6 +695,15 @@ public sealed class QuoteViewModel : ViewModelBase
     /// reuse <see cref="CreateQuoteItemRequest"/> exactly as creation does, which is what routes the edit
     /// through the same discount ceiling and price resolution the quote it replaces went through.
     /// </summary>
+    /// <remarks>
+    /// The use case's returned <c>Total</c> is the persisted figure and the only authoritative one — the
+    /// quote re-resolves every line price from the current catalogue, so the hydrated form total is a
+    /// frozen snapshot that may no longer match. It used to be discarded here, which meant the operator
+    /// approved a number that was not the number stored, the success message carried no amount at all,
+    /// and the higher re-priced total then rode on to the invoice at conversion. Now the persisted total
+    /// is written back into the form and stated in the message, and when it differs from what the operator
+    /// was looking at, the message says so explicitly instead of letting the change pass unnoticed.
+    /// </remarks>
     private async Task<QuoteResult?> UpdateQuoteAsync(CancellationToken cancellationToken)
     {
         if (_updateQuoteUseCase is null)
@@ -714,13 +743,26 @@ public sealed class QuoteViewModel : ViewModelBase
             string.IsNullOrWhiteSpace(Observations) ? null : Observations,
             items);
 
+        decimal formTotalBeforeSave = Total;
         QuoteResult result = await _updateQuoteUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
 
         LastQuoteNumber = result.QuoteNumber;
-        ValidationMessage = $"Cotización {result.QuoteNumber} actualizada correctamente.";
         // ClearForm drops the edit identity too, so the operator lands back in create mode — and the
         // updated number survives on screen because ClearForm deliberately leaves LastQuoteNumber alone.
         ClearForm();
+
+        // Set AFTER ClearForm on purpose: ClearForm recalculates the (now empty) cart to zero, and the
+        // operator's last meaningful figure for this quote is the total that was actually stored, not
+        // the empty cart. This is the same reason LastQuoteNumber is left alone by ClearForm.
+        Total = result.Total;
+
+        bool totalChanged = decimal.Round(result.Total, 2) != decimal.Round(formTotalBeforeSave, 2);
+        string formattedTotal = TotalFormatted;
+        ValidationMessage = totalChanged
+            ? $"Cotización {result.QuoteNumber} actualizada correctamente. Total guardado: {formattedTotal}. " +
+              $"El precio del catálogo cambió desde que abriste la cotización (el formulario mostraba " +
+              $"{formTotalBeforeSave.ToString("N0", ColombianCulture)})."
+            : $"Cotización {result.QuoteNumber} actualizada correctamente. Total: {formattedTotal}.";
         return result;
     }
 

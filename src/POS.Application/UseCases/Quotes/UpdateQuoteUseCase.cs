@@ -49,6 +49,12 @@ public sealed class UpdateQuoteUseCase
             throw new UnauthorizedActionException(PermissionKeys.Quotes.Edit);
         }
 
+        // KNOWN GAP, deliberately not fixed here: CreateQuoteUseCase and CancelQuoteUseCase are also
+        // ungated at the use-case level. That is a pre-existing app-wide pattern (see
+        // GetAllUsersUseCase, GetAllRolesUseCase, which are gated — and CreateSaleUseCase, which is
+        // not), not something this change introduced. Closing it app-wide is its own change; doing it
+        // for quotes alone would leave the module internally inconsistent without making the system
+        // any safer. Recorded rather than silently expanded into.
         var quote = await _quotes.GetByIdAsync(request.QuoteId, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Cotización {request.QuoteId} no encontrada.");
 

@@ -432,6 +432,76 @@ public sealed class QuoteViewModelTests
         Assert.NotEmpty(vm.LastQuoteNumber);
     }
 
+    /// <summary>
+    /// C2, the money-path divergence. The form hydrates from the quote's FROZEN snapshot price while the
+    /// save path re-resolves the same line through QuoteLineBuilder against the live catalogue. When
+    /// those differ, the total the operator approved is not the total that gets stored — and the stored
+    /// one is what later becomes the invoice.
+    ///
+    /// This pins the three figures the operator can observe to agreeing on the persisted value: the form
+    /// total left on screen, the amount stated in the success message, and the reloaded quote's own
+    /// Total. Before the fix the message carried no amount at all and the form showed the emptied cart.
+    /// </summary>
+    [Fact]
+    public async Task Confirm_InEditMode_WhenTheCataloguePriceMoved_FormMessageAndPersistedTotalAllAgree()
+    {
+        // The product's catalogue price is 2_000; the quote froze its line at 1_000. A 2-line edit
+        // therefore re-prices from 2_000 to 4_000 while the hydrated form showed 2_000.
+        var product = new Product("Producto Cambiado", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var vm = CreateViewModel(out InMemoryQuoteRepository quoteRepo, out _, product, withUpdate: true);
+
+        var stored = new Domain.Entities.Quote("COT-303-DIVERGE", "Cliente", 30);
+        stored.AddItem(new Domain.Entities.QuoteItem(product.Id, "Producto Cambiado", new Money(1_000m), new Quantity(2m), 0m));
+        await quoteRepo.AddAsync(stored, TestContext.Current.CancellationToken);
+
+        vm.LoadForEdit(new QuoteDetailResult(
+            stored.Id, stored.QuoteNumber, null, "Cliente", null, null,
+            Domain.Enums.QuoteStatus.Draft, "2026-12-31", 2_000m,
+            [new QuoteDetailItemResult(product.Id, "Producto Cambiado", 2m, 1_000m, 0m, 2_000m)],
+            null, 30));
+
+        // The pre-save form total really is the frozen one — this is the number the operator sees.
+        Assert.Equal(2_000m, vm.Total);
+
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+
+        Domain.Entities.Quote persisted = Assert.Single(quoteRepo.Quotes);
+        Assert.Equal(4_000m, persisted.Total);
+
+        // 1. The form total left on screen is the persisted figure, not the emptied cart's zero.
+        Assert.Equal(4_000m, vm.Total);
+        Assert.Equal("$4.000", vm.TotalFormatted);
+
+        // 2. The success message states the persisted amount, and names the change rather than hiding it.
+        Assert.Contains("4.000", vm.ValidationMessage, StringComparison.Ordinal);
+        Assert.Contains("catálogo cambió", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Confirm_InEditMode_WhenThePriceDidNotMove_TheMessageStillCarriesTheTotal()
+    {
+        var product = new Product("Producto Igual", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var vm = CreateViewModel(out InMemoryQuoteRepository quoteRepo, out _, product, withUpdate: true);
+
+        var stored = new Domain.Entities.Quote("COT-304-STABLE", "Cliente", 30);
+        stored.AddItem(new Domain.Entities.QuoteItem(product.Id, "Producto Igual", new Money(2_000m), new Quantity(1m), 0m));
+        await quoteRepo.AddAsync(stored, TestContext.Current.CancellationToken);
+
+        vm.LoadForEdit(new QuoteDetailResult(
+            stored.Id, stored.QuoteNumber, null, "Cliente", null, null,
+            Domain.Enums.QuoteStatus.Draft, "2026-12-31", 2_000m,
+            [new QuoteDetailItemResult(product.Id, "Producto Igual", 1m, 2_000m, 0m, 2_000m)],
+            null, 30));
+
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(2_000m, Assert.Single(quoteRepo.Quotes).Total);
+        Assert.Equal(2_000m, vm.Total);
+        // No spurious re-pricing warning when nothing actually changed.
+        Assert.DoesNotContain("catálogo cambió", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("$2.000", vm.ValidationMessage, StringComparison.Ordinal);
+    }
+
     private static void AddCartItem(QuoteViewModel vm, Guid productId, string name, decimal unitPrice)
         => vm.CartItems.Add(new QuoteCartItemViewModel(productId, name, unitPrice));
 
