@@ -85,23 +85,18 @@ public static class DatabaseSchemaRollout
             await dbContext.SaveChangesAsync(ct);
         }
 
-        // Granting the cashier set only when the role has zero rows meant every key added after an
-        // install was born (Quotes.Edit, for one) silently never reached existing shops, and each
-        // new key would have needed its own data migration. Inserting whatever is missing instead
-        // repairs the root cause: the cashier role converges on CashierDefaults on every rollout,
-        // forever, without touching permissions an administrator deliberately removed.
-        var grantedCashierKeys = await dbContext.RolePermissions
-            .Where(permission => permission.RoleId == RoleConstants.CashierRoleId)
-            .Select(permission => permission.PermissionKey)
-            .ToListAsync(ct);
-
-        var missingCashierKeys = PermissionKeys.CashierDefaults
-            .Where(key => !grantedCashierKeys.Contains(key, StringComparer.Ordinal))
-            .ToArray();
-
-        if (missingCashierKeys.Length > 0)
+        // Grants the cashier set only when the role has zero rows — a fresh install. This is
+        // deliberately NOT a "converge on CashierDefaults" backfill: RolePermission has no tombstone
+        // distinguishing "never granted" from "revoked by an administrator", and UpdateRoleUseCase
+        // only shields the Administrator role, so a per-launch converging insert would silently
+        // restore any cashier key an administrator removed, forever. Delivering a new key to an
+        // existing role is a data migration's job (see Migrations/…_GrantQuotesEditToCashierRole),
+        // which runs once inside the pre-migration snapshot envelope.
+        var cashierRoleHasNoPermissions = !await dbContext.RolePermissions
+            .AnyAsync(permission => permission.RoleId == RoleConstants.CashierRoleId, ct);
+        if (cashierRoleHasNoPermissions)
         {
-            dbContext.RolePermissions.AddRange(missingCashierKeys.Select(key => new RolePermission(RoleConstants.CashierRoleId, key)));
+            dbContext.RolePermissions.AddRange(PermissionKeys.CashierDefaults.Select(key => new RolePermission(RoleConstants.CashierRoleId, key)));
             await dbContext.SaveChangesAsync(ct);
         }
 
