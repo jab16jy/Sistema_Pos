@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.29.0](https://github.com/jab16jy/Sistema_Pos/compare/v1.28.1...v1.29.0) (2026-10-01)
+
+
+### Features
+
+* **cotizaciones:** agregar edicion de cotizacion no convertida en la UI ([2fc8ab7](https://github.com/jab16jy/Sistema_Pos/commit/2fc8ab710e487e325dda0e426e9718b104854bd0))
+* **cotizaciones:** editar cotizaciones no convertidas (1/2: dominio, aplicacion, persistencia) ([eb75b62](https://github.com/jab16jy/Sistema_Pos/commit/eb75b629218ae54cb844ae36636f0d491da54d34))
+* **cotizaciones:** editar cotizaciones no convertidas (2/2: UI) ([847e70b](https://github.com/jab16jy/Sistema_Pos/commit/847e70b97f7c541e6e69def32869e62716fe454a))
+* **cotizaciones:** editar cotizaciones no convertidas (UI) ([fca5c1f](https://github.com/jab16jy/Sistema_Pos/commit/fca5c1f33deaf39e42bebdb06872bba70447dc12))
+* **cotizaciones:** permitir editar cotizacion no convertida ([d0f7780](https://github.com/jab16jy/Sistema_Pos/commit/d0f77806ff854ac283d3e95dd36103ab9a5f1831))
+* **cotizaciones:** permitir editar cotizaciones no convertidas (dominio, aplicacion, persistencia) ([10ac923](https://github.com/jab16jy/Sistema_Pos/commit/10ac923143310709e61ce887b57f27515c583465))
+
+
+### Bug Fixes
+
+* **cotizaciones:** acotar la vigencia de una cotizacion en el dominio ([11af062](https://github.com/jab16jy/Sistema_Pos/commit/11af062b513ca11500d2d97c74520824efec30bc))
+* **cotizaciones:** bloquear edicion de cotizaciones vencidas por calendario ([4edbf67](https://github.com/jab16jy/Sistema_Pos/commit/4edbf67c3de67671d89504f8cbcbdc794f168094))
+* **cotizaciones:** dropdown de presentaciones y feedback del descuento global ([4d81d32](https://github.com/jab16jy/Sistema_Pos/commit/4d81d328e181f9e6369fe116343720bb36b22cb1))
+* **cotizaciones:** entregar Quotes.Edit por migracion de datos, no por backfill en cada arranque ([149fc0d](https://github.com/jab16jy/Sistema_Pos/commit/149fc0d22791869a36a9c9a53ee975b25d3d0fd3))
+* **cotizaciones:** exigir Quotes.Edit dentro de UpdateQuoteUseCase ([c90b987](https://github.com/jab16jy/Sistema_Pos/commit/c90b987fad5b0000799c5b3f3a02c5f9baa9035f))
+* **cotizaciones:** habilitar el boton Descartar al entrar y salir del modo edicion ([b448552](https://github.com/jab16jy/Sistema_Pos/commit/b44855227fdd040fcec782e443af9c98f9e99350))
+* **cotizaciones:** mostrar el total persistido al guardar una edicion ([e100a83](https://github.com/jab16jy/Sistema_Pos/commit/e100a831b805c96f8e7115fde56ba27402d07bfe))
+* **cotizaciones:** ocultar el combo de presentacion unica y separar Quitar de Aplicar a todas ([6a6c941](https://github.com/jab16jy/Sistema_Pos/commit/6a6c941b63ada6565fb577752b0462f8c52ddd37))
+* **cotizaciones:** persistir el cliente escolhido durante una edicion ([3df8bac](https://github.com/jab16jy/Sistema_Pos/commit/3df8bac2538ed6f4903e418bc6c7f2b069ba181c))
+* **cotizaciones:** quitar el summary duplicado en QuoteSummaryRow ([1adb6e3](https://github.com/jab16jy/Sistema_Pos/commit/1adb6e3ef64a8cf95f33890ff4b3175033be84c8))
+
 ## [1.28.1](https://github.com/jab16jy/Sistema_Pos/compare/v1.28.0...v1.28.1) (2026-08-23)
 
 
