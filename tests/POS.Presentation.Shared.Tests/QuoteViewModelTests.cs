@@ -277,6 +277,46 @@ public sealed class QuoteViewModelTests
         Assert.Equal(1_000m, vm.Total);
     }
 
+    /// <summary>
+    /// C6a. The create and update save paths used to restate the same two guards and the same cart
+    /// projection independently — and had already drifted, update dropping the customer association. This
+    /// pins both paths to the shared validation so they cannot diverge again on a future field. It is a
+    /// de-duplication test, not a redesign: the guards and the message the operator sees are unchanged.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Confirm_WithAnIncompleteForm_ReportsTheSameValidationOnBothPaths(bool inEditMode)
+    {
+        // withUpdate so the edit path gets past its own environment guard; that guard is deliberately
+        // checked before the form guards, and it is not what this test is about.
+        var vm = CreateViewModel(out _, out _, withUpdate: true);
+
+        if (inEditMode)
+        {
+            vm.LoadForEdit(new QuoteDetailResult(
+                Guid.NewGuid(), "COT-SHARED-GUARD", null, "Ana Gómez", null, null,
+                Domain.Enums.QuoteStatus.Active, "2026-12-31", 1_000m,
+                [new QuoteDetailItemResult(Guid.NewGuid(), "Producto", 1m, 1_000m, 0m, 1_000m)],
+                null, 30));
+        }
+
+        // Missing name, cart populated: both paths must stop on the first guard, same message.
+        vm.CustomerName = string.Empty;
+        if (!inEditMode)
+        {
+            AddCartItem(vm, Guid.NewGuid(), "Producto", 1_000m);
+        }
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("Ingresa el nombre del cliente", vm.ValidationMessage);
+
+        // Empty cart, name present: both paths must stop on the second guard, same message.
+        vm.CustomerName = "Ana Gómez";
+        vm.CartItems.Clear();
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+        Assert.Equal("Agrega al menos un producto", vm.ValidationMessage);
+    }
+
     [Fact]
     public void ApplyCartDiscountCommand_WithEmptyCart_CannotExecute()
     {

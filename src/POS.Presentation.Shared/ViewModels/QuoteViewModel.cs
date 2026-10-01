@@ -652,7 +652,20 @@ public sealed class QuoteViewModel : ViewModelBase
         }
     }
 
-    private async Task<QuoteResult?> CreateQuoteAsync(CancellationToken cancellationToken)
+    /// <summary>
+    /// The one place the cart becomes quote input: both <see cref="CreateQuoteAsync"/> and
+    /// <see cref="UpdateQuoteAsync"/> are built from this, so a field or a validation rule is added in
+    /// exactly one place. These two copies drifted before — update silently omitted the customer
+    /// association that create carried — which is the same class of drift <c>QuoteLineBuilder</c> exists
+    /// above to prevent on the price path. The irony was that the layer which extracted a shared builder
+    /// for lines then duplicated the cart mapping one level up, unexamined.
+    /// </summary>
+    /// <remarks>
+    /// Returns null and sets <see cref="ValidationMessage"/> when the form is incomplete, so the
+    /// operator's corrections stay on screen instead of vanishing. Both save paths treat null as "do not
+    /// write", which is also why neither of them may guard before calling this.
+    /// </remarks>
+    private IReadOnlyCollection<CreateQuoteItemRequest>? TryBuildCartItems()
     {
         if (string.IsNullOrWhiteSpace(CustomerName))
         {
@@ -666,9 +679,18 @@ public sealed class QuoteViewModel : ViewModelBase
             return null;
         }
 
-        IReadOnlyCollection<CreateQuoteItemRequest> items = CartItems
+        return CartItems
             .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount, i.PresentationName))
             .ToList();
+    }
+
+    private async Task<QuoteResult?> CreateQuoteAsync(CancellationToken cancellationToken)
+    {
+        IReadOnlyCollection<CreateQuoteItemRequest>? items = TryBuildCartItems();
+        if (items is null)
+        {
+            return null;
+        }
 
         CreateQuoteRequest request = new(
             SelectedCustomerId,
@@ -725,21 +747,11 @@ public sealed class QuoteViewModel : ViewModelBase
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(CustomerName))
+        IReadOnlyCollection<CreateQuoteItemRequest>? items = TryBuildCartItems();
+        if (items is null)
         {
-            ValidationMessage = "Ingresa el nombre del cliente";
             return null;
         }
-
-        if (CartItems.Count == 0)
-        {
-            ValidationMessage = "Agrega al menos un producto";
-            return null;
-        }
-
-        IReadOnlyCollection<CreateQuoteItemRequest> items = CartItems
-            .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount, i.PresentationName))
-            .ToList();
 
         UpdateQuoteRequest request = new(
             quoteId,
