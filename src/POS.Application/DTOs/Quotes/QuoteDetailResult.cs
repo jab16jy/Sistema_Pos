@@ -12,7 +12,9 @@ public sealed record QuoteDetailResult(
     QuoteStatus Status,
     string ExpiresAt,
     decimal Total,
-    IReadOnlyList<QuoteDetailItemResult> Items);
+    IReadOnlyList<QuoteDetailItemResult> Items,
+    string? Observations,
+    int ValidityDays);
 
 public sealed record QuoteDetailItemResult(
     Guid ProductId,

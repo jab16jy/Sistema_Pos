@@ -19,7 +19,7 @@ public sealed class RoleAuthorizationTests
         {
             PermissionKeys.Cashier.Sell,
             PermissionKeys.Customers.View, PermissionKeys.Customers.Create, PermissionKeys.Customers.Edit,
-            PermissionKeys.Quotes.View, PermissionKeys.Quotes.Create, PermissionKeys.Quotes.Convert,
+            PermissionKeys.Quotes.View, PermissionKeys.Quotes.Create, PermissionKeys.Quotes.Edit, PermissionKeys.Quotes.Convert,
             PermissionKeys.Invoices.View, PermissionKeys.Invoices.Reprint, PermissionKeys.Invoices.Return,
             PermissionKeys.Shifts.View, PermissionKeys.Shifts.Open, PermissionKeys.Shifts.Close
         };

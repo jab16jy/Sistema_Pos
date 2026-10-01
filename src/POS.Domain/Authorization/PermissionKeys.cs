@@ -14,7 +14,7 @@ public static class PermissionKeys
     public static class Products { public const string View = "Products.View"; public const string Create = "Products.Create"; public const string Edit = "Products.Edit"; public const string Delete = "Products.Delete"; public const string Import = "Products.Import"; }
     public static class Categories { public const string View = "Categories.View"; public const string Create = "Categories.Create"; public const string Edit = "Categories.Edit"; public const string Delete = "Categories.Delete"; }
     public static class Inventory { public const string View = "Inventory.View"; public const string Adjust = "Inventory.Adjust"; }
-    public static class Quotes { public const string View = "Quotes.View"; public const string Create = "Quotes.Create"; public const string Convert = "Quotes.Convert"; }
+    public static class Quotes { public const string View = "Quotes.View"; public const string Create = "Quotes.Create"; public const string Edit = "Quotes.Edit"; public const string Convert = "Quotes.Convert"; }
     public static class Suppliers { public const string View = "Suppliers.View"; public const string Create = "Suppliers.Create"; public const string Edit = "Suppliers.Edit"; public const string Delete = "Suppliers.Delete"; }
     public static class Purchases { public const string View = "Purchases.View"; public const string Create = "Purchases.Create"; }
     public static class Customers { public const string View = "Customers.View"; public const string Create = "Customers.Create"; public const string Edit = "Customers.Edit"; }
@@ -32,7 +32,7 @@ public static class PermissionKeys
     {
         Cashier.Sell,
         Customers.View, Customers.Create, Customers.Edit,
-        Quotes.View, Quotes.Create, Quotes.Convert,
+        Quotes.View, Quotes.Create, Quotes.Edit, Quotes.Convert,
         Invoices.View, Invoices.Reprint, Invoices.Return,
         Shifts.View, Shifts.Open, Shifts.Close
     };

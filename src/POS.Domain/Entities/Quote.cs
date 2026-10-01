@@ -55,6 +55,12 @@ public sealed class Quote
 
     public decimal Total => _items.Sum(i => i.Subtotal().Amount);
 
+    /// <summary>
+    /// A quote stays editable only while it is still a proposal. Converted is the point where it
+    /// became a Sale, so that plus Cancelled and Expired are frozen for good.
+    /// </summary>
+    public bool CanEdit => Status is QuoteStatus.Draft or QuoteStatus.Active;
+
     public void AddItem(QuoteItem item)
     {
         if (Status == QuoteStatus.Converted)
@@ -63,6 +69,46 @@ public sealed class Quote
         }
 
         _items.Add(item);
+    }
+
+    /// <summary>
+    /// Corrects the header of a quote that is still a proposal. QuoteNumber, Id and CreatedAt are
+    /// deliberately out of reach: the number is part of what the client was quoted, so an unlimited
+    /// number of corrections still has to describe the same proposal.
+    /// </summary>
+    public void Update(string customerName, int validityDays, string? phone, string? email, string? observations)
+    {
+        EnsureEditable();
+
+        if (validityDays <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(validityDays), "Validity days must be greater than zero.");
+        }
+
+        CustomerName = ContactInfo.NormalizeName(customerName);
+        ValidityDays = validityDays;
+        CustomerPhone = ContactInfo.NormalizePhone(phone);
+        CustomerEmail = ContactInfo.NormalizeEmail(email);
+        Observations = string.IsNullOrWhiteSpace(observations) ? null : observations.Trim();
+        // Anchored to CreatedAt, never to DateTime.UtcNow: a validity window is part of what was
+        // offered, so editing it slides the deadline instead of silently restarting the countdown
+        // and re-validating an offer that had already lapsed.
+        ExpiresAt = CreatedAt.AddDays(validityDays);
+    }
+
+    /// <summary>
+    /// Swaps the whole line collection. QuoteItem is immutable, so a corrected quantity or price is
+    /// a different item rather than a mutated one — which also keeps the discount range check in the
+    /// QuoteItem constructor and lets the repository tell a dropped line from a corrected one by Id.
+    /// </summary>
+    public void ReplaceItems(IEnumerable<QuoteItem> items)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        EnsureEditable();
+
+        _items.Clear();
+        _items.AddRange(items);
     }
 
     public void Convert(Guid saleId)
@@ -97,5 +143,20 @@ public sealed class Quote
         }
 
         Status = QuoteStatus.Cancelled;
+    }
+
+    private void EnsureEditable()
+    {
+        if (CanEdit)
+        {
+            return;
+        }
+
+        if (Status == QuoteStatus.Converted)
+        {
+            throw new QuoteAlreadyConvertedException(QuoteNumber);
+        }
+
+        throw new QuoteNotEditableException(QuoteNumber, Status);
     }
 }

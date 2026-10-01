@@ -85,9 +85,23 @@ public static class DatabaseSchemaRollout
             await dbContext.SaveChangesAsync(ct);
         }
 
-        if (!await dbContext.RolePermissions.AnyAsync(permission => permission.RoleId == RoleConstants.CashierRoleId, ct))
+        // Granting the cashier set only when the role has zero rows meant every key added after an
+        // install was born (Quotes.Edit, for one) silently never reached existing shops, and each
+        // new key would have needed its own data migration. Inserting whatever is missing instead
+        // repairs the root cause: the cashier role converges on CashierDefaults on every rollout,
+        // forever, without touching permissions an administrator deliberately removed.
+        var grantedCashierKeys = await dbContext.RolePermissions
+            .Where(permission => permission.RoleId == RoleConstants.CashierRoleId)
+            .Select(permission => permission.PermissionKey)
+            .ToListAsync(ct);
+
+        var missingCashierKeys = PermissionKeys.CashierDefaults
+            .Where(key => !grantedCashierKeys.Contains(key, StringComparer.Ordinal))
+            .ToArray();
+
+        if (missingCashierKeys.Length > 0)
         {
-            dbContext.RolePermissions.AddRange(PermissionKeys.CashierDefaults.Select(key => new RolePermission(RoleConstants.CashierRoleId, key)));
+            dbContext.RolePermissions.AddRange(missingCashierKeys.Select(key => new RolePermission(RoleConstants.CashierRoleId, key)));
             await dbContext.SaveChangesAsync(ct);
         }
 
