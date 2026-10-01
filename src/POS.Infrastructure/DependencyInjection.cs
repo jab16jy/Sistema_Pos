@@ -138,6 +138,7 @@ public static class DependencyInjection
         services.AddScoped<DeleteSupplierCatalogItemUseCase>();
         services.AddScoped<SearchPurchaseHistoryUseCase>();
         services.AddScoped<CreateQuoteUseCase>();
+        services.AddScoped<UpdateQuoteUseCase>();
         services.AddScoped<ConvertQuoteToSaleUseCase>();
         services.AddScoped<CancelQuoteUseCase>();
         services.AddScoped<GetCustomerPayableQuotesUseCase>();

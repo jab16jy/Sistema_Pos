@@ -39,6 +39,17 @@ public sealed class QuoteItem
         UnitsPerPresentation = ValidateUnitsPerPresentation(PresentationName, unitsPerPresentation);
     }
 
+    /// <summary>
+    /// A quote line. Every property is <c>private set</c> and that is a LOAD-BEARING constraint, not a
+    /// style choice: <c>QuoteRepository.UpdateAsync</c> infers "a line that survived the edit needs no
+    /// write" from the absence of mutators. Add one and that write silently stops happening — the edit
+    /// reports success, the row keeps the old value, and the persisted total quietly disagrees with the
+    /// one <c>Quote.Total</c> just computed.
+    ///
+    /// Correcting a quantity, price or discount is expressed by constructing a NEW item and calling
+    /// <c>Quote.ReplaceItems</c>, which is why the repository can get away with that inference. Do not
+    /// add a setter without changing how the repository decides a line needs a write.
+    /// </summary>
     public Guid Id { get; private set; }
     public Guid QuoteId { get; private set; }
     public Guid ProductId { get; private set; }

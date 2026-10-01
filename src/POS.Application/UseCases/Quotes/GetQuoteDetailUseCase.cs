@@ -42,6 +42,8 @@ public sealed class GetQuoteDetailUseCase
             quote.Status,
             quote.ExpiresAt.ToString("yyyy-MM-dd"),
             quote.Total,
-            items);
+            items,
+            quote.Observations,
+            quote.ValidityDays);
     }
 }
