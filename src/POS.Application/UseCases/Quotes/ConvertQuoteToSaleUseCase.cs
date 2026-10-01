@@ -36,9 +36,10 @@ public sealed class ConvertQuoteToSaleUseCase
         var quote = await _quotes.GetByIdAsync(request.QuoteId, ct)
             ?? throw new InvalidOperationException($"Cotización {request.QuoteId} no encontrada.");
 
-        var colombianToday = DateTime.UtcNow.AddHours(-5).Date;
-        var quoteExpiresColombian = quote.ExpiresAt.AddHours(-5).Date;
-        if (quoteExpiresColombian < colombianToday && quote.Status != QuoteStatus.Expired)
+        // Same UTC-5 Colombian-calendar comparison the aggregate applies for editability
+        // (Quote.CanEditAt), now expressed through the aggregate's own accessor so the two paths cannot
+        // drift into subtly different timezone rules.
+        if (quote.IsLapsedByCalendar(DateTime.UtcNow) && quote.Status != QuoteStatus.Expired)
         {
             quote.Expire();
         }

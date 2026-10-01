@@ -100,10 +100,81 @@ public sealed class QuoteRepository : IQuoteRepository
         await _dbContext.Quotes.AddAsync(quote, ct);
     }
 
-    public Task UpdateAsync(Quote quote, CancellationToken ct = default)
+    /// <summary>
+    /// Persists a quote header plus whatever line collection the aggregate now holds.
+    ///
+    /// This does NOT use <c>DbSet.Update</c>. That stamps Modified on every <em>reachable</em>
+    /// entity and nothing else, which is wrong in both directions once a quote becomes editable:
+    /// a line dropped by <c>ReplaceItems</c> is no longer reachable, so its entry stays Unchanged and
+    /// its QUOTE_ITEMS row survives as an orphan that no longer contributes to <c>Quote.Total</c> —
+    /// the operator's total and the persisted sum then disagree for good. And a line added by
+    /// <c>ReplaceItems</c> carries a fresh Id, so Modified would be sent as an UPDATE against a row
+    /// that does not exist yet.
+    ///
+    /// Reconciling the lines leaves the two callers that only move the header unchanged in behaviour:
+    /// <c>CancelQuoteUseCase</c> and <c>ConvertQuoteToSaleUseCase</c> keep their lines as-is, and those
+    /// lines are immutable, so rewriting the rows would be pure noise.
+    /// </summary>
+    public async Task UpdateAsync(Quote quote, CancellationToken ct = default)
     {
-        _dbContext.Quotes.Update(quote);
-        return Task.CompletedTask;
+        // Ask the database which lines it holds instead of reading the tracked graph. EF's
+        // relationship fixup drops a line out of the quote's Items navigation whenever it cannot pair
+        // it by QuoteId, and a line ReplaceItems just built starts with an empty Guid — so anything
+        // that triggers DetectChanges before those lines are tracked as Added wipes the collection
+        // the aggregate sums in Total. A no-tracking query touches neither.
+        var persistedItemIds = await _dbContext.QuoteItems
+            .AsNoTracking()
+            .Where(item => item.QuoteId == quote.Id)
+            .Select(item => item.Id)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+
+        var keptItemIds = quote.Items.Select(item => item.Id).ToHashSet();
+        var persistedIdSet = persistedItemIds.ToHashSet();
+
+        bool autoDetectChanges = _dbContext.ChangeTracker.AutoDetectChangesEnabled;
+
+        try
+        {
+            // Off for the whole reconciliation: ChangeTracker.Entries() runs DetectChanges, and
+            // against a half-swapped collection that empties Items and leaves nothing to reconcile.
+            _dbContext.ChangeTracker.AutoDetectChangesEnabled = false;
+
+            // Header first. Marking a tracked principal Modified cascades through its Items
+            // navigation, so the line states have to be asserted afterwards regardless of whether it
+            // actually reaches them — and the added lines must be tracked after it, or the cascade
+            // would rewrite them from Added to Modified.
+            _dbContext.Entry(quote).State = EntityState.Modified;
+
+            foreach (var entry in _dbContext.ChangeTracker.Entries<QuoteItem>().ToList())
+            {
+                if (entry.Entity.QuoteId == quote.Id)
+                {
+                    // A line this quote had before. A surviving line needs no write, and that inference
+                    // rests entirely on QuoteItem having no mutator — see the constraint documented on
+                    // that type, which is where a maintainer would open the file to add one. A dropped
+                    // line has to be deleted explicitly, because Update cannot reach an entity the
+                    // collection no longer holds.
+                    entry.State = keptItemIds.Contains(entry.Entity.Id) ? EntityState.Unchanged : EntityState.Deleted;
+                }
+            }
+
+            foreach (QuoteItem item in quote.Items)
+            {
+                if (!persistedIdSet.Contains(item.Id))
+                {
+                    // A brand new line: an INSERT. Matching on persistedItemIds rather than QuoteId
+                    // keeps a line of some other quote out of here, and skips the surviving ones —
+                    // re-adding a tracked line would INSERT it again and break on QUOTE_ITEMS.Id.
+                    // EF fills in QuoteId from the quote's Items navigation once, at SaveChanges.
+                    _dbContext.QuoteItems.Add(item);
+                }
+            }
+        }
+        finally
+        {
+            _dbContext.ChangeTracker.AutoDetectChangesEnabled = autoDetectChanges;
+        }
     }
 
     public async Task<(IReadOnlyList<Quote> Items, int Total)> GetHistoryAsync(

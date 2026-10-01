@@ -2,7 +2,6 @@ using POS.Application.DTOs.Quotes;
 using POS.Application.UseCases.Sales;
 using POS.Domain.Entities;
 using POS.Domain.Interfaces;
-using POS.Domain.ValueObjects;
 
 namespace POS.Application.UseCases.Quotes;
 
@@ -50,21 +49,9 @@ public sealed class CreateQuoteUseCase
             // live at checkout (see CashierViewModel._currentTierDiscountPercent) — and
             // ConvertQuoteToSaleUseCase carries this frozen Discount through without
             // re-resolving the tier either, for the same reason.
-            foreach (var item in request.Items)
+            foreach (QuoteItem item in await QuoteLineBuilder.BuildAllAsync(request.Items, _products, transactionCt).ConfigureAwait(false))
             {
-                var product = await _products.GetByIdAsync(item.ProductId, transactionCt)
-                    ?? throw new InvalidOperationException($"Producto {item.ProductId} no encontrado.");
-
-                // The product resolves units and price for whichever presentation it offers, so a
-                // quote can sell every pack the shop configured, not just the box it used to know.
-                quote.AddItem(new QuoteItem(
-                    product.Id,
-                    product.Name,
-                    product.PriceFor(item.PresentationName),
-                    new Quantity(item.Quantity),
-                    item.Discount,
-                    item.PresentationName,
-                    product.UnitsFor(item.PresentationName)));
+                quote.AddItem(item);
             }
 
             await _quotes.AddAsync(quote, transactionCt);

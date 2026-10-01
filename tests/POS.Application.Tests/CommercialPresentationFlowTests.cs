@@ -92,13 +92,19 @@ public sealed class CommercialPresentationFlowTests
     }
 
     [Fact]
-    public async Task GetQuoteHistory_LabelsSuccessfulEmailedQuotesByCalendarExpiry()
+    public async Task GetQuoteHistory_LabelsEveryQuoteByCalendarExpiryRegardlessOfWhetherItWasEmailed()
     {
-        Quote dueToday = MakeQuote("COT-DUE", DateTime.Now.Date);
-        Quote expiringSoon = MakeQuote("COT-SOON", DateTime.Now.Date.AddDays(2));
-        Quote expired = MakeQuote("COT-EXPIRED", DateTime.Now.Date.AddDays(-1));
-        Quote notEmailed = MakeQuote("COT-NO-EMAIL", DateTime.Now.Date.AddDays(1));
-        var quotes = new QuoteHistoryRepository([dueToday, expiringSoon, expired, notEmailed]);
+        // The labels used to be gated on HasSuccessfulEmail, so a quote that was never sent reported no
+        // expiry at all. That made IsExpiredByCalendar false downstream and left a long-lapsed proposal
+        // looking editable, with no renewal guidance. A deadline elapsing is a fact about the quote, not
+        // about which channel it went out on.
+        DateTime utcNow = DateTime.UtcNow;
+        Quote dueToday = MakeQuote("COT-DUE", ColombiaDate(utcNow));
+        Quote expiringSoon = MakeQuote("COT-SOON", ColombiaDate(utcNow).AddDays(2));
+        Quote expired = MakeQuote("COT-EXPIRED", ColombiaDate(utcNow).AddDays(-1));
+        Quote lapsedButNeverEmailed = MakeQuote("COT-LAPSED-NO-EMAIL", ColombiaDate(utcNow).AddDays(-30));
+        Quote healthyButNeverEmailed = MakeQuote("COT-OK-NO-EMAIL", ColombiaDate(utcNow).AddDays(10));
+        var quotes = new QuoteHistoryRepository([dueToday, expiringSoon, expired, lapsedButNeverEmailed, healthyButNeverEmailed]);
         var logs = new DocumentSendLogRepository(
             [
                 SuccessfulQuoteEmail(dueToday.Id),
@@ -107,13 +113,39 @@ public sealed class CommercialPresentationFlowTests
             ]);
         var useCase = new GetQuoteHistoryUseCase(quotes, logs);
 
-        QuoteHistoryResult result = await useCase.ExecuteAsync(null, null, null, null, 1, 10, TestContext.Current.CancellationToken);
+        QuoteHistoryResult result = await useCase.ExecuteAsync(null, null, null, null, 1, 10, utcNow, TestContext.Current.CancellationToken);
 
         Assert.Equal("Vence hoy", result.Items.Single(item => item.QuoteId == dueToday.Id).ReminderLabel);
         Assert.Equal("Próxima a vencer", result.Items.Single(item => item.QuoteId == expiringSoon.Id).ReminderLabel);
         Assert.Equal("Vencida", result.Items.Single(item => item.QuoteId == expired.Id).ReminderLabel);
-        Assert.Null(result.Items.Single(item => item.QuoteId == notEmailed.Id).ReminderLabel);
+        // The regression: never emailed, and still correctly reported as lapsed.
+        QuoteSummary lapsed = result.Items.Single(item => item.QuoteId == lapsedButNeverEmailed.Id);
+        Assert.Equal("Vencida", lapsed.ReminderLabel);
+        Assert.True(lapsed.IsExpiredByCalendar);
+        // A quote that is simply far from its deadline has nothing to remind about, emailed or not.
+        QuoteSummary healthy = result.Items.Single(item => item.QuoteId == healthyButNeverEmailed.Id);
+        Assert.Null(healthy.ReminderLabel);
+        Assert.False(healthy.IsExpiredByCalendar);
     }
+
+    [Fact]
+    public async Task GetQuoteHistory_DoesNotReportCalendarExpiryForATerminalQuote()
+    {
+        // A converted quote whose deadline has since passed already says what happened to it. Flagging
+        // it as calendar-expired would be noise, and it feeds CanConvertToSale, so it must stay false.
+        DateTime utcNow = DateTime.UtcNow;
+        Quote converted = MakeQuote("COT-CONVERTED", ColombiaDate(utcNow).AddDays(-5));
+        converted.Convert(Guid.NewGuid());
+        var useCase = new GetQuoteHistoryUseCase(new QuoteHistoryRepository([converted]), new DocumentSendLogRepository([]));
+
+        QuoteSummary summary = (await useCase.ExecuteAsync(null, null, null, null, 1, 10, utcNow, TestContext.Current.CancellationToken)).Items.Single();
+
+        Assert.False(summary.IsExpiredByCalendar);
+        Assert.Null(summary.ReminderLabel);
+    }
+
+    /// <summary>Midnight-to-midnight of the Colombian calendar day, expressed in UTC as the aggregate stores it.</summary>
+    private static DateTime ColombiaDate(DateTime utcNow) => utcNow.AddHours(-5).Date.AddHours(5);
 
     private static Product MakeBoxProduct(decimal stock, int unitsPerBox = 12, decimal boxPrice = 110_000m) => new(
         "Product Box Test",

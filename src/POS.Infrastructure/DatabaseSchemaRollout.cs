@@ -85,7 +85,16 @@ public static class DatabaseSchemaRollout
             await dbContext.SaveChangesAsync(ct);
         }
 
-        if (!await dbContext.RolePermissions.AnyAsync(permission => permission.RoleId == RoleConstants.CashierRoleId, ct))
+        // Grants the cashier set only when the role has zero rows — a fresh install. This is
+        // deliberately NOT a "converge on CashierDefaults" backfill: RolePermission has no tombstone
+        // distinguishing "never granted" from "revoked by an administrator", and UpdateRoleUseCase
+        // only shields the Administrator role, so a per-launch converging insert would silently
+        // restore any cashier key an administrator removed, forever. Delivering a new key to an
+        // existing role is a data migration's job (see Migrations/…_GrantQuotesEditToCashierRole),
+        // which runs once inside the pre-migration snapshot envelope.
+        var cashierRoleHasNoPermissions = !await dbContext.RolePermissions
+            .AnyAsync(permission => permission.RoleId == RoleConstants.CashierRoleId, ct);
+        if (cashierRoleHasNoPermissions)
         {
             dbContext.RolePermissions.AddRange(PermissionKeys.CashierDefaults.Select(key => new RolePermission(RoleConstants.CashierRoleId, key)));
             await dbContext.SaveChangesAsync(ct);
