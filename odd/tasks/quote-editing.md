@@ -349,6 +349,7 @@ Recorded because each one contradicts what this document originally assumed.
    original customer forever. The form still displays the link, which makes it look
    editable. This is a gap against "editable as many times as needed" and is the one
    item in this document still genuinely unimplemented.
+   **Fixed in batch 2 (C4b) — see the batch 2 section below.**
 
 4. **`QuoteStatus.Active` is unreachable.** No domain method sets it; quotes are created
    `Draft` and only ever become `Converted`, `Expired`, or `Cancelled`. The `Active`
@@ -398,6 +399,8 @@ both candidates exceed 400 changed lines.
    original customer forever while the form displays the link as if it were editable.
    This is the one item of the original requirement left genuinely unimplemented.
    Maintainer decision: document as a limitation, or extend WU1.
+   **Closed in batch 2 (C4b, commit `3df8bac`): the association is now assigned by
+   `Quote.Update`, so it can be re-linked, unlinked, or preserved.**
 2. **`QuoteStatus.Active` has no transition.** Either the state is vestigial and the
    `CanEdit` branch for it should go, or a transition is missing from the aggregate.
 3. **Manual runtime check not yet run.** Create a quote, edit it twice, confirm the
@@ -422,3 +425,247 @@ both candidates exceed 400 changed lines.
 - Quote version history or an undo stack. The audit log already records each edit.
 - Re-quoting a line from a changed catalogue price beyond the shared builder's normal
   price resolution, which is the same resolution creation already uses.
+
+## 4R Review Outcome - Correction Pass, Batch 2 (2026-10-01)
+
+Batch 2 owns the remaining seven findings from the second review: UI command wiring,
+the silently dropped customer, persistence-contract honesty, and test hygiene. Batch 1
+(C1a, C1b, C2, C3) was not revisited except for one assertion, reviewed independently
+below.
+
+| # | Finding | Severity | Commit | Status |
+|---|---|---|---|---|
+| C4a | "Descartar" could never enable; sibling commands unaudited | severe | `b448552` | fixed |
+| C4b | Customer picked during an edit was silently discarded | severe | `3df8bac` | fixed |
+| C5a | False `ReplaceItems` contract, dangling `(I4)`/`(I7)`, duplicated message | moderate | `e486489` | fixed |
+| C5b | `ConvertQuoteToSaleUseCase` had no real-repository coverage | severe | `2727bad` | fixed |
+| C5c | `Task.Delay(50)` races; non-hermetic raw-table count | moderate | `320a650`, `50f0565` | fixed |
+| C6a | Create and update restated the same guards and projection | moderate | `4ab58cc` | fixed |
+| C6b | `validityDays` had no upper bound | moderate | `11af062` | fixed |
+| C6c | Four hand-written spellings of one status set | minor | `cecc4c2` | fixed |
+
+Two further defects were found **inside batch 2's own work** while verifying it, and are
+fixed here: the tree did not compile (`CS0103`), and `QuoteSummaryRow` shipped a
+duplicated `<summary>` tag. Both are recorded below rather than quietly corrected.
+
+### Two defects found in this batch's own partial pass
+
+The branch already carried batch 2 commits when this pass began. Verifying them found
+that the work was **incomplete, not wrong**:
+
+1. **The tree did not build.** `QuoteValidityDaysOutOfRangeException` referenced `Quote`
+   from `POS.Domain.Exceptions` with no `using POS.Domain.Entities`, so `Quote.cs` and
+   `QuoteViewModel.cs` failed with `CS0103` (2 errors) and every project downstream of
+   `POS.Domain` failed to compile. C6b was mid-flight.
+2. **`QuoteSummaryRow.CanConvertToSale` had two `<summary>` tags** (commit `cecc4c2`), the
+   outer one never closed, so the block was malformed XML. Harmless to the compiler,
+   useless to anything that reads the doc comment.
+
+Fixed in `1adb6e3` (the doc tag) and completed in `11af062` (the bound plus its tests).
+
+### C4a - the "Descartar" button was a one-way door
+
+`RelayCommand.CanExecuteChanged` is a bare event with no `CommandManager` behind it
+(verified: no `CommandManager` anywhere in `src/`), so WPF evaluates `CanExecute` once at
+bind time. "Descartar" was bound while `IsEditing` was still `false` and never re-queried:
+entering edit mode had exactly one exit, saving.
+
+`_cancelEditCommand.RaiseCanExecuteChanged()` now fires from the `IsEditing` setter. Two
+tests, because one of them is not enough: `CanExecute` re-reads its predicate on every
+call, so a test that only calls `CanExecute` would pass with the raise missing - it pins
+the value, not the notification. WPF only re-reads it if `CanExecuteChanged` fires.
+
+**Audit of every other command in `QuoteViewModel`.** Three of the thirteen commands
+close a `canExecute` over mutable state; the other ten have no predicate and are always
+enabled, so they cannot go stale.
+
+| Command | Predicate | Raises where | Verdict |
+|---|---|---|---|
+| `ApplyCartDiscountCommand` | `CartItems.Count > 0` | `RecalculateTotal` | correct |
+| `ClearCartDiscountCommand` | `HasManualDiscount` | `RecalculateTotal` | correct |
+| `CancelEditCommand` | `IsEditing` | `IsEditing` setter | **was broken, now fixed** |
+
+The first two are sound because every path that mutates `CartItems` or a line's
+`Discount` ends in `RecalculateTotal` - `AddToCart`, `RemoveFromCart`, `ApplyCartDiscount`,
+`ClearCartDiscount`, `LoadForEdit`, `ClearForm` - and a line's own `PropertyChanged`
+handler calls it too. No other instance of this class of bug.
+
+### C4b - the customer a cashier picked during an edit is now saved
+
+`LoadForEdit` hydrated `SelectedCustomerId`, the picker stayed live, `UpdateQuoteRequest`
+carried no `CustomerId`, and `Quote.Update` never assigned the association. The operator
+searched a customer, clicked "Usar", saved, read "actualizada correctamente" - and the
+quote was still a walk-in.
+
+Closed in three layers: `CustomerId` on the DTO, the assignment in `Quote.Update`, and the
+current selection in the form. `Quote.Update`'s doc states the consequence plainly: because
+`null` now means *unlink*, this cannot be expressed as "leave unchanged" - a caller that
+must not touch the association passes the quote's current `CustomerId`. The existing EF
+configuration already honoured this: `CustomerId` is nullable with
+`OnDelete(DeleteBehavior.Restrict)`, exactly as creation relies on, so no schema or
+migration was involved.
+
+Three tests replace one. The old test asserted the field **hydrates**, which is precisely
+why the drop-on-save survived: now the customer has to **survive a save**, clearing it has
+to clear the association, and an untouched selection has to preserve the original.
+
+### C5a - the contract now says what the code does
+
+`ReplaceItems` claimed the repository could tell a dropped line from a corrected one by
+`Id`. That is false: `QuoteItem`'s constructor assigns a fresh `Guid` and
+`QuoteLineBuilder` builds fresh items on every save, so `keptItemIds.Contains(entry.Entity.Id)`
+is always false and an edit is DELETE-all plus INSERT-all. The comment now says that, and
+names the earlier claim as false so nobody re-adds it.
+
+The load-bearing half of that inference - "a surviving line needs no write" - rests
+entirely on `QuoteItem` having no mutators. That was documented only in
+`QuoteRepository`, a different project from the file a maintainer opens to add a setter.
+The constraint now lives on `QuoteItem`.
+
+The `(I4)` and `(I7)` references in `src/**` resolved only in this document, which is
+archived per change; they are gone. `QuoteNotEditableException` lost its duplicated
+`Converted` wording (that path raises `QuoteAlreadyConvertedException`) and its unreachable
+`_` arm - every call site constructs it only after ruling `Converted` out.
+
+### C5b - conversion against real EF and SQLite
+
+`ConvertQuoteToSaleUseCase` is the riskier caller of the rewritten `UpdateAsync`: it runs it
+**inside** `ExecuteInTransactionAsync` while `CreateSaleUseCase` writes through the same
+`AppDbContext`, over a quote whose `Items` arrived via `.Include(q => q.Items)` and are
+therefore already tracked. `CommercialPresentationFlowTests` uses a hand-rolled
+`SingleQuoteRepository`, and `QuoteExpirationTests` throws before `UpdateAsync`.
+
+New test on a real `SqliteConnection` + real `AppDbContext` + real `QuoteRepository`,
+asserting `Converted`, `ConvertedSaleId` set, both lines intact with the right total, and
+no change in the `QUOTE_ITEMS` row count - re-read from a *fresh* context, so nothing the
+converting context tracked can paper over a lost row.
+
+### C5c - hermetic assertions
+
+Three tests waited on `Task.Delay(50)` for a fire-and-forget continuation
+(`ViewModelBase.RunSafe`). They now await a `TaskCompletionSource` completed by the event
+handler, with a 10s timeout as a backstop against a hang rather than as the mechanism. The
+two negative-control tests needed no wait at all and take none: their guards are synchronous
+inside `RequestQuoteEdit`, which is itself what those tests prove.
+
+The raw-table counter took no `WHERE`, so it could only pass for the right reason while each
+fixture seeded exactly one quote. It is now scoped by quote id.
+
+### C6a - one guard and one projection
+
+`TryBuildCartItems` is extracted: both save paths now get their guards, their cart
+projection, and therefore their field list from one place. A `Theory` pins both paths to
+the same message for the same incomplete form. The irony is recorded in the code: the layer
+that extracted `QuoteLineBuilder` specifically to stop price resolution drifting duplicated
+the cart mapping one level above, unexamined - and that is exactly how the customer
+association went missing in the first place.
+
+### C6b - the validity window has a ceiling
+
+`Quote.Update` rejected only `<= 0`, so a quote could be re-armed for ~2.9M days.
+
+**The ceiling is not about the exception.** `DateTime` does not overflow until roughly 2.9
+million days from today (`DateTime.MaxValue` is year 9999), so every absurd value below
+that - 500,000 days included - is perfectly representable, passed every previous guard, and
+got **persisted**. It then reached the client as a rendered deadline, because `PdfService`
+prints "Válida hasta" from `ExpiresAt`. A quote valid until the year 3395 is a worse
+outcome than a crash, because it looks like data.
+
+**Ceiling: 3650 days - a decade.** Deliberately a sanity bound, not a business policy:
+
+- The form's `IntegerUpDown` caps at 365, so no value the system can legitimately produce
+  falls outside it and the domain can never contradict the control the operator actually
+  uses. A 365-day domain ceiling would be a second, undocumented rule about how long a
+  quote may live, in a codebase whose design document fixes no ceiling at all.
+- Reporting horizons in this app are weeks to months (`PurchasesViewModel` defaults to one
+  month back), so nothing legitimate approaches a year.
+- A decade is already nonsense for a commercial proposal, so every absurd value is refused
+  - which is the job - while lifting the bound later stays a one-line change touching no
+  schema.
+- `installer/EPOS.iss` was checked as the brief suggested and contributes **nothing**: it is
+  a 41-line Inno Setup script with no validity, horizon or expiry concept. The ceiling is
+  justified against the form control and the reporting horizons, not invented, and not
+  borrowed from the installer.
+
+`QuoteValidityDaysOutOfRangeException` is a domain exception whose message names the rule,
+the quote and the value typed - not an `ArgumentOutOfRangeException` from `DateTime.AddDays`
+telling the operator nothing about which rule they broke. One `EnsureValidityDaysInRange`
+serves the constructor and `Update`, so the two entry points cannot disagree, and both run
+it before assigning any field, so a refused window leaves the aggregate intact. The form
+clamps to the same constants, read from the domain rather than restated.
+
+Tests: four over-ceiling values on `Update` (3651, 500,000, 2,900,000, `int.MaxValue`),
+four out-of-range values on the constructor, the untouched-aggregate guarantee, a use-case
+test proving nothing is written on a refused window, and a negative control that the
+ceiling accepts the form's own 365-day maximum.
+
+### C6c - the status set is stated once
+
+`CanConvertToSale`, `CanEdit` and `CanCancel` each restated a status set by hand, alongside
+`Quote.CanEdit` in the domain. `IsOpenProposal` centralises it. A `Theory` contrasts all
+three against the aggregate for every `QuoteStatus`, so a new member cannot leave an
+affordance behind. `CanCancel` legitimately differs from `CanEdit` on `Expired` - retiring
+a lapsed quote is how the shop cancels one - and the test says so rather than papering over it.
+
+## Batch 1 assertion reviewed independently
+
+Batch 1 changed `ExecuteAsync_WhenQuoteIsConverted_RejectsBeforeAnyWrite` from
+`QuoteNotEditableException` to `QuoteAlreadyConvertedException`. **Reviewed, not trusted,
+and the change is correct.** Evidence:
+
+1. **It was required, not cosmetic.** `QuoteAlreadyConvertedException` derives directly from
+   `DomainException` - it is a sibling of `QuoteNotEditableException`, not a subclass - and
+   xUnit's `Assert.Throws<T>` matches the exact type. The old assertion therefore *could not*
+   pass against the post-batch-1 code.
+2. **The new expectation is the domain's own contract.** `QuoteTests.Update_WhenQuoteIsFrozen_ThrowsAndLeavesTheQuoteUntouched`
+   pins `typeof(QuoteAlreadyConvertedException)` for `QuoteStatus.Converted`, and both
+   `Quote.Update` and `EnsureEditableAt` throw exactly that. The use case delegates to the
+   aggregate, so the two paths agree - which is the point of the change.
+3. **The operator-facing behaviour is unchanged.** The view-model renders `ex.Message`, and
+   both exceptions carry the same "ya fue convertida a venta" wording. The test still asserts
+   that substring.
+4. **The guarantee was not weakened.** `Assert.Equal(0, unitOfWork.SaveCount)` survives: the
+   test still proves the edit is refused before any write.
+5. **No blast radius.** Neither type is caught anywhere in `src/`; both are throw-only.
+
+The reasoning behind it - the old assertion was pinning a duplicated guard, and a test that
+protects a duplicate is what let that duplicate drift on the lapsed case - holds up.
+
+## Test assertions changed in batch 2, and why
+
+| Assertion | Was | Now | Why |
+|---|---|---|---|
+| `Update_WithNonPositiveValidityDays_Throws` | `Assert.Throws<ArgumentOutOfRangeException>` | `QuoteValidityDaysOutOfRangeException` + message + aggregate untouched | the domain now refuses the window itself, and the aggregate being left untouched was never asserted |
+| `QuoteHistoryViewModelTests` (3 tests) | `await Task.Delay(50)` | `TaskCompletionSource` from the event handler, 10s timeout backstop | a fixed sleep is a timing bet on an idle runner |
+| `QuoteEditingPersistenceTests` raw count | `SELECT COUNT(*) FROM "QUOTE_ITEMS"` | same, `WHERE "QuoteId" = @quoteId` | a whole-table count only passes for the right reason while one quote exists |
+
+No assertion was weakened or removed.
+
+## Final state after batch 2
+
+`dotnet build POS.sln --no-restore` -> 0 errors, 0 warnings (incremental).
+`-t:Rebuild` -> 132 warnings, all pre-existing and unrelated to this change:
+115 `xUnit1051`, 12 `EF1002`, 3 `CS8604`, 1 `CS8629`, 1 `xUnit1031`, in
+`POS.Application.Tests` (130) and `POS.Presentation.Shared.Tests` (2, both in
+`InventoryViewModelTests.cs`). Reported, not fixed.
+
+`dotnet test POS.sln --no-restore` -> **1078 passed, 0 failed**
+(Domain 186, Presentation.Shared 365, SmokeTests 18, Application 509).
+Batch 1 ended at 1043; batch 2 added 35 tests.
+
+## Outstanding Before Archive (revised)
+
+1. **The edit form's total is still frozen, not live** (C2). Making it live needs a by-id
+   lookup on `IProductLookupService` and an async `LoadForEdit`. The divergence is surfaced
+   rather than hidden, which closes the money hole but leaves the nicer form outstanding.
+2. **`QuoteStatus.Active` has no transition.** Unchanged by batch 2. Either the state is
+   vestigial and the `CanEdit` branch for it should go, or a transition is missing.
+3. **Manual runtime check still not run** - now owing more than before. Batch 2 changed what
+   the operator physically touches: "Descartar" has to enable on entering edit mode and
+   disable after discarding; a customer picked during an edit has to survive the save; and a
+   validity value past the ceiling has to be refused without an opaque error. No headless
+   test can prove the WPF interaction. The earlier items still owe: `QuoteNumber` unchanged
+   across two edits, the edit affordance gone once converted, the success message carrying
+   the total, and a lapsed row showing "Vencida" with the renewal guidance.
+4. **`CreateQuoteUseCase` and `CancelQuoteUseCase` are ungated at the use-case level.**
+   Pre-existing app-wide pattern, recorded in C1b, needs its own change.
