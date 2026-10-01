@@ -133,12 +133,97 @@ Rollback: revert the commit. The application keeps working without the edit entr
 
 ## Evidence
 
-Filled in as each work unit lands.
+| Work unit | Commit | Authored lines | Focused test result | Runtime result |
+|---|---|---|---|---|
+| WU1 | `d0f7780` | 1036 (+1011/−25) | Domain 169, Application 496 — 0 failed | N/A — persistence proven by EF+SQLite round-trip in a fresh context |
+| WU2 | `2fc8ab7` | 610 (+603/−7) | Presentation.Shared 345 — 0 failed | **pending** — manual `run-pos-app` check not yet run |
+| Docs | `5515fdf` | 151 | — | — |
 
-| Work unit | Commit | Focused test result | Runtime result |
+Full suite after WU2: `dotnet test POS.sln --no-restore` → **1028 passed, 0 failed**
+(Domain 169, Presentation.Shared 345, SmokeTests 18, Application 496).
+Build: 0 errors, 0 warnings.
+
+**Budget overrun: both work units exceed the 400-line review budget.** 1616 authored
+lines against a 800 forecast. See "Delivery" below.
+
+## Findings That Changed The Design
+
+Recorded because each one contradicts what this document originally assumed.
+
+1. **`DbSet.Update` was wrong in three ways, not one.** The documented I4 orphan was
+   only the first. Adding a line gave it a fresh `Id`, so `Modified` was sent as an
+   `UPDATE` against a row that did not exist — a `ConcurrencyConflictException` on every
+   added line. Worse, EF's relationship fixup drops a not-yet-fixed-up line from the
+   `Items` navigation, and that navigation's backing field is the same `_items` list
+   `Quote.Total` sums: the edit committed successfully and reported `Total == 0`. The
+   final implementation reconciles lines by Id against an `AsNoTracking` query with
+   change detection suppressed. The persistence negative control was genuinely RED
+   three times before this was right.
+
+2. **`QuoteItem`'s immutability is now load-bearing.** The reconcile infers "a surviving
+   line needs no write" from the absence of mutators. Adding one later would silently
+   stop that change persisting. There is a comment at that exact line; it is a real
+   constraint, not a style note.
+
+3. **Editing could not re-link a registered customer.** `UpdateQuoteRequest` carries no
+   `CustomerId` and `Quote.Update` does not touch the association, so an edit keeps the
+   original customer forever. The form still displays the link, which makes it look
+   editable. This is a gap against "editable as many times as needed" and is the one
+   item in this document still genuinely unimplemented.
+
+4. **`QuoteStatus.Active` is unreachable.** No domain method sets it; quotes are created
+   `Draft` and only ever become `Converted`, `Expired`, or `Cancelled`. The `Active`
+   branch of `CanEdit` is therefore currently dead, exercised in tests only through a
+   private-setter reflection escape hatch. Either the state is vestigial or a transition
+   is missing.
+
+5. **Smoke tests could not catch a broken Quotes module.** `TryCreateOptionalModule`
+   downgrades a construction failure to a warning string, and the bootstrap smoke test
+   never asserted `shell.Quote != null`. Past green runs of that project proved less than
+   they appeared to. Now asserted.
+
+## Delivery
+
+Both work units are over the 400-line review budget. One honest slicing pass was done:
+
+| Candidate slice | Authored lines | Fits? |
+|---|---|---|
+| Domain rule + tests | 234 | yes |
+| Permission + rollout backfill + tests | 109 | yes |
+| Application use case + builder + tests | 407 | no |
+| Persistence reconcile + tests | 284 | yes |
+| UI (WU2 as committed) | 610 | no |
+
+Rebasing into that chain still leaves two slices over budget, and it would separate each
+test from the behavior it proves.
+
+**Decision — maintainer-approved `size:exception` on both work units, delivered as two
+PRs.** Rationale: 1016 of WU1's 1036 authored lines are tests; production behavior in WU1
+is ~330 lines and WU2 ~290. The overrun is the EF persistence reconcile, which was
+genuinely red three times before it was correct. Slicing further would buy a number at the
+cost of separating each test from the rule it proves, which this repository forbids.
+
+| PR | Content | Commit | Authored lines |
 |---|---|---|---|
-| WU1 | — | — | — |
-| WU2 | — | — | — |
+| PR 1 | WU1 — domain rule, permission, application, persistence | `d0f7780` | 1036 |
+| PR 2 | WU2 — edit action in the UI | `2fc8ab7` | 610 |
+
+Both PRs declare `size:exception`. Review fan-out (`review-risk`, `review-resilience`,
+`review-readability`, `review-reliability`) runs before publication: RDD is active and
+both candidates exceed 400 changed lines.
+
+## Outstanding Before Archive
+
+1. **Editing cannot re-link a registered customer.** `UpdateQuoteRequest` carries no
+   `CustomerId` and `Quote.Update` does not touch the association, so an edit keeps the
+   original customer forever while the form displays the link as if it were editable.
+   This is the one item of the original requirement left genuinely unimplemented.
+   Maintainer decision: document as a limitation, or extend WU1.
+2. **`QuoteStatus.Active` has no transition.** Either the state is vestigial and the
+   `CanEdit` branch for it should go, or a transition is missing from the aggregate.
+3. **Manual runtime check not yet run.** Create a quote, edit it twice, confirm the
+   `QuoteNumber` is unchanged, then convert it and confirm the edit affordance is gone.
+   No headless test can prove the WPF interaction.
 
 ## Out of Scope
 
