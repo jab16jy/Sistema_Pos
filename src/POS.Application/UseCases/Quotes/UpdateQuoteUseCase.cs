@@ -1,5 +1,8 @@
 using POS.Application.DTOs.Quotes;
+using POS.Application.Interfaces;
+using POS.Application.UseCases.Auth;
 using POS.Application.UseCases.Sales;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Exceptions;
 using POS.Domain.Interfaces;
@@ -11,18 +14,41 @@ public sealed class UpdateQuoteUseCase
     private readonly IQuoteRepository _quotes;
     private readonly IProductRepository _products;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ICurrentOperatorSession _session;
     private readonly ISettingsRepository? _settings;
 
-    public UpdateQuoteUseCase(IQuoteRepository quotes, IProductRepository products, IUnitOfWork unitOfWork, ISettingsRepository? settings = null)
+    public UpdateQuoteUseCase(
+        IQuoteRepository quotes,
+        IProductRepository products,
+        IUnitOfWork unitOfWork,
+        ICurrentOperatorSession session,
+        ISettingsRepository? settings = null)
     {
         _quotes = quotes;
         _products = products;
         _unitOfWork = unitOfWork;
+        _session = session;
         _settings = settings;
     }
 
     public async Task<QuoteResult> ExecuteAsync(UpdateQuoteRequest request, CancellationToken ct = default)
     {
+        // This use case writes UnitPrice, Quantity and Discount — the money path — so the permission
+        // belongs here and not only on QuoteHistoryViewModel.EditCommand. The view-model gate is
+        // correct UI behaviour (it hides an affordance the operator may not use), but an affordance is
+        // not access control: any other caller reaching this constructor inherited an unauthenticated
+        // money write.
+        //
+        // Surfaced exactly like the other money-path guards (CreateSaleUseCase,
+        // ProcessReturnUseCase, AdjustStockUseCase): an UnauthorizedActionException naming the
+        // permission, thrown rather than returned because QuoteResult has no error channel.
+        // The view-model renders ex.Message, so the operator still sees why it was refused.
+        if (PermissionAuthorization.EnsureHasPermission(
+                _session, PermissionKeys.Quotes.Edit, "No tienes permiso para editar cotizaciones.") is not null)
+        {
+            throw new UnauthorizedActionException(PermissionKeys.Quotes.Edit);
+        }
+
         var quote = await _quotes.GetByIdAsync(request.QuoteId, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Cotización {request.QuoteId} no encontrada.");
 

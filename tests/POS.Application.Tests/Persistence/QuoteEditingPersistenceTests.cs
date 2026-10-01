@@ -59,7 +59,7 @@ public sealed class QuoteEditingPersistenceTests
         await using (var editContext = CreateDbContext(connection))
         {
             var quotes = new QuoteRepository(editContext);
-            var result = await new UpdateQuoteUseCase(quotes, new StubProductRepository(product), editContext).ExecuteAsync(
+            var result = await new UpdateQuoteUseCase(quotes, new StubProductRepository(product), editContext, new CashierWithQuotesEditSession()).ExecuteAsync(
                 new UpdateQuoteRequest(quoteId, "Ana Gomez", null, null, 15, null,
                 [
                     // Drop the second line, re-quantity the first, and add a brand new one.
@@ -115,7 +115,7 @@ public sealed class QuoteEditingPersistenceTests
         {
             await using var editContext = CreateDbContext(connection);
             var quotes = new QuoteRepository(editContext);
-            QuoteResult result = await new UpdateQuoteUseCase(quotes, new StubProductRepository(product), editContext).ExecuteAsync(
+            QuoteResult result = await new UpdateQuoteUseCase(quotes, new StubProductRepository(product), editContext, new CashierWithQuotesEditSession()).ExecuteAsync(
                 new UpdateQuoteRequest(quoteId, $"Customer {edit}", null, null, 30 + edit, null, [new CreateQuoteItemRequest(product.Id, edit, 0m)]),
                 TestContext.Current.CancellationToken);
             Assert.Equal(quoteNumber, result.QuoteNumber);
@@ -192,6 +192,16 @@ public sealed class QuoteEditingPersistenceTests
         await using SqliteCommand command = connection.CreateCommand();
         command.CommandText = $"SELECT COUNT(*) FROM \"{table}\";";
         return Convert.ToInt32(await command.ExecuteScalarAsync(ct));
+    }
+
+    /// <summary>The edit use case enforces Quotes.Edit itself, so the persistence round-trips need a session that holds it.</summary>
+    private sealed class CashierWithQuotesEditSession : Application.Interfaces.ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = Guid.NewGuid();
+        public string Username => "cashier";
+        public IReadOnlySet<string> Permissions { get; } =
+            new HashSet<string>([Domain.Authorization.PermissionKeys.Quotes.Edit], StringComparer.Ordinal);
+        public bool IsAuthenticated => true;
     }
 
     private sealed class StubProductRepository(Product product) : IProductRepository

@@ -1,5 +1,7 @@
 using POS.Application.DTOs.Quotes;
+using POS.Application.Interfaces;
 using POS.Application.UseCases.Quotes;
+using POS.Domain.Authorization;
 using POS.Domain.Entities;
 using POS.Domain.Enums;
 using POS.Domain.Exceptions;
@@ -20,7 +22,7 @@ public sealed class UpdateQuoteUseCaseTests
         Guid quoteId = stored.Id;
         DateTime createdAt = stored.CreatedAt;
         var unitOfWork = new InMemoryUnitOfWork();
-        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork);
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork, SessionWithQuotesEdit());
 
         QuoteResult result = await useCase.ExecuteAsync(
             new UpdateQuoteRequest(quoteId, "Ana Gomez", null, "ana@example.com", 15, "  Pedido urgente  ", [new CreateQuoteItemRequest(product.Id, 3m, 0m)]),
@@ -52,6 +54,7 @@ public sealed class UpdateQuoteUseCaseTests
             quotes,
             new InMemoryProductRepository(product),
             unitOfWork,
+            SessionWithQuotesEdit(),
             new SettingsRepositoryFake(MaximumDiscount: 20m));
 
         // I5: an edit is not a way around the ceiling the cashier is held to at the till.
@@ -74,7 +77,7 @@ public sealed class UpdateQuoteUseCaseTests
         var product = CreateProduct("Boxed widget", presentations: [("Caja", 6, new Money(5_400m))]);
         var quotes = new InMemoryQuoteRepository();
         Quote stored = SeedDraftQuote(quotes, product);
-        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork());
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
 
         await useCase.ExecuteAsync(
             new UpdateQuoteRequest(stored.Id, "Test Customer", null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 2m, 0m, "Caja")]),
@@ -99,7 +102,7 @@ public sealed class UpdateQuoteUseCaseTests
         Quote stored = SeedDraftQuote(quotes, product);
         SetStatus(stored, status);
         var unitOfWork = new InMemoryUnitOfWork();
-        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork);
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork, SessionWithQuotesEdit());
 
         await Assert.ThrowsAsync<QuoteNotEditableException>(() =>
             useCase.ExecuteAsync(
@@ -121,7 +124,7 @@ public sealed class UpdateQuoteUseCaseTests
         Quote stored = SeedDraftQuote(quotes, product);
         stored.Convert(Guid.NewGuid());
         var unitOfWork = new InMemoryUnitOfWork();
-        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork);
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork, SessionWithQuotesEdit());
 
         var exception = await Assert.ThrowsAsync<QuoteNotEditableException>(() =>
             useCase.ExecuteAsync(
@@ -139,7 +142,8 @@ public sealed class UpdateQuoteUseCaseTests
         var useCase = new UpdateQuoteUseCase(
             new InMemoryQuoteRepository(),
             new InMemoryProductRepository(product),
-            new InMemoryUnitOfWork());
+            new InMemoryUnitOfWork(),
+            SessionWithQuotesEdit());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.ExecuteAsync(
@@ -156,7 +160,7 @@ public sealed class UpdateQuoteUseCaseTests
         Quote stored = SeedDraftQuote(quotes, product);
         Guid quoteId = stored.Id;
         DateTime createdAt = stored.CreatedAt;
-        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork());
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
 
         await useCase.ExecuteAsync(new UpdateQuoteRequest(quoteId, "Ana", null, null, 10, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]), TestContext.Current.CancellationToken);
         await useCase.ExecuteAsync(new UpdateQuoteRequest(quoteId, "Ana Gomez", null, null, 20, null, [new CreateQuoteItemRequest(product.Id, 2m, 0m)]), TestContext.Current.CancellationToken);
@@ -181,10 +185,75 @@ public sealed class UpdateQuoteUseCaseTests
         return quote;
     }
 
+    [Fact]
+    public async Task ExecuteAsync_WithoutTheQuotesEditPermission_RejectsBeforeAnyReadOrWrite()
+    {
+        // I6 enforced at the trust boundary, not only on the view-model command. QuoteHistoryViewModel
+        // hides the edit affordance, but the use case is what writes UnitPrice/Quantity/Discount, so
+        // the permission has to be checked here: an affordance is not access control, and any other
+        // caller reaching this constructor would otherwise inherit an unauthenticated money write.
+        var product = CreateProduct("Widget");
+        var quotes = new InMemoryQuoteRepository();
+        Quote stored = SeedDraftQuote(quotes, product);
+        var unitOfWork = new InMemoryUnitOfWork();
+        var useCase = new UpdateQuoteUseCase(
+            quotes,
+            new InMemoryProductRepository(product),
+            unitOfWork,
+            new SessionFake(isAuthenticated: true, PermissionKeys.Customers.View));
+
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() =>
+            useCase.ExecuteAsync(
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 5m, 0m)]),
+                TestContext.Current.CancellationToken));
+
+        // Rejected before the quote was even loaded, and with nothing written.
+        Assert.Equal("Test Customer", stored.CustomerName);
+        Assert.Equal(30, stored.ValidityDays);
+        Assert.Single(stored.Items);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithNoAuthenticatedSession_RejectsTheSameWay()
+    {
+        // A session that carries the key but was never authenticated is not a grant: the operator is
+        // nobody. This is why the check goes through EnsureHasPermission rather than
+        // HasPermission alone.
+        var product = CreateProduct("Widget");
+        var quotes = new InMemoryQuoteRepository();
+        Quote stored = SeedDraftQuote(quotes, product);
+        var unitOfWork = new InMemoryUnitOfWork();
+        var useCase = new UpdateQuoteUseCase(
+            quotes,
+            new InMemoryProductRepository(product),
+            unitOfWork,
+            new SessionFake(isAuthenticated: false, PermissionKeys.Quotes.Edit));
+
+        await Assert.ThrowsAsync<UnauthorizedActionException>(() =>
+            useCase.ExecuteAsync(
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+                TestContext.Current.CancellationToken));
+
+        Assert.Equal("Test Customer", stored.CustomerName);
+        Assert.Equal(0, unitOfWork.SaveCount);
+    }
+
+    private static ICurrentOperatorSession SessionWithQuotesEdit() =>
+        new SessionFake(isAuthenticated: true, PermissionKeys.Quotes.Edit);
+
     private static void SetStatus(Quote quote, QuoteStatus status) =>
         typeof(Quote)
             .GetProperty(nameof(Quote.Status), System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)!
             .SetValue(quote, status);
+
+    private sealed class SessionFake(bool isAuthenticated, params string[] permissions) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = Guid.NewGuid();
+        public string Username => "cashier";
+        public IReadOnlySet<string> Permissions { get; } = new HashSet<string>(permissions, StringComparer.Ordinal);
+        public bool IsAuthenticated => isAuthenticated;
+    }
 
     private sealed class SettingsRepositoryFake(decimal MaximumDiscount) : ISettingsRepository
     {

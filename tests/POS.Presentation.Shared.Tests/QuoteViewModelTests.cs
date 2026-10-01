@@ -441,7 +441,9 @@ public sealed class QuoteViewModelTests
         unitOfWork = new InMemoryUnitOfWork();
         var productRepo = new StaticProductRepository(product);
         var createQuote = new CreateQuoteUseCase(quoteRepo, productRepo, unitOfWork);
-        var updateQuote = withUpdate ? new UpdateQuoteUseCase(quoteRepo, productRepo, unitOfWork) : null;
+        var updateQuote = withUpdate
+            ? new UpdateQuoteUseCase(quoteRepo, productRepo, unitOfWork, new CashierWithQuotesEditSession())
+            : null;
         var sendDocument = new SendDocumentUseCase(
             new FakePdfService(),
             new FakeEmailService(),
@@ -449,6 +451,19 @@ public sealed class QuoteViewModelTests
             new InMemoryDocumentSendLogRepository(),
             unitOfWork);
         return new QuoteViewModel(new EmptyProductLookupService(), createQuote, sendDocument, updateQuoteUseCase: updateQuote);
+    }
+
+    /// <summary>
+    /// The edit use case now enforces Quotes.Edit itself, so the view-model tests driving the save path
+    /// have to present a session that actually holds the key.
+    /// </summary>
+    private sealed class CashierWithQuotesEditSession : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = Guid.NewGuid();
+        public string Username => "cashier";
+        public IReadOnlySet<string> Permissions { get; } =
+            new HashSet<string>([Domain.Authorization.PermissionKeys.Quotes.Edit], StringComparer.Ordinal);
+        public bool IsAuthenticated => true;
     }
 
     private sealed class EmptyProductLookupService : IProductLookupService
