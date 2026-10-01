@@ -87,8 +87,8 @@ public sealed class UpdateQuoteUseCase
             await _unitOfWork.SaveChangesAsync(transactionCt).ConfigureAwait(false);
         }, ct).ConfigureAwait(false);
 
-        // Deliberately no sale, payment or inventory call anywhere in this path (I7): the quote is
-        // not a commitment, so editing it must not move stock.
+        // Deliberately no sale, payment or inventory call anywhere in this path: the quote is not a
+        // commitment, so editing it must not move stock.
         return new QuoteResult(
             quote.Id,
             quote.QuoteNumber,

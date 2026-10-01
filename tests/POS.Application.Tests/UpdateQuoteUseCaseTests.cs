@@ -116,7 +116,8 @@ public sealed class UpdateQuoteUseCaseTests
             SessionWithQuotesEdit(),
             new SettingsRepositoryFake(MaximumDiscount: 20m));
 
-        // I5: an edit is not a way around the ceiling the cashier is held to at the till.
+        // The same discount ceiling as creation: an edit is not a way around the limit the cashier is
+        // held to at the till.
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.ExecuteAsync(
                 new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 25m)]),
@@ -147,7 +148,7 @@ public sealed class UpdateQuoteUseCaseTests
         Assert.Equal(6, item.UnitsPerPresentation);
         Assert.Equal(5_400m, item.UnitPrice.Amount);
         Assert.Equal(10_800m, Assert.Single(quotes.Quotes).Total);
-        // I7: nothing here is a commitment, so stock must be untouched.
+        // Nothing here is a commitment, so stock must be untouched.
         Assert.Equal(20m, product.CurrentStock);
     }
 

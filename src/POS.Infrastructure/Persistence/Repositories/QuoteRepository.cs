@@ -107,13 +107,13 @@ public sealed class QuoteRepository : IQuoteRepository
     /// entity and nothing else, which is wrong in both directions once a quote becomes editable:
     /// a line dropped by <c>ReplaceItems</c> is no longer reachable, so its entry stays Unchanged and
     /// its QUOTE_ITEMS row survives as an orphan that no longer contributes to <c>Quote.Total</c> —
-    /// the operator's total and the persisted sum then disagree for good (I4). And a line added by
+    /// the operator's total and the persisted sum then disagree for good. And a line added by
     /// <c>ReplaceItems</c> carries a fresh Id, so Modified would be sent as an UPDATE against a row
     /// that does not exist yet.
     ///
-    /// Reconciling the lines by Id leaves the two existing callers unchanged in behaviour:
-    /// <c>CancelQuoteUseCase</c> and <c>ConvertQuoteToSaleUseCase</c> only ever move the header, and
-    /// the lines they keep are immutable, so rewriting those rows was pure noise.
+    /// Reconciling the lines leaves the two callers that only move the header unchanged in behaviour:
+    /// <c>CancelQuoteUseCase</c> and <c>ConvertQuoteToSaleUseCase</c> keep their lines as-is, and those
+    /// lines are immutable, so rewriting the rows would be pure noise.
     /// </summary>
     public async Task UpdateAsync(Quote quote, CancellationToken ct = default)
     {
@@ -150,11 +150,11 @@ public sealed class QuoteRepository : IQuoteRepository
             {
                 if (entry.Entity.QuoteId == quote.Id)
                 {
-                    // A line this quote had before. A surviving line is immutable (QuoteItem has no
-                    // mutator), so it needs no write; a dropped one has to be deleted explicitly,
-                    // because Update cannot reach an entity the collection no longer holds. If a
-                    // mutator is ever added to QuoteItem, this is the line that would silently stop
-                    // persisting that change.
+                    // A line this quote had before. A surviving line needs no write, and that inference
+                    // rests entirely on QuoteItem having no mutator — see the constraint documented on
+                    // that type, which is where a maintainer would open the file to add one. A dropped
+                    // line has to be deleted explicitly, because Update cannot reach an entity the
+                    // collection no longer holds.
                     entry.State = keptItemIds.Contains(entry.Entity.Id) ? EntityState.Unchanged : EntityState.Deleted;
                 }
             }

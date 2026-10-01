@@ -251,6 +251,21 @@ public sealed class QuoteTests
         Assert.Single(quote.Items);
     }
 
+    /// <summary>
+    /// C5a. The exception carries no Converted arm and no fallback arm, because no caller can construct
+    /// it for a converted quote — QuoteAlreadyConvertedException owns that wording. This pins that the
+    /// reachable statuses each get their own message, so collapsing the switch cannot quietly make a
+    /// cancelled quote read as merely expired.
+    /// </summary>
+    [Fact]
+    public void QuoteNotEditableException_SaysWhyForEachReachableStatus()
+    {
+        Assert.Contains("anulada", new QuoteNotEditableException("COT-1", QuoteStatus.Cancelled).Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("vencida", new QuoteNotEditableException("COT-1", QuoteStatus.Expired).Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("vencida", new QuoteNotEditableException("COT-1", QuoteStatus.Draft).Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("vencida", new QuoteNotEditableException("COT-1", QuoteStatus.Active).Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>Midnight of the Colombian day <paramref name="offsetDays"/> from today, in UTC (Colombia = UTC-5).</summary>
     private static DateTime ColombiaMidnightUtc(int offsetDays) =>
         DateTime.UtcNow.AddHours(-5).Date.AddDays(offsetDays).AddHours(5);

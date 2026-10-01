@@ -135,10 +135,18 @@ public sealed class Quote
     }
 
     /// <summary>
-    /// Swaps the whole line collection. QuoteItem is immutable, so a corrected quantity or price is
-    /// a different item rather than a mutated one — which also keeps the discount range check in the
-    /// QuoteItem constructor and lets the repository tell a dropped line from a corrected one by Id.
+    /// Swaps the whole line collection. QuoteItem is immutable, so a corrected quantity or price is a
+    /// different item rather than a mutated one — which also keeps the discount range check in the
+    /// QuoteItem constructor.
     /// </summary>
+    /// <remarks>
+    /// This REPLACES the line set; it does not reconcile it against what is already there. Every item
+    /// passed in is treated as new, whatever its Id: the QuoteItem constructor assigns a fresh Guid, and
+    /// QuoteLineBuilder builds fresh items on every save, so an edit is a delete-all plus insert-all.
+    /// (An earlier version of this comment claimed the repository could tell a dropped line from a
+    /// corrected one by Id. It cannot — that claim was false, and it is exactly the kind of contract a
+    /// maintainer would trust. See QuoteItem's own note on the load-bearing immutability.)
+    /// </remarks>
     public void ReplaceItems(IEnumerable<QuoteItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
