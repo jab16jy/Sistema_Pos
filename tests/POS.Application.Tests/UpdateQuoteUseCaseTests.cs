@@ -13,6 +13,65 @@ namespace POS.Application.Tests;
 
 public sealed class UpdateQuoteUseCaseTests
 {
+    /// <summary>
+    /// C4b. The customer picker stays live while editing, so a customer chosen during an edit has to
+    /// persist. The old suite only asserted the field HYDRATES on LoadForEdit, which is precisely why
+    /// the drop-on-save went unnoticed: the operator saw the link in the form, saved, got
+    /// "actualizada correctamente", and the quote still pointed at the old customer.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_WhenTheOperatorPicksACustomer_TheAssociationPersists()
+    {
+        var product = CreateProduct("Widget");
+        var quotes = new InMemoryQuoteRepository();
+        Quote stored = SeedDraftQuote(quotes, product);
+        var pickedCustomerId = Guid.NewGuid();
+
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
+
+        await useCase.ExecuteAsync(
+            new UpdateQuoteRequest(stored.Id, "Ana Gomez", pickedCustomerId, null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(pickedCustomerId, Assert.Single(quotes.Quotes).CustomerId);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheSelectionIsCleared_TheAssociationIsClearedToo()
+    {
+        // The counterpart, so the fix cannot degenerate into "never touch the association": unlinking has
+        // to actually unlink, or a walk-in quote stays attached to the registered customer it replaced.
+        var product = CreateProduct("Widget");
+        var quotes = new InMemoryQuoteRepository();
+        Quote stored = SeedDraftQuote(quotes, product, customerId: Guid.NewGuid());
+        Assert.NotNull(stored.CustomerId);
+
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
+
+        await useCase.ExecuteAsync(
+            new UpdateQuoteRequest(stored.Id, "Cliente Ocasional", null, null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+            TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(quotes.Quotes).CustomerId);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenTheSelectionIsUntouched_TheOriginalAssociationIsPreserved()
+    {
+        var product = CreateProduct("Widget");
+        var quotes = new InMemoryQuoteRepository();
+        var originalCustomerId = Guid.NewGuid();
+        Quote stored = SeedDraftQuote(quotes, product, customerId: originalCustomerId);
+
+        var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
+
+        await useCase.ExecuteAsync(
+            new UpdateQuoteRequest(stored.Id, "Ana Gomez", originalCustomerId, null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(originalCustomerId, Assert.Single(quotes.Quotes).CustomerId);
+    }
+
     [Fact]
     public async Task ExecuteAsync_PersistsTheCorrectionWithoutIssuingANewQuoteNumber()
     {
@@ -25,7 +84,7 @@ public sealed class UpdateQuoteUseCaseTests
         var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), unitOfWork, SessionWithQuotesEdit());
 
         QuoteResult result = await useCase.ExecuteAsync(
-            new UpdateQuoteRequest(quoteId, "Ana Gomez", null, "ana@example.com", 15, "  Pedido urgente  ", [new CreateQuoteItemRequest(product.Id, 3m, 0m)]),
+            new UpdateQuoteRequest(quoteId, "Ana Gomez", null, null, "ana@example.com", 15, "  Pedido urgente  ", [new CreateQuoteItemRequest(product.Id, 3m, 0m)]),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(quoteId, result.QuoteId);
@@ -60,7 +119,7 @@ public sealed class UpdateQuoteUseCaseTests
         // I5: an edit is not a way around the ceiling the cashier is held to at the till.
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.ExecuteAsync(
-                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 25m)]),
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 25m)]),
                 TestContext.Current.CancellationToken));
 
         Assert.Contains("exceeds the configured maximum of 20%", exception.Message);
@@ -80,7 +139,7 @@ public sealed class UpdateQuoteUseCaseTests
         var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
 
         await useCase.ExecuteAsync(
-            new UpdateQuoteRequest(stored.Id, "Test Customer", null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 2m, 0m, "Caja")]),
+            new UpdateQuoteRequest(stored.Id, "Test Customer", null, null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 2m, 0m, "Caja")]),
             TestContext.Current.CancellationToken);
 
         QuoteItem item = Assert.Single(Assert.Single(quotes.Quotes).Items);
@@ -106,7 +165,7 @@ public sealed class UpdateQuoteUseCaseTests
 
         await Assert.ThrowsAsync<QuoteNotEditableException>(() =>
             useCase.ExecuteAsync(
-                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
                 TestContext.Current.CancellationToken));
 
         Assert.Equal(status, stored.Status);
@@ -132,7 +191,7 @@ public sealed class UpdateQuoteUseCaseTests
         // duplicate instead, which is how the duplicate was free to drift on the lapsed case.
         var exception = await Assert.ThrowsAsync<QuoteAlreadyConvertedException>(() =>
             useCase.ExecuteAsync(
-                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
                 TestContext.Current.CancellationToken));
 
         Assert.Contains("convertida a venta", exception.Message, StringComparison.Ordinal);
@@ -151,7 +210,7 @@ public sealed class UpdateQuoteUseCaseTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             useCase.ExecuteAsync(
-                new UpdateQuoteRequest(Guid.NewGuid(), "Ana Gomez", null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+                new UpdateQuoteRequest(Guid.NewGuid(), "Ana Gomez", null, null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
                 TestContext.Current.CancellationToken));
     }
 
@@ -166,9 +225,9 @@ public sealed class UpdateQuoteUseCaseTests
         DateTime createdAt = stored.CreatedAt;
         var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
 
-        await useCase.ExecuteAsync(new UpdateQuoteRequest(quoteId, "Ana", null, null, 10, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]), TestContext.Current.CancellationToken);
-        await useCase.ExecuteAsync(new UpdateQuoteRequest(quoteId, "Ana Gomez", null, null, 20, null, [new CreateQuoteItemRequest(product.Id, 2m, 0m)]), TestContext.Current.CancellationToken);
-        await useCase.ExecuteAsync(new UpdateQuoteRequest(quoteId, "Ana Gomez Soto", null, null, 45, null, [new CreateQuoteItemRequest(product.Id, 4m, 0m)]), TestContext.Current.CancellationToken);
+        await useCase.ExecuteAsync(new UpdateQuoteRequest(quoteId, "Ana", null, null, null, 10, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]), TestContext.Current.CancellationToken);
+        await useCase.ExecuteAsync(new UpdateQuoteRequest(quoteId, "Ana Gomez", null, null, null, 20, null, [new CreateQuoteItemRequest(product.Id, 2m, 0m)]), TestContext.Current.CancellationToken);
+        await useCase.ExecuteAsync(new UpdateQuoteRequest(quoteId, "Ana Gomez Soto", null, null, null, 45, null, [new CreateQuoteItemRequest(product.Id, 4m, 0m)]), TestContext.Current.CancellationToken);
 
         Quote quote = Assert.Single(quotes.Quotes);
         Assert.Equal(quoteId, quote.Id);
@@ -181,9 +240,9 @@ public sealed class UpdateQuoteUseCaseTests
     private static Product CreateProduct(string name, (string Name, int Units, Money Price)[]? presentations = null) =>
         new(name, Guid.NewGuid(), new Money(500m), new Money(1_000m), new StockQuantity(20m), new StockQuantity(2m), presentations: presentations);
 
-    private static Quote SeedDraftQuote(InMemoryQuoteRepository quotes, Product product)
+    private static Quote SeedDraftQuote(InMemoryQuoteRepository quotes, Product product, Guid? customerId = null)
     {
-        var quote = new Quote("COT-2026-0001", "Test Customer", 30);
+        var quote = new Quote("COT-2026-0001", "Test Customer", 30, customerId);
         quote.AddItem(new QuoteItem(product.Id, "Widget", new Money(500m), new Quantity(2m), 0m));
         quotes.Add(quote);
         return quote;
@@ -205,7 +264,7 @@ public sealed class UpdateQuoteUseCaseTests
 
         var exception = await Assert.ThrowsAsync<QuoteNotEditableException>(() =>
             useCase.ExecuteAsync(
-                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 90, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, 90, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
                 TestContext.Current.CancellationToken));
 
         // Surfaced to the operator as expired, which is what it is — not as "estado Draft".
@@ -225,7 +284,7 @@ public sealed class UpdateQuoteUseCaseTests
         var useCase = new UpdateQuoteUseCase(quotes, new InMemoryProductRepository(product), new InMemoryUnitOfWork(), SessionWithQuotesEdit());
 
         QuoteResult result = await useCase.ExecuteAsync(
-            new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+            new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, 30, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(1_000m, result.Total);
@@ -251,7 +310,7 @@ public sealed class UpdateQuoteUseCaseTests
 
         await Assert.ThrowsAsync<UnauthorizedActionException>(() =>
             useCase.ExecuteAsync(
-                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 5m, 0m)]),
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 5m, 0m)]),
                 TestContext.Current.CancellationToken));
 
         // Rejected before the quote was even loaded, and with nothing written.
@@ -279,7 +338,7 @@ public sealed class UpdateQuoteUseCaseTests
 
         await Assert.ThrowsAsync<UnauthorizedActionException>(() =>
             useCase.ExecuteAsync(
-                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
+                new UpdateQuoteRequest(stored.Id, "Ana Gomez", null, null, null, 60, null, [new CreateQuoteItemRequest(product.Id, 1m, 0m)]),
                 TestContext.Current.CancellationToken));
 
         Assert.Equal("Test Customer", stored.CustomerName);

@@ -744,6 +744,9 @@ public sealed class QuoteViewModel : ViewModelBase
         UpdateQuoteRequest request = new(
             quoteId,
             CustomerName,
+            // The picker stays live in edit mode, so this carries whatever is currently selected —
+            // including a re-link to a different customer, or null to drop back to a walk-in quote.
+            SelectedCustomerId,
             string.IsNullOrWhiteSpace(CustomerPhone) ? null : CustomerPhone,
             string.IsNullOrWhiteSpace(CustomerEmail) ? null : CustomerEmail,
             ValidityDays,

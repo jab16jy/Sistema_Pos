@@ -557,6 +557,71 @@ public sealed class QuoteViewModelTests
         Assert.Contains("$2.000", vm.ValidationMessage, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// C4b at the form. LoadForEdit hydrating SelectedCustomerId was never the interesting half — the
+    /// interesting half is the customer SURVIVING the save. This drives the real command (the "Usar"
+    /// button's target) and then the real save path, so the assertion lands on the persisted association
+    /// rather than on a property that was already correct in the form.
+    /// </summary>
+    [Fact]
+    public async Task Confirm_InEditMode_WhenTheOperatorPicksACustomer_TheLinkSurvivesTheSave()
+    {
+        var product = new Product("Producto Caja", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var vm = CreateViewModel(out InMemoryQuoteRepository quoteRepo, out _, product, withUpdate: true);
+
+        var stored = new Domain.Entities.Quote("COT-LINK-001", "Nombre Viejo", 30);
+        stored.AddItem(new Domain.Entities.QuoteItem(product.Id, "Producto Caja", new Money(2_000m), new Quantity(1m), 0m));
+        await quoteRepo.AddAsync(stored, TestContext.Current.CancellationToken);
+
+        vm.LoadForEdit(new QuoteDetailResult(
+            stored.Id, stored.QuoteNumber, null, "Nombre Viejo", null, null,
+            Domain.Enums.QuoteStatus.Draft, "2026-12-31", 2_000m,
+            [new QuoteDetailItemResult(product.Id, "Producto Caja", 1m, 2_000m, 0m, 2_000m)],
+            null, 30));
+        Assert.Null(vm.SelectedCustomerId);
+
+        // What the operator does in the form: each search result renders a "Usar" button wired to this.
+        var pickedCustomer = new CustomerSearchResult(
+            Guid.NewGuid(), "Ana Gómez", "1099999999", "+57 300 111 2222", "ana@example.com", null, IsActive: true);
+        vm.SelectCustomerCommand.Execute(pickedCustomer);
+        Assert.Equal(pickedCustomer.Id, vm.SelectedCustomerId);
+
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("actualizada correctamente", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+        // The regression: this stayed null while the message claimed success.
+        Assert.Equal(pickedCustomer.Id, Assert.Single(quoteRepo.Quotes).CustomerId);
+    }
+
+    /// <summary>
+    /// A quote that names no registered customer must stay that way through an edit. There is no UI to
+    /// un-pick a customer once chosen — SelectedCustomerId has a private setter — so the reachable
+    /// "left as walk-in" case is a walk-in quote edited with the picker alone: the association has to
+    /// survive as null. The explicit clear and re-link cases are covered at the domain and use-case
+    /// level, where a caller can actually express them.
+    /// </summary>
+    [Fact]
+    public async Task Confirm_InEditMode_OnAWalkInQuote_TheQuoteStaysUnregistered()
+    {
+        var product = new Product("Producto Caja", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var vm = CreateViewModel(out InMemoryQuoteRepository quoteRepo, out _, product, withUpdate: true);
+
+        var stored = new Domain.Entities.Quote("COT-LINK-002", "Cliente Ocasional", 30);
+        stored.AddItem(new Domain.Entities.QuoteItem(product.Id, "Producto Caja", new Money(2_000m), new Quantity(1m), 0m));
+        await quoteRepo.AddAsync(stored, TestContext.Current.CancellationToken);
+
+        vm.LoadForEdit(new QuoteDetailResult(
+            stored.Id, stored.QuoteNumber, null, "Cliente Ocasional", null, null,
+            Domain.Enums.QuoteStatus.Draft, "2026-12-31", 2_000m,
+            [new QuoteDetailItemResult(product.Id, "Producto Caja", 1m, 2_000m, 0m, 2_000m)],
+            null, 30));
+        Assert.Null(vm.SelectedCustomerId);
+
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+
+        Assert.Null(Assert.Single(quoteRepo.Quotes).CustomerId);
+    }
+
     private static void AddCartItem(QuoteViewModel vm, Guid productId, string name, decimal unitPrice)
         => vm.CartItems.Add(new QuoteCartItemViewModel(productId, name, unitPrice));
 

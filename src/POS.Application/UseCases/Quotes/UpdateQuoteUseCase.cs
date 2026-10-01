@@ -80,7 +80,7 @@ public sealed class UpdateQuoteUseCase
         {
             IReadOnlyList<QuoteItem> items = await QuoteLineBuilder.BuildAllAsync(request.Items, _products, transactionCt).ConfigureAwait(false);
 
-            quote.Update(request.CustomerName, request.ValidityDays, request.Phone, request.Email, request.Observations);
+            quote.Update(request.CustomerName, request.CustomerId, request.ValidityDays, request.Phone, request.Email, request.Observations);
             quote.ReplaceItems(items);
 
             await _quotes.UpdateAsync(quote, transactionCt).ConfigureAwait(false);

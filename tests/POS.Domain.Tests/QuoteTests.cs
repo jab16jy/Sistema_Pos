@@ -107,10 +107,12 @@ public sealed class QuoteTests
         // transition, but a QUOTES row can carry it, so the editability rule must hold for it too.
         var quote = new Quote("COT-2026-0001", "Test Customer", 30);
         SetStatus(quote, status);
+        var customerId = Guid.NewGuid();
 
-        quote.Update("Ana Gomez", 15, "+57 300 123 4567", "ana@example.com", "  Pedido urgente  ");
+        quote.Update("Ana Gomez", customerId, 15, "+57 300 123 4567", "ana@example.com", "  Pedido urgente  ");
 
         Assert.Equal("Ana Gomez", quote.CustomerName);
+        Assert.Equal(customerId, quote.CustomerId);
         Assert.Equal(15, quote.ValidityDays);
         Assert.Equal("+57 300 123 4567", quote.CustomerPhone);
         Assert.Equal("ana@example.com", quote.CustomerEmail);
@@ -140,6 +142,37 @@ public sealed class QuoteTests
         SetStatus(quote, status);
 
         Assert.False(quote.CanEdit);
+    }
+
+    /// <summary>
+    /// C4b at the aggregate. The edit form keeps the customer picker live, so Update has to be able to
+    /// link a quote AND to clear it back to a walk-in. A quote created without an association is the
+    /// starting point here because that is the case that was previously impossible to express: the
+    /// operator picked a customer and the save silently discarded the choice.
+    /// </summary>
+    [Fact]
+    public void Update_AssignsTheCustomerAssociation_IncludingClearingIt()
+    {
+        var quote = new Quote("COT-2026-LINK", "Test Customer", 30);
+
+        var customerId = Guid.NewGuid();
+        quote.Update("Test Customer", customerId, 30, null, null, null);
+        Assert.Equal(customerId, quote.CustomerId);
+
+        quote.Update("Test Customer", null, 30, null, null, null);
+        Assert.Null(quote.CustomerId);
+    }
+
+    /// <summary>Re-linking in the other direction: a quote that named a customer can be pointed at another one.</summary>
+    [Fact]
+    public void Update_ReplacesAnExistingCustomerAssociation()
+    {
+        var quote = new Quote("COT-2026-RELINK", "Test Customer", 30, Guid.NewGuid());
+        var otherCustomerId = Guid.NewGuid();
+
+        quote.Update("Test Customer", otherCustomerId, 30, null, null, null);
+
+        Assert.Equal(otherCustomerId, quote.CustomerId);
     }
 
     /// <summary>
@@ -197,7 +230,7 @@ public sealed class QuoteTests
         // Reported as expired, not as "estado Draft": the status alone would tell the operator the quote
         // is editable right before the write is refused.
         var exception = Assert.Throws<QuoteNotEditableException>(
-            () => quote.Update("Nuevo Cliente", 90, null, null, "Cambio"));
+            () => quote.Update("Nuevo Cliente", null, 90, null, null, "Cambio"));
 
         Assert.Contains("vencida", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(QuoteStatus.Draft, quote.Status);
@@ -233,7 +266,7 @@ public sealed class QuoteTests
         DateTime createdAt = quote.CreatedAt;
         SetStatus(quote, status);
 
-        Exception exception = Assert.Throws(expected, () => quote.Update("Nuevo Cliente", 60, null, null, "Cambio"));
+        Exception exception = Assert.Throws(expected, () => quote.Update("Nuevo Cliente", null, 60, null, null, "Cambio"));
 
         Assert.Equal(status, quote.Status);
         Assert.Equal("Test Customer", quote.CustomerName);
@@ -282,7 +315,7 @@ public sealed class QuoteTests
         var quote = new Quote("COT-2026-0001", "Test Customer", 30);
         DateTime createdAt = quote.CreatedAt;
 
-        quote.Update("Test Customer", 45, null, null, null);
+        quote.Update("Test Customer", null, 45, null, null, null);
 
         Assert.Equal(createdAt.AddDays(45), quote.ExpiresAt);
     }
@@ -292,7 +325,7 @@ public sealed class QuoteTests
     {
         var quote = new Quote("COT-2026-0001", "Test Customer", 30);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => quote.Update("Test Customer", 0, null, null, null));
+        Assert.Throws<ArgumentOutOfRangeException>(() => quote.Update("Test Customer", null, 0, null, null, null));
     }
 
     [Fact]
@@ -303,9 +336,9 @@ public sealed class QuoteTests
         Guid id = quote.Id;
         DateTime createdAt = quote.CreatedAt;
 
-        quote.Update("Ana Gomez", 10, null, null, null);
-        quote.Update("Ana Gómez", 20, "+57 300 123 4567", null, null);
-        quote.Update("Ana Gomez Soto", 45, null, "ana@example.com", "Listo");
+        quote.Update("Ana Gomez", null, 10, null, null, null);
+        quote.Update("Ana Gómez", null, 20, "+57 300 123 4567", null, null);
+        quote.Update("Ana Gomez Soto", null, 45, null, "ana@example.com", "Listo");
 
         Assert.Equal("COT-2026-0001", quote.QuoteNumber);
         Assert.Equal(id, quote.Id);

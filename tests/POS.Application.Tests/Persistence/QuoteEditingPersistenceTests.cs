@@ -60,7 +60,7 @@ public sealed class QuoteEditingPersistenceTests
         {
             var quotes = new QuoteRepository(editContext);
             var result = await new UpdateQuoteUseCase(quotes, new StubProductRepository(product), editContext, new CashierWithQuotesEditSession()).ExecuteAsync(
-                new UpdateQuoteRequest(quoteId, "Ana Gomez", null, null, 15, null,
+                new UpdateQuoteRequest(quoteId, "Ana Gomez", null, null, null, 15, null,
                 [
                     // Drop the second line, re-quantity the first, and add a brand new one.
                     new CreateQuoteItemRequest(product.Id, 4m, 0m),
@@ -116,7 +116,7 @@ public sealed class QuoteEditingPersistenceTests
             await using var editContext = CreateDbContext(connection);
             var quotes = new QuoteRepository(editContext);
             QuoteResult result = await new UpdateQuoteUseCase(quotes, new StubProductRepository(product), editContext, new CashierWithQuotesEditSession()).ExecuteAsync(
-                new UpdateQuoteRequest(quoteId, $"Customer {edit}", null, null, 30 + edit, null, [new CreateQuoteItemRequest(product.Id, edit, 0m)]),
+                new UpdateQuoteRequest(quoteId, $"Customer {edit}", null, null, null, 30 + edit, null, [new CreateQuoteItemRequest(product.Id, edit, 0m)]),
                 TestContext.Current.CancellationToken);
             Assert.Equal(quoteNumber, result.QuoteNumber);
         }

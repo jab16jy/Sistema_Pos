@@ -106,7 +106,14 @@ public sealed class Quote
     /// deliberately out of reach: the number is part of what the client was quoted, so an unlimited
     /// number of corrections still has to describe the same proposal.
     /// </summary>
-    public void Update(string customerName, int validityDays, string? phone, string? email, string? observations)
+    /// <param name="customerId">
+    /// The registered customer to link, or null to clear the link back to a walk-in. This is assigned
+    /// here rather than left alone because the edit form keeps the customer picker live: an operator who
+    /// searches a customer and clicks "Usar" expects that choice to be saved, not displayed and dropped.
+    /// Passing null clears it deliberately, which is why this cannot be expressed as "leave unchanged" —
+    /// a caller that must not touch the association passes the quote's current <see cref="CustomerId"/>.
+    /// </param>
+    public void Update(string customerName, Guid? customerId, int validityDays, string? phone, string? email, string? observations)
     {
         EnsureEditable();
 
@@ -116,6 +123,7 @@ public sealed class Quote
         }
 
         CustomerName = ContactInfo.NormalizeName(customerName);
+        CustomerId = customerId;
         ValidityDays = validityDays;
         CustomerPhone = ContactInfo.NormalizePhone(phone);
         CustomerEmail = ContactInfo.NormalizeEmail(email);
