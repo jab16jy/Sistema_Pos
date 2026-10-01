@@ -58,6 +58,31 @@
         <Border Style="{StaticResource Card}" Margin="0,0,0,12">
           <StackPanel Margin="14">
             <TextBlock Text="Datos del cliente" FontWeight="SemiBold" Margin="0,0,0,10" />
+            <Border Style="{StaticResource ChipStyle}"
+                    Background="{StaticResource BrushWarningContainer}"
+                    BorderBrush="{StaticResource BrushWarning}"
+                    Margin="0,0,0,8"
+                    Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}">
+              <Grid>
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource TextCaption}" Foreground="{StaticResource BrushWarning}" VerticalAlignment="Center">
+                  <TextBlock.Text>
+                    <MultiBinding StringFormat="Editando la cotización {0}. El número no cambia al guardar.">
+                      <Binding Path="EditedQuoteNumber" />
+                    </MultiBinding>
+                  </TextBlock.Text>
+                </TextBlock>
+                <Button Grid.Column="1"
+                        Content="Descartar"
+                        Command="{Binding CancelEditCommand}"
+                        Style="{StaticResource GhostQuoteButton}"
+                        Padding="8,2"
+                        Margin="8,0,0,0" />
+              </Grid>
+            </Border>
             <Grid Margin="0,0,0,8">
               <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
@@ -432,7 +457,7 @@
                 <Button Command="{Binding ConfirmCommand}" IsEnabled="{Binding IsConfirming, Converter={StaticResource BooleanNegationConverter}}" Style="{StaticResource AccentButton}">
                   <StackPanel Orientation="Horizontal">
                     <materialDesign:PackIcon Kind="CheckCircle" Width="16" Height="16" Margin="0,0,4,0" />
-                    <TextBlock Text="Confirmar cotización" />
+                    <TextBlock Text="{Binding ConfirmButtonLabel}" />
                   </StackPanel>
                 </Button>
               </StackPanel>
@@ -649,6 +674,13 @@
                                 CommandParameter="{Binding}"
                                 Visibility="{Binding CanCancel, Converter={StaticResource BoolToVisibilityConverter}}">
                           <materialDesign:PackIcon Kind="CloseCircle" Foreground="{StaticResource BrushDanger}" Width="16" Height="16" />
+                        </Button>
+                        <Button ToolTip="Editar cotización"
+                                Background="Transparent" BorderBrush="Transparent" Padding="4"
+                                Command="{Binding DataContext.EditCommand, ElementName=HistorialTabRoot}"
+                                CommandParameter="{Binding}"
+                                Visibility="{Binding CanEdit, Converter={StaticResource BoolToVisibilityConverter}}">
+                          <materialDesign:PackIcon Kind="PencilOutline" Foreground="{StaticResource BrushPrimary}" Width="16" Height="16" />
                         </Button>
                       </StackPanel>
                     </Grid>

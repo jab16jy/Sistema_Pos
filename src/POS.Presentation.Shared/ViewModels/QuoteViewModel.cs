@@ -22,6 +22,7 @@ public sealed class QuoteViewModel : ViewModelBase
     private static readonly CultureInfo ColombianCulture = CultureInfo.GetCultureInfo("es-CO");
     private readonly IProductLookupService _productLookupService;
     private readonly CreateQuoteUseCase _createQuoteUseCase;
+    private readonly UpdateQuoteUseCase? _updateQuoteUseCase;
     private readonly SendDocumentUseCase? _sendDocumentUseCase;
     private readonly SearchCustomersUseCase? _searchCustomersUseCase;
     private CancellationTokenSource? _autocompleteSearchCts;
@@ -37,7 +38,10 @@ public sealed class QuoteViewModel : ViewModelBase
     private string _totalFormatted = "$0";
     private string _validationMessage = string.Empty;
     private bool _isConfirming;
+    private bool _isEditing;
+    private Guid? _editingQuoteId;
     private string _lastQuoteNumber = string.Empty;
+    private string _editedQuoteNumber = string.Empty;
     private decimal _cartDiscountPercentInput;
     private readonly RelayCommand _applyCartDiscountCommand;
     private readonly RelayCommand _clearCartDiscountCommand;
@@ -46,10 +50,12 @@ public sealed class QuoteViewModel : ViewModelBase
         IProductLookupService productLookupService,
         CreateQuoteUseCase createQuoteUseCase,
         SendDocumentUseCase? sendDocumentUseCase = null,
-        SearchCustomersUseCase? searchCustomersUseCase = null)
+        SearchCustomersUseCase? searchCustomersUseCase = null,
+        UpdateQuoteUseCase? updateQuoteUseCase = null)
     {
         _productLookupService = productLookupService ?? throw new ArgumentNullException(nameof(productLookupService));
         _createQuoteUseCase = createQuoteUseCase ?? throw new ArgumentNullException(nameof(createQuoteUseCase));
+        _updateQuoteUseCase = updateQuoteUseCase;
         _sendDocumentUseCase = sendDocumentUseCase;
         _searchCustomersUseCase = searchCustomersUseCase;
 
@@ -74,6 +80,7 @@ public sealed class QuoteViewModel : ViewModelBase
         ApplyCartDiscountCommand = _applyCartDiscountCommand;
         ClearCartDiscountCommand = _clearCartDiscountCommand;
         ConfirmCommand = new RelayCommand(_ => RunSafe(ConfirmAsync(), ex => ValidationMessage = $"Error al crear la cotización: {ex.Message}"));
+        CancelEditCommand = new RelayCommand(_ => CancelEdit(), _ => IsEditing);
         SendByEmailCommand = new RelayCommand(_ => RunSafe(SendByEmailAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
         SendByWhatsAppCommand = new RelayCommand(_ => RunSafe(SendByWhatsAppAsync(), ex => ValidationMessage = $"Error al enviar la cotización: {ex.Message}"));
     }
@@ -92,6 +99,7 @@ public sealed class QuoteViewModel : ViewModelBase
     public ICommand ApplyCartDiscountCommand { get; }
     public ICommand ClearCartDiscountCommand { get; }
     public ICommand ConfirmCommand { get; }
+    public ICommand CancelEditCommand { get; }
     public ICommand SendByEmailCommand { get; }
     public ICommand SendByWhatsAppCommand { get; }
 
@@ -213,6 +221,86 @@ public sealed class QuoteViewModel : ViewModelBase
     {
         get => _lastQuoteNumber;
         private set => SetProperty(ref _lastQuoteNumber, value ?? string.Empty);
+    }
+
+    /// <summary>
+    /// True while the form is correcting an existing quote instead of drafting a new one. Only the
+    /// view-model knows which mode the confirm button is in, so the label follows it from here
+    /// rather than being switched in the view.
+    /// </summary>
+    public bool IsEditing
+    {
+        get => _isEditing;
+        private set
+        {
+            if (SetProperty(ref _isEditing, value))
+            {
+                OnPropertyChanged(nameof(ConfirmButtonLabel));
+            }
+        }
+    }
+
+    /// <summary>Quote number under edit; empty while the form is creating a new quote.</summary>
+    public string EditedQuoteNumber
+    {
+        get => _editedQuoteNumber;
+        private set => SetProperty(ref _editedQuoteNumber, value ?? string.Empty);
+    }
+
+    /// <summary>Verb-first label per pos-didactic-usability: the operator must never read a correction as a new proposal.</summary>
+    public string ConfirmButtonLabel => IsEditing ? "Guardar cambios" : "Confirmar cotización";
+
+    /// <summary>
+    /// Reuses the create form to correct a quote that is still a proposal, so there is no second form to
+    /// keep in sync. Hydrates every field the detail carries — including per-line quantity, discount and
+    /// presentation — because a partial hydration would silently drop a correction the operator sees in
+    /// the cart. Whether the quote may be edited at all was already decided upstream by the aggregate.
+    /// </summary>
+    public void LoadForEdit(QuoteDetailResult detail)
+    {
+        ArgumentNullException.ThrowIfNull(detail);
+
+        CartItems.Clear();
+        SearchResults.Clear();
+        CustomerSearchResults.Clear();
+        SearchQuery = string.Empty;
+        CartDiscountPercentInput = 0m;
+
+        _editingQuoteId = detail.QuoteId;
+        EditedQuoteNumber = detail.QuoteNumber;
+        IsEditing = true;
+
+        CustomerName = detail.CustomerName;
+        CustomerPhone = detail.CustomerPhone ?? string.Empty;
+        CustomerEmail = detail.CustomerEmail ?? string.Empty;
+        SelectedCustomerId = detail.CustomerId;
+        // No identification in the detail payload, so the badge states the link without inventing one.
+        SelectedCustomerLabel = detail.CustomerId.HasValue ? $"Cliente registrado: {detail.CustomerName}" : string.Empty;
+        ValidityDays = detail.ValidityDays;
+        Observations = detail.Observations ?? string.Empty;
+
+        foreach (QuoteDetailItemResult line in detail.Items)
+        {
+            // A detail payload carries no stock, and quoting never validates it. Passing the line's own
+            // inventory demand as the ceiling keeps the "no stock" hint silent instead of inventing an
+            // out-of-stock warning for a large quantity.
+            QuoteCartItemViewModel item = new(
+                line.ProductId,
+                line.ProductName,
+                line.UnitPrice,
+                availableStock: line.Quantity * line.UnitsPerPresentation,
+                line.PresentationName,
+                line.UnitsPerPresentation)
+            {
+                Quantity = line.Quantity,
+                Discount = line.Discount
+            };
+            item.PropertyChanged += (_, _) => RecalculateTotal();
+            CartItems.Add(item);
+        }
+
+        RecalculateTotal();
+        ValidationMessage = $"Estás editando la cotización {detail.QuoteNumber}. Al guardar conserva el mismo número.";
     }
 
     private async Task SearchAsync(CancellationToken cancellationToken = default)
@@ -394,6 +482,12 @@ public sealed class QuoteViewModel : ViewModelBase
 
         try
         {
+            if (IsEditing)
+            {
+                await UpdateQuoteAsync(cancellationToken).ConfigureAwait(true);
+                return;
+            }
+
             QuoteResult? result = await CreateQuoteAsync(cancellationToken).ConfigureAwait(true);
             if (result is null)
             {
@@ -406,7 +500,9 @@ public sealed class QuoteViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            ValidationMessage = $"Error al crear la cotización: {ex.Message}";
+            ValidationMessage = IsEditing
+                ? $"Error al guardar los cambios de la cotización: {ex.Message}"
+                : $"Error al crear la cotización: {ex.Message}";
         }
         finally
         {
@@ -500,7 +596,11 @@ public sealed class QuoteViewModel : ViewModelBase
 
         try
         {
-            QuoteResult? result = await CreateQuoteAsync(cancellationToken).ConfigureAwait(true);
+            // Sending while editing must persist the correction first: taking the create path here would
+            // burn a second quote number for the same proposal and send that one instead of the corrected one.
+            QuoteResult? result = IsEditing
+                ? await UpdateQuoteAsync(cancellationToken).ConfigureAwait(true)
+                : await CreateQuoteAsync(cancellationToken).ConfigureAwait(true);
             if (result is null)
             {
                 return;
@@ -556,6 +656,75 @@ public sealed class QuoteViewModel : ViewModelBase
     }
 
     /// <summary>
+    /// Abandons an edit without saving. Without this, entering edit mode is a one-way door the operator
+    /// can only leave by saving corrections they may not have wanted to make.
+    /// </summary>
+    public void CancelEdit()
+    {
+        if (!IsEditing)
+        {
+            return;
+        }
+
+        ClearForm();
+    }
+
+    /// <summary>
+    /// Saves the hydrated form over the quote being corrected. Returns null without writing when the form
+    /// is still incomplete, so the operator's corrections stay on screen instead of vanishing. The lines
+    /// reuse <see cref="CreateQuoteItemRequest"/> exactly as creation does, which is what routes the edit
+    /// through the same discount ceiling and price resolution the quote it replaces went through.
+    /// </summary>
+    private async Task<QuoteResult?> UpdateQuoteAsync(CancellationToken cancellationToken)
+    {
+        if (_updateQuoteUseCase is null)
+        {
+            ValidationMessage = "La edición de cotizaciones no está disponible en este entorno.";
+            return null;
+        }
+
+        if (_editingQuoteId is not { } quoteId)
+        {
+            ValidationMessage = "No hay ninguna cotización en edición. Vuelve al historial y elige Editar.";
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(CustomerName))
+        {
+            ValidationMessage = "Ingresa el nombre del cliente";
+            return null;
+        }
+
+        if (CartItems.Count == 0)
+        {
+            ValidationMessage = "Agrega al menos un producto";
+            return null;
+        }
+
+        IReadOnlyCollection<CreateQuoteItemRequest> items = CartItems
+            .Select(i => new CreateQuoteItemRequest(i.ProductId, i.Quantity, i.Discount, i.PresentationName))
+            .ToList();
+
+        UpdateQuoteRequest request = new(
+            quoteId,
+            CustomerName,
+            string.IsNullOrWhiteSpace(CustomerPhone) ? null : CustomerPhone,
+            string.IsNullOrWhiteSpace(CustomerEmail) ? null : CustomerEmail,
+            ValidityDays,
+            string.IsNullOrWhiteSpace(Observations) ? null : Observations,
+            items);
+
+        QuoteResult result = await _updateQuoteUseCase.ExecuteAsync(request, cancellationToken).ConfigureAwait(true);
+
+        LastQuoteNumber = result.QuoteNumber;
+        ValidationMessage = $"Cotización {result.QuoteNumber} actualizada correctamente.";
+        // ClearForm drops the edit identity too, so the operator lands back in create mode — and the
+        // updated number survives on screen because ClearForm deliberately leaves LastQuoteNumber alone.
+        ClearForm();
+        return result;
+    }
+
+    /// <summary>
     /// Applies CartDiscountPercentInput to every cart line at once — more ergonomic than editing
     /// lines one by one. Mirrors CashierViewModel.ApplyCartDiscount; there is no separate cart-level
     /// discount field, this is purely a bulk-set convenience over QuoteCartItemViewModel.Discount.
@@ -607,6 +776,9 @@ public sealed class QuoteViewModel : ViewModelBase
         ValidityDays = 30;
         Observations = string.Empty;
         CartDiscountPercentInput = 0m;
+        _editingQuoteId = null;
+        EditedQuoteNumber = string.Empty;
+        IsEditing = false;
         RecalculateTotal();
     }
 }

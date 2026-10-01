@@ -50,6 +50,12 @@ public sealed class AppBootstrapperSmokeTests
                 Assert.Contains(shell.FuncbarModules, module => module.Key == "admin");
                 Assert.NotNull(shell.Settings);
                 Assert.NotNull(shell.UserManagement);
+                // TryCreateOptionalModule downgrades a construction failure to a warning, so without
+                // this the quotes module could silently fail to compose and the suite would stay green.
+                Assert.NotNull(shell.Quote);
+                Assert.NotNull(shell.QuoteHistory);
+                // Resolves the real scoped UpdateQuoteUseCase the same way AppBootstrapper does.
+                Assert.NotNull(scope.ServiceProvider.GetRequiredService<POS.Application.UseCases.Quotes.UpdateQuoteUseCase>());
             }
         }
         finally

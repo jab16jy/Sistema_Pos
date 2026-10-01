@@ -85,5 +85,12 @@ public sealed record QuoteSummaryRow(
 
     public bool CanConvertToSale => !IsExpiredByCalendar && Status is QuoteStatus.Draft or QuoteStatus.Active;
 
+    /// <summary>
+    /// True when the quote is still a proposal that may be corrected. Mirrors <c>Quote.CanEdit</c>
+    /// exactly — the rule is the aggregate's, this only restates it so the row can drive a binding.
+    /// Whether the operator is *allowed* to edit is a permission question and lives in the view-model.
+    /// </summary>
+    public bool CanEdit => Status is QuoteStatus.Draft or QuoteStatus.Active;
+
     public bool CanCancel => Status is QuoteStatus.Draft or QuoteStatus.Active or QuoteStatus.Expired;
 }

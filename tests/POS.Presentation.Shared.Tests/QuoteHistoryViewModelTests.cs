@@ -359,6 +359,147 @@ public sealed class QuoteHistoryViewModelTests
         Assert.NotNull(exported?.Data);
     }
 
+    // --- Editable proposals: the affordance is the aggregate's status rule, restated for the binding ---
+
+    [Theory]
+    [InlineData(QuoteStatus.Draft, true)]
+    [InlineData(QuoteStatus.Active, true)]
+    [InlineData(QuoteStatus.Expired, false)]
+    [InlineData(QuoteStatus.Converted, false)]
+    [InlineData(QuoteStatus.Cancelled, false)]
+    public void QuoteSummaryRow_CanEdit_AgreesWithTheAggregateForEveryStatus(QuoteStatus status, bool expected)
+    {
+        var summary = new QuoteSummary(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-EDIT-MATRIX",
+            CustomerName: "Cliente",
+            CustomerEmail: null,
+            CustomerPhone: null,
+            Total: 10_000m,
+            Status: status,
+            ExpiresAt: "2026-12-31");
+
+        QuoteSummaryRow row = QuoteSummaryRow.FromSummary(summary);
+
+        var aggregate = new Domain.Entities.Quote("COT-EDIT-MATRIX", "Cliente", 30);
+        if (status == QuoteStatus.Converted)
+        {
+            aggregate.Convert(Guid.NewGuid());
+        }
+        else if (status == QuoteStatus.Expired)
+        {
+            aggregate.Expire();
+        }
+        else if (status == QuoteStatus.Cancelled)
+        {
+            aggregate.Cancel();
+        }
+
+        Assert.Equal(expected, row.CanEdit);
+        Assert.Equal(aggregate.CanEdit, row.CanEdit);
+    }
+
+    [Fact]
+    public async Task EditCommand_WithoutQuotesEditPermission_BlocksWithRecoverableMessage()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-EDIT-PERM", product.Id);
+        quoteRepo.Store(quote);
+
+        var summaries = new List<QuoteSummary>
+        {
+            new QuoteSummary(quote.Id, "COT-EDIT-PERM", "Cliente Sin Permiso", null, null, 2_000m, QuoteStatus.Active, "2026-12-31")
+        };
+
+        QuoteHistoryViewModel vm = BuildHistoryVmWithProduct(
+            summaries,
+            quoteRepo,
+            product,
+            session: new OperatorSessionWithoutQuotesEdit(Guid.NewGuid()));
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteDetailResult? requested = null;
+        vm.QuoteEditRequested += (_, detail) => requested = detail;
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        vm.EditCommand.Execute(row);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Null(requested);
+        Assert.Contains("permiso", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EditCommand_WhenQuoteIsFrozen_BlocksWithRecoverableMessage()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-EDIT-FROZEN", product.Id);
+        quote.Convert(Guid.NewGuid());
+        quoteRepo.Store(quote);
+
+        QuoteHistoryViewModel vm = BuildHistoryVmWithProduct(
+            [new QuoteSummary(quote.Id, "COT-EDIT-FROZEN", "Cliente Convertida", null, null, 2_000m, QuoteStatus.Converted, "2026-12-31")],
+            quoteRepo,
+            product);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteDetailResult? requested = null;
+        vm.QuoteEditRequested += (_, detail) => requested = detail;
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        Assert.False(row.CanEdit);
+
+        vm.EditCommand.Execute(row);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.Null(requested);
+        Assert.Contains("no se puede editar", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task EditCommand_RaisesQuoteEditRequestedWithTheLoadedDetail()
+    {
+        var quoteRepo = new InMemoryQuoteRepository();
+        var product = new Product("Producto Detalle", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var quote = CreateActiveQuoteWithItem("COT-EDIT-OK", product.Id);
+        quoteRepo.Store(quote);
+
+        var summaries = new List<QuoteSummary>
+        {
+            new QuoteSummary(quote.Id, "COT-EDIT-OK", "Cliente Detalle", null, null, 2_000m, QuoteStatus.Active, "2026-12-31")
+        };
+
+        QuoteHistoryViewModel vm = BuildHistoryVmWithProduct(summaries, quoteRepo, product);
+        await vm.LoadAsync(TestContext.Current.CancellationToken);
+
+        QuoteDetailResult? requested = null;
+        vm.QuoteEditRequested += (_, detail) => requested = detail;
+
+        QuoteSummaryRow row = Assert.Single(vm.Quotes);
+        vm.EditCommand.Execute(row);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(requested);
+        Assert.Equal(quote.Id, requested!.QuoteId);
+        Assert.Equal("COT-EDIT-OK", requested.QuoteNumber);
+        // The detail comes from the stored aggregate, not the summary — the quote starts as Draft.
+        Assert.Equal(QuoteStatus.Draft, requested.Status);
+        Assert.Single(requested.Items);
+        Assert.Equal("Producto Test", requested.Items[0].ProductName);
+    }
+
+    [Fact]
+    public async Task EditAsync_WhenDetailUseCaseIsUnavailable_SetsRecoverableMessage()
+    {
+        var vm = BuildHistoryVm();
+
+        await vm.EditAsync(new QuoteSummaryRow(Guid.NewGuid(), "COT-EDIT-NODETAIL", "Cliente", null, null, 10_000m, "$10.000", QuoteStatus.Active, "Activa", "2026-12-31"), TestContext.Current.CancellationToken);
+
+        Assert.Contains("no está disponible", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
     // --- Helpers ---
 
     private static Domain.Entities.Quote CreateActiveQuote(string quoteNumber)
@@ -689,6 +830,18 @@ public sealed class QuoteHistoryViewModelTests
         public IReadOnlySet<string> Permissions => new HashSet<string>(POS.Domain.Authorization.PermissionKeys.CashierDefaults);
         public bool HasPermission(string permissionKey) => Permissions.Contains(permissionKey);
         public bool IsAuthenticated => OperatorId != Guid.Empty;
+    }
+
+    private sealed class OperatorSessionWithoutQuotesEdit(Guid operatorId) : ICurrentOperatorSession
+    {
+        public Guid OperatorId { get; } = operatorId;
+        public string Username => "cashier";
+        public bool IsAuthenticated => OperatorId != Guid.Empty;
+
+        // Everything the cashier role grants except the quote correction — the negative control for I6.
+        public IReadOnlySet<string> Permissions => new HashSet<string>(
+            POS.Domain.Authorization.PermissionKeys.CashierDefaults
+                .Where(key => key != POS.Domain.Authorization.PermissionKeys.Quotes.Edit));
     }
 
     // --- RED: settlement plan forwarded on quote conversion ---

@@ -1,6 +1,7 @@
 using POS.Application.DTOs.Communication;
 using POS.Application.DTOs.Customers;
 using POS.Application.DTOs.Products;
+using POS.Application.DTOs.Quotes;
 using POS.Application.Interfaces;
 using POS.Application.UseCases.Communication;
 using POS.Application.UseCases.Customers;
@@ -293,22 +294,161 @@ public sealed class QuoteViewModelTests
         Assert.False(vm.ClearCartDiscountCommand.CanExecute(null));
     }
 
+    // --- Edit mode: the create form is reused as the edit form ---
+
+    [Fact]
+    public void LoadForEdit_HydratesEveryFieldAndEveryCartLine()
+    {
+        var productId = Guid.NewGuid();
+        var customerId = Guid.NewGuid();
+        var vm = CreateViewModel(out _, out _);
+
+        var detail = new QuoteDetailResult(
+            QuoteId: Guid.NewGuid(),
+            QuoteNumber: "COT-300",
+            CustomerId: customerId,
+            CustomerName: "Ana Gómez",
+            CustomerEmail: "ana@example.com",
+            CustomerPhone: "+57 300 000 0001",
+            Status: Domain.Enums.QuoteStatus.Active,
+            ExpiresAt: "2026-12-31",
+            Total: 9_000m,
+            Items:
+            [
+                new QuoteDetailItemResult(productId, "Producto Caja", 2m, 5_000m, 10m, 9_000m, "Caja", 6)
+            ],
+            Observations: "Entregar en la mañana",
+            ValidityDays: 45);
+
+        vm.LoadForEdit(detail);
+
+        Assert.True(vm.IsEditing);
+        Assert.Equal("COT-300", vm.EditedQuoteNumber);
+        Assert.Equal("Guardar cambios", vm.ConfirmButtonLabel);
+        Assert.Equal("Ana Gómez", vm.CustomerName);
+        Assert.Equal("+57 300 000 0001", vm.CustomerPhone);
+        Assert.Equal("ana@example.com", vm.CustomerEmail);
+        Assert.Equal(customerId, vm.SelectedCustomerId);
+        Assert.Equal(45, vm.ValidityDays);
+        Assert.Equal("Entregar en la mañana", vm.Observations);
+
+        QuoteCartItemViewModel line = Assert.Single(vm.CartItems);
+        Assert.Equal(productId, line.ProductId);
+        Assert.Equal("Producto Caja", line.ProductName);
+        Assert.Equal(5_000m, line.UnitPrice);
+        Assert.Equal(2m, line.Quantity);
+        Assert.Equal(10m, line.Discount);
+        Assert.Equal("Caja", line.PresentationName);
+        Assert.Equal(6, line.UnitsPerPresentation);
+        Assert.Equal(9_000m, line.Subtotal);
+        Assert.Equal(9_000m, vm.Total);
+    }
+
+    [Fact]
+    public void CancelEdit_AfterHydrating_ReturnsToCreateModeAndDropsTheEditForm()
+    {
+        var vm = CreateViewModel(out _, out _);
+
+        vm.LoadForEdit(new QuoteDetailResult(
+            Guid.NewGuid(), "COT-301", null, "Ana Gómez", null, null,
+            Domain.Enums.QuoteStatus.Active, "2026-12-31", 1_000m,
+            [new QuoteDetailItemResult(Guid.NewGuid(), "Producto", 1m, 1_000m, 0m, 1_000m)],
+            null, 30));
+        Assert.Single(vm.CartItems);
+
+        vm.CancelEdit();
+
+        Assert.False(vm.IsEditing);
+        Assert.Equal(string.Empty, vm.EditedQuoteNumber);
+        Assert.Equal("Confirmar cotización", vm.ConfirmButtonLabel);
+        Assert.Empty(vm.CartItems);
+    }
+
+    [Fact]
+    public async Task Confirm_InEditMode_UpdatesTheSameQuoteAndNeverCreatesASecondOne()
+    {
+        var product = new Product("Producto Caja", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var vm = CreateViewModel(out InMemoryQuoteRepository quoteRepo, out _, product, withUpdate: true);
+
+        var stored = new Domain.Entities.Quote("COT-302", "Nombre Viejo", 30);
+        stored.AddItem(new Domain.Entities.QuoteItem(product.Id, "Producto Caja", new Money(2_000m), new Quantity(1m), 0m));
+        await quoteRepo.AddAsync(stored, TestContext.Current.CancellationToken);
+
+        vm.LoadForEdit(new QuoteDetailResult(
+            stored.Id, stored.QuoteNumber, null, "Nombre Viejo", null, null,
+            Domain.Enums.QuoteStatus.Draft, "2026-12-31", 2_000m,
+            [new QuoteDetailItemResult(product.Id, "Producto Caja", 1m, 2_000m, 0m, 2_000m)],
+            null, 30));
+
+        vm.CustomerName = "Nombre Corregido";
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, quoteRepo.AddCount);
+        Assert.Equal(1, quoteRepo.UpdateCount);
+        Domain.Entities.Quote quote = Assert.Single(quoteRepo.Quotes);
+        Assert.Equal(stored.Id, quote.Id);
+        Assert.Equal("COT-302", quote.QuoteNumber);
+        Assert.Equal("Nombre Corregido", quote.CustomerName);
+        Assert.Equal(stored.CreatedAt, quote.CreatedAt);
+        Assert.Contains("actualizada correctamente", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("COT-302", vm.LastQuoteNumber);
+
+        // Back in create mode, and the corrected quote stays visible.
+        Assert.False(vm.IsEditing);
+        Assert.Equal(string.Empty, vm.EditedQuoteNumber);
+        Assert.Equal("Confirmar cotización", vm.ConfirmButtonLabel);
+    }
+
+    [Fact]
+    public async Task Confirm_InEditMode_WhenUpdateUseCaseIsMissing_SetsRecoverableMessageAndKeepsTheForm()
+    {
+        var vm = CreateViewModel(out _, out _);
+        vm.LoadForEdit(new QuoteDetailResult(
+            Guid.NewGuid(), "COT-303", null, "Ana Gómez", null, null,
+            Domain.Enums.QuoteStatus.Active, "2026-12-31", 1_000m,
+            [new QuoteDetailItemResult(Guid.NewGuid(), "Producto", 1m, 1_000m, 0m, 1_000m)],
+            null, 30));
+
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains("no está disponible", vm.ValidationMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.True(vm.IsEditing);
+        Assert.Single(vm.CartItems);
+    }
+
+    [Fact]
+    public async Task Confirm_InCreateMode_StillCreatesInsteadOfUpdating()
+    {
+        var product = new Product("Producto Test", Guid.NewGuid(), new Money(1_000m), new Money(2_000m), new StockQuantity(50m), new StockQuantity(5m));
+        var vm = CreateViewModel(out InMemoryQuoteRepository quoteRepo, out _, product, withUpdate: true);
+
+        vm.CustomerName = "Ana Gómez";
+        AddCartItem(vm, product.Id, product.Name, 2_000m);
+
+        await vm.ConfirmAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, quoteRepo.AddCount);
+        Assert.Equal(0, quoteRepo.UpdateCount);
+        Assert.NotEmpty(vm.LastQuoteNumber);
+    }
+
     private static void AddCartItem(QuoteViewModel vm, Guid productId, string name, decimal unitPrice)
         => vm.CartItems.Add(new QuoteCartItemViewModel(productId, name, unitPrice));
 
-    private static QuoteViewModel CreateViewModel(out InMemoryQuoteRepository quoteRepo, out InMemoryUnitOfWork unitOfWork, Product? product = null)
+    private static QuoteViewModel CreateViewModel(out InMemoryQuoteRepository quoteRepo, out InMemoryUnitOfWork unitOfWork, Product? product = null, bool withUpdate = false)
     {
         quoteRepo = new InMemoryQuoteRepository();
         unitOfWork = new InMemoryUnitOfWork();
         var productRepo = new StaticProductRepository(product);
         var createQuote = new CreateQuoteUseCase(quoteRepo, productRepo, unitOfWork);
+        var updateQuote = withUpdate ? new UpdateQuoteUseCase(quoteRepo, productRepo, unitOfWork) : null;
         var sendDocument = new SendDocumentUseCase(
             new FakePdfService(),
             new FakeEmailService(),
             new FakeWhatsAppService(),
             new InMemoryDocumentSendLogRepository(),
             unitOfWork);
-        return new QuoteViewModel(new EmptyProductLookupService(), createQuote, sendDocument);
+        return new QuoteViewModel(new EmptyProductLookupService(), createQuote, sendDocument, updateQuoteUseCase: updateQuote);
     }
 
     private sealed class EmptyProductLookupService : IProductLookupService
@@ -335,6 +475,11 @@ public sealed class QuoteViewModelTests
     {
         private readonly Dictionary<Guid, Domain.Entities.Quote> _store = new();
 
+        /// <summary>Adds and updates are counted apart so a test can prove which use case actually ran.</summary>
+        public int AddCount { get; private set; }
+
+        public int UpdateCount { get; private set; }
+
         public Task<Domain.Entities.Quote?> GetByIdAsync(Guid id, CancellationToken ct = default)
             => Task.FromResult(_store.TryGetValue(id, out var q) ? q : null);
 
@@ -343,12 +488,14 @@ public sealed class QuoteViewModelTests
 
         public Task AddAsync(Domain.Entities.Quote quote, CancellationToken ct = default)
         {
+            AddCount++;
             _store[quote.Id] = quote;
             return Task.CompletedTask;
         }
 
         public Task UpdateAsync(Domain.Entities.Quote quote, CancellationToken ct = default)
         {
+            UpdateCount++;
             _store[quote.Id] = quote;
             return Task.CompletedTask;
         }
