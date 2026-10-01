@@ -206,15 +206,19 @@ public sealed class QuoteHistoryViewModelTests
         var vm = BuildHistoryVmWithProduct(summaries: summaries, quoteRepo: quoteRepo, product: product);
         await vm.LoadAsync(TestContext.Current.CancellationToken);
 
-        QuoteDetailResult? received = null;
-        vm.QuoteDetailRequested += (_, detail) => received = detail;
+        // Fire-and-forget continuation: wait on the event, not on a fixed sleep that only happens to
+        // be long enough on an idle runner. The timeout is a backstop against a hang.
+        var detailRequested = new TaskCompletionSource<QuoteDetailResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.QuoteDetailRequested += (_, detail) => detailRequested.TrySetResult(detail);
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
         vm.ViewDetailCommand.Execute(row);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
 
-        Assert.NotNull(received);
-        Assert.Equal("COT-013", received!.QuoteNumber);
+        QuoteDetailResult received = await detailRequested.Task.WaitAsync(
+            TimeSpan.FromSeconds(10),
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal("COT-013", received.QuoteNumber);
         Assert.Single(received.Items);
         Assert.Equal("Producto Test", received.Items[0].ProductName);
     }
@@ -532,8 +536,10 @@ public sealed class QuoteHistoryViewModelTests
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
         vm.EditCommand.Execute(row);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
 
+        // No wait needed, and none taken: the permission gate is synchronous inside RequestQuoteEdit, so
+        // the message is already set once Execute returns. The fire-and-forget continuation is only
+        // reached past that gate, which is precisely what this test proves it is not.
         Assert.Null(requested);
         Assert.Contains("permiso", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
@@ -560,8 +566,8 @@ public sealed class QuoteHistoryViewModelTests
         Assert.False(row.CanEdit);
 
         vm.EditCommand.Execute(row);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
 
+        // Synchronous gate again — see the permission test above. The message is set before Execute returns.
         Assert.Null(requested);
         Assert.Contains("no se puede editar", vm.StatusMessage, StringComparison.OrdinalIgnoreCase);
     }
@@ -582,15 +588,21 @@ public sealed class QuoteHistoryViewModelTests
         QuoteHistoryViewModel vm = BuildHistoryVmWithProduct(summaries, quoteRepo, product);
         await vm.LoadAsync(TestContext.Current.CancellationToken);
 
-        QuoteDetailResult? requested = null;
-        vm.QuoteEditRequested += (_, detail) => requested = detail;
+        // The detail load is a fire-and-forget continuation (ViewModelBase.RunSafe → ObserveTaskAsync),
+        // so this waits on the event itself rather than on a fixed sleep that only passes on a runner
+        // that happens to be idle. The timeout is a backstop against a hang, not the mechanism.
+        var editRequested = new TaskCompletionSource<QuoteDetailResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        vm.QuoteEditRequested += (_, detail) => editRequested.TrySetResult(detail);
 
         QuoteSummaryRow row = Assert.Single(vm.Quotes);
         vm.EditCommand.Execute(row);
-        await Task.Delay(50, TestContext.Current.CancellationToken);
+
+        QuoteDetailResult requested = await editRequested.Task.WaitAsync(
+            TimeSpan.FromSeconds(10),
+            TestContext.Current.CancellationToken);
 
         Assert.NotNull(requested);
-        Assert.Equal(quote.Id, requested!.QuoteId);
+        Assert.Equal(quote.Id, requested.QuoteId);
         Assert.Equal("COT-EDIT-OK", requested.QuoteNumber);
         // The detail comes from the stored aggregate, not the summary — the quote starts as Draft.
         Assert.Equal(QuoteStatus.Draft, requested.Status);
